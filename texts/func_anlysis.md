@@ -66,6 +66,9 @@ Sobel
 Laplacian
 Unsharp Mask
 
+# 阈值分割:
+
+设定一个阈值, 高于阈值-> 黑, 低于阈值->白
 
 # 形态学开运算
 
