@@ -1,0 +1,58 @@
+# =============================================================================
+#  .gitattributes —— 强制换行符约定，防止跨平台踩坑
+# =============================================================================
+#  背景：Git Bash 里若 .sh 是 CRLF，会报 "$'\r': command not found"
+#        Vivado 对 Tcl 的 CRLF 也比较敏感
+#  本文件保证 clone 下来换行符就是对的，不依赖 core.autocrlf 设置
+# =============================================================================
+
+# 默认：文本文件统一 LF
+* text=auto eol=lf
+
+# ---- 必须是 LF 的（Git/Vivado 工具链）----
+*.sh    text eol=lf
+*.bash  text eol=lf
+*.tcl   text eol=lf
+*.xdc   text eol=lf
+*.xci   text eol=lf
+*.sv    text eol=lf
+*.svh   text eol=lf
+*.v     text eol=lf
+*.vh    text eol=lf
+*.md    text eol=lf
+*.csv   text eol=lf
+*.json  text eol=lf
+*.xml   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+Makefile text eol=lf
+
+# ---- 必须是 CRLF 的（Windows 批处理）----
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# ---- 二进制，别碰 ----
+*.pdf   binary
+*.docx  binary
+*.xlsx  binary
+*.zip   binary
+*.7z    binary
+*.rar   binary
+*.exe   binary
+*.dll   binary
+*.sys   binary
+*.cat   binary
+*.LIB   binary
+*.bit   binary
+*.bin   binary
+*.xsa   binary
+*.dcp   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+
+# ---- 语言统计时排除生成物 ----
+build/**  linguist-generated=true
+docs/reference/** linguist-documentation=true

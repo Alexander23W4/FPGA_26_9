@@ -1,0 +1,87 @@
+# =============================================================================
+#  FPGA_26_9  ——  .gitignore
+# =============================================================================
+#  原则：源码入库，生成物不入库。
+#        Vivado / Vitis 的工程目录动辄几百 MB、上千文件，
+#        全部放在 build/ 下并整体忽略；工程由 scripts/ 里的脚本重建。
+# =============================================================================
+
+# ============================ Vivado 生成物 ==================================
+# 这些目录可能出现在任何位置（不只在 build/ 下）
+.Xil/
+*.Xil/
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.sim/
+*.gen/
+*.jou
+*.log
+vivado*.jou
+vivado*.log
+webtalk*.jou
+webtalk*.log
+usage_statistics_webtalk.*
+*.str
+*.pb
+hw_export/
+
+# 位流与产物
+*.bit
+*.bin
+*.ltx
+*.xsa
+*.hdf
+*.dcp
+*.mcs
+*.prm
+*.rpt
+*.rpx
+
+# ============================ Vitis / SDK ====================================
+# Vitis 工作区是生成物，放在 build/vitis/ 下，整体忽略
+vitis_workspace/
+.metadata/
+RemoteSystemsTempFiles/
+IDE.log
+.analytics/
+*.elf
+*.objectlist
+_ide/
+.sdk/
+Debug/
+Release/
+
+# ============================ 仿真 ==========================================
+work/
+transcript
+vsim.wlf
+vsim.wlt
+*.vstf
+modelsim.ini
+xsim.dir/
+*.wdb
+*.vcd
+*.fst
+*.ghw
+
+# ============================ 构建输出 ======================================
+build/**
+!build/.gitkeep
+
+# ============================ 编辑器 / 系统 =================================
+.vscode/
+.idea/
+*.swp
+*~
+Thumbs.db
+desktop.ini
+~$*
+.DS_Store
+
+# ============================ Python =======================================
+__pycache__/
+*.pyc
+.venv/
+venv/

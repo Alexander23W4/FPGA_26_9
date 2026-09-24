@@ -1,3 +1,0 @@
-# Makefile
-NAME=Xlinix
-
