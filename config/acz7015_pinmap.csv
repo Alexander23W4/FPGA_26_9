@@ -1,0 +1,107 @@
+# ACZ7015 引脚总表  (器件: xc7z015clg485-2)
+# 来源: 小梅哥官方例程 XDC + 原理图核对
+# 格式: 信号名,引脚,IO标准,Bank,IO电压,所属外设,备注
+#
+# ⚠ Bank 电压由 MIO 表与原理图确定：
+#     Bank 13/34/35 = VCCIO_BANK1/0 域，本表按 LVCMOS33 标注
+#     PS 侧 MIO Bank0(MIO0-15)=3.3V，MIO Bank1(MIO16-53)=1.8V
+信号名,引脚,IO标准,所属外设,备注
+# ---------- 系统 ----------
+clk50M / clk,L5,LVCMOS33,系统时钟,板上 50MHz 有源晶振；所有官方例程一致
+reset_n,R4,LVCMOS33,复位按键,所有官方例程一致
+# ---------- LED（8位） ----------
+led[0],AB14,LVCMOS33,LED,官方 ch11 key_led
+led[1],AA14,LVCMOS33,LED,
+led[2],AA15,LVCMOS33,LED,
+led[3],AA12,LVCMOS33,LED,
+led[4],R17,LVCMOS33,LED,
+led[5],T17,LVCMOS33,LED,
+led[6],U19,LVCMOS33,LED,
+led[7],V19,LVCMOS33,LED,
+# ---------- 按键（4位） ----------
+key_in0,AB12,LVCMOS33,按键,官方 ch11 key_led
+key_in1,V11,LVCMOS33,按键,
+key_in2,W11,LVCMOS33,按键,
+key_in3,AA11,LVCMOS33,按键,
+# ---------- 蜂鸣器 ----------
+beep,R2,LVCMOS33,蜂鸣器,官方 ch19 pwm_gen
+# ---------- HDMI_2 (J7) 原生 TMDS ----------
+tmds_data_p[0],N6,TMDS_33,HDMI_2,差分对 P 端；N 端自动配对
+tmds_data_p[1],M8,TMDS_33,HDMI_2,
+tmds_data_p[2],K7,TMDS_33,HDMI_2,
+tmds_clk_p,T2,TMDS_33,HDMI_2,
+# ---------- TFT LCD (5寸 800x480) ----------
+TFT_rgb[0],J2,LVCMOS33,LCD,官方 ch31
+TFT_rgb[1],J1,LVCMOS33,LCD,
+TFT_rgb[2],L2,LVCMOS33,LCD,
+TFT_rgb[3],L1,LVCMOS33,LCD,
+TFT_rgb[4],M2,LVCMOS33,LCD,
+TFT_rgb[5],M3,LVCMOS33,LCD,
+TFT_rgb[6],J7,LVCMOS33,LCD,
+TFT_rgb[7],J6,LVCMOS33,LCD,
+TFT_rgb[8],R8,LVCMOS33,LCD,
+TFT_rgb[9],L4,LVCMOS33,LCD,
+TFT_rgb[10],H8,LVCMOS33,LCD,
+TFT_rgb[11],K4,LVCMOS33,LCD,
+TFT_rgb[12],K3,LVCMOS33,LCD,
+TFT_rgb[13],J5,LVCMOS33,LCD,
+TFT_rgb[14],K5,LVCMOS33,LCD,
+TFT_rgb[15],M4,LVCMOS33,LCD,
+TFT_clk,M1,LVCMOS33,LCD,
+TFT_de,P6,LVCMOS33,LCD,
+TFT_hs,N1,LVCMOS33,LCD,
+TFT_vs,P1,LVCMOS33,LCD,
+TFT_pwm,P5,LVCMOS33,LCD,背光
+# ---------- OV5640 摄像头 ----------
+Cam_Data[0],B4,LVCMOS33,摄像头,
+Cam_Data[1],E7,LVCMOS33,摄像头,
+Cam_Data[2],C6,LVCMOS33,摄像头,
+Cam_Data[3],C5,LVCMOS33,摄像头,
+Cam_Data[4],H4,LVCMOS33,摄像头,
+Cam_Data[5],G4,LVCMOS33,摄像头,
+Cam_Data[6],H3,LVCMOS33,摄像头,
+Cam_Data[7],F4,LVCMOS33,摄像头,
+Cam_PCLK,B3,LVCMOS33,摄像头,像素时钟输入
+Cam_Href,E2,LVCMOS33,摄像头,
+Cam_Vsync,D2,LVCMOS33,摄像头,
+XCLK,F7,LVCMOS33,摄像头,主时钟输出
+cam_scl_io,C3,LVCMOS33,摄像头,I2C，需上拉
+cam_sda_io,D3,LVCMOS33,摄像头,I2C，需上拉
+# ---------- 音频 WM8960 ----------
+MCLK,N3,LVCMOS33,音频,I2S
+BCLK,P3,LVCMOS33,音频,
+DACLRC,M6,LVCMOS33,音频,
+DACDAT,P2,LVCMOS33,音频,
+ADCLRC,L6,LVCMOS33,音频,
+ADCDAT,N4,LVCMOS33,音频,
+# ---------- PL 千兆以太网 RTL8211F-CG ----------
+RGMII_0_rxc,Y14,LVCMOS33,PL以太网,PHY 提供接收时钟
+RGMII_0_rx_ctl,Y15,LVCMOS33,PL以太网,
+RGMII_0_rd[0],W13,LVCMOS33,PL以太网,
+RGMII_0_rd[1],W12,LVCMOS33,PL以太网,
+RGMII_0_rd[2],Y13,LVCMOS33,PL以太网,
+RGMII_0_rd[3],Y12,LVCMOS33,PL以太网,
+RGMII_0_txc,U18,LVCMOS33,PL以太网,
+RGMII_0_tx_ctl,U17,LVCMOS33,PL以太网,
+RGMII_0_td[0],U16,LVCMOS33,PL以太网,
+RGMII_0_td[1],T16,LVCMOS33,PL以太网,
+RGMII_0_td[2],U14,LVCMOS33,PL以太网,
+RGMII_0_td[3],U13,LVCMOS33,PL以太网,
+MDIO_PHY_0_mdc,U11,LVCMOS33,PL以太网,
+MDIO_PHY_0_mdio_io,U12,LVCMOS33,PL以太网,
+# ---------- PL I2C ----------
+IIC1_scl_io,J3,LVCMOS33,PL I2C,需上拉
+IIC1_sda_io,K2,LVCMOS33,PL I2C,需上拉
+# ---------- PS 侧（不需要 XDC，由 PS7 配置决定） ----------
+PS_MIO1..6,-,LVCMOS33,PS QSPI,W25Q128JVSIQ 16MB
+PS_MIO7,-,LVCMOS33,PS LED0,同时是 Bank0 电压采样脚(MIO[7]=0→3.3V)
+PS_MIO8,-,LVCMOS33,PS GPIO,同时是 Bank1 电压采样脚(MIO[8]=1→1.8V)
+PS_MIO8..15,-,LVCMOS33,PS GPIO,扩展口
+PS_MIO16..27,-,LVCMOS18,PS ENET0,RTL8211F-CG RGMII
+PS_MIO28..39,-,LVCMOS18,PS USB0,USB3320 ULPI
+PS_MIO40..45,-,LVCMOS18,PS SD0 / eMMC,⚠ 两者不可同时使用
+PS_MIO46,-,LVCMOS18,HDMI_1 复位,
+PS_MIO47,-,LVCMOS18,PS 按键,
+PS_MIO48..49,-,LVCMOS18,PS UART1,接 CH9102F
+PS_MIO50..51,-,LVCMOS18,PS I2C0,经 PCA9306
+PS_MIO52..53,-,LVCMOS18,PS ENET0 MDIO,

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- =========================================================================
+     ACZ7015 (小梅哥 Zynq-7015 开发板) —— Vivado Board File : part0 引脚映射
+     =========================================================================
+     器件: xc7z015clg485-2
+     引脚来源: 小梅哥官方例程 XDC + 原理图核对
+     ========================================================================= -->
+<part_info part_name="xc7z015clg485-2">
+<pins>
+
+  <!-- ===== 系统时钟 ===================================================== -->
+  <pin index="0" name="sys_clk"                 iostandard="LVCMOS33" loc="L5"/>
+
+  <!-- ===== 8 位 LED ==================================================== -->
+  <pin index="1"  name="leds_8bits_tri_o_0"      iostandard="LVCMOS33" loc="AB14"/>
+  <pin index="2"  name="leds_8bits_tri_o_1"      iostandard="LVCMOS33" loc="AA14"/>
+  <pin index="3"  name="leds_8bits_tri_o_2"      iostandard="LVCMOS33" loc="AA15"/>
+  <pin index="4"  name="leds_8bits_tri_o_3"      iostandard="LVCMOS33" loc="AA12"/>
+  <pin index="5"  name="leds_8bits_tri_o_4"      iostandard="LVCMOS33" loc="R17"/>
+  <pin index="6"  name="leds_8bits_tri_o_5"      iostandard="LVCMOS33" loc="T17"/>
+  <pin index="7"  name="leds_8bits_tri_o_6"      iostandard="LVCMOS33" loc="U19"/>
+  <pin index="8"  name="leds_8bits_tri_o_7"      iostandard="LVCMOS33" loc="V19"/>
+
+  <!-- ===== 4 位按键 ==================================================== -->
+  <pin index="9"  name="push_buttons_4bits_tri_i_0" iostandard="LVCMOS33" loc="AB12"/>
+  <pin index="10" name="push_buttons_4bits_tri_i_1" iostandard="LVCMOS33" loc="V11"/>
+  <pin index="11" name="push_buttons_4bits_tri_i_2" iostandard="LVCMOS33" loc="W11"/>
+  <pin index="12" name="push_buttons_4bits_tri_i_3" iostandard="LVCMOS33" loc="AA11"/>
+
+  <!-- ===== PL 侧 I2C (HDMI-1/SIL9022A、TFT 触摸、摄像头) ================ -->
+  <pin index="13" name="iic_main_scl_io"         iostandard="LVCMOS33" loc="J3"/>
+  <pin index="14" name="iic_main_sda_io"         iostandard="LVCMOS33" loc="K2"/>
+
+  <!-- ===== HDMI_2 (J7) 原生 TMDS ======================================= -->
+  <pin index="20" name="hdmi_tx_data_p_0"        iostandard="TMDS_33"   loc="N6"/>
+  <pin index="21" name="hdmi_tx_data_p_1"        iostandard="TMDS_33"   loc="M8"/>
+  <pin index="22" name="hdmi_tx_data_p_2"        iostandard="TMDS_33"   loc="K7"/>
+  <pin index="23" name="hdmi_tx_clk_p"           iostandard="TMDS_33"   loc="T2"/>
+
+  <!-- ===== PL 侧千兆以太网 (RTL8211F-CG, RGMII) ======================== -->
+  <pin index="30" name="eth_rgmii_rxc"           iostandard="LVCMOS33" loc="Y14"/>
+  <pin index="31" name="eth_rgmii_rx_ctl"        iostandard="LVCMOS33" loc="Y15"/>
+  <pin index="32" name="eth_rgmii_rd_0"          iostandard="LVCMOS33" loc="W13"/>
+  <pin index="33" name="eth_rgmii_rd_1"          iostandard="LVCMOS33" loc="W12"/>
+  <pin index="34" name="eth_rgmii_rd_2"          iostandard="LVCMOS33" loc="Y13"/>
+  <pin index="35" name="eth_rgmii_rd_3"          iostandard="LVCMOS33" loc="Y12"/>
+  <pin index="36" name="eth_rgmii_txc"           iostandard="LVCMOS33" loc="U18"/>
+  <pin index="37" name="eth_rgmii_tx_ctl"        iostandard="LVCMOS33" loc="U17"/>
+  <pin index="38" name="eth_rgmii_td_0"          iostandard="LVCMOS33" loc="U16"/>
+  <pin index="39" name="eth_rgmii_td_1"          iostandard="LVCMOS33" loc="T16"/>
+  <pin index="40" name="eth_rgmii_td_2"          iostandard="LVCMOS33" loc="U14"/>
+  <pin index="41" name="eth_rgmii_td_3"          iostandard="LVCMOS33" loc="U13"/>
+  <pin index="42" name="eth_mdc"                 iostandard="LVCMOS33" loc="U11"/>
+  <pin index="43" name="eth_mdio"                iostandard="LVCMOS33" loc="U12"/>
+
+  <!-- ===== TFT LCD (5寸 800x480) ======================================= -->
+  <pin index="50" name="lcd_data_0"              iostandard="LVCMOS33" loc="J2"/>
+  <pin index="51" name="lcd_data_1"              iostandard="LVCMOS33" loc="J1"/>
+  <pin index="52" name="lcd_data_2"              iostandard="LVCMOS33" loc="L2"/>
+  <pin index="53" name="lcd_data_3"              iostandard="LVCMOS33" loc="L1"/>
+  <pin index="54" name="lcd_data_4"              iostandard="LVCMOS33" loc="M2"/>
+  <pin index="55" name="lcd_data_5"              iostandard="LVCMOS33" loc="M3"/>
+  <pin index="56" name="lcd_data_6"              iostandard="LVCMOS33" loc="J7"/>
+  <pin index="57" name="lcd_data_7"              iostandard="LVCMOS33" loc="J6"/>
+  <pin index="58" name="lcd_data_8"              iostandard="LVCMOS33" loc="R8"/>
+  <pin index="59" name="lcd_data_9"              iostandard="LVCMOS33" loc="L4"/>
+  <pin index="60" name="lcd_data_10"             iostandard="LVCMOS33" loc="H8"/>
+  <pin index="61" name="lcd_data_11"             iostandard="LVCMOS33" loc="K4"/>
+  <pin index="62" name="lcd_data_12"             iostandard="LVCMOS33" loc="K3"/>
+  <pin index="63" name="lcd_data_13"             iostandard="LVCMOS33" loc="J5"/>
+  <pin index="64" name="lcd_data_14"             iostandard="LVCMOS33" loc="K5"/>
+  <pin index="65" name="lcd_data_15"             iostandard="LVCMOS33" loc="M4"/>
+  <pin index="66" name="lcd_pclk"                iostandard="LVCMOS33" loc="M1"/>
+  <pin index="67" name="lcd_de"                  iostandard="LVCMOS33" loc="P6"/>
+  <pin index="68" name="lcd_hsync"               iostandard="LVCMOS33" loc="N1"/>
+  <pin index="69" name="lcd_vsync"               iostandard="LVCMOS33" loc="P1"/>
+  <pin index="70" name="lcd_bl"                  iostandard="LVCMOS33" loc="P5"/>
+
+  <!-- ===== 蜂鸣器 ====================================================== -->
+  <pin index="80" name="beep"                    iostandard="LVCMOS33" loc="R2"/>
+
+</pins>
+</part_info>

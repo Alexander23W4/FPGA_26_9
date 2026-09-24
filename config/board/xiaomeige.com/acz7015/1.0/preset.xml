@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- =========================================================================
+     ACZ7015 Board Preset
+     =========================================================================
+     1) ps7_preset            : Zynq PS7 完整板级配置
+     2) acz7015_gpio_out_preset / gpio_in_preset : 板上 LED / 按键的 AXI GPIO 预设
+     =========================================================================
+     与 config/acz7015_ps7_preset.tcl 内容等价；Tcl 版本更灵活（支持开关），
+     XML 版本用于 Vivado 选板后自动套用。
+     ========================================================================= -->
+<ip_presets schema="1.0">
+
+  <!-- ================= Zynq PS7 板级预设 ================= -->
+  <ip_preset preset_proc_name="ps7_preset">
+    <ip vendor="xilinx.com" library="ip" name="processing_system7" version="*">
+      <user_parameters>
+
+        <!-- 时钟 -->
+        <user_parameter name="CONFIG.PCW_CRYSTAL_PERIPHERAL_FREQMHZ"  value="33.333333"/>
+        <user_parameter name="CONFIG.PCW_APU_PERIPHERAL_FREQMHZ"      value="666.666666"/>
+        <user_parameter name="CONFIG.PCW_APU_CLK_RATIO_ENABLE"        value="6:2:1"/>
+        <user_parameter name="CONFIG.PCW_CPU_PERIPHERAL_DIVISOR0"     value="2"/>
+        <user_parameter name="CONFIG.PCW_DDR_DDR_PLL_FREQMHZ"         value="1066.667"/>
+        <user_parameter name="CONFIG.PCW_DDRPLL_CTRL_FBDIV"           value="32"/>
+        <user_parameter name="CONFIG.PCW_DDR_PERIPHERAL_DIVISOR0"     value="2"/>
+        <user_parameter name="CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ"    value="50"/>
+        <user_parameter name="CONFIG.PCW_FPGA1_PERIPHERAL_FREQMHZ"    value="50"/>
+        <user_parameter name="CONFIG.PCW_FPGA2_PERIPHERAL_FREQMHZ"    value="50"/>
+        <user_parameter name="CONFIG.PCW_FPGA3_PERIPHERAL_FREQMHZ"    value="50"/>
+        <user_parameter name="CONFIG.PCW_FPGA_FCLK0_ENABLE"           value="1"/>
+        <user_parameter name="CONFIG.PCW_EN_CLK0_PORT"                value="1"/>
+
+        <!-- MIO Bank 电压（原理图：MIO[7]=0→Bank0=3.3V，MIO[8]=1→Bank1=1.8V） -->
+        <user_parameter name="CONFIG.PCW_PRESET_BANK0_VOLTAGE"        value="LVCMOS 3.3V"/>
+        <user_parameter name="CONFIG.PCW_PRESET_BANK1_VOLTAGE"        value="LVCMOS 1.8V"/>
+
+        <!-- DDR3：2 × 4Gb x16 DDR3L，32 位，1GB，1.35V，DDR3-1066 -->
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_ENABLE"                    value="1"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_PARTNO"                    value="MT41K256M16 RE-125"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_MEMORY_TYPE"               value="DDR 3"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_BUS_WIDTH"                 value="32 Bit"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_DRAM_WIDTH"                value="16 Bits"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_DEVICE_CAPACITY"           value="4096 MBits"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_FREQ_MHZ"                  value="533.333333"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_SPEED_BIN"                 value="DDR3_1066F"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_ROW_ADDR_COUNT"            value="15"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_COL_ADDR_COUNT"            value="10"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_BANK_ADDR_COUNT"           value="3"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_CL"                        value="7"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_CWL"                       value="6"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_BL"                        value="8"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_T_RCD"                     value="7"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_T_RP"                      value="7"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_T_RC"                      value="48.75"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_T_RAS_MIN"                 value="35.0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_T_FAW"                     value="40.0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_HIGH_TEMP"                 value="Normal (0-85)"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_ECC"                       value="Disabled"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_USE_INTERNAL_VREF"         value="0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_AL"                        value="0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_ADV_ENABLE"                value="0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_CLOCK_STOP_EN"             value="0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_TRAIN_DATA_EYE"            value="1"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_TRAIN_READ_GATE"           value="1"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_TRAIN_WRITE_LEVEL"         value="1"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_BOARD_DELAY0"              value="0.25"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_BOARD_DELAY1"              value="0.25"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_BOARD_DELAY2"              value="0.25"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_BOARD_DELAY3"              value="0.25"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_DQS_TO_CLK_DELAY_0"        value="0.0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_DQS_TO_CLK_DELAY_1"        value="0.0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_DQS_TO_CLK_DELAY_2"        value="0.0"/>
+        <user_parameter name="CONFIG.PCW_UIPARAM_DDR_DQS_TO_CLK_DELAY_3"        value="0.0"/>
+        <user_parameter name="CONFIG.PCW_DDR_RAM_HIGHADDR"                      value="0x3FFFFFFF"/>
+
+        <!-- QSPI Flash: W25Q128JVSIQ 16MB, MIO1-6, 单 CS, x4 -->
+        <user_parameter name="CONFIG.PCW_QSPI_PERIPHERAL_ENABLE"   value="1"/>
+        <user_parameter name="CONFIG.PCW_QSPI_QSPI_IO"             value="MIO 1 .. 6"/>
+        <user_parameter name="CONFIG.PCW_QSPI_GRP_SINGLE_SS_ENABLE" value="1"/>
+        <user_parameter name="CONFIG.PCW_QSPI_GRP_SINGLE_SS_IO"    value="MIO 1 .. 6"/>
+        <user_parameter name="CONFIG.PCW_QSPI_GRP_SS1_ENABLE"      value="0"/>
+        <user_parameter name="CONFIG.PCW_QSPI_GRP_FBCLK_ENABLE"    value="0"/>
+        <user_parameter name="CONFIG.PCW_SINGLE_QSPI_DATA_MODE"    value="x4"/>
+        <user_parameter name="CONFIG.PCW_QSPI_PERIPHERAL_FREQMHZ"  value="200"/>
+        <user_parameter name="CONFIG.PCW_EN_QSPI"                  value="1"/>
+
+        <!-- ENET0 千兆: RTL8211F-CG, RGMII on MIO16-27, MDIO on MIO52/53 -->
+        <user_parameter name="CONFIG.PCW_ENET0_PERIPHERAL_ENABLE"  value="1"/>
+        <user_parameter name="CONFIG.PCW_ENET0_ENET0_IO"           value="MIO 16 .. 27"/>
+        <user_parameter name="CONFIG.PCW_ENET0_GRP_MDIO_ENABLE"    value="1"/>
+        <user_parameter name="CONFIG.PCW_ENET0_GRP_MDIO_IO"        value="MIO 52 .. 53"/>
+        <user_parameter name="CONFIG.PCW_ENET0_PERIPHERAL_FREQMHZ" value="1000 Mbps"/>
+        <user_parameter name="CONFIG.PCW_ENET_RESET_ENABLE"        value="0"/>
+        <user_parameter name="CONFIG.PCW_EN_ENET0"                 value="1"/>
+
+        <!-- USB0: USB3320 ULPI, MIO28-39 -->
+        <user_parameter name="CONFIG.PCW_USB0_PERIPHERAL_ENABLE"   value="1"/>
+        <user_parameter name="CONFIG.PCW_USB0_USB0_IO"             value="MIO 28 .. 39"/>
+        <user_parameter name="CONFIG.PCW_USB_RESET_ENABLE"         value="0"/>
+        <user_parameter name="CONFIG.PCW_EN_USB0"                  value="1"/>
+
+        <!-- SD0 / eMMC: MIO40-45, 4bit（SD 卡与 eMMC 二选一） -->
+        <user_parameter name="CONFIG.PCW_SD0_PERIPHERAL_ENABLE"    value="1"/>
+        <user_parameter name="CONFIG.PCW_SD0_SD0_IO"               value="MIO 40 .. 45"/>
+        <user_parameter name="CONFIG.PCW_SD0_GRP_CD_ENABLE"        value="0"/>
+        <user_parameter name="CONFIG.PCW_SD0_GRP_WP_ENABLE"        value="0"/>
+        <user_parameter name="CONFIG.PCW_SD0_GRP_POW_ENABLE"       value="0"/>
+        <user_parameter name="CONFIG.PCW_SDIO_PERIPHERAL_FREQMHZ"  value="100"/>
+        <user_parameter name="CONFIG.PCW_SDIO_PERIPHERAL_VALID"    value="1"/>
+        <user_parameter name="CONFIG.PCW_EN_SDIO0"                 value="1"/>
+
+        <!-- UART1: CH9102F (USB 转串口), MIO48/49 @1.8V -->
+        <user_parameter name="CONFIG.PCW_UART1_PERIPHERAL_ENABLE"  value="1"/>
+        <user_parameter name="CONFIG.PCW_UART1_UART1_IO"           value="MIO 48 .. 49"/>
+        <user_parameter name="CONFIG.PCW_UART1_GRP_FULL_ENABLE"    value="0"/>
+        <user_parameter name="CONFIG.PCW_UART_PERIPHERAL_FREQMHZ"  value="100"/>
+        <user_parameter name="CONFIG.PCW_UART_PERIPHERAL_VALID"    value="1"/>
+        <user_parameter name="CONFIG.PCW_EN_UART1"                 value="1"/>
+
+        <!-- I2C0: MIO50/51 经 PCA9306 电平转换 -->
+        <user_parameter name="CONFIG.PCW_I2C0_PERIPHERAL_ENABLE"   value="1"/>
+        <user_parameter name="CONFIG.PCW_I2C0_I2C0_IO"             value="MIO 50 .. 51"/>
+        <user_parameter name="CONFIG.PCW_I2C_RESET_ENABLE"         value="0"/>
+        <user_parameter name="CONFIG.PCW_EN_I2C0"                  value="1"/>
+
+        <!-- GPIO -->
+        <user_parameter name="CONFIG.PCW_GPIO_MIO_GPIO_ENABLE"     value="1"/>
+        <user_parameter name="CONFIG.PCW_GPIO_MIO_GPIO_IO"         value="MIO"/>
+        <user_parameter name="CONFIG.PCW_GPIO_EMIO_GPIO_ENABLE"    value="1"/>
+        <user_parameter name="CONFIG.PCW_GPIO_EMIO_GPIO_WIDTH"     value="2"/>
+        <user_parameter name="CONFIG.PCW_EN_GPIO"                  value="1"/>
+
+      </user_parameters>
+    </ip>
+  </ip_preset>
+
+  <!-- ================= 板上 LED 的 AXI GPIO 预设 ================= -->
+  <ip_preset preset_proc_name="acz7015_gpio_out_preset">
+    <ip vendor="xilinx.com" library="ip" name="axi_gpio" ip_interface="GPIO">
+      <user_parameters>
+        <user_parameter name="CONFIG.C_GPIO_WIDTH"   value="8"/>
+        <user_parameter name="CONFIG.C_ALL_OUTPUTS"  value="1"/>
+        <user_parameter name="CONFIG.C_ALL_INPUTS"   value="0"/>
+        <user_parameter name="CONFIG.C_IS_DUAL"      value="0"/>
+      </user_parameters>
+    </ip>
+  </ip_preset>
+
+  <!-- ================= 板上按键的 AXI GPIO 预设 ================= -->
+  <ip_preset preset_proc_name="acz7015_gpio_in_preset">
+    <ip vendor="xilinx.com" library="ip" name="axi_gpio" ip_interface="GPIO">
+      <user_parameters>
+        <user_parameter name="CONFIG.C_GPIO_WIDTH"   value="4"/>
+        <user_parameter name="CONFIG.C_ALL_INPUTS"   value="1"/>
+        <user_parameter name="CONFIG.C_ALL_OUTPUTS"  value="0"/>
+        <user_parameter name="CONFIG.C_IS_DUAL"      value="0"/>
+      </user_parameters>
+    </ip>
+  </ip_preset>
+
+</ip_presets>

@@ -1,0 +1,52 @@
+ECHO is off.
+ECHO is off.
+
+****** Vivado v2023.2 (64-bit)
+  **** SW Build 4029153 on Fri Oct 13 20:14:34 MDT 2023
+  **** IP Build 4028589 on Sat Oct 14 00:45:43 MDT 2023
+  **** SharedData Build 4025554 on Tue Oct 10 17:18:54 MDT 2023
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+
+CRITICAL WARNING: [Common 17-741] No write access right to the local Tcl store at 'C'. XilinxTclStore is reverted to the installation area. If you want to use local Tcl Store, please change the access right and relaunch Vivado.
+source {C:\Users\HUAWEI\Desktop\FPGA_26_9\_others\_env\_validate_board.tcl}
+# set repo "C:/Users/HUAWEI/Desktop/FPGA_26_9"
+# set out  "$repo/_others/_env/_tmp"
+# file mkdir $out
+# cd $out
+# puts "=== A. 注册板卡�? ==="
+=== A. 注册板卡�? ===
+# source "$repo/tools/register_board.tcl"
+## set _acz_script_dir  [file normalize [file dirname [info script]]]
+## set _acz_repo_root   [file normalize [file join $_acz_script_dir ..]]
+## set _acz_board_repo  [file normalize [file join $_acz_repo_root config board]]
+## if {![file isdirectory $_acz_board_repo]} {
+##     error "找不到板卡库�?�?: $_acz_board_repo"
+## }
+## set _acz_paths [list $_acz_board_repo]
+## if {[catch {set_param board.repoPaths} _acz_old] == 0 && $_acz_old ne ""} {
+##     foreach _p $_acz_old {
+##         if {$_p ne "" && [lsearch $_acz_paths $_p] < 0} { lappend _acz_paths $_p }
+##     }
+## }
+## set_param board.repoPaths $_acz_paths
+## puts "\[ACZ7015\] 板卡库已注册:"
+[ACZ7015] 板卡库已注册:
+## foreach _p $_acz_paths { puts "           $_p" }
+           C:/Users/HUAWEI/Desktop/FPGA_26_9/config/board
+## set _acz_found [get_board_parts -quiet *acz7015*]
+## if {$_acz_found eq ""} {
+##     puts "\[ACZ7015\] �? 没有找到 acz7015 板卡，�?��?��? $_acz_board_repo\\acz7015\\1.0\\board.xml"
+## } else {
+##     puts "\[ACZ7015\] 找到板卡: $_acz_found"
+## }
+[ACZ7015] �? 没有找到 acz7015 板卡，�?��?��? C:/Users/HUAWEI/Desktop/FPGA_26_9/config/board\acz7015\1.0\board.xml
+# puts "=== B. 查�?�板�? ==="
+=== B. 查�?�板�? ===
+# set brds [get_board_parts -quiet *acz7015*]
+# puts "FOUND_BOARDS=$brds"
+FOUND_BOARDS=
+# if {$brds eq ""} { puts "!!!NO_BOARD!!!"; exit 1 }
+!!!NO_BOARD!!!
+INFO: [Common 17-206] Exiting Vivado at Thu Sep 24 11:18:21 2026...
+EXITCODE=1 
