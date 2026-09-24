@@ -113,8 +113,8 @@ FPGA_26_9/
 │   │   └── preset.xml
 │   └── drivers/                     CH343/CH9102F 驱动
 │
-├── sw/                         ← PS 端软件
-│   ├── baremetal/  linux/  include/
+├── csrc/                       ← Vitis 工作区（你的 C 源码）
+│   └── <组件名>/src/                平台名 / 应用名目录由 scripts 自动生成
 │
 ├── scripts/                    ← 构建与自动化（详见 scripts/README.md）
 │   ├── build.sh                     唯一入口 ★

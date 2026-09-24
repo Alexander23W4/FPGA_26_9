@@ -39,10 +39,8 @@ SD 卡 SPI 输入 -> 8-bit 灰度归一化 -> 640x480 视频时序 -> TMDS 编�
 │                     board_files/     Vivado Board File
 │                     drivers/         板载串口驱动
 │
-├── sw/                          PS 端软件
-│   ├── baremetal/               裸机
-│   ├── linux/                   Linux 应用
-│   └── include/                 公共头文件
+├── csrc/                        Vitis 工作区（你的 C 源码）
+│   └── <组件名>/src/           由 scripts 自动生成，源码入库            ★
 │
 ├── scripts/                     构建与自动化（详见 scripts/README.md）
 │   ├── build.sh                 唯一入口 ★

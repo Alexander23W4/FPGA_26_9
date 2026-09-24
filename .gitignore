@@ -39,8 +39,22 @@ hw_export/
 *.rpt
 *.rpx
 
-# ============================ Vitis / SDK ====================================
-# Vitis 工作区是生成物，放在 build/vitis/ 下，整体忽略
+# ============================ Vitis 工作区 ==================================
+# ★ csrc/ 就是 Vitis 工作区（不是 build/）。csrc/<组件名>/ 由 scripts 自动生成：
+#     csrc/<平台名>/     平台 + BSP + FSBL   —— 生成物，忽略
+#     csrc/<应用名>/src/ 你的 C 源码          —— 入库
+#   只入库组件的描述文件和 src/ 下的源码，其余全部忽略。
+csrc/**
+!csrc/.gitkeep
+!csrc/*/
+!csrc/*/src/
+!csrc/*/src/**
+!csrc/*/vitis-comp.json
+# src/ 里 Vitis 生成的辅助文件
+csrc/*/src/.compile_commands
+csrc/*/src/.clangd/
+
+# 旧位置的 Vitis 工作区（如还残留）
 vitis_workspace/
 .metadata/
 RemoteSystemsTempFiles/

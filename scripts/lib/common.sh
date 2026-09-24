@@ -13,7 +13,11 @@ REPO_ROOT="$(cd "${SCRIPTS_DIR}/.." && pwd)"
 
 BUILD_DIR="${REPO_ROOT}/build"
 VIVADO_PROJ_DIR="${BUILD_DIR}/vivado"
-VITIS_WS_DIR="${BUILD_DIR}/vitis"
+# ★ Vitis 工作区放在 csrc/，不放在 build/。
+#   理由：应用组件的 src/ 就是【你的 C 源码】，必须能被 git 跟踪，
+#         而且不能被 scripts/build.sh clean 删掉。
+#   csrc/<组件名>/ 由脚本自动建（平台名 / 应用名）。
+VITIS_WS_DIR="${REPO_ROOT}/csrc"
 OUT_DIR="${BUILD_DIR}/out"
 
 # ---------------------------- 工具链路径 -------------------------------------
@@ -42,6 +46,7 @@ fi
 info() { printf '%s[INFO]%s %s\n' "$C_CYN" "$C_RST" "$*"; }
 ok()   { printf '%s[ OK ]%s %s\n' "$C_GRN" "$C_RST" "$*"; }
 warn() { printf '%s[WARN]%s %s\n' "$C_YLW" "$C_RST" "$*"; }
+err()  { printf '%s[ERR ]%s %s\n' "$C_RED" "$C_RST" "$*" >&2; }
 die()  { printf '%s[FAIL]%s %s\n' "$C_RED" "$C_RST" "$*" >&2; exit 1; }
 hr()   { printf '%s%s%s\n' "$C_DIM" "============================================================" "$C_RST"; }
 
