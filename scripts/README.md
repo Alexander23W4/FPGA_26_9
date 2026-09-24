@@ -20,8 +20,8 @@ scripts/
 │   ├── run_sim.tcl               xsim 仿真
 │   ├── export_project.tcl        把 GUI 改动导回 Tcl
 │   └── register_board.tcl        注册 ACZ7015 板卡库
-└── xsct/                 执行层：在 xsct 内跑（PS 端）
-    └── build_app.tcl             .xsa → platform → application → .elf
+└── vitis/                执行层：在 Vitis Unified 内跑（PS 端，Python）
+    └── build_ps.py              .xsa → platform + application → .elf
 ```
 
 ---

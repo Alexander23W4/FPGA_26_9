@@ -43,7 +43,7 @@
 | Vitis | 2023.2 @ `E:\Xilinx\Vitis\2023.2` |
 | Vitis HLS | 2023.2 @ `E:\Xilinx\Vitis_HLS\2023.2` |
 | ARM GCC | `arm-xilinx-eabi-gcc` 12.2.0 |
-| **PS 端 IDE** | **Vitis Classic 2023.2**（不要用 Unified IDE，Zynq-7000 FSBL 有坑） |
+| **PS 端 IDE** | **Vitis Unified IDE 2023.2**（Classic 未随 embedded 版安装，快捷方式是残留） |
 | 器件 | `xc7z015clg485-2` |
 
 ### 板卡
@@ -121,7 +121,7 @@ FPGA_26_9/
 │   ├── env_check.sh                 环境自检
 │   ├── lib/common.sh                公共函数
 │   ├── tcl/                         Vivado 执行层
-│   └── xsct/                        PS 端执行层
+│   └── vitis/                       PS 端执行层（Python 脚本）
 │
 ├── docs/                       ← 文档（详见 docs/README.md）
 │   ├── design/                      项目设计文档

@@ -60,13 +60,15 @@ run_vivado() {
   "$VIVADO_BIN" -mode batch -nolog -nojournal -source "$wsrc" -tclargs "$@"
 }
 
-# ------------------------------- 调用 xsct ----------------------------------
-# 用法: run_xsct <tcl脚本> [args...]
-run_xsct() {
+# ------------------------------ 调用 Vitis ----------------------------------
+# Unified IDE 的脚本接口是 `vitis -s <python>`（不是 xsct）
+# 用法: run_vitis <python脚本> [args...]
+run_vitis() {
   local src="$1"; shift || true
-  [ -f "$XSCT_BIN" ] || die "找不到 xsct: $XSCT_BIN"
-  info "xsct <- $(basename "$src") ${*:+(args: $*)}"
-  "$XSCT_BIN" "$src" "$@"
+  [ -f "$VITIS_BIN" ] || die "找不到 Vitis: $VITIS_BIN"
+  local wsrc; wsrc="$(winpath "$src")"
+  info "vitis -s $(basename "$src") ${*:+(args: $*)}"
+  "$VITIS_BIN" -s "$wsrc" "$@"
 }
 
 # ------------------------------- 版本信息 -----------------------------------

@@ -47,7 +47,7 @@ SD 卡 SPI 输入 -> 8-bit 灰度归一化 -> 640x480 视频时序 -> TMDS 编�
 ├── scripts/                     构建与自动化（详见 scripts/README.md）
 │   ├── build.sh                 唯一入口 ★
 │   ├── env_check.sh             环境自检
-│   └── tcl/  xsct/              执行层
+│   └── tcl/  vitis/             执行层
 │
 ├── docs/                        文档（详见 docs/README.md）
 │   ├── design/                  项目设计文档

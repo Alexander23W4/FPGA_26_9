@@ -7,7 +7,7 @@
 #      check     Environment self-check
 #      pl        Pure PL flow: create project -> synth -> impl -> bitstream
 #      zynq      Zynq flow: create project(+BD) -> bitstream -> export .xsa
-#      app       PS app: .xsa -> platform -> application -> .elf   (via xsct)
+#      app       PS app: .xsa -> platform -> application -> .elf   (via Vitis Unified)
 #      all       zynq + app
 #      sim       Run simulation
 #      export    Export GUI-made project changes back to Tcl
@@ -42,7 +42,7 @@ Commands:
   check                 Environment self-check
   pl                    Pure PL:    create project -> synth -> impl -> bitstream
   zynq                  Zynq:       create project(+BD) -> bitstream -> .xsa
-  app                   PS app:     .xsa -> platform -> application -> .elf (xsct)
+  app                   PS app:     .xsa -> platform -> application -> .elf (Vitis Unified)
   all                   zynq + app
   sim                   Run simulation
   export                Export GUI-made project changes back to Tcl
@@ -158,11 +158,11 @@ do_zynq() {
 }
 
 # =============================================================================
-#  app —— PS 端应用（xsct）
+#  app —— PS 端应用（Vitis Unified，vitis -s）
 # =============================================================================
 do_app() {
   [ -n "$NAME" ] || die "Missing -n <application name>"
-  [ -f "$XSCT_BIN" ] || die "xsct not found: $XSCT_BIN"
+  [ -f "$VITIS_BIN" ] || die "Vitis not found: $VITIS_BIN"
 
   # 找最新的 .xsa
   local xsa
@@ -173,10 +173,10 @@ do_app() {
   info "Using hardware platform: ${xsa#${REPO_ROOT}/}"
 
   mkdir -p "${VITIS_WS_DIR}"
-  run_xsct "${SCRIPTS_DIR}/xsct/build_app.tcl" \
+  run_vitis "${SCRIPTS_DIR}/vitis/build_ps.py" \
       "$NAME" "$(winpath "$xsa")" "$(winpath "${VITIS_WS_DIR}")" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
-  [ "$rc" -eq 0 ] || die "xsct build failed (rc=$rc)"
+  [ "$rc" -eq 0 ] || die "Vitis build failed (rc=$rc)"
 
   local elf
   elf="$(find "${VITIS_WS_DIR}" -name '*.elf' -print 2>/dev/null | head -n1)"

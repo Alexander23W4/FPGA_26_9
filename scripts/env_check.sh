@@ -38,10 +38,10 @@ else
   p_bad "Vitis not installed (PS-side development unavailable)"
 fi
 
-if [ -f "$XSCT_BIN" ]; then
-  p_ok "XSCT command line (PS side can be scripted)"
+if [ -f "$VITIS_BIN" ]; then
+  p_ok "Vitis Unified IDE launcher (scripted via: vitis -s <py>)"
 else
-  p_warn "xsct not found"
+  p_warn "Vitis launcher not found"
 fi
 
 GCC="${XILINX_ROOT}/Vitis/${VIVADO_VER}/gnu/aarch32/nt/gcc-arm-none-eabi/bin/arm-none-eabi-gcc.exe"
@@ -167,6 +167,7 @@ declare -a CHECKS=(
   "scripts/tcl/create_pl_project.tcl|PL project template"
   "scripts/tcl/create_zynq_project.tcl|Zynq project template"
   "scripts/tcl/register_board.tcl|Board registration script"
+  "scripts/vitis/build_ps.py|Vitis Unified PS build script"
 )
 for c in "${CHECKS[@]}"; do
   f="${c%%|*}"; desc="${c##*|}"
