@@ -2,40 +2,73 @@
 # =============================================================================
 #  build.sh —— ACZ7015 工程构建入口（唯一入口）
 # =============================================================================
-#  用法:
-#      ./scripts/build.sh <命令> [选项]
 #
 #  命令:
-#      check                环境自检
-#      pl                   纯 PL 工程: 建工程 -> 综合 -> 实现 -> 生成位流
-#      zynq                 Zynq 工程: 建工程(+BD) -> 位流 -> 导出 .xsa
-#      app                  PS 端: .xsa -> platform -> application -> .elf
-#      all                  zynq + app 全流程
-#      sim                  仿真
-#      export               把 GUI 里改过的工程导回 Tcl（便于提交）
-#      clean                清理 build/ 下所有生成物
+#      check     Environment self-check
+#      pl        Pure PL flow: create project -> synth -> impl -> bitstream
+#      zynq      Zynq flow: create project(+BD) -> bitstream -> export .xsa
+#      app       PS app: .xsa -> platform -> application -> .elf   (via xsct)
+#      all       zynq + app
+#      sim       Run simulation
+#      export    Export GUI-made project changes back to Tcl
+#      clean     Remove everything under build/
 #
 #  选项:
-#      -n, --name NAME      工程名（pl/zynq/app/sim 必需）
-#      -a, --axi            建 Zynq 工程时带 AXI 基础设施 + LED GPIO
-#      -t, --top TOP        纯 PL 工程顶层模块名
-#      -b, --tb TB          仿真顶层测试平台名
-#      -j, --jobs N         综合/实现并行数（默认 4）
-#      -k, --keep           保留中间产物（默认也保留，供增量）
-#      -h, --help           帮助
+#      -n, --name NAME      Project name (required for most commands)
+#      -a, --axi            Add AXI infra + LED GPIO when creating Zynq project
+#      -t, --top TOP        Top module name for pure-PL project
+#      -b, --tb TB          Testbench top name for simulation
+#      -j, --jobs N         Parallel jobs for synth/impl (default 4)
+#      -h, --help           Show help
 #
-#  例:
+#  示例:
 #      ./scripts/build.sh check
-#      ./scripts/build.sh pl   -n led_demo -t led_flash
+#      ./scripts/build.sh pl   -n led_demo -t led_top
 #      ./scripts/build.sh zynq -n zynq_led -a
 #      ./scripts/build.sh all  -n zynq_led -a
 # =============================================================================
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
-# ------------------------------ 帮助 ----------------------------------------
+# ------------------------------ 帮助（英文输出）------------------------------
 usage() {
-  sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  cat <<'EOF'
+ACZ7015 build entry
+
+Usage:
+  ./scripts/build.sh <command> [options]
+
+Commands:
+  check                 Environment self-check
+  pl                    Pure PL:    create project -> synth -> impl -> bitstream
+  zynq                  Zynq:       create project(+BD) -> bitstream -> .xsa
+  app                   PS app:     .xsa -> platform -> application -> .elf (xsct)
+  all                   zynq + app
+  sim                   Run simulation
+  export                Export GUI-made project changes back to Tcl
+  clean                 Remove everything under build/
+
+Options:
+  -n, --name NAME       Project name (required)
+  -a, --axi             Add AXI infrastructure + LED GPIO (Zynq only)
+  -t, --top TOP         Top module name (pure PL)
+  -b, --tb TB           Testbench top name (sim)
+  -j, --jobs N          Parallel jobs for synth/impl (default 4)
+  -h, --help            Show this help
+
+Examples:
+  ./scripts/build.sh check
+  ./scripts/build.sh pl   -n led_demo -t led_top
+  ./scripts/build.sh zynq -n zynq_led -a
+  ./scripts/build.sh sim  -n led_demo -b tb_led_top
+
+Environment overrides:
+  XILINX_ROOT   default /e/Xilinx        e.g. XILINX_ROOT=/d/Xilinx
+  VIVADO_VER    default 2023.2
+
+Outputs are archived under:
+  build/out/<YYYY-MM-DD_HHMMSS>_<gitshort>[ -dirty]/
+EOF
 }
 
 # ---------------------------- 参数解析 --------------------------------------
@@ -50,14 +83,14 @@ while [ $# -gt 0 ]; do
     -b|--tb)   TB="${2:-}";   shift 2 ;;
     -j|--jobs) JOBS="${2:-4}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
-    *) die "未知选项: $1   （用 -h 看帮助）" ;;
+    *) die "Unknown option: $1   (run with -h for help)" ;;
   esac
 done
 
-[ -n "$CMD" ] || { usage; exit 1; }
+if [ -z "$CMD" ]; then usage; exit 1; fi
 
 # =============================================================================
-#  check —— 环境自检
+#  check
 # =============================================================================
 do_check() {
   exec "${SCRIPTS_DIR}/env_check.sh"
@@ -67,43 +100,42 @@ do_check() {
 #  pl —— 纯 PL 全流程
 # =============================================================================
 do_pl() {
-  [ -n "$NAME" ] || die "缺少 -n <工程名>"
+  [ -n "$NAME" ] || die "Missing -n <project name>"
   check_tools
 
   local out; out="$(new_out_dir)"
-  info "产物将归档到: ${out#${REPO_ROOT}/}"
+  info "Archive dir: ${out#${REPO_ROOT}/}"
 
   run_vivado "${SCRIPTS_DIR}/tcl/build_pl.tcl" \
       "$NAME" "$(winpath "${VIVADO_PROJ_DIR}")" "$TOP" "$JOBS" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
-  [ "$rc" -eq 0 ] || die "Vivado 构建失败（rc=$rc），日志: ${out}/build.log"
+  [ "$rc" -eq 0 ] || die "Vivado build failed (rc=$rc). Log: ${out}/build.log"
 
-  # 收集产物
   local pdir="${VIVADO_PROJ_DIR}/${NAME}"
   local bit; bit="$(find "$pdir" -name '*.bit' -print -quit 2>/dev/null)"
   if [ -n "$bit" ]; then
-    cp -f "$(winpath "$bit")" "$out/" 2>/dev/null || cp -f "$bit" "$out/"
-    ok "位流: $(basename "$bit")"
+    cp -f "$bit" "$out/" 2>/dev/null || cp -f "$(winpath "$bit")" "$out/"
+    ok "Bitstream: $(basename "$bit")"
   else
-    warn "未找到 .bit 文件"
+    warn "No .bit file produced"
   fi
 
   local ltx; ltx="$(find "$pdir" -name '*.ltx' -print -quit 2>/dev/null)"
-  [ -n "$ltx" ] && cp -f "$ltx" "$out/" && ok "探针文件: $(basename "$ltx")"
+  [ -n "$ltx" ] && cp -f "$ltx" "$out/" && ok "Probe file: $(basename "$ltx")"
 
   write_manifest "$out" "$NAME" "pl"
-  hr; ok "PL 构建完成 -> ${out#${REPO_ROOT}/}"; hr
+  hr; ok "PL build done -> ${out#${REPO_ROOT}/}"; hr
 }
 
 # =============================================================================
 #  zynq —— Zynq 全流程（位流 + xsa）
 # =============================================================================
 do_zynq() {
-  [ -n "$NAME" ] || die "缺少 -n <工程名>"
+  [ -n "$NAME" ] || die "Missing -n <project name>"
   check_tools
 
   local out; out="$(new_out_dir)"
-  info "产物将归档到: ${out#${REPO_ROOT}/}"
+  info "Archive dir: ${out#${REPO_ROOT}/}"
 
   local axiflag=""
   [ "$AXI" -eq 1 ] && axiflag="-axi"
@@ -111,96 +143,95 @@ do_zynq() {
   run_vivado "${SCRIPTS_DIR}/tcl/build_zynq.tcl" \
       "$NAME" "$(winpath "${VIVADO_PROJ_DIR}")" "$axiflag" "$JOBS" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
-  [ "$rc" -eq 0 ] || die "Vivado 构建失败（rc=$rc），日志: ${out}/build.log"
+  [ "$rc" -eq 0 ] || die "Vivado build failed (rc=$rc). Log: ${out}/build.log"
 
   local pdir="${VIVADO_PROJ_DIR}/${NAME}"
   local bit xsa
   bit="$(find "$pdir" -name '*.bit' -print -quit 2>/dev/null)"
   xsa="$(find "$pdir" -name '*.xsa' -print -quit 2>/dev/null)"
 
-  [ -n "$bit" ] && cp -f "$bit" "$out/" && ok "位流: $(basename "$bit")" || warn "未找到 .bit"
-  [ -n "$xsa" ] && cp -f "$xsa" "$out/" && ok "硬件平台: $(basename "$xsa")" || warn "未找到 .xsa"
+  if [ -n "$bit" ]; then cp -f "$bit" "$out/" && ok "Bitstream: $(basename "$bit")"; else warn "No .bit"; fi
+  if [ -n "$xsa" ]; then cp -f "$xsa" "$out/" && ok "Hardware platform: $(basename "$xsa")"; else warn "No .xsa"; fi
 
   write_manifest "$out" "$NAME" "zynq"
-  hr; ok "Zynq 构建完成 -> ${out#${REPO_ROOT}/}"; hr
+  hr; ok "Zynq build done -> ${out#${REPO_ROOT}/}"; hr
 }
 
 # =============================================================================
-#  app —— PS 端应用（xsct 脚本化）
+#  app —— PS 端应用（xsct）
 # =============================================================================
 do_app() {
-  [ -n "$NAME" ] || die "缺少 -n <应用名>"
-  [ -f "$XSCT_BIN" ] || die "找不到 xsct: $XSCT_BIN"
+  [ -n "$NAME" ] || die "Missing -n <application name>"
+  [ -f "$XSCT_BIN" ] || die "xsct not found: $XSCT_BIN"
 
   # 找最新的 .xsa
   local xsa
   xsa="$(find "${OUT_DIR}" -name '*.xsa' -print 2>/dev/null | sort | tail -n1)"
-  [ -n "$xsa" ] || die "在 build/out/ 下找不到 .xsa，请先跑: ./scripts/build.sh zynq -n <工程名>"
+  [ -n "$xsa" ] || die "No .xsa under build/out/. Run first: ./scripts/build.sh zynq -n <project>"
 
   local out; out="$(new_out_dir)"
-  info "使用硬件平台: ${xsa#${REPO_ROOT}/}"
+  info "Using hardware platform: ${xsa#${REPO_ROOT}/}"
 
   mkdir -p "${VITIS_WS_DIR}"
   run_xsct "${SCRIPTS_DIR}/xsct/build_app.tcl" \
       "$NAME" "$(winpath "$xsa")" "$(winpath "${VITIS_WS_DIR}")" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
-  [ "$rc" -eq 0 ] || die "xsct 构建失败（rc=$rc）"
+  [ "$rc" -eq 0 ] || die "xsct build failed (rc=$rc)"
 
   local elf
   elf="$(find "${VITIS_WS_DIR}" -name '*.elf' -print 2>/dev/null | head -n1)"
-  [ -n "$elf" ] && cp -f "$elf" "$out/" && ok "ELF: $(basename "$elf")" || warn "未找到 .elf"
+  if [ -n "$elf" ]; then cp -f "$elf" "$out/" && ok "ELF: $(basename "$elf")"; else warn "No .elf"; fi
 
   write_manifest "$out" "$NAME" "app"
-  hr; ok "PS 应用构建完成 -> ${out#${REPO_ROOT}/}"; hr
+  hr; ok "PS app build done -> ${out#${REPO_ROOT}/}"; hr
 }
 
 # =============================================================================
-#  all —— PL + PS 全流程
+#  all
 # =============================================================================
 do_all() {
-  [ -n "$NAME" ] || die "缺少 -n <工程名>"
+  [ -n "$NAME" ] || die "Missing -n <project name>"
   do_zynq
   do_app
 }
 
 # =============================================================================
-#  sim —— 仿真
+#  sim
 # =============================================================================
 do_sim() {
-  [ -n "$NAME" ] || die "缺少 -n <工程名>（用于定位/建立仿真工程）"
+  [ -n "$NAME" ] || die "Missing -n <project name>"
   check_tools
 
   local out; out="$(new_out_dir)"
   run_vivado "${SCRIPTS_DIR}/tcl/run_sim.tcl" \
       "$NAME" "$(winpath "${VIVADO_PROJ_DIR}")" "$TB" 2>&1 | tee "${out}/sim.log"
   local rc="${PIPESTATUS[0]}"
-  [ "$rc" -eq 0 ] || die "仿真失败（rc=$rc），日志: ${out}/sim.log"
+  [ "$rc" -eq 0 ] || die "Simulation failed (rc=$rc). Log: ${out}/sim.log"
 
-  cp -f "${out}/sim.log" "$out/" 2>/dev/null || true
   write_manifest "$out" "$NAME" "sim"
-  hr; ok "仿真完成 -> ${out#${REPO_ROOT}/}"; hr
+  hr; ok "Simulation done -> ${out#${REPO_ROOT}/}"; hr
 }
 
 # =============================================================================
-#  export —— 把 GUI 里改过的工程导回 Tcl
+#  export
 # =============================================================================
 do_export() {
-  [ -n "$NAME" ] || die "缺少 -n <工程名>"
+  [ -n "$NAME" ] || die "Missing -n <project name>"
   check_tools
   run_vivado "${SCRIPTS_DIR}/tcl/export_project.tcl" \
       "$NAME" "$(winpath "${VIVADO_PROJ_DIR}")" "$(winpath "${SCRIPTS_DIR}/exported")"
-  ok "导出的 Tcl 在 scripts/exported/ ，请提交它们"
+  ok "Exported Tcl is under scripts/exported/ -- commit them"
 }
 
 # =============================================================================
 #  clean
 # =============================================================================
 do_clean() {
-  info "清理 ${BUILD_DIR#${REPO_ROOT}/} ..."
+  info "Cleaning ${BUILD_DIR#${REPO_ROOT}/} ..."
   # 保留 build/.gitkeep
   find "$BUILD_DIR" -mindepth 1 -not -name '.gitkeep' -exec rm -rf {} + 2>/dev/null
   mkdir -p "$VIVADO_PROJ_DIR" "$VITIS_WS_DIR" "$OUT_DIR"
-  ok "已清理"
+  ok "Clean done"
 }
 
 # =============================================================================
@@ -214,5 +245,5 @@ case "$CMD" in
   export) do_export ;;
   clean)  do_clean ;;
   -h|--help|help|"") usage; exit 0 ;;
-  *) die "未知命令: $CMD   （用 -h 看帮助）" ;;
+  *) die "Unknown command: $CMD   (run with -h for help)" ;;
 esac

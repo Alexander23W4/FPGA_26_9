@@ -15,7 +15,7 @@ set _acz_repo_root   [file normalize [file join $_acz_script_dir .. ..]]
 set _acz_board_repo  [file normalize [file join $_acz_repo_root board acz7015 board_files]]
 
 if {![file isdirectory $_acz_board_repo]} {
-    error "找不到板卡库目录: $_acz_board_repo"
+    error "Board repo directory not found: $_acz_board_repo"
 }
 
 # 把自定义板卡库加到 repoPaths 的最前面（保留原有的）
@@ -27,14 +27,14 @@ if {[catch {set_param board.repoPaths} _acz_old] == 0 && $_acz_old ne ""} {
 }
 set_param board.repoPaths $_acz_paths
 
-puts "\[ACZ7015\] 板卡库已注册:"
+puts "\[ACZ7015\] Board repo registered:"
 foreach _p $_acz_paths { puts "           $_p" }
 
 set _acz_found [get_board_parts -quiet *acz7015*]
 if {$_acz_found eq ""} {
-    puts "\[ACZ7015\] ⚠ 没有找到 acz7015 板卡，请检查 $_acz_board_repo\\acz7015\\1.0\\board.xml"
+    puts "\[ACZ7015\] WARNING: acz7015 board not found. Check $_acz_board_repo"
 } else {
-    puts "\[ACZ7015\] 找到板卡: $_acz_found"
+    puts "\[ACZ7015\] Board found: $_acz_found"
 }
 
 # -----------------------------------------------------------------------------

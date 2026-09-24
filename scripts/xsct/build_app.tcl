@@ -19,12 +19,12 @@ set xsa     [lindex $argv 1]
 set ws      [lindex $argv 2]
 
 if {$appname eq "" || $xsa eq "" || $ws eq ""} {
-    puts "!!!ARGS!!! build_app.tcl 需要: <应用名> <xsa路径> <工作区路径>"
+    puts "!!!ARGS!!! build_app.tcl requires: <appname> <xsa> <workspace>"
     exit 1
 }
 
 if {![file exists $xsa]} {
-    puts "!!!NOXSA!!! 找不到硬件平台: $xsa"
+    puts "!!!NOXSA!!! Hardware platform not found: $xsa"
     exit 1
 }
 
@@ -40,7 +40,7 @@ set pfm_name "${appname}_platform"
 
 # --------------------------- 1. Platform ------------------------------------
 if {[lsearch -exact [platform list] $pfm_name] < 0} {
-    puts "\[build_app\] 创建 platform: $pfm_name"
+    puts "\[build_app\] Creating platform: $pfm_name"
     if {[catch {
         platform create -name $pfm_name -hw $xsa -os standalone -proc ps7_cortexa9_0
     } e]} {
@@ -48,14 +48,14 @@ if {[lsearch -exact [platform list] $pfm_name] < 0} {
         exit 1
     }
 } else {
-    puts "\[build_app\] platform 已存在: $pfm_name"
+    puts "\[build_app\] Platform already exists: $pfm_name"
 }
 
 platform active $pfm_name
 
 # --------------------------- 2. Application ---------------------------------
 if {[lsearch -exact [app list] $appname] < 0} {
-    puts "\[build_app\] 创建 application: $appname"
+    puts "\[build_app\] Creating application: $appname"
     if {[catch {
         app create -name $appname -platform $pfm_name -domain standalone_domain -template "Empty Application(C)"
     } e]} {
@@ -63,13 +63,13 @@ if {[lsearch -exact [app list] $appname] < 0} {
         exit 1
     }
 } else {
-    puts "\[build_app\] application 已存在: $appname"
+    puts "\[build_app\] Application already exists: $appname"
 }
 
 app active $appname
 
 # --------------------------- 3. 编译 ----------------------------------------
-puts "\[build_app\] 编译 ..."
+puts "\[build_app\] Building ..."
 if {[catch {
     app build -name $appname
 } e]} {

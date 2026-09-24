@@ -23,8 +23,8 @@
 # ----------------------------- 参数解析 -------------------------------------
 set argc [llength $argv]
 if {$argc < 1} {
-    puts "用法: vivado -mode batch -source create_pl_project.tcl -tclargs <工程名> \[目标目录\] \[顶层模块名\]"
-    puts "例  : vivado -mode batch -source create_pl_project.tcl -tclargs led_demo"
+    puts "Usage: vivado -mode batch -source create_pl_project.tcl -tclargs <name> \[projdir\] \[top\]"
+    puts "Example: vivado -mode batch -source create_pl_project.tcl -tclargs led_demo"
     exit 1
 }
 
@@ -35,24 +35,25 @@ set top_name   [expr {$argc >= 3 ? [lindex $argv 2] : ""}]
 # 脚本所在目录 -> 仓库根
 set script_dir [file normalize [file dirname [info script]]]
 set repo_root  [file normalize [file join $script_dir .. ..]]
-set xdc_file   [file normalize [file join $repo_root constrs acz7015 acz7015.xdc]]
+set xdc_file [file normalize [file join $repo_root constrs "${proj_name}.xdc"]]
+set xdc_ref  [file normalize [file join $repo_root constrs acz7015 acz7015.xdc]]
 
 set part_name  "xc7z015clg485-2"
 
 puts "=============================================="
-puts " ACZ7015 纯 PL 工程创建"
-puts "   工程名   : $proj_name"
-puts "   目标目录 : $proj_dir"
-puts "   顶层模块 : [expr {$top_name eq "" ? "(未指定)" : $top_name}]"
-puts "   器件     : $part_name"
-puts "   约束文件 : $xdc_file"
+puts " ACZ7015 pure-PL project creation"
+puts "   Project name : $proj_name"
+puts "   Project dir  : $proj_dir"
+puts "   Top module   : [expr {$top_name eq "" ? "(not specified)" : $top_name}]"
+puts "   Part         : $part_name"
+puts "   Constraints  : $xdc_file"
 puts "=============================================="
 
 # ----------------------------- 注册板卡 -------------------------------------
 set board_repo [file normalize [file join $repo_root board acz7015 board_files]]
 if {[file isdirectory $board_repo]} {
     if {[catch {set_param board.repoPaths [list $board_repo]} e]} {
-        puts "\[ACZ7015\] 板卡注册跳过: $e"
+        puts "\[ACZ7015\] Board registration skipped: $e"
     }
 }
 
@@ -66,10 +67,11 @@ set_property default_lib      work     [current_project]
 # ----------------------------- 添加约束 -------------------------------------
 if {[file exists $xdc_file]} {
     add_files -fileset constrs_1 -norecurse $xdc_file
-    puts "\[ACZ7015\] 已添加约束: $xdc_file"
-    puts "\[ACZ7015\] ⚠ 记得把 XDC 里用不到的段落注释掉，否则 get_ports 找不到端口会报错"
+    puts "\[ACZ7015\] Project constraints added: $xdc_file"
 } else {
-    puts "\[ACZ7015\] ⚠ 未找到 $xdc_file，请手动添加约束"
+    puts "\[ACZ7015\] WARNING: project constraints not found: $xdc_file"
+    puts "\[ACZ7015\]   How to fix: copy the sections you need from the board reference below"
+    puts "\[ACZ7015\]   Board reference: $xdc_ref"
 }
 
 # ----------------------------- 生成顶层模板 ---------------------------------
@@ -79,23 +81,23 @@ if {$top_name ne ""} {
     set vfile [file join $src_dir "${top_name}.v"]
     set fp [open $vfile w]
     puts $fp "// ============================================================"
-    puts $fp "//  $top_name  ——  ACZ7015 顶层模板"
-    puts $fp "//  器件: $part_name"
+    puts $fp "//  $top_name  --  ACZ7015 top-level template"
+    puts $fp "//  Part : $part_name"
     puts $fp "//"
-    puts $fp "//  时钟: clk50M (L5, 50 MHz)"
-    puts $fp "//  复位: reset_n (R4, 低有效)"
-    puts $fp "//  8位LED: led[7:0]  (AB14 AA14 AA15 AA12 R17 T17 U19 V19)"
-    puts $fp "//  4位按键: key_in0..3 (AB12 V11 W11 AA11)"
+    puts $fp "//  Clock: clk50M (L5, 50 MHz)"
+    puts $fp "//  Reset: reset_n (R4, active low)"
+    puts $fp "//  8xLED: led[7:0] (AB14 AA14 AA15 AA12 R17 T17 U19 V19)"
+    puts $fp "//  4xKEY: key_in0..3 (AB12 V11 W11 AA11)"
     puts $fp "//"
-    puts $fp "//  约束见 constrs/acz7015/acz7015.xdc，端口名需与之一致"
+    puts $fp "//  Constraints: see constrs/<project>.xdc -- port names must match exactly"
     puts $fp "// ============================================================"
     puts $fp "module $top_name ("
-    puts $fp "    input  wire clk50M,        // 50 MHz 系统时钟"
-    puts $fp "    input  wire reset_n,       // 低有效复位"
-    puts $fp "    output wire \[7:0\] led       // 8 位 LED"
+    puts $fp "    input  wire clk50M,        // 50 MHz system clock"
+    puts $fp "    input  wire reset_n,       // active-low reset"
+    puts $fp "    output wire \[7:0\] led,      // 8 LEDs"
     puts $fp ");"
     puts $fp ""
-    puts $fp "    // ---------------- 1 Hz 心跳，验证时钟与复位 ----------------"
+    puts $fp "    // ---------------- heartbeat, verifies clock and reset ----------------"
     puts $fp "    reg \[25:0\] cnt;"
     puts $fp "    always @(posedge clk50M or negedge reset_n) begin"
     puts $fp "        if (!reset_n)      cnt <= 26'd0;"
@@ -103,19 +105,19 @@ if {$top_name ne ""} {
     puts $fp "        else               cnt <= cnt + 1'b1;"
     puts $fp "    end"
     puts $fp ""
-    puts $fp "    assign led = {8{cnt\[25\]}};   // 全亮/全灭 交替，约 0.75 Hz"
+    puts $fp "    assign led = {8{cnt\[25\]}};   // all-on / all-off alternating"
     puts $fp ""
     puts $fp "endmodule"
     close $fp
     add_files -fileset sources_1 -norecurse $vfile
     set_property top $top_name [current_fileset]
-    puts "\[ACZ7015\] 已生成顶层模板: $vfile"
+    puts "\[ACZ7015\] Top-level template generated: $vfile"
 }
 
 update_compile_order -fileset sources_1
 
 puts "=============================================="
-puts " 工程创建完成"
+puts " Project created"
 puts "   $proj_dir/$proj_name/$proj_name.xpr"
 puts "=============================================="
 puts "DONE"

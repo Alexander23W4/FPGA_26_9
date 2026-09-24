@@ -16,13 +16,13 @@ set pdir  [lindex $argv 1]
 set odir  [lindex $argv 2]
 
 if {$name eq "" || $pdir eq "" || $odir eq ""} {
-    puts "!!!ARGS!!! export_project.tcl 需要: <工程名> <工程目录> <输出目录>"
+    puts "!!!ARGS!!! export_project.tcl requires: <name> <projdir> <outdir>"
     exit 1
 }
 
 set xpr [file join $pdir $name "${name}.xpr"]
 if {![file exists $xpr]} {
-    puts "!!!NOXPR!!! 找不到工程: $xpr"
+    puts "!!!NOXPR!!! Project not found: $xpr"
     exit 1
 }
 
@@ -34,7 +34,7 @@ set proj_tcl [file join $odir "${name}_project.tcl"]
 if {[catch {
     write_project_tcl -force -paths_relative_to $odir $proj_tcl
 } e]} {
-    puts "\[export\] write_project_tcl 失败: $e"
+    puts "\[export\] write_project_tcl failed: $e"
 } else {
     puts "PROJECT_TCL=$proj_tcl"
 }
@@ -48,13 +48,13 @@ foreach bd [get_files -quiet *.bd] {
         write_bd_tcl -force -no_ip_version $bd_tcl
         puts "BD_TCL=$bd_tcl"
     } e]} {
-        puts "\[export\] BD $bdname 导出失败: $e"
+        puts "\[export\] BD $bdname export failed: $e"
     }
 }
 
 # --------------------------- 3. 约束也复制一份 ------------------------------
 # 约束源文件本来就在 constrs/ 下（入库的），这里只做提示
-puts "\[export\] 提示：约束文件请直接改 constrs/ 下的源文件，本脚本不复制"
+puts "\[export\] NOTE: edit constraint files directly under constrs/ -- this script does not copy them"
 
 close_project
 puts "EXPORT_OK"

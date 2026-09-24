@@ -88,7 +88,7 @@ write_manifest() {
   local dir="$1" name="$2" target="$3"
   mkdir -p "$dir"
   {
-    echo "# ACZ7015 构建产物清单"
+    echo "# ACZ7015 build artifact manifest"
     echo "project     : $name"
     echo "target      : $target"
     echo "part        : $PART"

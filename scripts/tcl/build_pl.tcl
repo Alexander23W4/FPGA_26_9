@@ -12,29 +12,29 @@ set jobs   [lindex $argv 3]
 if {$jobs eq ""} { set jobs 4 }
 
 if {$name eq "" || $pdir eq ""} {
-    puts "!!!ARGS!!! build_pl.tcl 需要: <工程名> <工程目录> [顶层] [并行数]"
+    puts "!!!ARGS!!! build_pl.tcl requires: <name> <projdir> [top] [jobs]"
     exit 1
 }
 
 set script_dir [file normalize [file dirname [info script]]]
 set repo_root  [file normalize [file join $script_dir .. ..]]
 set rtl_dir    [file join $repo_root rtl]
-set xdc_file   [file join $repo_root constrs acz7015 acz7015.xdc]
+set xdc_file   [file join $repo_root constrs "${name}.xdc"]
 set xpr        [file join $pdir $name "${name}.xpr"]
 
 puts "============================================================"
 puts " \[build_pl\] $name"
-puts "   工程目录 : $pdir"
-puts "   顶层     : [expr {$top eq "" ? "(自动)" : $top}]"
-puts "   并行数   : $jobs"
+puts "   Project dir : $pdir"
+puts "   Top module  : [expr {$top eq "" ? "(auto)" : $top}]"
+puts "   Jobs        : $jobs"
 puts "============================================================"
 
 # --------------------------- 1. 打开或新建工程 ------------------------------
 if {[file exists $xpr]} {
-    puts "\[build_pl\] 打开已有工程（增量构建）"
+    puts "\[build_pl\] Opening existing project (incremental build)"
     open_project $xpr
 } else {
-    puts "\[build_pl\] 新建工程"
+    puts "\[build_pl\] Creating new project"
     set argv [list $name $pdir $top]
     source [file join $script_dir create_pl_project.tcl]
 }
@@ -61,15 +61,15 @@ if {[file isdirectory $rtl_dir]} {
         }
     }
 }
-puts "\[build_pl\] 新增源文件: $added"
+puts "\[build_pl\] Source files added: $added"
 
 # --------------------------- 3. 约束 ----------------------------------------
 set existing_c [get_files -quiet -of_objects [get_filesets constrs_1]]
 if {![file exists $xdc_file]} {
-    puts "\[build_pl\] ⚠ 未找到约束文件: $xdc_file"
+    puts "\[build_pl\] WARNING: project constraints not found: $xdc_file"
 } elseif {[lsearch -exact $existing_c [file normalize $xdc_file]] < 0} {
     add_files -fileset constrs_1 -norecurse $xdc_file
-    puts "\[build_pl\] 已挂载约束: $xdc_file"
+    puts "\[build_pl\] Constraints attached: $xdc_file"
 }
 
 update_compile_order -fileset sources_1
@@ -83,7 +83,7 @@ if {$top ne ""} {
     foreach f $cands {
         if {[string match "*top*" [file tail $f]]} {
             set_property top [file rootname [file tail $f]] [current_fileset]
-            puts "\[build_pl\] 自动顶层: [get_property top [current_fileset]]"
+            puts "\[build_pl\] Auto-selected top: [get_property top [current_fileset]]"
             break
         }
     }
@@ -91,12 +91,12 @@ if {$top ne ""} {
 update_compile_order -fileset sources_1
 
 if {[get_property top [current_fileset]] eq ""} {
-    puts "!!!NOTOP!!! 未能确定顶层模块，请用 -t <顶层名> 指定"
+    puts "!!!NOTOP!!! Cannot determine top module. Specify it with -t <top>."
     exit 1
 }
 
 # --------------------------- 5. 综合 / 实现 / 位流 --------------------------
-puts "\[build_pl\] 开始综合 ..."
+puts "\[build_pl\] Starting synthesis ..."
 reset_run -quiet synth_1
 launch_runs synth_1 -jobs $jobs
 wait_on_run synth_1
@@ -105,16 +105,16 @@ if {[get_property PROGRESS [get_runs synth_1]] ne "100%"} {
     puts [exec cat [get_property DIRECTORY [get_runs synth_1]]/runme.log]
     exit 1
 }
-puts "\[build_pl\] 综合完成"
+puts "\[build_pl\] Synthesis done"
 
-puts "\[build_pl\] 开始实现 ..."
+puts "\[build_pl\] Starting implementation ..."
 launch_runs impl_1 -to_step write_bitstream -jobs $jobs
 wait_on_run impl_1
 if {[get_property PROGRESS [get_runs impl_1]] ne "100%"} {
     puts "!!!IMPL_FAILED!!!"
     exit 1
 }
-puts "\[build_pl\] 实现 + 位流完成"
+puts "\[build_pl\] Implementation + bitstream done"
 
 # --------------------------- 6. 时序小结 ------------------------------------
 set rpt [file join [get_property DIRECTORY [get_runs impl_1]] "${top}_timing_summary_routed.rpt"]

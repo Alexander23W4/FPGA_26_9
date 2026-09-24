@@ -26,7 +26,7 @@
 
 # ----------------------------- 参数解析 -------------------------------------
 if {[llength $argv] < 1} {
-    puts "用法: vivado -mode batch -source create_zynq_project.tcl -tclargs <工程名> \[目标目录\] \[-axi\] \[-no_usb0\] \[-no_i2c0\]"
+    puts "Usage: vivado -mode batch -source create_zynq_project.tcl -tclargs <name> \[projdir\] \[-axi\] \[-no_usb0\] \[-no_i2c0\]"
     exit 1
 }
 
@@ -50,16 +50,16 @@ if {$proj_name eq ""} { error "必须指定工程名" }
 set script_dir [file normalize [file dirname [info script]]]
 set repo_root  [file normalize [file join $script_dir .. ..]]
 set preset_tcl [file normalize [file join $repo_root board acz7015 ps7_preset.tcl]]
-set xdc_file   [file normalize [file join $repo_root constrs acz7015 acz7015.xdc]]
+set xdc_file   [file normalize [file join $repo_root constrs "${proj_name}.xdc"]]
 set part_name  "xc7z015clg485-2"
 
 puts "=============================================="
-puts " ACZ7015 Zynq 工程创建"
-puts "   工程名   : $proj_name"
-puts "   目标目录 : $proj_dir"
-puts "   器件     : $part_name"
-puts "   AXI 外设 : [expr {$want_axi ? "是" : "否"}]"
-puts "   PS7 开关 : $ps7_opts"
+puts " ACZ7015 Zynq project creation"
+puts "   Project name : $proj_name"
+puts "   Project dir  : $proj_dir"
+puts "   Part         : $part_name"
+puts "   AXI infra    : [expr {$want_axi ? "yes" : "no"}]"
+puts "   PS7 options  : $ps7_opts"
 puts "=============================================="
 
 # ----------------------------- 创建工程 -------------------------------------
@@ -70,11 +70,11 @@ set_property target_language Verilog [current_project]
 # ----------------------------- 约束 -----------------------------------------
 if {[file exists $xdc_file]} {
     add_files -fileset constrs_1 -norecurse $xdc_file
-    puts "\[ACZ7015\] 已添加板级约束模板: $xdc_file"
+    puts "\[ACZ7015\] Project constraints added: $xdc_file"
 }
 
 # ----------------------------- Block Design ---------------------------------
-puts "\[ACZ7015\] 创建 Block Design 'system' ..."
+puts "\[ACZ7015\] Creating Block Design 'system' ..."
 create_bd_design "system"
 
 create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0
@@ -89,7 +89,7 @@ foreach intf {DDR FIXED_IO} {
     set p [get_bd_intf_pins -quiet $ps7/$intf]
     if {$p ne ""} {
         if {[catch {make_bd_intf_pins_external $p}]} {
-            puts "\[ACZ7015\] $intf 已经引出"
+            puts "\[ACZ7015\] $intf already external"
         }
     }
 }
@@ -99,13 +99,13 @@ foreach intf {DDR FIXED_IO} {
 set _aclk [get_bd_pins -quiet processing_system7_0/M_AXI_GP0_ACLK]
 if {$_aclk ne ""} {
     if {[catch {connect_bd_net [get_bd_pins processing_system7_0/FCLK_CLK0] $_aclk} _e]} {
-        puts "\[ACZ7015\] M_AXI_GP0_ACLK 已连接"
+        puts "\[ACZ7015\] M_AXI_GP0_ACLK already connected"
     }
 }
 
 # ---- 可选：AXI 基础设施 + LED GPIO ----
 if {$want_axi} {
-    puts "\[ACZ7015\] 生成 AXI 基础设施 ..."
+    puts "\[ACZ7015\] Generating AXI infrastructure ..."
 
     # 打开 M_AXI_GP0 与 FCLK
     set_property -dict [list \
@@ -156,8 +156,8 @@ if {$want_axi} {
 # ---- 保存并校验 ----
 regenerate_bd_layout
 if {[catch {validate_bd_design} e]} {
-    puts "\[ACZ7015\] validate_bd_design 提示: $e"
-    puts "          （未连接的时钟/地址属正常，后续加 IP 后再校验）"
+    puts "\[ACZ7015\] validate_bd_design note: $e"
+    puts "          (unconnected clocks/address are normal at this stage)"
 }
 
 save_bd_design
@@ -169,12 +169,12 @@ set_property top system_wrapper [current_fileset]
 update_compile_order -fileset sources_1
 
 puts "=============================================="
-puts " 工程创建完成"
+puts " Project created"
 puts "   $proj_dir/$proj_name/$proj_name.xpr"
 puts ""
-puts " 下一步："
-puts "   1. 打开工程，在 Block Design 里继续加你的 IP"
-puts "   2. 若要跑 PS 裸机：Generate Bitstream -> Export Hardware (.xsa)"
-puts "      -> Vitis Classic 2023.2 建 Platform -> 建 Application"
+puts " Next steps:"
+puts "   1. Open the project and add your IP in the Block Design"
+puts "   2. For PS bare-metal: Generate Bitstream -> Export Hardware (.xsa)"
+puts "      -> Vitis Classic 2023.2: create Platform -> create Application"
 puts "=============================================="
 puts "DONE"

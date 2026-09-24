@@ -12,7 +12,7 @@ set pdir [lindex $argv 1]
 set tb   [lindex $argv 2]
 
 if {$name eq "" || $pdir eq ""} {
-    puts "!!!ARGS!!! run_sim.tcl 需要: <工程名> <工程目录> [测试平台顶层名]"
+    puts "!!!ARGS!!! run_sim.tcl requires: <name> <projdir> [tb_top]"
     exit 1
 }
 
@@ -24,7 +24,7 @@ set xpr        [file join $pdir $name "${name}.xpr"]
 
 puts "============================================================"
 puts " \[run_sim\] $name"
-puts "   测试平台 : [expr {$tb eq "" ? "(自动)" : $tb}]"
+puts "   Testbench   : [expr {$tb eq "" ? "(auto)" : $tb}]"
 puts "============================================================"
 
 # --------------------------- 1. 打开或新建仿真工程 --------------------------
@@ -51,7 +51,7 @@ if {[file isdirectory $tb_dir]} {
         [glob -nocomplain -directory $tb_dir -types f *.v]]
     if {[llength $tbfiles] > 0} {
         add_files -fileset sim_1 -norecurse $tbfiles
-        puts "\[run_sim\] 测试平台文件: [llength $tbfiles] 个"
+        puts "\[run_sim\] Testbench files: [llength $tbfiles]"
     }
 }
 
@@ -66,25 +66,25 @@ if {$tb ne ""} {
     }
     if {$found ne ""} {
         set_property top $found [get_filesets sim_1]
-        puts "\[run_sim\] 自动顶层: $found"
+        puts "\[run_sim\] Auto-selected top: $found"
     }
 }
 
 set simtop [get_property top [get_filesets sim_1]]
 if {$simtop eq ""} {
-    puts "!!!NOTB!!! 未找到测试平台，请用 -b <顶层名> 指定"
+    puts "!!!NOTB!!! No testbench found. Specify it with -b <top>."
     close_project
     exit 1
 }
 
 # --------------------------- 4. 跑仿真 --------------------------------------
 update_compile_order -fileset sim_1
-puts "\[run_sim\] 运行 xsim，顶层 = $simtop ..."
+puts "\[run_sim\] Running xsim, top = $simtop ..."
 
 if {[catch {
     launch_simulation -mode behavioral
     run all
-    puts "\[run_sim\] 仿真结束"
+    puts "\[run_sim\] Simulation finished"
 } e]} {
     puts "!!!SIM_FAILED!!! $e"
     close_sim -quiet

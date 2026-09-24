@@ -103,7 +103,7 @@ namespace eval acz7015 {
                 -no_sd0  { set opt(sd0)  0 }
                 -fclk0   { incr i; set opt(fclk0) [lindex $args $i] }
                 -apu     { incr i; set opt(apu)   [lindex $args $i] }
-                default  { error "acz7015::ps7_preset_dict: 未知选项 '$a'" }
+                default  { error "acz7015::ps7_preset_dict: unknown option '$a'" }
             }
         }
 
@@ -299,13 +299,13 @@ namespace eval acz7015 {
         }
 
         if {[catch {set bdcell [get_bd_cells -quiet $cell]}] || $bdcell eq ""} {
-            error "acz7015: 找不到 Block Design 单元 '$cell'，请先打开 BD 并放置 processing_system7"
+            error "acz7015: Block Design cell '$cell' not found. Open the BD and place a processing_system7 first."
         }
 
         set p [ps7_preset_dict {*}$rest]
-        puts "\[ACZ7015\] 正在应用 PS7 预设到 $cell （[expr {[llength $p]/2}] 项参数）..."
+        puts "\[ACZ7015\] Applying PS7 preset to $cell ([expr {[llength $p]/2}] parameters) ..."
         set_property -dict $p $bdcell
-        puts "\[ACZ7015\] PS7 预设应用完成。"
+        puts "\[ACZ7015\] PS7 preset applied."
         return $bdcell
     }
 }
@@ -314,5 +314,5 @@ namespace eval acz7015 {
 proc apply_acz7015_ps7_preset {args} { return [acz7015::apply_ps7_preset {*}$args] }
 proc acz7015_ps7_preset_dict     {args} { return [acz7015::ps7_preset_dict {*}$args] }
 
-puts "\[ACZ7015\] PS7 Preset 已加载。可用命令："
-puts "           apply_acz7015_ps7_preset ?-cell <名>? ?-no_usb0? ?-no_i2c0? ..."
+puts "\[ACZ7015\] PS7 preset loaded. Available commands:"
+puts "           apply_acz7015_ps7_preset ?-cell <name>? ?-no_usb0? ?-no_i2c0? ..."
