@@ -52,6 +52,7 @@ csrc/**
 !csrc/*/vitis-comp.json
 # src/ 里 Vitis 生成的辅助文件
 csrc/*/src/.compile_commands
+csrc/*/src/compile_commands.json
 csrc/*/src/.clangd/
 
 # 旧位置的 Vitis 工作区（如还残留）

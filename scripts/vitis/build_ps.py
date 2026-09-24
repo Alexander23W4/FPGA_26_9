@@ -50,11 +50,22 @@ workspace = sys.argv[3]
 
 platform_name = None
 force_platform = False
-for a in sys.argv[4:]:
+TEMPLATE = "hello_world"        # 默认：自带 helloworld.c，开箱能编出 ELF
+
+_i = 4
+while _i < len(sys.argv):
+    a = sys.argv[_i]
     if a in ("-f", "--force-platform"):
         force_platform = True
+    elif a == "--template":
+        _i += 1
+        if _i >= len(sys.argv):
+            print("!!!ARGS!!! --template needs a value")
+            sys.exit(1)
+        TEMPLATE = sys.argv[_i]
     elif a.strip():
         platform_name = a
+    _i += 1
 
 if not platform_name:
     platform_name = app_name
@@ -86,10 +97,20 @@ OS_TYPE = "standalone"
 DOMAIN = "standalone_" + CPU
 
 # 有效模板名（本机 Vitis 2023.2 实测）
-#   empty_application  hello_world  dhrystone  memory_tests  peripheral_tests
+#   hello_world（默认，自带源码）  empty_application（空，需自己写）
+#   dhrystone  memory_tests  peripheral_tests
 #   lwip_*  rsa_auth_app  zynq_dram_test  zynq_fsbl
 # 注意：官方示例里写的 "empty" 在这个版本里无效
-TEMPLATE = "empty_application"
+VALID_TEMPLATES = [
+    "hello_world", "empty_application", "dhrystone", "memory_tests",
+    "peripheral_tests", "lwip_echo_server", "lwip_tcp_perf_client",
+    "lwip_tcp_perf_server", "lwip_udp_perf_client", "lwip_udp_perf_server",
+    "rsa_auth_app", "zynq_dram_test", "zynq_fsbl",
+]
+if TEMPLATE not in VALID_TEMPLATES:
+    print("!!!BAD_TEMPLATE!!! unknown template: " + TEMPLATE)
+    print("                  valid: " + ", ".join(VALID_TEMPLATES))
+    sys.exit(1)
 
 print("=" * 62)
 print(" [build_ps] application : " + app_name)
@@ -97,6 +118,7 @@ print(" [build_ps] platform    : " + platform_name)
 print(" [build_ps] xsa         : " + xsa)
 print(" [build_ps] workspace   : " + workspace)
 print(" [build_ps] cpu / os    : " + CPU + " / " + OS_TYPE)
+print(" [build_ps] template    : " + TEMPLATE)
 print(" [build_ps] force build : " + ("yes" if force_platform else "no"))
 print("=" * 62)
 

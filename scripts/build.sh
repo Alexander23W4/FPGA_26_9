@@ -54,6 +54,9 @@ Options:
   -t, --top TOP         Top module name (pure PL)
   -b, --tb TB           Testbench top name (sim)
   -j, --jobs N          Parallel jobs for synth/impl (default 4)
+  -T, --template NAME   Vitis application template for "app" (default hello_world)
+                        hello_world ships its own source, so the build produces an
+                        ELF right away; use empty_application for a blank src/
   -p, --platform NAME   Platform component name for "app"/"all"
                         (default: the hardware project name, i.e. the .xsa file
                          name, with NO suffix. It must differ from the
@@ -81,7 +84,7 @@ EOF
 # ---------------------------- 参数解析 --------------------------------------
 CMD="${1:-}"; shift || true
 
-NAME=""; AXI=0; TOP=""; TB=""; JOBS=4; PLATFORM=""; FORCE_PLATFORM=0
+NAME=""; AXI=0; TOP=""; TB=""; JOBS=4; PLATFORM=""; FORCE_PLATFORM=0; TEMPLATE="hello_world"
 while [ $# -gt 0 ]; do
   case "$1" in
     -n|--name) NAME="${2:-}"; shift 2 ;;
@@ -89,6 +92,7 @@ while [ $# -gt 0 ]; do
     -t|--top)  TOP="${2:-}";  shift 2 ;;
     -b|--tb)   TB="${2:-}";   shift 2 ;;
     -j|--jobs) JOBS="${2:-4}"; shift 2 ;;
+    -T|--template) TEMPLATE="${2:-}"; shift 2 ;;
     -p|--platform)       PLATFORM="${2:-}"; shift 2 ;;
     -f|--force-platform) FORCE_PLATFORM=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -215,8 +219,9 @@ do_app() {
   info "Using hardware platform: ${xsa#${REPO_ROOT}/}"
 
   mkdir -p "${VITIS_WS_DIR}"
-  # 组装参数：平台名 + --force-platform（选填）
-  local vargs=("$NAME" "$(winpath "$xsa")" "$(winpath "${VITIS_WS_DIR}")" "$PLATFORM")
+  # 组装参数：平台名 + 模板 + --force-platform（选填）
+  local vargs=("$NAME" "$(winpath "$xsa")" "$(winpath "${VITIS_WS_DIR}")" "$PLATFORM"
+               "--template" "$TEMPLATE")
   [ "$FORCE_PLATFORM" -eq 1 ] && vargs+=("--force-platform")
 
   run_vitis "${SCRIPTS_DIR}/vitis/build_ps.py" "${vargs[@]}" 2>&1 | tee "${out}/build.log"

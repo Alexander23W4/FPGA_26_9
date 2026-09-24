@@ -1,0 +1,18 @@
+{
+  "name": "MID_plt",
+  "type": "HOST",
+  "platform": "C:\\Users\\HUAWEI\\Desktop\\FPGA_26_9\\csrc\\fpga_26\\export\\fpga_26\\fpga_26.xpfm",
+  "domain": "standalone_ps7_cortexa9_0",
+  "cpuInstance": "ps7_cortexa9_0",
+  "cpuType": "cortex-a9",
+  "os": "standalone",
+  "configuration": {
+    "componentType": "HOST",
+    "hostToolchainConfigurations": []
+  },
+  "domainRealName": "standalone_ps7_cortexa9_0",
+  "applicationFlow": "EMBEDDED",
+  "previousBuildStatusMap": {
+    "hw": "SUCCESS"
+  }
+}
