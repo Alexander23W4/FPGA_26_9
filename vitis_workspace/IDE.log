@@ -1,1 +1,9 @@
 11:17:05 DEBUG : Logs will be stored at 'C:/Users/HUAWEI/Desktop/FPGA_26_9/vitis_workspace/IDE.log'.
+11:17:21 INFO  : Launching XSCT server: xsct.bat -n  -interactive C:\Users\HUAWEI\Desktop\FPGA_26_9\vitis_workspace\temp_xsdb_launch_script.tcl
+11:17:24 INFO  : Registering command handlers for Vitis TCF services
+11:17:24 INFO  : Platform repository initialization has completed.
+11:17:26 INFO  : XSCT server has started successfully.
+11:17:34 INFO  : Successfully done setting XSCT server connection channel  
+11:17:34 INFO  : plnx-install-location is set to ''
+11:17:34 INFO  : Successfully done query RDI_DATADIR 
+11:17:34 INFO  : Successfully done setting workspace for the tool. 

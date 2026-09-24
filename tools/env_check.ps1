@@ -84,9 +84,9 @@ else { Warn2 "MIG DDR3 器件库未找到（PS DDR 仍可用 PS7 内部控制器
 # ============================== 3. 板卡文件 =================================
 Section "3. ACZ7015 板卡文件"
 
-$bxml = Join-Path $BOARD_REPO 'acz7015\1.0\board.xml'
-$pxml = Join-Path $BOARD_REPO 'acz7015\1.0\part0_pins.xml'
-$rxml = Join-Path $BOARD_REPO 'acz7015\1.0\preset.xml'
+$bxml = (Get-ChildItem -Path $BOARD_REPO -Recurse -Filter 'board.xml'      -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+$pxml = (Get-ChildItem -Path $BOARD_REPO -Recurse -Filter 'part0_pins.xml' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+$rxml = (Get-ChildItem -Path $BOARD_REPO -Recurse -Filter 'preset.xml'     -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
 
 if (Test-Path2 $bxml) { Ok "board.xml" }      else { Bad "board.xml 缺失: $bxml" }
 if (Test-Path2 $pxml) { Ok "part0_pins.xml" } else { Bad "part0_pins.xml 缺失" }

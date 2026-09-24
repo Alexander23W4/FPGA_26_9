@@ -6,11 +6,11 @@
      生成依据  : 09_硬件图纸 核心板 250804 / 底板 RevA
                  04_引脚信息 (PS MIO 表 + acz7015.xdc)
                  小梅哥 ACZ7015_Linux_Base_Prj (原厂 PS7 配置)
+     结构参照  : Vivado 自带 zc702 板卡文件 (同系列 Zynq-7000)
      =========================================================================
      注册方法（Vivado Tcl）：
-         set_param board.repoPaths [list "C:/Users/HUAWEI/Desktop/FPGA_26_9/config/board"]
+         source tools/register_board.tcl
          get_board_parts *acz7015*
-     或在 tools/register_board.tcl 里调用
      ========================================================================= -->
 <board schema_version="2.2"
        vendor="xiaomeige.com"
@@ -28,6 +28,34 @@
   <description>Xiaomeige ACZ7015 Zynq-7015 development board (XC7Z015-CLG485-2)</description>
 
   <components>
+
+    <!-- ===================== 板载外设组件声明 ===================== -->
+
+    <component name="leds_8bits"
+               display_name="LED"
+               type="chip"
+               sub_type="led"
+               major_group="General Purpose Input or Output">
+      <description>LEDs, 7 to 0, Active High</description>
+    </component>
+
+    <component name="push_buttons_4bits"
+               display_name="Push buttons"
+               type="chip"
+               sub_type="push_button"
+               major_group="General Purpose Input or Output">
+      <description>Push buttons, 3 to 0, Active High</description>
+    </component>
+
+    <component name="iic_main"
+               display_name="IIC"
+               type="chip"
+               sub_type="mux"
+               major_group="Miscellaneous">
+      <description>PL side I2C bus (HDMI-1 SIL9022A / TFT touch / camera)</description>
+    </component>
+
+    <!-- ===================== FPGA ===================== -->
 
     <component name="part0"
                display_name="Xiaomeige ACZ7015 (Zynq-7015)"
@@ -83,7 +111,9 @@
           </port_maps>
         </interface>
 
-        <!-- ============ PL 侧 I2C（HDMI-1/SIL9022A、TFT 触摸、摄像头） ============ -->
+        <!-- ============ PL 侧 I2C ============
+             注意：SCL_O/SCL_T 复用 scl_i，SDA_O/SDA_T 复用 sda_i
+             这与官方 zc702 板卡文件的写法一致（part0_pins.xml 只声明 _i 引脚） -->
         <interface mode="master" name="iic_main"
                    type="xilinx.com:interface:iic_rtl:1.0"
                    of_component="iic_main">
@@ -98,12 +128,12 @@
             </port_map>
             <port_map logical_port="SCL_O" physical_port="iic_main_scl_o" dir="out">
               <pin_maps>
-                <pin_map port_index="0" component_pin="iic_main_scl_o"/>
+                <pin_map port_index="0" component_pin="iic_main_scl_i"/>
               </pin_maps>
             </port_map>
             <port_map logical_port="SCL_T" physical_port="iic_main_scl_t" dir="out">
               <pin_maps>
-                <pin_map port_index="0" component_pin="iic_main_scl_t"/>
+                <pin_map port_index="0" component_pin="iic_main_scl_i"/>
               </pin_maps>
             </port_map>
             <port_map logical_port="SDA_I" physical_port="iic_main_sda_i" dir="in">
@@ -113,12 +143,12 @@
             </port_map>
             <port_map logical_port="SDA_O" physical_port="iic_main_sda_o" dir="out">
               <pin_maps>
-                <pin_map port_index="0" component_pin="iic_main_sda_o"/>
+                <pin_map port_index="0" component_pin="iic_main_sda_i"/>
               </pin_maps>
             </port_map>
             <port_map logical_port="SDA_T" physical_port="iic_main_sda_t" dir="out">
               <pin_maps>
-                <pin_map port_index="0" component_pin="iic_main_sda_t"/>
+                <pin_map port_index="0" component_pin="iic_main_sda_i"/>
               </pin_maps>
             </port_map>
           </port_maps>

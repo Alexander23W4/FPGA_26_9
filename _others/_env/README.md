@@ -78,11 +78,72 @@
 
 ## 进度
 
-| # | 项目 | 状态 |
-|---|---|---|
-| 1 | CH343 驱动 | ✅ 完成并验证 |
-| 2 | Vitis 2023.2 补装 | ✅ 完成并验证 |
-| 3 | JTAG 驱动验证 | ⚪ 待插板 |
-| 4 | PS7 Preset Tcl | ⬜ 待做 |
-| 5 | ACZ7015 板卡文件 | ⬜ 待做 |
-| 6 | 整理版 XDC | ⬜ 待做 |
+| # | 项目 | 状态 | 位置 |
+|---|---|---|---|
+| 1 | CH343 驱动 | ✅ 完成并验证 | `_env/drivers/` |
+| 2 | Vitis 2023.2 补装 | ✅ 完成并验证 | `E:\Xilinx\Vitis` |
+| 3 | JTAG 驱动验证 | ⚪ **待插板** | — |
+| 4 | PS7 Preset Tcl | ✅ 完成并验证 | `config/acz7015_ps7_preset.tcl` |
+| 5 | ACZ7015 板卡文件 | ✅ 完成并验证 | `config/board/xiaomeige.com/acz7015/1.0/` |
+| 6 | 整理版 XDC | ✅ 完成 | `config/acz7015.xdc` |
+| 7 | 工程模板 Tcl ×2 | ✅ 完成并验证 | `tools/create_pl_project.tcl` / `create_zynq_project.tcl` |
+| 8 | 上板自检脚本 | ✅ 完成并验证（28通过/1警告/0失败） | `tools/env_check.ps1` |
+
+---
+
+## 仓库结构
+
+```
+FPGA_26_9/
+├── config/                     ← 板级配置（详见 config/README.md）
+│   ├── acz7015_ps7_preset.tcl       PS7 一键配置 ★
+│   ├── acz7015.xdc                  引脚约束模板
+│   ├── acz7015_pinmap.csv           引脚速查表
+│   ├── README.md
+│   └── board/xiaomeige.com/acz7015/1.0/
+│       ├── board.xml                Vivado Board File
+│       ├── part0_pins.xml
+│       └── preset.xml
+├── tools/                      ← 工程脚本（详见 tools/README.md）
+│   ├── env_check.ps1                环境自检
+│   ├── register_board.tcl           板卡注册
+│   ├── create_pl_project.tcl        纯 PL 工程
+│   ├── create_zynq_project.tcl      Zynq 工程
+│   └── README.md
+├── _others/_env/               ← 环境与硬件事实库（本目录）
+│   ├── README.md
+│   ├── 环境搭建指南.md              装驱动/Vitis 全过程记录
+│   ├── 硬件核对表.md                硬件逐条交叉验证
+│   ├── docs/                        厂商原始文档
+│   ├── drivers/                     CH343/CH340 驱动
+│   └── _ref/ps7_linuxbase_config.txt 原厂 PS7 配置参考
+├── vsrc/  csrc/  include/      ← 工程源码
+└── build/                      ← 生成物
+```
+
+---
+
+## 快速上手
+
+```powershell
+# 1. 环境自检
+powershell -ExecutionPolicy Bypass -File tools\env_check.ps1
+
+# 2. 建纯 PL 工程
+vivado -mode batch -source tools\create_pl_project.tcl -tclargs led_demo
+
+# 3. 建 Zynq 工程（带 AXI）
+vivado -mode batch -source tools\create_zynq_project.tcl -tclargs zynq_led D:\work -axi
+```
+
+---
+
+## 唯一未完成项
+
+**插板实测 JTAG**。板载 JTAG 芯片丝印 `M02HS2`，非标准型号也无数据手册。
+USB-C 接 J2 调试口（丝印 `HUB / JTAG / UART`）+ 上电后，跑：
+```powershell
+Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_1A86|VID_0403|VID_1443' } |
+  Select-Object Status,Class,FriendlyName,InstanceId
+```
+期望：新增一个 `USB-Enhanced-SERIAL CH9102 (COMx)` + 一个 JTAG 设备。

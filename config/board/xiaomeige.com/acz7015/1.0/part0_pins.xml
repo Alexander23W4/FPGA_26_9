@@ -28,8 +28,8 @@
   <pin index="12" name="push_buttons_4bits_tri_i_3" iostandard="LVCMOS33" loc="AA11"/>
 
   <!-- ===== PL 侧 I2C (HDMI-1/SIL9022A、TFT 触摸、摄像头) ================ -->
-  <pin index="13" name="iic_main_scl_io"         iostandard="LVCMOS33" loc="J3"/>
-  <pin index="14" name="iic_main_sda_io"         iostandard="LVCMOS33" loc="K2"/>
+  <pin index="13" name="iic_main_scl_i"         iostandard="LVCMOS33" loc="J3"/>
+  <pin index="14" name="iic_main_sda_i"         iostandard="LVCMOS33" loc="K2"/>
 
   <!-- ===== HDMI_2 (J7) 原生 TMDS ======================================= -->
   <pin index="20" name="hdmi_tx_data_p_0"        iostandard="TMDS_33"   loc="N6"/>

@@ -94,6 +94,15 @@ foreach intf {DDR FIXED_IO} {
     }
 }
 
+# ---- PS7 的 AXI 主口时钟回接 ----
+# 无论是否使用 AXI 外设都必须接，否则 DRC 报 [BD 41-758]
+set _aclk [get_bd_pins -quiet processing_system7_0/M_AXI_GP0_ACLK]
+if {$_aclk ne ""} {
+    if {[catch {connect_bd_net [get_bd_pins processing_system7_0/FCLK_CLK0] $_aclk} _e]} {
+        puts "\[ACZ7015\] M_AXI_GP0_ACLK 已连接"
+    }
+}
+
 # ---- 可选：AXI 基础设施 + LED GPIO ----
 if {$want_axi} {
     puts "\[ACZ7015\] 生成 AXI 基础设施 ..."
