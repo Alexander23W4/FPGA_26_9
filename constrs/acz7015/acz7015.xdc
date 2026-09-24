@@ -14,7 +14,7 @@
 #      b) 只复制你用到的那几段，把端口名改成你自己的
 #    不需要的外设请整段注释掉 —— 未约束的端口会报错。
 #
-#  ⚠ 关键板级事实（详见 _others/_env/硬件核对表.md）
+#  ⚠ 关键板级事实（详见 docs/env/硬件核对表.md）
 #    · 系统时钟 50 MHz 输入在 L5（官方所有例程一致）
 #    · PL 侧有两路千兆网？否 —— 只有 1 路 PL_ENET1；PS 侧另有 1 路
 #    · 板上有两个 HDMI：
@@ -300,7 +300,7 @@ set_property IOSTANDARD LVCMOS33 [get_ports {GPIO_0_0_tri_io[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {GPIO_0_0_tri_io[4]}]
 
 # ---- GPIO0 扩展口 36 位（bank 34/35）-------------------------------------
-# 完整引脚表见 config/acz7015_pinmap.csv，此处列出以保持完整性
+# 完整引脚表见 constrs/acz7015/pinmap.csv，此处列出以保持完整性
 set_property PACKAGE_PIN B7  [get_ports {GPIO0_0_tri_io[0]}]
 set_property PACKAGE_PIN B6  [get_ports {GPIO0_0_tri_io[1]}]
 set_property PACKAGE_PIN D5  [get_ports {GPIO0_0_tri_io[2]}]
