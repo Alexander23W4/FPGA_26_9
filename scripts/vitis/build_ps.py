@@ -18,13 +18,22 @@
 #                          ★ 想让多个应用共用同一个平台，就显式指定它
 #                          ★ 平台名和应用名是工作区里的同一层目录，
 #                            所以两者同名时本脚本直接报错退出，绝不偷偷改名
+#      [--template NAME]   选填，应用模板，默认 hello_world
 #      [--force-platform]  选填，强制重新编译平台（默认平台已建好就跳过）
+#      [--no-fs]           选填，不去动 BSP 的库（默认会加 xilffs）
 #
 #  行为：
 #      · 平台不存在        -> 建 + 编译
 #      · 平台已存在且已编译 -> 【跳过平台编译】，只建应用
 #      · 平台已存在但没编译 -> 编译
 #      · 加 --force-platform -> 无论如何都重新编译平台
+#
+#  ★ BSP 库（默认开启，用 --no-fs 关掉）：
+#      给 BSP 加上 xilffs（FatFs 文件系统），PS 才能读 SD 卡上的文件。
+#      不加的话根本没有 f_open / f_read / f_mount。
+#      ⚠ 长文件名故意不开（详见 ensure_fs_lib 上面的注释）：
+#        文件名必须符合 8.3，例如 CT0001.BIN，不能是 iceberg_256x256_16bit.bin。
+#      只在 BSP 里【还没有】xilffs 时才动它，所以正常情况下不会重复重编平台。
 #
 #  ★ 组件目录是否存在的判断，一律以 vitis-comp.json 为准，不用 client 缓存：
 #      - client.get_platform() 查的是已安装的平台仓库，看不到刚建好的平台
@@ -41,7 +50,7 @@ import sys
 
 # ------------------------------- 参数 ----------------------------------------
 if len(sys.argv) < 4:
-    print("!!!ARGS!!! build_ps.py requires: <appname> <xsa> <workspace> [platform] [--force-platform]")
+    print("!!!ARGS!!! build_ps.py requires: <appname> <xsa> <workspace> [platform] [--force-platform] [--template NAME] [--no-fs]")
     sys.exit(1)
 
 app_name = sys.argv[1]
@@ -50,6 +59,7 @@ workspace = sys.argv[3]
 
 platform_name = None
 force_platform = False
+ENABLE_FS = True                # 默认给 BSP 加 xilffs + 长文件名（SD 卡要用）
 TEMPLATE = "hello_world"        # 默认：自带 helloworld.c，开箱能编出 ELF
 
 _i = 4
@@ -57,6 +67,8 @@ while _i < len(sys.argv):
     a = sys.argv[_i]
     if a in ("-f", "--force-platform"):
         force_platform = True
+    elif a == "--no-fs":
+        ENABLE_FS = False
     elif a == "--template":
         _i += 1
         if _i >= len(sys.argv):
@@ -95,6 +107,7 @@ except ImportError:
 CPU = "ps7_cortexa9_0"
 OS_TYPE = "standalone"
 DOMAIN = "standalone_" + CPU
+FS_LIB = "xilffs"               # FatFs 文件系统库，读 SD 卡要用
 
 # 有效模板名（本机 Vitis 2023.2 实测）
 #   hello_world（默认，自带源码）  empty_application（空，需自己写）
@@ -119,6 +132,7 @@ print(" [build_ps] xsa         : " + xsa)
 print(" [build_ps] workspace   : " + workspace)
 print(" [build_ps] cpu / os    : " + CPU + " / " + OS_TYPE)
 print(" [build_ps] template    : " + TEMPLATE)
+print(" [build_ps] fs lib      : " + ("xilffs (8.3 file names)" if ENABLE_FS else "disabled (--no-fs)"))
 print(" [build_ps] force build : " + ("yes" if force_platform else "no"))
 print("=" * 62)
 
@@ -168,6 +182,69 @@ def has_component(comp_dir):
     return os.path.isfile(os.path.join(comp_dir, "vitis-comp.json"))
 
 
+def bsp_yaml_path(platform):
+    """BSP 的 bsp.yaml 路径（lib_info 段列出已启用的库）"""
+    return os.path.join(workspace, platform, CPU, DOMAIN, "bsp", "bsp.yaml")
+
+
+def bsp_lib_enabled(platform, lib):
+    """BSP 里是不是已经启用了某个库？
+    返回 True / False；bsp.yaml 还不存在时返回 None（平台还没编译过）。"""
+    p = bsp_yaml_path(platform)
+    if not os.path.isfile(p):
+        return None
+    try:
+        with open(p, "r") as f:
+            txt = f.read()
+    except Exception:
+        return None
+    return ("\n  " + lib + ":") in txt
+
+
+def get_domain_or_die(platform_obj):
+    try:
+        d = platform_obj.get_domain(DOMAIN)
+    except Exception as exc:
+        print("!!!BSP_LIB_FAILED!!! get_domain(" + DOMAIN + ") failed: " + str(exc))
+        sys.exit(1)
+    if d is None:
+        print("!!!BSP_LIB_FAILED!!! domain not found in platform: " + DOMAIN)
+        sys.exit(1)
+    return d
+
+
+# -----------------------------------------------------------------------------
+#  ★ 只加 xilffs，【故意不碰】XILFFS_use_lfn。
+#
+#  为什么不去开长文件名：Vitis 2023.2 的服务器不吃这个 integer 参数。
+#  实测（从零重建也复现）：
+#      bsp.yaml                          value: '1'      <- 设进去了
+#      libsrc/.../cmake_lib_configs.txt  XILFFS_use_lfn:STRING=0   <- 服务器仍写 0
+#      libsrc/.../gen_bsp/include/       #define FILE_SYSTEM_USE_LFN 1  <- 库按 1 编
+#      export/.../include/               #undef  FILE_SYSTEM_USE_LFN    <- 应用看到 0
+#  → 库和应用对 FIL / FATFS 结构体的布局认知不一致，f_open 会踩内存，
+#    比"没有长文件名"危险得多。所以一律保持默认 0。
+#
+#  代价：文件名必须符合 8.3（8 字符名 + 3 字符扩展名），例如 CT0001.BIN。
+# -----------------------------------------------------------------------------
+def ensure_fs_lib(platform_obj):
+    """确保 BSP 里有 xilffs。返回 True 表示需要重新编译平台。"""
+    if bsp_lib_enabled(platform_name, FS_LIB):
+        print("[build_ps] BSP already has " + FS_LIB + " -- no BSP change")
+        return False
+
+    domain = get_domain_or_die(platform_obj)
+    print("[build_ps] Enabling " + FS_LIB + " in the BSP (needed to read the SD card) ...")
+    try:
+        domain.set_lib(FS_LIB)
+    except Exception as exc:
+        print("!!!BSP_LIB_FAILED!!! set_lib('" + FS_LIB + "') failed: " + str(exc))
+        sys.exit(1)
+
+    print("[build_ps] " + FS_LIB + " enabled (file names must be 8.3, e.g. CT0001.BIN)")
+    return True
+
+
 def stash_dir(comp_dir):
     """建组件前先把同名目录挪开（否则 create 可能失败，或者覆盖你的 main.c）"""
     if not os.path.isdir(comp_dir):
@@ -202,26 +279,30 @@ def restore_dir(stash, comp_dir):
 platform_dir = os.path.join(workspace, platform_name)
 platform_exists = has_component(platform_dir)
 
+platform_obj = None
+need_build = False
+
 if platform_exists:
     print("[build_ps] Platform exists: " + platform_name)
-    if find_xpfm(platform_name) and not force_platform:
-        print("[build_ps] Platform already built -- SKIPPING platform build")
+    if force_platform:
+        print("[build_ps] --force-platform given")
+        need_build = True
+    elif not find_xpfm(platform_name):
+        print("[build_ps] Platform not built yet")
+        need_build = True
     else:
-        print("[build_ps] Building platform ...")
-        platform_obj = client.get_platform_component(platform_name)
-        if platform_obj is None:
-            print("!!!PLATFORM_FAILED!!! directory exists but Vitis does not see a platform there:")
-            print("                    " + platform_dir)
-            print("                    delete that directory and re-run")
-            sys.exit(1)
-        try:
-            platform_obj.build()
-        except Exception as exc:
-            print("!!!PLATFORM_BUILD_FAILED!!! " + str(exc))
-            sys.exit(1)
-        print("[build_ps] Platform build done")
+        print("[build_ps] Platform already built")
+
+    # 即使要跳过编译也要拿到对象，因为下面要检查/修改 BSP 的库
+    platform_obj = client.get_platform_component(platform_name)
+    if platform_obj is None:
+        print("!!!PLATFORM_FAILED!!! directory exists but Vitis does not see a platform there:")
+        print("                    " + platform_dir)
+        print("                    delete that directory and re-run")
+        sys.exit(1)
 else:
     print("[build_ps] Creating platform: " + platform_name)
+    # 目录可能已经因为 git 跟踪了 src/ 而存在，先挪开，建完再合并回来
     stash = stash_dir(platform_dir)
     try:
         platform_obj = client.create_platform_component(
@@ -236,7 +317,15 @@ else:
         print("!!!PLATFORM_FAILED!!! " + str(exc))
         sys.exit(1)
     restore_dir(stash, platform_dir)
+    need_build = True
 
+# ---- BSP 的库：读 SD 卡要 xilffs + 长文件名（必须在第一次 build 之前配好）----
+if ENABLE_FS:
+    if ensure_fs_lib(platform_obj):
+        print("[build_ps] BSP changed -- platform will be rebuilt")
+        need_build = True
+
+if need_build:
     print("[build_ps] Building platform ...")
     try:
         platform_obj.build()
@@ -244,6 +333,8 @@ else:
         print("!!!PLATFORM_BUILD_FAILED!!! " + str(exc))
         sys.exit(1)
     print("[build_ps] Platform build done")
+else:
+    print("[build_ps] Platform already built -- SKIPPING platform build")
 
 # ---------------------------- Application ------------------------------------
 # create_app_component 的 platform 参数要【字符串】(xpfm 路径)

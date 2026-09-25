@@ -51,12 +51,23 @@ Commands:
 Options:
   -n, --name NAME       Project name / application name (required)
   -a, --axi             Add AXI infrastructure + LED GPIO (Zynq only)
+  -H, --hp              Add the PL-master-reads-DDR path (Zynq only):
+                        enables PS S_AXI_HP0, adds config/status GPIOs, and
+                        exposes S_AXI_IMG + FCLK_CLK0 + peripheral_aresetn
+      --fclk0 MHZ       FCLK_CLK0 frequency for the Zynq design (default 50)
+  -R, --recreate        Delete the Vivado project first and rebuild it from Tcl
+                        (required after any Block Design change)
   -t, --top TOP         Top module name (pure PL)
   -b, --tb TB           Testbench top name (sim)
   -j, --jobs N          Parallel jobs for synth/impl (default 4)
   -T, --template NAME   Vitis application template for "app" (default hello_world)
                         hello_world ships its own source, so the build produces an
                         ELF right away; use empty_application for a blank src/
+      --no-fs           Do not add the xilffs (FatFs) library to the BSP.
+                        By default the BSP gets xilffs so that the PS can read
+                        files from the SD card. File names must be 8.3
+                        (e.g. CT0001.BIN) because long file names are not
+                        usable in this Vitis version.
   -p, --platform NAME   Platform component name for "app"/"all"
                         (default: the hardware project name, i.e. the .xsa file
                          name, with NO suffix. It must differ from the
@@ -85,10 +96,15 @@ EOF
 CMD="${1:-}"; shift || true
 
 NAME=""; AXI=0; TOP=""; TB=""; JOBS=4; PLATFORM=""; FORCE_PLATFORM=0; TEMPLATE="hello_world"
+HP=0; FCLK0=""; RECREATE=0; NO_FS=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -n|--name) NAME="${2:-}"; shift 2 ;;
     -a|--axi)  AXI=1; shift ;;
+    -H|--hp)   HP=1; shift ;;
+    --fclk0)   FCLK0="${2:-}"; shift 2 ;;
+    -R|--recreate) RECREATE=1; shift ;;
+    --no-fs)   NO_FS=1; shift ;;
     -t|--top)  TOP="${2:-}";  shift 2 ;;
     -b|--tb)   TB="${2:-}";   shift 2 ;;
     -j|--jobs) JOBS="${2:-4}"; shift 2 ;;
@@ -173,14 +189,23 @@ do_zynq() {
   [ -n "$NAME" ] || die "Missing -n <project name>"
   check_tools
 
+  # -R：先删掉 Vivado 工程，强制从 Tcl 重建（改了 BD 结构时必须）
+  if [ "$RECREATE" -eq 1 ]; then
+    info "Recreating project: removing ${VIVADO_PROJ_DIR}/${NAME}"
+    rm -rf "${VIVADO_PROJ_DIR:?}/${NAME:?}"
+  fi
+
   local out; out="$(new_out_dir)"
   info "Archive dir: ${out#${REPO_ROOT}/}"
 
-  local axiflag=""
-  [ "$AXI" -eq 1 ] && axiflag="-axi"
+  # 组装透传给 build_zynq.tcl 的选项
+  local vargs=("$NAME" "$(winpath "${VIVADO_PROJ_DIR}")")
+  [ "$AXI" -eq 1 ] && vargs+=("-axi")
+  [ "$HP"  -eq 1 ] && vargs+=("-hp")
+  [ -n "$FCLK0" ]  && vargs+=("-fclk0" "$FCLK0")
+  vargs+=("$JOBS")
 
-  run_vivado "${SCRIPTS_DIR}/tcl/build_zynq.tcl" \
-      "$NAME" "$(winpath "${VIVADO_PROJ_DIR}")" "$axiflag" "$JOBS" 2>&1 | tee "${out}/build.log"
+  run_vivado "${SCRIPTS_DIR}/tcl/build_zynq.tcl" "${vargs[@]}" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
   [ "$rc" -eq 0 ] || die "Vivado build failed (rc=$rc). Log: ${out}/build.log"
 
@@ -223,6 +248,7 @@ do_app() {
   local vargs=("$NAME" "$(winpath "$xsa")" "$(winpath "${VITIS_WS_DIR}")" "$PLATFORM"
                "--template" "$TEMPLATE")
   [ "$FORCE_PLATFORM" -eq 1 ] && vargs+=("--force-platform")
+  [ "$NO_FS" -eq 1 ] && vargs+=("--no-fs")
 
   run_vitis "${SCRIPTS_DIR}/vitis/build_ps.py" "${vargs[@]}" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
