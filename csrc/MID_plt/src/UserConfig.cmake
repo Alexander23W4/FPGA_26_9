@@ -27,6 +27,11 @@ set(USER_UNDEFINED_SYMBOLS
 
 set(USER_INCLUDE_DIRECTORIES
 "${CMAKE_SOURCE_DIR}"
+# lwIP (lwip213): the platform export keeps the lwIP headers one level deeper,
+# and arch/ is needed by lwipopts / cc.h
+"${CMAKE_LIBRARY_PATH}/../include/include"
+"${CMAKE_LIBRARY_PATH}/../include/arch"
+"${CMAKE_LIBRARY_PATH}/../include/src/include"
 )
 
 # -----------------------------------------

@@ -241,3 +241,91 @@ void vdma_mm2s_report(void)
 }
 
 
+
+/* ==========================================================================
+ *  S2MM (write channel): the PL result stream goes back into DDR.
+ * ========================================================================== */
+#define VDMA_S2MM_CR_OFF      0x30u
+#define VDMA_S2MM_SR_OFF      0x34u
+#define VDMA_S2MM_REG_OFF     0xA0u
+#define PARKPTR_WRTSTR_MASK   0x1F000000u
+#define PARKPTR_WRTSTR_SHIFT  24u
+
+int vdma_s2mm_stop(void)
+{
+    u32 spins = VDMA_SPIN_LIMIT;
+
+    vdma_wr(VDMA_S2MM_CR_OFF, vdma_rd(VDMA_S2MM_CR_OFF) & ~CR_RUNSTOP);
+    while (spins-- != 0u) {
+        if ((vdma_rd(VDMA_S2MM_SR_OFF) & SR_HALTED) != 0u) {
+            return 0;
+        }
+    }
+    return -1;
+}
+
+int vdma_s2mm_config(u32 ddr_addr, u32 hsize_bytes, u32 vsize_lines, u32 stride_bytes)
+{
+    u32 i;
+
+    if (hsize_bytes == 0u || hsize_bytes > 0xFFFFu) {
+        xil_printf("vdma: s2mm hsize %d out of range\r\n", (s32)hsize_bytes);
+        return -1;
+    }
+    if (vsize_lines == 0u || vsize_lines > 0x1FFFu) {
+        xil_printf("vdma: s2mm vsize %d out of range\r\n", (s32)vsize_lines);
+        return -1;
+    }
+    if ((ddr_addr & 0x3u) != 0u) {
+        xil_printf("vdma: s2mm addr 0x%08X not 4-byte aligned\r\n", (s32)ddr_addr);
+        return -1;
+    }
+
+    vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_VSIZE_OFF, vsize_lines);
+    vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_HSIZE_OFF, hsize_bytes);
+    vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_STRD_OFF, stride_bytes & 0xFFFFu);
+    for (i = 0u; i < VDMA_SAME_ADDR_FRAMES; i++) {
+        vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_STARTADDR_OFF + (i * 4u), ddr_addr);
+    }
+
+    xil_printf("vdma: s2mm cfg addr=0x%08X hsize=%d vsize=%d stride=%d\r\n",
+               (s32)ddr_addr, (s32)hsize_bytes, (s32)vsize_lines, (s32)stride_bytes);
+    return 0;
+}
+
+int vdma_s2mm_start(void)
+{
+    u32 v = vdma_rd(VDMA_S2MM_CR_OFF);
+
+    v |= CR_RUNSTOP;
+    v &= ~CR_TAIL_EN;
+    vdma_wr(VDMA_S2MM_CR_OFF, v);
+    return 0;
+}
+
+u32 vdma_s2mm_write_frame(void)
+{
+    return (vdma_rd(VDMA_PARKPTR_OFFSET) & PARKPTR_WRTSTR_MASK) >> PARKPTR_WRTSTR_SHIFT;
+}
+
+int vdma_s2mm_wait_frames(u32 f0, u32 spins)
+{
+    while (spins-- != 0u) {
+        if (vdma_s2mm_write_frame() != f0) {
+            return 0;
+        }
+    }
+    return -1;
+}
+
+void vdma_s2mm_report(void)
+{
+    u32 sr = vdma_rd(VDMA_S2MM_SR_OFF);
+
+    xil_printf("  S2MM SR : 0x%08X  HALTED=%d IDLE=%d  write frame=%d\r\n",
+               (s32)sr, (int)(sr & SR_HALTED), (int)((sr >> 1) & 1u),
+               (s32)vdma_s2mm_write_frame());
+    if ((sr & SR_ERR_ALL) != 0u) {
+        xil_printf("    S2MM ERRORS: 0x%03X\r\n", (s32)((sr & SR_ERR_ALL) >> 4));
+    }
+}

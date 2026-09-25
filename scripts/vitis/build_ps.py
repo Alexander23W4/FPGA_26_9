@@ -107,6 +107,7 @@ except ImportError:
 CPU = "ps7_cortexa9_0"
 OS_TYPE = "standalone"
 DOMAIN = "standalone_" + CPU
+NET_LIB = "lwip213"            # lwIP for the PS Ethernet (raw API, no OS)
 FS_LIB = "xilffs"               # FatFs 文件系统库，读 SD 卡要用
 
 # 有效模板名（本机 Vitis 2023.2 实测）
@@ -245,6 +246,23 @@ def ensure_fs_lib(platform_obj):
     return True
 
 
+def ensure_net_lib(platform_obj):
+    """Make sure the BSP has lwIP. Returns True if the platform must rebuild."""
+    if bsp_lib_enabled(platform_name, NET_LIB):
+        print("[build_ps] BSP already has " + NET_LIB + " -- no BSP change")
+        return False
+
+    domain = get_domain_or_die(platform_obj)
+    print("[build_ps] Enabling " + NET_LIB + " in the BSP (needed for Ethernet) ...")
+    try:
+        domain.set_lib(NET_LIB)
+    except Exception as exc:
+        print("!!!BSP_LIB_FAILED!!! set_lib failed for " + NET_LIB + ": " + str(exc))
+        sys.exit(1)
+
+    print("[build_ps] " + NET_LIB + " enabled")
+    return True
+
 def stash_dir(comp_dir):
     """建组件前先把同名目录挪开（否则 create 可能失败，或者覆盖你的 main.c）"""
     if not os.path.isdir(comp_dir):
@@ -321,6 +339,8 @@ else:
 
 # ---- BSP 的库：读 SD 卡要 xilffs + 长文件名（必须在第一次 build 之前配好）----
 if ENABLE_FS:
+    if ensure_net_lib(platform_obj):
+        need_build = True
     if ensure_fs_lib(platform_obj):
         print("[build_ps] BSP changed -- platform will be rebuilt")
         need_build = True

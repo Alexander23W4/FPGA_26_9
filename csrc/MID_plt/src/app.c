@@ -14,6 +14,7 @@
 #include "feat/emmc_load.h"
 #include "feat/img2ddr.h"
 #include "feat/clear.h"
+#include "feat/net_send.h"
 #include "xil_printf.h"
 #include "xil_types.h"
 
@@ -50,6 +51,7 @@ static const app_cmd_t cmds[] = {
     { CMD_EMMC_LOAD,   "A add ", "PC -> eMMC  : receive a .bin and verify it on eMMC", feat_emmc_load_run },
     { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR : load an image into DDR and start VDMA", feat_img2ddr_run },
     { CMD_EMMC_CLEAR,  "E clear","wipe every registered image on the eMMC and reset the catalog", feat_emmc_clear_run },
+    { CMD_NET_SEND,    "N net",  "send the result image from DDR to the laptop over UDP", feat_net_send_run },
 };
 #define APP_CMD_COUNT   (sizeof(cmds) / sizeof(cmds[0]))
 

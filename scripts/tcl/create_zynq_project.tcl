@@ -191,7 +191,7 @@ if {$want_axi_infra} {
         create_bd_cell -type ip -vlnv xilinx.com:ip:axi_vdma:6.3 axi_vdma_0
         if {[catch {
             set_property -dict [list \
-                CONFIG.c_include_s2mm            {0} \
+                CONFIG.c_include_s2mm            {1} \
                 CONFIG.c_include_mm2s            {1} \
                 CONFIG.c_num_fstores             {4} \
                 CONFIG.c_addr_width              {32} \
@@ -294,10 +294,17 @@ if {$want_hp} {
 
     create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_ic_hp
     # S00 = AXI VDMA 的 M_AXI_MM2S（VDMA 从这里读 DDR）
-    set_property -dict [list CONFIG.NUM_SI {1} CONFIG.NUM_MI {1}] [get_bd_cells axi_ic_hp]
+    set_property -dict [list CONFIG.NUM_SI {2} CONFIG.NUM_MI {1}] [get_bd_cells axi_ic_hp]
 
     # S_AXI_HP0 在 Zynq-7000 上是 AXI3 / 64bit，interconnect 负责协议转换
     connect_bd_intf_net [get_bd_intf_pins axi_ic_hp/M00_AXI] [get_bd_intf_pins $ps7/S_AXI_HP0]
+
+    # --- AXI VDMA memory WRITE port (S2MM) -> S01 : result image goes back to DDR ---
+    if {[get_bd_pins -quiet axi_vdma_0/m_axi_s2mm_aclk] ne ""} {
+        puts "\[ACZ7015\] Connecting AXI VDMA S2MM -> axi_ic_hp/S01_AXI -> PS S_AXI_HP0"
+        connect_bd_intf_net [get_bd_intf_pins axi_vdma_0/M_AXI_S2MM] \
+                            [get_bd_intf_pins axi_ic_hp/S01_AXI]
+    }
 
     # --- AXI VDMA 的内存读口接到 S00 ---
     # 注意：VDMA 的 s_axi_lite_aclk / axi_resetn 已经在上面 gp_slaves
@@ -309,7 +316,7 @@ if {$want_hp} {
         # VDMA 有时钟域：内存/控制一个（m_axi_mm2s_aclk）+ 流一个（m_axis_mm2s_aclk）。
         # 全部给同一个 FCLK_CLK0。m_axis_mm2s_aclk 不接的话流那边根本不工作。
         # 复位由上面 gp_slaves 循环里的 axi_resetn 负责，这里不要重复接。
-        foreach _cp {m_axi_mm2s_aclk m_axis_mm2s_aclk} {
+        foreach _cp {m_axi_mm2s_aclk m_axis_mm2s_aclk m_axi_s2mm_aclk s_axis_s2mm_aclk} {
             if {[get_bd_pins -quiet axi_vdma_0/$_cp] ne ""} {
                 connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_vdma_0/$_cp]
             } else {
@@ -320,25 +327,29 @@ if {$want_hp} {
         puts "\[ACZ7015\] WARNING: axi_vdma_0 不存在，HP0 这条 Master 通路是空的"
     }
 
-    # --- AXI4-Stream 接收端（rtl/axis_rcv.sv）-------------------------------
-    # 它把 VDMA 吐出的流按 AXI4-Stream 规范完整收下来，拆成"一个像素一拍"，
-    # 握手/背压/tkeep/tlast/行列帧边界全部在模块内部处理。
-    # 你的算法只需要接它右边的 px_* 几根线。
+    # --- AXI4-Stream pipeline wrapper (rtl/img_pipe.sv) -------------------------
+    #   img_pipe.sv instantiates axis_rcv and axis_out and connects the six pixel
+    #   stream signals straight through:
+    #       VDMA MM2S --S_AXIS--> img_pipe_0 --M_AXIS--> VDMA S2MM
+    #   With no algorithm in between the result equals the source image, which
+    #   is exactly what we want to prove the whole path works.
     #
-    # 现在 px_* 先悬空：它照样会把流收完（tready 有驱动），于是 VDMA 的帧指针
-    # 就会开始动，整条 eMMC -> DDR -> VDMA -> Stream 立刻可以验证。
+    #   * To add your algorithm, edit rtl/img_pipe.sv only: split those six wires
+    #     and drop your module between them. This BD script does not change.
+    set _pipe_rtl [file normalize [file join $repo_root rtl img_pipe.sv]]
     set _rcv_rtl [file normalize [file join $repo_root rtl axis_rcv.sv]]
-    if {[file exists $_rcv_rtl] && [get_bd_cells -quiet axi_vdma_0] ne ""} {
-        add_files -norecurse $_rcv_rtl
-        create_bd_cell -type module -reference axis_rcv axis_rcv_0
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins axis_rcv_0/aclk]
-        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axis_rcv_0/aresetn]
+    set _aout_rtl [file normalize [file join $repo_root rtl axis_out.sv]]
+    if {[file exists $_pipe_rtl] && [file exists $_rcv_rtl] && [file exists $_aout_rtl] && [get_bd_cells -quiet axi_vdma_0] ne ""} {
 
-        # 先试接口级连接。module reference 的 AXI-Stream 接口能不能被自动识别
-        # 取决于 Vivado 版本，认不出来就退回逐根信号连。
+        add_files -norecurse [list $_rcv_rtl $_aout_rtl $_pipe_rtl]
+        create_bd_cell -type module -reference img_pipe img_pipe_0
+        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins img_pipe_0/aclk]
+        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins img_pipe_0/aresetn]
+
+        # MM2S stream enters img_pipe_0
         if {[catch {
             connect_bd_intf_net [get_bd_intf_pins axi_vdma_0/M_AXIS_MM2S] \
-                                [get_bd_intf_pins axis_rcv_0/S_AXIS]
+                                [get_bd_intf_pins img_pipe_0/S_AXIS]
         } _e]} {
             puts "\[ACZ7015\] S_AXIS interface not inferred, connecting pin by pin"
             foreach {vp rp} {
@@ -349,19 +360,37 @@ if {$want_hp} {
                 M_AXIS_MM2S_TKEEP  s_axis_tkeep
                 M_AXIS_MM2S_TUSER  s_axis_tuser
             } {
-                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins axis_rcv_0/$rp]
+                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins img_pipe_0/$rp]
             }
         }
-        puts "\[ACZ7015\] axis_rcv_0 instantiated -- connect your algorithm to its px_* pins"
+
+        # img_pipe_0 stream goes out to S2MM
+        if {[catch {
+            connect_bd_intf_net [get_bd_intf_pins img_pipe_0/M_AXIS] \
+                                [get_bd_intf_pins axi_vdma_0/S_AXIS_S2MM]
+        } _e]} {
+            puts "\[ACZ7015\] S_AXIS_S2MM interface not inferred, connecting pin by pin"
+            foreach {sp dp} {
+                m_axis_tdata  S_AXIS_S2MM_TDATA
+                m_axis_tvalid S_AXIS_S2MM_TVALID
+                m_axis_tready S_AXIS_S2MM_TREADY
+                m_axis_tlast  S_AXIS_S2MM_TLAST
+                m_axis_tkeep  S_AXIS_S2MM_TKEEP
+                m_axis_tuser  S_AXIS_S2MM_TUSER
+            } {
+                connect_bd_net [get_bd_pins img_pipe_0/$sp] [get_bd_pins axi_vdma_0/$dp]
+            }
+        }
+        puts "\[ACZ7015\] img_pipe_0 instantiated: MM2S -> axis_rcv -> axis_out -> S2MM (pass-through)"
     } else {
-        puts "\[ACZ7015\] WARNING: rtl/axis_rcv.sv 不存在，VDMA 的流没有接收端"
+        puts "\[ACZ7015\] WARNING: rtl/img_pipe.sv (or axis_rcv.sv / axis_out.sv) missing"
     }
 
-    foreach p {ACLK S00_ACLK M00_ACLK} {
+    foreach p {ACLK S00_ACLK S01_ACLK M00_ACLK} {
         connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_ic_hp/$p]
     }
     connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins $ps7/S_AXI_HP0_ACLK]
-    foreach p {S00_ARESETN M00_ARESETN} {
+    foreach p {S00_ARESETN S01_ARESETN M00_ARESETN} {
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_ic_hp/$p]
     }
     # interconnect 自己的全局复位

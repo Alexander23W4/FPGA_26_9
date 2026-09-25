@@ -25,7 +25,12 @@
  *  ★ 地址必须 64 字节对齐（cache line 32B，VDMA 也要求字对齐）。
  * ========================================================================== */
 #define IMG_DDR_BASE        0x20000000u
-#define IMG_DDR_SIZE        (16u * 1024u * 1024u)      /* 预留 16MB */
+#define IMG_DDR_SIZE        (16u * 1024u * 1024u)
+/* Result image buffer: the PL writes the segmentation result back here and
+ * the PS reads it out to send over Ethernet. Placed right after the input
+ * buffer so the two never overlap. */
+#define IMG_RES_DDR_BASE    (IMG_DDR_BASE + 0x00800000u)
+#define IMG_RES_DDR_SIZE    (4u * 1024u * 1024u)      /* 预留 16MB */
 
 /* ==========================================================================
  *  eMMC 布局
@@ -74,7 +79,27 @@
 #define CMD_LIST_IMAGES     'I'      /* 列出 eMMC 里登记了哪些图 */
 #define CMD_EMMC_LOAD       'A'      /* feature: PC -> eMMC */
 #define CMD_EMMC_CLEAR      'E'      /* feature: 清空 eMMC（抹数据 + 清目录） */
-#define CMD_IMG_TO_DDR      'D'      /* feature: eMMC -> DDR + 启动 VDMA */
+#define CMD_IMG_TO_DDR      'D'
+/* ---- Ethernet (PS ENET0, MIO16-27 RGMII -> RTL8211F -> RJ45) ----
+ * Point to point link to the laptop. Give the laptop adapter a static
+ * address and keep the subnet identical. */
+#define NET_BOARD_IP0       192
+#define NET_BOARD_IP1       168
+#define NET_BOARD_IP2       1
+#define NET_BOARD_IP3       10
+
+#define NET_PC_IP0          192
+#define NET_PC_IP1          168
+#define NET_PC_IP2          1
+#define NET_PC_IP3          100
+
+#define NET_BOARD_PORT      5001
+#define NET_PC_PORT         5000
+
+/* UDP payload per packet. 1400 keeps the whole frame under a 1500 byte MTU. */
+#define NET_UDP_PAYLOAD     1400u
+
+#define CMD_NET_SEND        'N'      /* feature: send the result image over Ethernet */      /* feature: eMMC -> DDR + 启动 VDMA */
 
 /* 单次传输上限（DDR 缓冲减去 TOC 空间，保守取 16MB 里的一大半） */
 #define IMG_MAX_BYTES       (8u * 1024u * 1024u)
