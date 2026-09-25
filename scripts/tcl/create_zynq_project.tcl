@@ -327,18 +327,18 @@ if {$want_hp} {
         puts "\[ACZ7015\] WARNING: axi_vdma_0 不存在，HP0 这条 Master 通路是空的"
     }
 
-    # --- AXI4-Stream pipeline wrapper (rtl/img_pipe.sv) -------------------------
-    #   img_pipe.sv instantiates axis_rcv and axis_out and connects the six pixel
+    # --- AXI4-Stream pipeline wrapper (rtl/img_pipe.v) -------------------------
+    #   img_pipe.v instantiates axis_rcv and axis_out and connects the six pixel
     #   stream signals straight through:
     #       VDMA MM2S --S_AXIS--> img_pipe_0 --M_AXIS--> VDMA S2MM
     #   With no algorithm in between the result equals the source image, which
     #   is exactly what we want to prove the whole path works.
     #
-    #   * To add your algorithm, edit rtl/img_pipe.sv only: split those six wires
+    #   * To add your algorithm, edit rtl/img_pipe.v only: split those six wires
     #     and drop your module between them. This BD script does not change.
-    set _pipe_rtl [file normalize [file join $repo_root rtl img_pipe.sv]]
-    set _rcv_rtl [file normalize [file join $repo_root rtl axis_rcv.sv]]
-    set _aout_rtl [file normalize [file join $repo_root rtl axis_out.sv]]
+    set _pipe_rtl [file normalize [file join $repo_root rtl img_pipe.v]]
+    set _rcv_rtl [file normalize [file join $repo_root rtl axis_rcv.v]]
+    set _aout_rtl [file normalize [file join $repo_root rtl axis_out.v]]
     if {[file exists $_pipe_rtl] && [file exists $_rcv_rtl] && [file exists $_aout_rtl] && [get_bd_cells -quiet axi_vdma_0] ne ""} {
 
         add_files -norecurse [list $_rcv_rtl $_aout_rtl $_pipe_rtl]
@@ -383,7 +383,7 @@ if {$want_hp} {
         }
         puts "\[ACZ7015\] img_pipe_0 instantiated: MM2S -> axis_rcv -> axis_out -> S2MM (pass-through)"
     } else {
-        puts "\[ACZ7015\] WARNING: rtl/img_pipe.sv (or axis_rcv.sv / axis_out.sv) missing"
+        puts "\[ACZ7015\] WARNING: rtl/img_pipe.v (or axis_rcv.v / axis_out.v) missing"
     }
 
     foreach p {ACLK S00_ACLK S01_ACLK M00_ACLK} {
