@@ -418,6 +418,52 @@ if not elvs:
         print("                     real compile/link error -- read the log above")
     sys.exit(1)
 
+# ------------------- ★ 陈旧检查（这是真踩过的坑） ---------------------------
+# 上面那个检查只能发现"从来没有 .elf"。如果 .elf 是【上一次】编出来的，
+# 而这次 make 什么都没做，旧 .elf 还在磁盘上，照样会报成功。
+#
+# 实际踩过的例子：src/CMakeLists.txt 被截断成没有 add_executable() 的
+# "空工程"。CMake 认为配置成功（空工程是合法的），make 打
+# "Nothing to be done for 'all'"，旧 ELF 原封不动 —— 脚本却打了 BUILD_PS_OK，
+# 于是拿着旧固件白烧了一轮板子。
+#
+# 所以：ELF 必须比 src/ 下最新的源文件【更新】，否则一律算失败。
+src_dir = os.path.join(app_dir, "src")
+newest_src = 0.0
+for root, _dirs, files in os.walk(src_dir):
+    for fn in files:
+        if fn.endswith((".c", ".h", ".cpp", ".cc", ".S", ".s", ".asm",
+                        ".cmake", ".txt", ".ld")):
+            try:
+                newest_src = max(newest_src, os.path.getmtime(os.path.join(root, fn)))
+            except OSError:
+                pass
+
+newest_elf = 0.0
+for p in elvs:
+    try:
+        newest_elf = max(newest_elf, os.path.getmtime(p))
+    except OSError:
+        pass
+
+
+def _fmt(ts):
+    import datetime
+    return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+
+
+if newest_elf < newest_src:
+    print("!!!STALE_ELF!!! the .elf is OLDER than the sources -- nothing was rebuilt.")
+    print("               elf           : " + _fmt(newest_elf))
+    print("               newest source : " + _fmt(newest_src))
+    print("               Usual causes:")
+    print("                 1) a new .c is missing from the")
+    print("                    collect(PROJECT_LIB_SOURCES ...) list in")
+    print("                    " + os.path.join(src_dir, "CMakeLists.txt"))
+    print("                 2) CMakeLists.txt is truncated or has no add_executable()")
+    print("               Look for 'Nothing to be done for' in the build log above.")
+    sys.exit(1)
+
 # ------------------------------- 收尾 ----------------------------------------
 try:
     vitis.dispose()

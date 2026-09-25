@@ -17,19 +17,30 @@ collect(PROJECT_LIB_DEPS xiltimer;xilffs)
 
 
 
-
-
-
-
-
-
-
-
 collect(PROJECT_LIB_DEPS gcc)
 collect(PROJECT_LIB_DEPS c)
 
+# All sources are FLAT in src/ on purpose.
+# Vitis rewrites this file and emits collect(PROJECT_LIB_SOURCES <path>) using
+# WINDOWS BACKSLASHES, so a file in a subdirectory becomes "app\app.c" and
+# CMake aborts with:  Invalid character escape '\a'
+# Grouping is done by filename prefix instead:
+#   app*.c      init + command dispatch
+#   crc32/uartln   shared helpers
+#   drv_*.c     drivers (eMMC, AXI VDMA MM2S)
+#   img_*.c     eMMC image catalog, DDR image buffer
+#   feat_*.c    one file per feature
+collect (PROJECT_LIB_SOURCES app.c)
+collect (PROJECT_LIB_SOURCES crc32.c)
+collect (PROJECT_LIB_SOURCES drv_emmc.c)
+collect (PROJECT_LIB_SOURCES drv_vdma.c)
+collect (PROJECT_LIB_SOURCES feat_emmc_load.c)
+collect (PROJECT_LIB_SOURCES feat_img2ddr.c)
+collect (PROJECT_LIB_SOURCES img_catalog.c)
+collect (PROJECT_LIB_SOURCES img_ddr.c)
 collect (PROJECT_LIB_SOURCES main.c)
 collect (PROJECT_LIB_SOURCES platform.c)
+collect (PROJECT_LIB_SOURCES uartln.c)
 collector_list (_sources PROJECT_LIB_SOURCES)
 foreach (source ${_sources})
     get_filename_component(ext ${source} EXT)
