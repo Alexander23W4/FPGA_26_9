@@ -17,6 +17,13 @@ collect(PROJECT_LIB_DEPS xiltimer;xilffs)
 
 
 
+
+
+
+
+
+
+
 collect(PROJECT_LIB_DEPS gcc)
 collect(PROJECT_LIB_DEPS c)
 
@@ -34,6 +41,7 @@ collect (PROJECT_LIB_SOURCES app.c)
 collect (PROJECT_LIB_SOURCES crc32.c)
 collect (PROJECT_LIB_SOURCES drv_emmc.c)
 collect (PROJECT_LIB_SOURCES drv_vdma.c)
+collect (PROJECT_LIB_SOURCES feat_emmc_clear.c)
 collect (PROJECT_LIB_SOURCES feat_emmc_load.c)
 collect (PROJECT_LIB_SOURCES feat_img2ddr.c)
 collect (PROJECT_LIB_SOURCES img_catalog.c)

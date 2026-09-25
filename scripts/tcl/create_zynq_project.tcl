@@ -180,24 +180,47 @@ if {$want_axi_infra} {
         ] [get_bd_cells axi_gpio_in0]
         lappend gp_slaves axi_gpio_in0
 
-        # PS -> PL
-        foreach {portname cell pin} {
-            img_base axi_gpio_out0 gpio_io_o
-            img_geom axi_gpio_out0 gpio2_io_o
-            img_fmt  axi_gpio_out1 gpio_io_o
-            img_ctrl axi_gpio_out1 gpio2_io_o
-        } {
-            create_bd_port -dir O -from 31 -to 0 $portname
-            connect_bd_net [get_bd_ports $portname] [get_bd_pins $cell/$pin]
+        # ---- 3) AXI VDMA (MM2S)：DDR -> AXI-Stream ----
+        # 数据方向：axi_vdma_0(M_AXI_MM2S) -> axi_ic_hp(S01) -> PS S_AXI_HP0 -> DDR
+        # 控制口 S_AXI_LITE 挂在 PS 的 M_AXI_GP0 上（lappend 进 gp_slaves），
+        # PS 用它配 VSIZE/HSIZE/STRIDE/START_ADDRESS 并启动。
+        #
+        # ★ M_AXIS_MM2S 是流出口，【这里故意不接】—— 你的 PL 算法模块以后接在这里。
+        #   不接的后果：tready 没人驱动 = 背压，VDMA 搬一点点就停住，帧计数不前进。
+        #   链路本身是通的，只是下游暂时没人收数据，这是预期现象。
+        create_bd_cell -type ip -vlnv xilinx.com:ip:axi_vdma:6.3 axi_vdma_0
+        if {[catch {
+            set_property -dict [list \
+                CONFIG.c_include_s2mm            {0} \
+                CONFIG.c_include_mm2s            {1} \
+                CONFIG.c_num_fstores             {4} \
+                CONFIG.c_addr_width              {32} \
+                CONFIG.c_m_axi_mm2s_data_width   {64} \
+                CONFIG.c_m_axis_mm2s_tdata_width {64} \
+                CONFIG.c_include_mm2s_dre        {1} \
+            ] [get_bd_cells axi_vdma_0]
+        } _vd_cfg_err]} {
+            puts "\[ACZ7015\] ERROR: could not configure axi_vdma_0: $_vd_cfg_err"
+            error "axi_vdma_0 configuration failed"
         }
-        # PL -> PS
-        foreach {portname cell pin} {
-            img_status axi_gpio_in0 gpio_io_i
-            img_area   axi_gpio_in0 gpio2_io_i
-        } {
-            create_bd_port -dir I -from 31 -to 0 $portname
-            connect_bd_net [get_bd_ports $portname] [get_bd_pins $cell/$pin]
-        }
+        lappend gp_slaves axi_vdma_0
+
+        # ★ 这 6 个配置/状态寄存器【不引出到顶层引脚】。
+        #
+        # 曾经用 create_bd_port 引出去，结果顶层变成 396 个 IO，place 直接失败：
+        #     ERROR: [Place 30-415] IO Placement failed due to overutilization.
+        #     This design contains 396 I/O ports
+        # 光一条 AXI4 从口(S_AXI_IMG)就 250+ 根，再加 6x32bit 就 400+，
+        # 而 xc7z015clg485 根本没有这么多用户 IO。
+        #
+        # 正确做法：你的 PL 模块加在【BD 内部】，直接在 BD 里接这些引脚，
+        # 不需要经过顶层引脚。GPIO cell 都保留着，加模块时连上即可：
+        #     axi_gpio_out0/gpio_io_o   -> img_base
+        #     axi_gpio_out0/gpio2_io_o  -> img_geom
+        #     axi_gpio_out1/gpio_io_o   -> img_fmt
+        #     axi_gpio_out1/gpio2_io_o  -> img_ctrl
+        #     axi_gpio_in0/gpio_io_i    <- img_status
+        #     axi_gpio_in0/gpio2_io_i   <- img_area
     }
 
     # ---- 控制通路 AXI Interconnect（PS 当主）----
@@ -214,11 +237,33 @@ if {$want_axi_infra} {
     for {set i 0} {$i < $nm} {incr i} {
         set c  [lindex $gp_slaves $i]
         set mm [format "M%02d" $i]
-        connect_bd_intf_net [get_bd_intf_pins axi_interconnect_0/${mm}_AXI] [get_bd_intf_pins $c/S_AXI]
+        # 从口接口名也不统一：axi_gpio 是 S_AXI，axi_vdma 是 S_AXI_LITE。
+        # 写死 S_AXI 的话，加 VDMA 时这里会报 "Arguments ... cannot be empty"。
+        if {[get_bd_intf_pins -quiet $c/S_AXI] ne ""} {
+            set _saxi S_AXI
+        } else {
+            set _saxi S_AXI_LITE
+        }
+        connect_bd_intf_net [get_bd_intf_pins axi_interconnect_0/${mm}_AXI] [get_bd_intf_pins $c/$_saxi]
         connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_interconnect_0/${mm}_ACLK]
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/${mm}_ARESETN]
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins $c/s_axi_aclk]
-        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins $c/s_axi_aresetn]
+        # 从口的时钟/复位引脚名各 IP、各版本都不一样，逐个探测，别写死：
+        #   axi_gpio : s_axi_aclk      / s_axi_aresetn
+        #   axi_vdma : s_axi_lite_aclk / axi_resetn     (2023.2 的 v6.3 只有一个 axi_resetn)
+        # 写死的话，加一个 IP 就会报 "Arguments ... cannot be empty" 或引脚不存在。
+        set _aclk_pin ""
+        foreach cand {s_axi_aclk s_axi_lite_aclk} {
+            if {[get_bd_pins -quiet $c/$cand] ne ""} { set _aclk_pin $cand ; break }
+        }
+        set _arst_pin ""
+        foreach cand {s_axi_aresetn s_axi_lite_aresetn axi_resetn} {
+            if {[get_bd_pins -quiet $c/$cand] ne ""} { set _arst_pin $cand ; break }
+        }
+        if {$_aclk_pin eq "" || $_arst_pin eq ""} {
+            error "cannot find clock/reset pins on $c (aclk='$_aclk_pin' arst='$_arst_pin')"
+        }
+        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins $c/$_aclk_pin]
+        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins $c/$_arst_pin]
     }
 }
 
@@ -248,10 +293,32 @@ if {$want_hp} {
     ] $ps7
 
     create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_ic_hp
+    # S00 = AXI VDMA 的 M_AXI_MM2S（VDMA 从这里读 DDR）
     set_property -dict [list CONFIG.NUM_SI {1} CONFIG.NUM_MI {1}] [get_bd_cells axi_ic_hp]
 
     # S_AXI_HP0 在 Zynq-7000 上是 AXI3 / 64bit，interconnect 负责协议转换
     connect_bd_intf_net [get_bd_intf_pins axi_ic_hp/M00_AXI] [get_bd_intf_pins $ps7/S_AXI_HP0]
+
+    # --- AXI VDMA 的内存读口接到 S00 ---
+    # 注意：VDMA 的 s_axi_lite_aclk / axi_resetn 已经在上面 gp_slaves
+    # 的循环里接过了，这里【不能】再接一次（重复连接会报错）。
+    if {[get_bd_cells -quiet axi_vdma_0] ne ""} {
+        puts "\[ACZ7015\] Connecting AXI VDMA MM2S -> axi_ic_hp/S00_AXI -> PS S_AXI_HP0"
+        connect_bd_intf_net [get_bd_intf_pins axi_vdma_0/M_AXI_MM2S] \
+                            [get_bd_intf_pins axi_ic_hp/S00_AXI]
+        # VDMA 有时钟域：内存/控制一个（m_axi_mm2s_aclk）+ 流一个（m_axis_mm2s_aclk）。
+        # 全部给同一个 FCLK_CLK0。m_axis_mm2s_aclk 不接的话流那边根本不工作。
+        # 复位由上面 gp_slaves 循环里的 axi_resetn 负责，这里不要重复接。
+        foreach _cp {m_axi_mm2s_aclk m_axis_mm2s_aclk} {
+            if {[get_bd_pins -quiet axi_vdma_0/$_cp] ne ""} {
+                connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_vdma_0/$_cp]
+            } else {
+                puts "\[ACZ7015\] WARNING: axi_vdma_0/$_cp not found (skipped)"
+            }
+        }
+    } else {
+        puts "\[ACZ7015\] WARNING: axi_vdma_0 不存在，HP0 这条 Master 通路是空的"
+    }
 
     foreach p {ACLK S00_ACLK M00_ACLK} {
         connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_ic_hp/$p]
@@ -263,35 +330,17 @@ if {$want_hp} {
     # interconnect 自己的全局复位
     connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_ic_hp/ARESETN]
 
-    # --- S00 引出：你的 AXI Master 接这里 ---
-    make_bd_intf_pins_external [get_bd_intf_pins axi_ic_hp/S00_AXI]
-    set _p [get_bd_intf_ports -quiet -filter {NAME =~ "S00_AXI*"}]
-    if {$_p ne ""} { set_property name S_AXI_IMG $_p }
-
-    # --- 时钟与复位引出：给 PL 逻辑用 ---
-    # ★ 这里不用 make_bd_pins_external：对已经连了内部网络的 FCLK_CLK0
-    #   它不生效（实测端口根本没生成，而且不报错）。用 create_bd_port 显式做。
-    create_bd_port -dir O -type clk FCLK_CLK0
-    connect_bd_net [get_bd_ports FCLK_CLK0] [get_bd_pins $ps7/FCLK_CLK0]
-
-    create_bd_port -dir O -type rst peripheral_aresetn
-    connect_bd_net [get_bd_ports peripheral_aresetn] [get_bd_pins rst_ps7_50M/peripheral_aresetn]
-
-    # 外部时钟端口必须关联外部 AXI 从口，
-    # 否则报 [BD 41-2559] "AXI interface port /S_AXI_IMG is not associated to any clock port"
-    if {[catch {
-        set_property -dict [list \
-            CONFIG.FREQ_HZ          [expr {$fclk0 * 1000000}] \
-            CONFIG.ASSOCIATED_BUSIF {S_AXI_IMG} \
-        ] [get_bd_ports FCLK_CLK0]
-    } _e]} {
-        puts "\[ACZ7015\] WARNING: could not configure FCLK_CLK0 port: $_e"
-    }
-    if {[catch {
-        set_property -dict [list CONFIG.POLARITY {ACTIVE_LOW}] [get_bd_ports peripheral_aresetn]
-    } _e]} {
-        puts "\[ACZ7015\] WARNING: could not configure peripheral_aresetn port: $_e"
-    }
+    # ★★ 这里【故意不再引任何顶层引脚】★★
+    #
+    # 之前把 S_AXI_IMG（一整条 AXI4 从口）+ FCLK_CLK0 + peripheral_aresetn
+    # 引到顶层，结果 place_design 直接失败：
+    #     ERROR: [Place 30-415] IO Placement failed due to overutilization.
+    #     This design contains 396 I/O ports
+    # 光一条 AXI4 从口的 araddr/wdata/rdata 就 250+ 根，xc7z015clg485 装不下。
+    #
+    # 你的 PL 模块是加在【BD 内部】的，需要时钟/复位就在 BD 里直接连
+    #     $ps7/FCLK_CLK0  和  rst_ps7_50M/peripheral_aresetn
+    # 数据入口连 axi_vdma_0/M_AXIS_MM2S。全部走内部网络，不占引脚。
 }
 
 # ----------------------------- 地址分配 -------------------------------------

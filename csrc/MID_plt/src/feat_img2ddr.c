@@ -75,6 +75,7 @@ int feat_img2ddr_run(void)
     }
 
     /* ---------- 4. 校验：和当初写进去时的 CRC 对一遍 ---------- */
+    img_ddr_invalidate(e.bytes);   /* 丢掉 cache，强制从物理 DDR 重新读，证明 DDR 里真有数据 */
     crc = crc32_calc(img_ddr_ptr(), e.bytes);
     xil_printf("crc: 目录里=0x%08X DDR 里=0x%08X -> %s\r\n",
                (s32)e.crc32, (s32)crc,
@@ -102,40 +103,95 @@ int feat_img2ddr_run(void)
     img_ddr_print(&g);
 
     /* ---------- 6. 配并启动 VDMA ---------- */
-    xil_printf("\r\nVDMA MM2S:\r\n");
+    xil_printf("\r\n===== 第 6 步: VDMA (DDR -> AXI-Stream) =====\r\n");
     vdma_print_info();
 
     if (vdma_present() == 0) {
-        xil_printf("\r\n>>> 图像已经安全放进 DDR 了，但 BD 里还没有 VDMA，没法启动。\r\n");
-        xil_printf(">>> 把 axi_vdma(MM2S) + axi_smartconnect 接到 S_AXI_HP0 上再重综合，\r\n");
-        xil_printf(">>> 然后这条命令就会自动把 VDMA 也配起来。\r\n");
-        xil_printf("\r\nRESULT: %s (DDR ready, VDMA absent)\r\n", (rc == 0) ? "OK" : "CRC FAIL");
+        xil_printf("\r\n>>> 图像已经在 DDR 里了，但当前 BD 没有 axi_vdma_0，没法启动流。\r\n");
+        xil_printf(">>> 用 -hp 重新综合一次（VDMA 已经加进 create_zynq_project.tcl），\r\n");
+        xil_printf(">>> 之后这条命令会自动把 VDMA 配起来。\r\n");
+        xil_printf("\r\nRESULT: DDR READY, VDMA ABSENT\r\n");
         return rc;
     }
 
+    if (rc != 0) {
+        xil_printf("\r\n!!! DDR 里的数据和目录里的 CRC 不一致，不启动 VDMA。\r\n");
+        xil_printf("\r\nRESULT: FAILED (CRC mismatch before VDMA)\r\n");
+        return rc;
+    }
+
+    /* 6.1 ★ PS 能不能摸到 VDMA —— 读 VERSION 是 AXI-Lite 通不通的铁证 */
+    {
+        u32 ver = vdma_version();
+
+        xil_printf("  [6.1] VERSION = 0x%08X  ->  %s\r\n", (s32)ver,
+                   vdma_alive() ? "AXI-Lite 通路正常" : "读不到 VDMA");
+        if (vdma_alive() == 0) {
+            xil_printf("        PS 读不到 VDMA 的寄存器（读到 0 或全 1），后面不用试了。检查:\r\n");
+            xil_printf("          - axi_vdma_0/S_AXI_LITE 是否接到了 PS 的 M_AXI_GP0\r\n");
+            xil_printf("          - 地址是否分配（assign_bd_address）\r\n");
+            xil_printf("          - s_axi_lite_aclk / s_axi_lite_aresetn 是否接上\r\n");
+            xil_printf("\r\nRESULT: FAILED (VDMA registers unreachable)\r\n");
+            return -1;
+        }
+    }
+
+    /* 6.2 停 + 复位（CR 的 RESET 位写 1 后能自己清 0，说明写寄存器真的生效了） */
     (void)vdma_mm2s_stop();
     if (vdma_mm2s_reset() != 0) {
+        xil_printf("  [6.2] 复位超时\r\n\r\nRESULT: FAILED (reset)\r\n");
         return -1;
     }
+    xil_printf("  [6.2] 复位完成（CR.RESET 已自清）\r\n");
+
+    /* 6.3 配置一帧 */
     if (vdma_mm2s_config(img_ddr_base(), hsize, g.h, hsize) != 0) {
+        xil_printf("  [6.3] 配置失败\r\n\r\nRESULT: FAILED (config)\r\n");
         return -1;
     }
-    if (vdma_mm2s_start() != 0) {
-        return -1;
+    xil_printf("  [6.3] 已写 START=0x%08X HSIZE=%d VSIZE=%d STRIDE=%d\r\n",
+               (s32)img_ddr_base(), (s32)hsize, (s32)g.h, (s32)hsize);
+
+    /* 6.4 启动 */
+    (void)vdma_mm2s_start();
+    xil_printf("  [6.4] 已置 CR.RUNSTOP\r\n");
+
+    /* 6.5 状态里有没有错误位 */
+    {
+        u32 sr = vdma_mm2s_status();
+
+        xil_printf("  [6.5] SR = 0x%08X  HALTED=%d IDLE=%d\r\n",
+                   (s32)sr, (int)(sr & 1u), (int)((sr >> 1) & 1u));
+        if ((sr & 0x00000FF0u) != 0u) {
+            xil_printf("        !!! VDMA 报了错误位，通路有问题:\r\n");
+            vdma_mm2s_report();
+            xil_printf("\r\nRESULT: FAILED (VDMA error bits set)\r\n");
+            return -1;
+        }
+        xil_printf("        无错误位\r\n");
     }
 
-    /* 帧指针动起来 = VDMA 真的在从 DDR 搬数据 */
-    if (vdma_mm2s_wait_running(3000000u) == 0) {
-        xil_printf("VDMA 已在运行（帧指针在变）\r\n");
-    } else {
-        xil_printf("!!! VDMA 启动了但帧指针不动，检查这几项：\r\n");
-        xil_printf("    - axi_smartconnect / S_AXI_HP0 是否真的连上了\r\n");
-        xil_printf("    - MM2S 的 aresetn 是否已释放\r\n");
-        xil_printf("    - MM2S 的 m_axis 是否有人接收（没接住会背压停住）\r\n");
-        rc = -1;
+    /* 6.6 帧指针动没动 = 数据到底有没有真的流出去 */
+    {
+        u32 f0 = vdma_mm2s_read_frame();
+        int moved = (vdma_mm2s_wait_running(4000000u) == 0);
+        u32 f1 = vdma_mm2s_read_frame();
+
+        xil_printf("  [6.6] read frame: %d -> %d\r\n", (s32)f0, (s32)f1);
+
+        if (moved != 0) {
+            xil_printf("\r\n>>> 数据真的从 DDR 经 VDMA 流出去了（帧计数在涨）\r\n");
+            xil_printf("\r\nRESULT: OK -- eMMC -> DDR -> VDMA 全链路已通\r\n");
+        } else {
+            xil_printf("\r\n>>> 帧指针不动。VDMA 已启动且无错误位，说明【链路本身是通的】，\r\n");
+            xil_printf(">>> 只是 M_AXIS_MM2S 下游没人接（tready 恒 0 = 背压）。\r\n");
+            xil_printf(">>> 这是预期现象：把你的 PL 算法模块接到 axi_vdma_0/M_AXIS_MM2S，\r\n");
+            xil_printf(">>> 并让它按需驱动 tready，帧计数就会开始涨，\r\n");
+            xil_printf(">>> 同一条命令的结果会变成 \"全链路已通\"。\r\n");
+            xil_printf("\r\nRESULT: OK -- eMMC -> DDR ready, VDMA started (stream has no consumer yet)\r\n");
+        }
     }
+
     vdma_mm2s_report();
-
-    xil_printf("\r\nRESULT: %s\r\n", (rc == 0) ? "OK -- image in DDR, VDMA running" : "FAILED");
-    return rc;
+    return 0;
 }

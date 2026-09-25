@@ -30,6 +30,16 @@
 /* BD 里到底有没有 VDMA（由 xparameters.h 决定） */
 int  vdma_present(void);
 
+/* 读 VERSION 寄存器（base+0x2C）。
+ * ★ 这是"PS 能不能通过 AXI-Lite 摸到 VDMA"最直接的证据：
+ *     读到 0x00000000 或 0xFFFFFFFF  -> AXI-Lite 根本没通（地址错 / 没连 / 复位没放）
+ *     读到正常版本号（非 0 非全 1） -> 通路是通的
+ * 没接 VDMA 时返回 0。 */
+u32  vdma_version(void);
+
+/* VERSION 看起来对不对。1 = 通路通 */
+int  vdma_alive(void);
+
 /* 打印 VDMA 版本寄存器 + 当前状态（没接 VDMA 时只提示） */
 void vdma_print_info(void);
 

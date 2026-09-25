@@ -13,6 +13,7 @@
 #include "img/catalog.h"
 #include "feat/emmc_load.h"
 #include "feat/img2ddr.h"
+#include "feat/clear.h"
 #include "xil_printf.h"
 #include "xil_types.h"
 
@@ -46,8 +47,9 @@ static int cmd_help(void)
 static const app_cmd_t cmds[] = {
     { CMD_HELP,        "? help", "list these commands", cmd_help },
     { CMD_LIST_IMAGES, "I list", "list the images registered in the eMMC catalog", cmd_list_images },
-    { CMD_EMMC_LOAD,   "L load", "PC -> eMMC  : receive a .bin and verify it on eMMC", feat_emmc_load_run },
+    { CMD_EMMC_LOAD,   "A add ", "PC -> eMMC  : receive a .bin and verify it on eMMC", feat_emmc_load_run },
     { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR : load an image into DDR and start VDMA", feat_img2ddr_run },
+    { CMD_EMMC_CLEAR,  "E clear","wipe every registered image on the eMMC and reset the catalog", feat_emmc_clear_run },
 };
 #define APP_CMD_COUNT   (sizeof(cmds) / sizeof(cmds[0]))
 
@@ -59,7 +61,7 @@ void app_help(void)
     for (i = 0u; i < APP_CMD_COUNT; i++) {
         xil_printf("  %-8s  %s\r\n", cmds[i].title, cmds[i].desc);
     }
-    xil_printf("\r\nL 之后按 scripts/pc/emmc_load.ps1 的格式发数据；\r\n");
+    xil_printf("\r\nA 之后按 scripts/pc/emmc_add.ps1 的格式发数据；\r\n");
     xil_printf("D 之后补 4 字节小端索引（第几张图），例如 00 00 00 00 = 第 0 张。\r\n");
 }
 

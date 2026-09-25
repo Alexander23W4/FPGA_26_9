@@ -433,7 +433,7 @@ newest_src = 0.0
 for root, _dirs, files in os.walk(src_dir):
     for fn in files:
         if fn.endswith((".c", ".h", ".cpp", ".cc", ".S", ".s", ".asm",
-                        ".cmake", ".txt", ".ld")):
+                        ".inc")):
             try:
                 newest_src = max(newest_src, os.path.getmtime(os.path.join(root, fn)))
             except OSError:

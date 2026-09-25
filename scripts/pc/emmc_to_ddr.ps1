@@ -1,5 +1,5 @@
 ﻿<#
-  emmc_img2ddr.ps1 -- PC side of the "eMMC -> DDR -> VDMA" feature.
+  emmc_to_ddr.ps1 -- PC side of the "eMMC -> DDR -> VDMA" feature.
 
   Tells the board which image (by index in the eMMC catalog) to load into
   PS DDR, and the board then programs and starts the AXI VDMA MM2S.
@@ -8,8 +8,8 @@
   Command    : 'D' followed by a 4-byte little-endian image index
 
   Usage:
-      powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_img2ddr.ps1
-      powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_img2ddr.ps1 -Index 1 -Port COM7
+      powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_to_ddr.ps1
+      powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_to_ddr.ps1 -Index 1 -Port COM7
 #>
 
 [CmdletBinding()]
@@ -44,7 +44,7 @@ function Wait-ForText {
 }
 
 Write-Host "port  : $Port @ $Baud"
-Write-Host "index : $Index  (0 = 第一张)"
+Write-Host "index : $Index  (0 = first image)"
 Write-Host ""
 
 $sp = New-Object System.IO.Ports.SerialPort($Port, $Baud, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::One)
@@ -63,11 +63,11 @@ try {
 
 $sb = New-Object System.Text.StringBuilder
 
-# 'D' = eMMC -> DDR + 启动 VDMA
+# 'D' = eMMC -> DDR, and start the VDMA
 $sp.Write([byte[]]@([byte][char]'D'), 0, 1)
 $sp.BaseStream.Flush()
 
-# 紧接着补 4 字节小端索引（板子在 SELECT 处等这 4 个字节）
+# then the 4-byte little-endian index (the board waits for it at SELECT)
 $idx = New-Object 'byte[]' 4
 $idx[0] = [byte]($Index -band 0xFF)
 $idx[1] = [byte](($Index -shr 8)  -band 0xFF)

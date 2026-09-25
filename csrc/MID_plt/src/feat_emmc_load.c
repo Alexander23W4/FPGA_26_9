@@ -196,7 +196,9 @@ int feat_emmc_load_run(void)
     }
 
     xil_printf("已登记为第 %d 张图\r\n", idx);
-    xil_printf("\r\nRESULT: VERIFY OK\r\n");
+    xil_printf("\r\n>>> A: load to eMMC  SUCCESSFUL  (name=%s, %d bytes at block %d) <<<\r\n",
+               name, (s32)len, (s32)start_blk);
+    xil_printf("RESULT: VERIFY OK\r\n");
     toc_list();
     return 0;
 }

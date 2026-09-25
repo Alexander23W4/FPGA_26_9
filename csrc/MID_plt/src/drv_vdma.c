@@ -82,6 +82,22 @@ int vdma_present(void)
     return 1;
 }
 
+u32 vdma_version(void)
+{
+    return vdma_rd(VDMA_VERSION_OFFSET);
+}
+
+/* VERSION 读到 0 或全 1，说明 AXI-Lite 根本没通 */
+int vdma_alive(void)
+{
+    u32 v = vdma_version();
+
+    if (v == 0u || v == 0xFFFFFFFFu) {
+        return 0;
+    }
+    return 1;
+}
+
 void vdma_print_info(void)
 {
     xil_printf("  base    : 0x%08X\r\n", (s32)VDMA_BASEADDR);
@@ -239,6 +255,8 @@ static void vdma_absent(void)
 }
 
 int  vdma_present(void)                       { return 0; }
+u32  vdma_version(void)                       { return 0u; }
+int  vdma_alive(void)                         { return 0; }
 void vdma_print_info(void)                    { vdma_absent(); }
 int  vdma_mm2s_stop(void)                     { vdma_absent(); return -1; }
 int  vdma_mm2s_reset(void)                    { vdma_absent(); return -1; }

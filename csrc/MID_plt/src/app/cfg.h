@@ -65,7 +65,8 @@
  * ========================================================================== */
 #define CMD_HELP            '?'
 #define CMD_LIST_IMAGES     'I'      /* 列出 eMMC 里登记了哪些图 */
-#define CMD_EMMC_LOAD       'L'      /* feature: PC -> eMMC */
+#define CMD_EMMC_LOAD       'A'      /* feature: PC -> eMMC */
+#define CMD_EMMC_CLEAR      'E'      /* feature: 清空 eMMC（抹数据 + 清目录） */
 #define CMD_IMG_TO_DDR      'D'      /* feature: eMMC -> DDR + 启动 VDMA */
 
 /* 单次传输上限（DDR 缓冲减去 TOC 空间，保守取 16MB 里的一大半） */

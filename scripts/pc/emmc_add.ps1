@@ -1,5 +1,5 @@
 ﻿<#
-  emmc_load.ps1 -- PC side of the eMMC loader.
+  emmc_add.ps1 -- PC side of the eMMC loader.
 
   Sends a .bin file to the board over the USB-UART link and prints the
   board's write + read-back verification report.
@@ -8,8 +8,8 @@
   Board: csrc/MID_plt/src/main.c  (the "eMMC loader" application)
 
   Usage:
-      powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_load.ps1 -File image.bin
-      powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_load.ps1 -File image.bin -Port COM7 -StartBlock 2048
+      powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_add.ps1 -File image.bin
+      powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_add.ps1 -File image.bin -Port COM7 -StartBlock 2048
 
   Wire format (16-byte header, then the raw payload):
       [0..3]   magic  'E','M','M','C'
@@ -25,13 +25,13 @@ param(
     [Parameter(Mandatory = $true)][string]$File,
     [string]$Port = 'COM7',
     [int]$Baud = 115200,
-    # 0 = 由板子自动接在 eMMC 里最后一张图后面
+    # 0 = let the board append it after the last image already on the eMMC
     [uint32]$StartBlock = 0,
     [int]$ReadyTimeoutSec = 30,
     [int]$ResultTimeoutSec = 300,
     [int]$ChunkSize = 4096,
-    # 图像几何信息。会被登记进 eMMC 图像目录，'D' 命令靠它去配 VDMA。
-    # 留 0 就按文件大小自动推断（能开平方就当成方图，否则当成 1 行）。
+    # Image geometry. It is stored in the eMMC catalog, and the D command
+    # uses it to program the VDMA. Leave 0 to infer it from the file size.
     [int]$Width = 0,
     [int]$Height = 0,
     [int]$Bpp = 2,
@@ -125,21 +125,21 @@ $bytes  = [System.IO.File]::ReadAllBytes($full)
 $len    = [int64]$bytes.Length
 $crc    = Get-Crc32 -Data $bytes
 
-# --- 几何信息：没给就按文件大小推断 ---------------------------------------
+# --- geometry: infer from the file size when not given -----------------------
 if ($Bpp -le 0) { $Bpp = 1 }
 if ($Width -le 0 -or $Height -le 0) {
     $px = [int]($len / $Bpp)
     $root = [int][Math]::Floor([Math]::Sqrt([double]$px))
     if ($root -gt 0 -and ($root * $root) -eq $px) {
-        $Width = $root; $Height = $root       # 正好是方图
+        $Width = $root; $Height = $root       # perfect square
     } else {
-        $Width = $px;   $Height = 1           # 否则当成一维
+        $Width = $px;   $Height = 1           # not square: treat as 1-D
     }
 }
 if ([string]::IsNullOrWhiteSpace($ImageName)) {
     $ImageName = [System.IO.Path]::GetFileNameWithoutExtension($full)
 }
-# eMMC 目录里的名字是 8.3 风格短名，截到 8 个字符
+# catalog names are 8.3 style, so truncate to 8 characters
 if ($ImageName.Length -gt 8) { $ImageName = $ImageName.Substring(0, 8) }
 
 Write-Host "file       : $full"
@@ -147,7 +147,7 @@ Write-Host "size       : $($len) bytes"
 Write-Host ("crc32      : 0x{0:X8}" -f $crc)
 Write-Host "port       : $Port @ $Baud"
 if ($StartBlock -eq 0) {
-    Write-Host "start block: auto (板子接在最后一张图后面)"
+Write-Host "start block: auto (appended after the last image on the eMMC)"
 } else {
     Write-Host "start block: $StartBlock  (byte offset $($StartBlock * 512))"
 }
@@ -172,10 +172,10 @@ try {
 
 $sb = New-Object System.Text.StringBuilder
 
-# --- 先发命令字节，板子才会进到对应的 feature -----------------------------
-# 板子上电后停在命令循环里等这个字节（见 csrc/MID_plt/src/app/app.c 的命令表）
-Write-Host "sending command 'L' (PC -> eMMC) ..."
-$sp.Write([byte[]]@([byte][char]'L'), 0, 1)
+# --- send the command byte first: that is how the board enters a feature ----
+# The board sits in its command loop waiting for that byte (see src/app.c)
+Write-Host "sending command 'A' (add image to eMMC) ..."
+$sp.Write([byte[]]@([byte][char]'A'), 0, 1)
 $sp.BaseStream.Flush()
 
 Write-Host "waiting for the board to print READY ..."
