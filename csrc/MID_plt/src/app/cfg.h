@@ -49,11 +49,18 @@
  *  ★ 加进 BD 之后，要么让 Vivado 分配到同一个地址，
  *    要么直接改这里 / 改用 xparameters.h 自动取值。
  * ========================================================================== */
-#ifdef XPAR_AXI_VDMA_0_BASEADDR
-#define VDMA_BASEADDR       XPAR_AXI_VDMA_0_BASEADDR
-#else
+/* ★ SDT 流程下 Vitis 【不会】为 PL 外设生成 XPAR_* 宏 ——
+ *   实测 xparameters.h 里连 axi_gpio 都没有（pl.dtsi 是空的 / { };）。
+ *   所以这里【不能】用 #ifdef XPAR_AXI_VDMA_0_BASEADDR 来判断有没有 VDMA，
+ *   那样永远走不到真分支。
+ *
+ *   地址直接写死，它和 Vivado 分配的一致（见 XSA 里 system.hwh 的 MEMRANGE）：
+ *       axi_vdma_0 / S_AXI_LITE   0x43000000 - 0x4300FFFF   (via PS M_AXI_GP0)
+ *
+ *   "到底有没有 VDMA" 改成【运行时】读 VERSION 寄存器判断，见 drv_vdma.c 的
+ *   vdma_alive()。这才是可靠的做法：地址对不上 / 没连 / 复位没放，读出来的
+ *   VERSION 都会是 0 或 0xFFFFFFFF。 */
 #define VDMA_BASEADDR       0x43000000u
-#endif
 
 /* MM2S 寄存器文件基址（xaxivdma_hw.h: XAXIVDMA_MM2S_ADDR_OFFSET = 0x50）
  *   +0x00 VSIZE   +0x04 HSIZE   +0x08 STRIDE|FRMDLY   +0x0C START_ADDRESS[0]

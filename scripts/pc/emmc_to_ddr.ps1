@@ -91,14 +91,28 @@ if (-not $ok) {
 }
 
 $text = $sb.ToString()
-if ($text -match 'RESULT:\s*OK -- image in DDR, VDMA running') {
-    Write-Host "SUCCESS: image is in DDR and the VDMA is running." -ForegroundColor Green
+
+# The frame pointer only advances once the PL consumes M_AXIS_MM2S, so there are
+# two distinct good outcomes. Both are reported as success.
+if ($text -match 'RESULT:\s*OK -- eMMC -> DDR -> VDMA') {
+    Write-Host "FULL CHAIN OK: eMMC -> DDR -> VDMA -> AXI-Stream, data really flowed." -ForegroundColor Green
     exit 0
 }
-if ($text -match 'DDR ready, VDMA absent') {
+if ($text -match 'RESULT:\s*OK -- eMMC -> DDR ready, VDMA started') {
+    Write-Host "OK: eMMC -> DDR verified, and the VDMA started with no error bits." -ForegroundColor Green
+    Write-Host "The frame counter stays at 0 because M_AXIS_MM2S has no consumer yet."
+    Write-Host "Attach your PL module to axi_vdma_0/M_AXIS_MM2S and drive tready:"
+    Write-Host "this same command will then report the full chain as OK."
+    exit 0
+}
+if ($text -match 'DDR READY, VDMA ABSENT') {
     Write-Host "Image is in DDR and CRC-verified, but the design has no VDMA yet." -ForegroundColor Yellow
-    Write-Host "Add axi_vdma (MM2S) + axi_smartconnect onto S_AXI_HP0 and re-synthesise."
+    Write-Host "Re-synthesise with -H so axi_vdma_0 is in the bitstream."
     exit 5
 }
-Write-Host "The board reported a problem (see its output above)." -ForegroundColor Red
-exit 3
+if ($text -match 'RESULT:\s*FAILED') {
+    Write-Host "FAILED: the board stopped at one of the numbered steps above." -ForegroundColor Red
+    exit 3
+}
+Write-Host "The board finished, but printed no RESULT line (see its output above)." -ForegroundColor Yellow
+exit 4

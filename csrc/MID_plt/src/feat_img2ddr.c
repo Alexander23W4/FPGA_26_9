@@ -106,13 +106,9 @@ int feat_img2ddr_run(void)
     xil_printf("\r\n===== 第 6 步: VDMA (DDR -> AXI-Stream) =====\r\n");
     vdma_print_info();
 
-    if (vdma_present() == 0) {
-        xil_printf("\r\n>>> 图像已经在 DDR 里了，但当前 BD 没有 axi_vdma_0，没法启动流。\r\n");
-        xil_printf(">>> 用 -hp 重新综合一次（VDMA 已经加进 create_zynq_project.tcl），\r\n");
-        xil_printf(">>> 之后这条命令会自动把 VDMA 配起来。\r\n");
-        xil_printf("\r\nRESULT: DDR READY, VDMA ABSENT\r\n");
-        return rc;
-    }
+    /* 注意：SDT 流程下没有 XPAR_AXI_VDMA_0_BASEADDR 这种宏，所以【不能】
+     * 在编译期判断有没有 VDMA。地址写死在 app/cfg.h 里，
+     * 到底通不通由下面 [6.1] 读 VERSION 寄存器在运行时判断。 */
 
     if (rc != 0) {
         xil_printf("\r\n!!! DDR 里的数据和目录里的 CRC 不一致，不启动 VDMA。\r\n");

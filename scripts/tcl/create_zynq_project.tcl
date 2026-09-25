@@ -320,6 +320,43 @@ if {$want_hp} {
         puts "\[ACZ7015\] WARNING: axi_vdma_0 不存在，HP0 这条 Master 通路是空的"
     }
 
+    # --- AXI4-Stream 接收端（rtl/axis_rcv.sv）-------------------------------
+    # 它把 VDMA 吐出的流按 AXI4-Stream 规范完整收下来，拆成"一个像素一拍"，
+    # 握手/背压/tkeep/tlast/行列帧边界全部在模块内部处理。
+    # 你的算法只需要接它右边的 px_* 几根线。
+    #
+    # 现在 px_* 先悬空：它照样会把流收完（tready 有驱动），于是 VDMA 的帧指针
+    # 就会开始动，整条 eMMC -> DDR -> VDMA -> Stream 立刻可以验证。
+    set _rcv_rtl [file normalize [file join $repo_root rtl axis_rcv.sv]]
+    if {[file exists $_rcv_rtl] && [get_bd_cells -quiet axi_vdma_0] ne ""} {
+        add_files -norecurse $_rcv_rtl
+        create_bd_cell -type module -reference axis_rcv axis_rcv_0
+        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins axis_rcv_0/aclk]
+        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axis_rcv_0/aresetn]
+
+        # 先试接口级连接。module reference 的 AXI-Stream 接口能不能被自动识别
+        # 取决于 Vivado 版本，认不出来就退回逐根信号连。
+        if {[catch {
+            connect_bd_intf_net [get_bd_intf_pins axi_vdma_0/M_AXIS_MM2S] \
+                                [get_bd_intf_pins axis_rcv_0/S_AXIS]
+        } _e]} {
+            puts "\[ACZ7015\] S_AXIS interface not inferred, connecting pin by pin"
+            foreach {vp rp} {
+                M_AXIS_MM2S_TDATA  s_axis_tdata
+                M_AXIS_MM2S_TVALID s_axis_tvalid
+                M_AXIS_MM2S_TREADY s_axis_tready
+                M_AXIS_MM2S_TLAST  s_axis_tlast
+                M_AXIS_MM2S_TKEEP  s_axis_tkeep
+                M_AXIS_MM2S_TUSER  s_axis_tuser
+            } {
+                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins axis_rcv_0/$rp]
+            }
+        }
+        puts "\[ACZ7015\] axis_rcv_0 instantiated -- connect your algorithm to its px_* pins"
+    } else {
+        puts "\[ACZ7015\] WARNING: rtl/axis_rcv.sv 不存在，VDMA 的流没有接收端"
+    }
+
     foreach p {ACLK S00_ACLK M00_ACLK} {
         connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_ic_hp/$p]
     }

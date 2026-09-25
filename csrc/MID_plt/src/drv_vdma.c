@@ -63,7 +63,6 @@
 /* 复位/轮询的上限 */
 #define VDMA_SPIN_LIMIT         2000000u
 
-#ifdef XPAR_AXI_VDMA_0_BASEADDR
 
 /* ======================= 真正有 VDMA 的版本 ============================== */
 
@@ -241,30 +240,4 @@ void vdma_mm2s_report(void)
                (s32)vdma_rd(VDMA_PARKPTR_OFFSET), (s32)vdma_mm2s_read_frame());
 }
 
-#else  /* !XPAR_AXI_VDMA_0_BASEADDR */
 
-/* ==================== BD 里还没有 VDMA 的版本 ============================ */
-/* 所有函数只报错，绝不读寄存器 —— 地址上没有 AXI 从机时读它会 DECERR，
- * PS 可能直接数据异常挂住。宁可什么都不做。 */
-
-static void vdma_absent(void)
-{
-    xil_printf("vdma: 当前 BD 里没有 axi_vdma_0，跳过（不访问寄存器以免总线异常）\r\n");
-    xil_printf("      要加 VDMA 请改 scripts/tcl/create_zynq_project.tcl 的 -hp 分支，\r\n");
-    xil_printf("      把 axi_vdma(MM2S) + axi_smartconnect 接到 S_AXI_HP0 上再重综合。\r\n");
-}
-
-int  vdma_present(void)                       { return 0; }
-u32  vdma_version(void)                       { return 0u; }
-int  vdma_alive(void)                         { return 0; }
-void vdma_print_info(void)                    { vdma_absent(); }
-int  vdma_mm2s_stop(void)                     { vdma_absent(); return -1; }
-int  vdma_mm2s_reset(void)                    { vdma_absent(); return -1; }
-int  vdma_mm2s_config(u32 a, u32 h, u32 v, u32 s) { (void)a;(void)h;(void)v;(void)s; vdma_absent(); return -1; }
-int  vdma_mm2s_start(void)                    { vdma_absent(); return -1; }
-u32  vdma_mm2s_status(void)                   { return 0u; }
-u32  vdma_mm2s_read_frame(void)               { return 0u; }
-int  vdma_mm2s_wait_running(u32 spins)        { (void)spins; return -1; }
-void vdma_mm2s_report(void)                   { vdma_absent(); }
-
-#endif /* XPAR_AXI_VDMA_0_BASEADDR */
