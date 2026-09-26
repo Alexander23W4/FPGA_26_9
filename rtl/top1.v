@@ -85,6 +85,10 @@ module top1 (
         .b_dout()
     );
 
+    wire __start_back;
+    wire __end_back;
+
+
     parameter MODE_ADDR = 9'h00, CMD_REG_ADDR = 9'h10, DATA_REG_ADDR = 9'h20;
     parameter SINGLE_MODE = 8'h01, STREAM_MODE = 8'h02;
     parameter REOP = 8'h01;
@@ -120,12 +124,12 @@ module top1 (
 
     always @(*) begin
         next = state;
-        siop = 1'b0;
+        __siop = 1'b0;
+        __start_back = 1'b0;
 
         case(state) 
             IDLE: begin
                 if(mode_reg == SINGLE_MODE && cmd_reg == REOP) begin
-                    siop = 1'b1;
                     next = FULL_BUF;
                 end
             end
@@ -139,7 +143,10 @@ module top1 (
                 next = BACK;
             end
             BACK: begin
-                
+                __start_back = 1'b1;
+                if(__end_back) begin
+                    next = IDLE;
+                end
             end
 
         endcase
