@@ -17,7 +17,7 @@ module axi_lite_rcv #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWVALID" *)
     input  wire                  awvalid,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWREADY" *)
-    output wire                  awready,
+    output reg                   awready,
 
 
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WDATA" *)
@@ -27,13 +27,13 @@ module axi_lite_rcv #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WVALID" *)
     input  wire                  wvalid,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WREADY" *)
-    output wire                  wready,
+    output reg                   wready,
 
 
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI BRESP" *)
-    output wire [1:0]            bresp,
+    output reg  [1:0]            bresp,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI BVALID" *)
-    output wire                  bvalid,
+    output reg                   bvalid,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI BREADY" *)
     input  wire                  bready,
 
@@ -43,15 +43,15 @@ module axi_lite_rcv #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARVALID" *)
     input  wire                  arvalid,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARREADY" *)
-    output wire                  arready,
+    output reg                   arready,
 
 
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RDATA" *)
-    output wire [DATA_WIDTH-1:0] rdata,
+    output reg  [DATA_WIDTH-1:0] rdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RRESP" *)
-    output wire [1:0]            rresp,
+    output reg  [1:0]            rresp,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RVALID" *)
-    output wire                  rvalid,
+    output reg                   rvalid,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
     input  wire                  rready,
 
@@ -59,36 +59,35 @@ module axi_lite_rcv #(
     input [7:0] cmd_reg,
     input [7:0] data_reg,
 
-    output __update_reg,
-    output [8:0] __update_reg_addr,
-    output [31:0] __update_data
+    output reg        __update_reg,
+    output reg [8:0]  __update_reg_addr,
+    output reg [31:0] __update_data
 );
 
     reg [31:0] rdata_save;
-    reg [8:0] awaddr_save;
-    reg [31:0] wdata_save;
 
 
     parameter MODE_ADDR = 9'h00, CMD_REG_ADDR = 9'h10, DATA_REG_ADDR = 9'h20;
 
-    localparam IDLE = 3'b000, R = 3'b010, AW = 3'b011, B = 3'b101;
+    localparam IDLE = 3'b000, R = 3'b010, AW = 3'b011, W = 3'b100, B = 3'b101;
 
     reg [2:0] state, next;
 
     always @(posedge clk or negedge rst) begin
         if(!rst) begin
             state <= IDLE;
-            rdata_save <= '0;
-            awaddr_save <= '0;
-            wdata_save <= '0;    
+            rdata_save <= 32'h0;
+            __update_reg_addr <= 9'h0;
+            __update_data <= 32'h0;
 
         end else begin
             state <= next;
             if(state == IDLE && arvalid) begin
                 case(araddr) 
-                    MODE_ADDR: rdata_save <= {24{1'b0}, mode_reg};
-                    CMD_REG_ADDR: rdata_save <= {24{1'b0}, cmd_reg};
-                    DATA_REG_ADDR: rdata_save <= {24{1'b0}, data_reg};
+                    MODE_ADDR: rdata_save <= {{24{1'b0}}, mode_reg};
+                    CMD_REG_ADDR: rdata_save <= {{24{1'b0}}, cmd_reg};
+                    DATA_REG_ADDR: rdata_save <= {{24{1'b0}}, data_reg};
+                    default: rdata_save <= 32'h0;
                 endcase
             end 
             if(state == IDLE && awvalid) begin
@@ -109,12 +108,11 @@ module axi_lite_rcv #(
 
         awready = 1'b0;
         wready = 1'b0;
+        arready = 1'b0;
         bresp = 2'b00;
         bvalid = 1'b0;
 
         __update_reg = 1'b0;
-        __update_reg_addr = awaddr_save;
-        __update_data = wdata_save;
 
         case(state) 
             IDLE: begin

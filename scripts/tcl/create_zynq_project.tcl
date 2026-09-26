@@ -226,11 +226,26 @@ if {$want_axi_infra} {
     # ---- 控制通路 AXI Interconnect（PS 当主）----
     set nm [llength $gp_slaves]
 
-    # PL 自己的 AXI-Lite 从机（rtl/axi_lite_rcv.v）。
-    # 在的话就多留一个 MI 口给它（M04_AXI）。
-    set _axil_rtl [file normalize [file join $repo_root rtl axi_lite_rcv.v]]
-    set _axil_ok  [expr {[file exists $_axil_rtl] ? 1 : 0}]
-    set nmi       [expr {$nm + $_axil_ok}]
+    # PL 顶层 rtl/top1.v（里面自带 axi_lite_rcv + 整条图像通路）。
+    # 它的子模块都齐了才多留一个 MI 口（M04_AXI）给它。
+    set _pl_rtl [list \
+        [file normalize [file join $repo_root rtl axi_lite_rcv.v]] \
+        [file normalize [file join $repo_root rtl img2buf.v]] \
+        [file normalize [file join $repo_root rtl bufback.v]] \
+        [file normalize [file join $repo_root rtl frame_buf.v]] \
+        [file normalize [file join $repo_root rtl axis_rcv.v]] \
+        [file normalize [file join $repo_root rtl axis_out.v]] \
+        [file normalize [file join $repo_root rtl top1.v]]]
+    set _pl_ok 1
+    foreach _f $_pl_rtl {
+        if {![file exists $_f]} {
+            puts "\[ACZ7015\] WARNING: 缺少 [file tail $_f]"
+            set _pl_ok 0
+        }
+    }
+    # 只有 -hp（有 axi_vdma_0）时才接 top1，否则它的两个流口没人接
+    set _pl_en [expr {$_pl_ok && $want_hp}]
+    set nmi   [expr {$nm + $_pl_en}]
 
     create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0
     set_property -dict [list CONFIG.NUM_MI $nmi CONFIG.NUM_SI {1}] [get_bd_cells axi_interconnect_0]
@@ -274,49 +289,47 @@ if {$want_axi_infra} {
     }
 
     # =========================================================================
-    #  PL 的 AXI-Lite 从机：rtl/axi_lite_rcv.v
+    #  PL 顶层：rtl/top1.v
     #
     #      PS(M_AXI_GP0) -> axi_interconnect_0/S00_AXI
-    #                          -> M04_AXI -> axi_lite_rcv_0/S_AXI
+    #                          -> M04_AXI -> top1_0/S_AXI
     #
-    #  connect_bd_intf_net 用的是被推断出来的 S_AXI 接口（要求 RTL 端口上带
-    #  X_INTERFACE_INFO 属性）。没有属性的话 Vivado 只看到一堆散引脚：
-    #     · 接口连不上
-    #     · 更致命的是【分不出地址段】-> assign_bd_address 映射不了
-    #       -> PS 的 0x44000000 落不进地址表 -> PL_WR 直接 DECERR
+    #  top1 里面自己就有一个 axi_lite_rcv，所以 BD 里【只加 top1 这一个】，
+    #  不要再单独加 axi_lite_rcv（那样同一个 0x44000000 会挂两个从机）。
     #
-    #  slave 看到的是【偏移】地址（interconnect 把基地址剥掉了）：
-    #      s_axi_awaddr = 0x000 / 0x010 / 0x020   (MODE / CMD / DATA)
+    #  top1 的 slave 看到的是【偏移】地址（interconnect 把基地址剥掉了）：
+    #      awaddr = 0x000 / 0x010 / 0x020   (MODE / CMD / DATA)
+    #
+    #  top1 的 rst 是【高有效】，而 BD 只有低有效的 peripheral_aresetn，
+    #  所以中间串一个反相器。
     # =========================================================================
-    if {$_axil_ok} {
-        add_files -norecurse $_axil_rtl
-        create_bd_cell -type module -reference axi_lite_rcv axi_lite_rcv_0
+    if {$_pl_en} {
+        add_files -norecurse $_pl_rtl
+        create_bd_cell -type module -reference top1 top1_0
 
-        if {[get_bd_intf_pins -quiet axi_lite_rcv_0/S_AXI] eq ""} {
-            puts "\[ACZ7015\] =========================================================="
-            puts "\[ACZ7015\] ERROR: 认不出 axi_lite_rcv_0/S_AXI 接口。"
-            puts "\[ACZ7015\]        rtl/axi_lite_rcv.v 的端口上没有 X_INTERFACE_INFO 属性，"
-            puts "\[ACZ7015\]        Vivado 只会看到散引脚 -> 连不上互联、也分不出地址段 ->"
-            puts "\[ACZ7015\]        PS 的 0x44000000 映射不上，PL_WR 会 DECERR。"
-            puts "\[ACZ7015\]        修法：给端口加上 AXI 接口属性（见 rtl/axi_lite_rcv.v 注释）。"
-            puts "\[ACZ7015\] =========================================================="
-            error "axi_lite_rcv: S_AXI interface not inferred (missing X_INTERFACE_INFO)"
+        if {[get_bd_intf_pins -quiet top1_0/S_AXI] eq ""} {
+            error "top1_0/S_AXI 接口没被推断出来（检查 top1.v 端口上的 X_INTERFACE_INFO）"
         }
 
         set _mm [format "M%02d" $nm]
 
         connect_bd_intf_net [get_bd_intf_pins axi_interconnect_0/${_mm}_AXI] \
-                            [get_bd_intf_pins axi_lite_rcv_0/S_AXI]
+                            [get_bd_intf_pins top1_0/S_AXI]
         connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins axi_interconnect_0/${_mm}_ACLK]
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/${_mm}_ARESETN]
 
-        # clk / rst 是模块自己的端口名。rst 接的是低有效的 peripheral_aresetn。
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins axi_lite_rcv_0/clk]
-        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_lite_rcv_0/rst]
+        # 时钟
+        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins top1_0/clk]
 
-        puts "\[ACZ7015\] axi_lite_rcv_0 -> axi_interconnect_0/${_mm}_AXI  (PL AXI-Lite slave)"
+        # 复位反相： peripheral_aresetn(低有效) -> top1_0/rst(高有效)
+        create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 top1_rst_inv
+        set_property -dict [list CONFIG.C_OPERATION {not} CONFIG.C_SIZE {1}] [get_bd_cells top1_rst_inv]
+        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins top1_rst_inv/Op1]
+        connect_bd_net [get_bd_pins top1_rst_inv/Res]               [get_bd_pins top1_0/rst]
+
+        puts "\[ACZ7015\] top1_0 -> axi_interconnect_0/${_mm}_AXI  (PL top, rst inverted)"
     } else {
-        puts "\[ACZ7015\] WARNING: rtl/axi_lite_rcv.v 不存在，BD 里没有 PL AXI-Lite 从机"
+        puts "\[ACZ7015\] WARNING: rtl/top1.v 或它的子模块缺失，BD 里没有 PL 逻辑"
     }
 }
 
@@ -380,31 +393,16 @@ if {$want_hp} {
         puts "\[ACZ7015\] WARNING: axi_vdma_0 不存在，HP0 这条 Master 通路是空的"
     }
 
-    # --- AXI4-Stream pipeline wrapper (rtl/img_pipe.v) -------------------------
-    #   img_pipe.v instantiates axis_rcv and axis_out and connects the six pixel
-    #   stream signals straight through:
-    #       VDMA MM2S --S_AXIS--> img_pipe_0 --M_AXIS--> VDMA S2MM
-    #   With no algorithm in between the result equals the source image, which
-    #   is exactly what we want to prove the whole path works.
-    #
-    #   * To add your algorithm, edit rtl/img_pipe.v only: split those six wires
-    #     and drop your module between them. This BD script does not change.
-    set _pipe_rtl [file normalize [file join $repo_root rtl img_pipe.v]]
-    set _rcv_rtl [file normalize [file join $repo_root rtl axis_rcv.v]]
-    set _aout_rtl [file normalize [file join $repo_root rtl axis_out.v]]
-    if {[file exists $_pipe_rtl] && [file exists $_rcv_rtl] && [file exists $_aout_rtl] && [get_bd_cells -quiet axi_vdma_0] ne ""} {
+    # --- AXI4-Stream：VDMA <-> top1 -------------------------------------------
+    #       VDMA MM2S --S_AXIS--> top1_0 --M_AXIS--> VDMA S2MM
+    #   top1 内部：axis_rcv -> img2buf -> frame_buf -> bufback -> axis_out
+    if {[get_bd_cells -quiet top1_0] ne ""} {
 
-        add_files -norecurse [list $_rcv_rtl $_aout_rtl $_pipe_rtl]
-        create_bd_cell -type module -reference img_pipe img_pipe_0
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins img_pipe_0/aclk]
-        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins img_pipe_0/aresetn]
-
-        # MM2S stream enters img_pipe_0
         if {[catch {
             connect_bd_intf_net [get_bd_intf_pins axi_vdma_0/M_AXIS_MM2S] \
-                                [get_bd_intf_pins img_pipe_0/S_AXIS]
+                                [get_bd_intf_pins top1_0/S_AXIS]
         } _e]} {
-            puts "\[ACZ7015\] S_AXIS interface not inferred, connecting pin by pin"
+            puts "\[ACZ7015\] top1_0/S_AXIS 没被推断出来，逐根连"
             foreach {vp rp} {
                 M_AXIS_MM2S_TDATA  s_axis_tdata
                 M_AXIS_MM2S_TVALID s_axis_tvalid
@@ -413,16 +411,15 @@ if {$want_hp} {
                 M_AXIS_MM2S_TKEEP  s_axis_tkeep
                 M_AXIS_MM2S_TUSER  s_axis_tuser
             } {
-                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins img_pipe_0/$rp]
+                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins top1_0/$rp]
             }
         }
 
-        # img_pipe_0 stream goes out to S2MM
         if {[catch {
-            connect_bd_intf_net [get_bd_intf_pins img_pipe_0/M_AXIS] \
+            connect_bd_intf_net [get_bd_intf_pins top1_0/M_AXIS] \
                                 [get_bd_intf_pins axi_vdma_0/S_AXIS_S2MM]
         } _e]} {
-            puts "\[ACZ7015\] S_AXIS_S2MM interface not inferred, connecting pin by pin"
+            puts "\[ACZ7015\] top1_0/M_AXIS 没被推断出来，逐根连"
             foreach {sp dp} {
                 m_axis_tdata  S_AXIS_S2MM_TDATA
                 m_axis_tvalid S_AXIS_S2MM_TVALID
@@ -431,12 +428,12 @@ if {$want_hp} {
                 m_axis_tkeep  S_AXIS_S2MM_TKEEP
                 m_axis_tuser  S_AXIS_S2MM_TUSER
             } {
-                connect_bd_net [get_bd_pins img_pipe_0/$sp] [get_bd_pins axi_vdma_0/$dp]
+                connect_bd_net [get_bd_pins top1_0/$sp] [get_bd_pins axi_vdma_0/$dp]
             }
         }
-        puts "\[ACZ7015\] img_pipe_0 instantiated: MM2S -> axis_rcv -> axis_out -> S2MM (pass-through)"
+        puts "\[ACZ7015\] top1_0: VDMA MM2S -> top1 -> VDMA S2MM"
     } else {
-        puts "\[ACZ7015\] WARNING: rtl/img_pipe.v (or axis_rcv.v / axis_out.v) missing"
+        puts "\[ACZ7015\] WARNING: top1_0 不存在，VDMA 两个流口悬空"
     }
 
     foreach p {ACLK S00_ACLK S01_ACLK M00_ACLK} {
@@ -466,18 +463,18 @@ if {$want_hp} {
 if {$want_axi_infra} {
     assign_bd_address
 
-    # ★ PL 的 AXI-Lite 从机必须固定落在 0x44000000
+    # ★ PL 的 AXI-Lite 从机（在 top1 里面）必须固定落在 0x44000000
     #   （PS 侧 pl_ctrl_test.c 里的 PL_CTRL_BASE 就是它，自动分配不会给这个地址）
-    if {[get_bd_cells -quiet axi_lite_rcv_0] ne ""} {
+    if {[get_bd_cells -quiet top1_0] ne ""} {
         set _seg [get_bd_addr_segs -quiet \
                      -of_objects [get_bd_addr_spaces processing_system7_0/Data] \
-                     -filter {NAME =~ "*axi_lite_rcv*"}]
+                     -filter {NAME =~ "*top1*"}]
         if {$_seg ne ""} {
             set_property offset 0x44000000 $_seg
             puts [format "\[ACZ7015\] %s -> offset %s" \
                       [get_property NAME $_seg] [get_property offset $_seg]]
         } else {
-            error "axi_lite_rcv_0 没有分配到地址段，检查 S_AXI 接口和设备树"
+            error "top1_0 没有分配到地址段，检查 S_AXI 接口"
         }
     }
 

@@ -30,6 +30,7 @@ while(1){
 #include "config/pl_cmd.h"
 #include "app/cfg.h"
 #include "drv/emmc.h"
+#include "drv/vdma.h"
 #include "img/catalog.h"
 #include "sleep.h"
 #include "xil_cache.h"
@@ -52,6 +53,12 @@ const char *const imgs[IMG_COUNT] = { IMG1, IMG2, IMG3 };
 
 /* 一次从 eMMC 读多少块（64 块 = 32KB) */
 #define IMG_READ_CHUNK_BLOCKS   64u
+
+/* 一帧的几何: 256 x 256 x 16bit = 0x20000 = SINGLE_IMG_LEN */
+#define IMG_W       256u
+#define IMG_H       256u
+#define IMG_BPP     2u
+#define IMG_STRIDE  (IMG_W * IMG_BPP)
 
 
 #define PL_WR(off, val)     do { Xil_Out32(PL_CTRL_BASE + (u32)(off), (u32)(val)); dsb(); } while (0)
@@ -181,6 +188,21 @@ void load_img__emmc_ddr(const char *img)
 }
 
 
+/* DDR 的图 -> VDMA MM2S -> AXI-Stream -> top1 的 axis_rcv -> img2buf -> frame_buf
+ * top1 流回来的结果 -> VDMA S2MM -> DDR(IMG_RES_DDR_BASE) */
+void start_vdma(void)
+{
+    vdma_mm2s_stop();
+    vdma_mm2s_reset();
+    vdma_mm2s_config(SINGLE_IMG_ADDR, IMG_STRIDE, IMG_H, IMG_STRIDE);
+    vdma_mm2s_start();
+
+    vdma_s2mm_stop();
+    vdma_s2mm_config(IMG_RES_DDR_BASE, IMG_STRIDE, IMG_H, IMG_STRIDE);
+    vdma_s2mm_start();
+}
+
+
 void start_analyze(void)
 {
     PL_WR(CMD_REG_ADDR, REOPERATE);
@@ -225,6 +247,7 @@ void pl_ctrl_test_run(void)
         for (i = 0u; i < IMG_COUNT; i++) {
 
             load_img__emmc_ddr(imgs[i]);  // 
+            start_vdma();       // ddr -> mm2s -> axis_rcv -> img2buf -> frame_buf
             start_analyze();    // 设置 cmd_reg 为 reoperate
             delay(ANALYZE_MS);
         }
