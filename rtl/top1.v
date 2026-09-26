@@ -119,6 +119,9 @@ module top1 (
             if(__rcvf_buf) begin
                 __rcvf_buf_save <= 1'b1;
             end
+            if(state == IDLE && mode_reg == SINGLE_MODE) begin
+                cmd_reg <= 8'h00;    // 清空cmd, 避免循环触发状态机
+            end
         end
     end
 
