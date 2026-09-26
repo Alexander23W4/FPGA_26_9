@@ -225,8 +225,15 @@ if {$want_axi_infra} {
 
     # ---- 控制通路 AXI Interconnect（PS 当主）----
     set nm [llength $gp_slaves]
+
+    # PL 自己的 AXI-Lite 从机（rtl/axi_lite_rcv.v）。
+    # 在的话就多留一个 MI 口给它（M04_AXI）。
+    set _axil_rtl [file normalize [file join $repo_root rtl axi_lite_rcv.v]]
+    set _axil_ok  [expr {[file exists $_axil_rtl] ? 1 : 0}]
+    set nmi       [expr {$nm + $_axil_ok}]
+
     create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0
-    set_property -dict [list CONFIG.NUM_MI $nm CONFIG.NUM_SI {1}] [get_bd_cells axi_interconnect_0]
+    set_property -dict [list CONFIG.NUM_MI $nmi CONFIG.NUM_SI {1}] [get_bd_cells axi_interconnect_0]
 
     connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_interconnect_0/ACLK]
     connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_interconnect_0/S00_ACLK]
@@ -264,6 +271,52 @@ if {$want_axi_infra} {
         }
         connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins $c/$_aclk_pin]
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins $c/$_arst_pin]
+    }
+
+    # =========================================================================
+    #  PL 的 AXI-Lite 从机：rtl/axi_lite_rcv.v
+    #
+    #      PS(M_AXI_GP0) -> axi_interconnect_0/S00_AXI
+    #                          -> M04_AXI -> axi_lite_rcv_0/S_AXI
+    #
+    #  connect_bd_intf_net 用的是被推断出来的 S_AXI 接口（要求 RTL 端口上带
+    #  X_INTERFACE_INFO 属性）。没有属性的话 Vivado 只看到一堆散引脚：
+    #     · 接口连不上
+    #     · 更致命的是【分不出地址段】-> assign_bd_address 映射不了
+    #       -> PS 的 0x44000000 落不进地址表 -> PL_WR 直接 DECERR
+    #
+    #  slave 看到的是【偏移】地址（interconnect 把基地址剥掉了）：
+    #      s_axi_awaddr = 0x000 / 0x010 / 0x020   (MODE / CMD / DATA)
+    # =========================================================================
+    if {$_axil_ok} {
+        add_files -norecurse $_axil_rtl
+        create_bd_cell -type module -reference axi_lite_rcv axi_lite_rcv_0
+
+        if {[get_bd_intf_pins -quiet axi_lite_rcv_0/S_AXI] eq ""} {
+            puts "\[ACZ7015\] =========================================================="
+            puts "\[ACZ7015\] ERROR: 认不出 axi_lite_rcv_0/S_AXI 接口。"
+            puts "\[ACZ7015\]        rtl/axi_lite_rcv.v 的端口上没有 X_INTERFACE_INFO 属性，"
+            puts "\[ACZ7015\]        Vivado 只会看到散引脚 -> 连不上互联、也分不出地址段 ->"
+            puts "\[ACZ7015\]        PS 的 0x44000000 映射不上，PL_WR 会 DECERR。"
+            puts "\[ACZ7015\]        修法：给端口加上 AXI 接口属性（见 rtl/axi_lite_rcv.v 注释）。"
+            puts "\[ACZ7015\] =========================================================="
+            error "axi_lite_rcv: S_AXI interface not inferred (missing X_INTERFACE_INFO)"
+        }
+
+        set _mm [format "M%02d" $nm]
+
+        connect_bd_intf_net [get_bd_intf_pins axi_interconnect_0/${_mm}_AXI] \
+                            [get_bd_intf_pins axi_lite_rcv_0/S_AXI]
+        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins axi_interconnect_0/${_mm}_ACLK]
+        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/${_mm}_ARESETN]
+
+        # clk / rst 是模块自己的端口名。rst 接的是低有效的 peripheral_aresetn。
+        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins axi_lite_rcv_0/clk]
+        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_lite_rcv_0/rst]
+
+        puts "\[ACZ7015\] axi_lite_rcv_0 -> axi_interconnect_0/${_mm}_AXI  (PL AXI-Lite slave)"
+    } else {
+        puts "\[ACZ7015\] WARNING: rtl/axi_lite_rcv.v 不存在，BD 里没有 PL AXI-Lite 从机"
     }
 }
 
@@ -412,6 +465,22 @@ if {$want_hp} {
 # ----------------------------- 地址分配 -------------------------------------
 if {$want_axi_infra} {
     assign_bd_address
+
+    # ★ PL 的 AXI-Lite 从机必须固定落在 0x44000000
+    #   （PS 侧 pl_ctrl_test.c 里的 PL_CTRL_BASE 就是它，自动分配不会给这个地址）
+    if {[get_bd_cells -quiet axi_lite_rcv_0] ne ""} {
+        set _seg [get_bd_addr_segs -quiet \
+                     -of_objects [get_bd_addr_spaces processing_system7_0/Data] \
+                     -filter {NAME =~ "*axi_lite_rcv*"}]
+        if {$_seg ne ""} {
+            set_property offset 0x44000000 $_seg
+            puts [format "\[ACZ7015\] %s -> offset %s" \
+                      [get_property NAME $_seg] [get_property offset $_seg]]
+        } else {
+            error "axi_lite_rcv_0 没有分配到地址段，检查 S_AXI 接口和设备树"
+        }
+    }
+
     puts "\[ACZ7015\] Address map (PS view):"
     foreach seg [get_bd_addr_segs -quiet -filter {NAME =~ "*SEG_axi_gpio*"}] {
         puts [format "   %-56s %s" [get_property NAME $seg] [get_property OFFSET $seg]]
