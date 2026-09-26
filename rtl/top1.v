@@ -36,22 +36,32 @@ module top1 (
     wire back_we;
     wire [ADDR_WIDTH-1:0] back_addr;
     wire [DATA_WIDTH-1:0] back_dout;
+    wire [DATA_WIDTH-1:0] px_data;
+    wire px_valid;
+    wire px_ready;
+    wire px_sof;
+    wire px_eol;
+    wire px_eof;
+    wire [DATA_WIDTH-1:0] back_res_data;
+    wire back_res_valid;
+    wire back_res_sof;
+    wire back_res_eof;
 
     axis_rcv u_axis_rcv (
-        // .aclk(),
-        // .aresetn(),
+        .aclk(clk),
+        .aresetn(~rst),
         // .s_axis_tdata(),
         // .s_axis_tvalid(),
         // .s_axis_tready(),
         // .s_axis_tlast(),
         // .s_axis_tkeep(),
         // .s_axis_tuser(),
-        .px_data(),
-        .px_valid(),
-        .px_ready(),
-        .px_sof(),
-        .px_eol(),
-        .px_eof(),
+        .px_data(px_data),
+        .px_valid(px_valid),
+        .px_ready(px_ready),
+        .px_sof(px_sof),
+        .px_eol(px_eol),
+        .px_eof(px_eof),
         // .stat_beats(),
         // .stat_pixels(),
         // .stat_frames(),
@@ -61,12 +71,12 @@ module top1 (
     img2buf u_img2buf (
         .clk(clk),
         .rst(rst),
-        .px_data(),
-        .px_valid(),
-        .px_ready(),
-        .px_sof(),
-        .px_eol(),
-        .px_eof(),
+        .px_data(px_data),
+        .px_valid(px_valid),
+        .px_ready(px_ready),
+        .px_sof(px_sof),
+        .px_eol(px_eol),
+        .px_eof(px_eof),
 
         .buf_en(buf_en),
         .buf_we(buf_we),
@@ -100,12 +110,33 @@ module top1 (
         .back_we(back_we),
         .back_addr(back_addr),
         .back_dout(back_dout),
-        .res_data(),
-        .res_valid(),
-        .res_sof(),
-        .res_eof(),
+        .res_data(back_res_data),
+        .res_valid(back_res_valid),
+        .res_sof(back_res_sof),
+        .res_eof(back_res_eof),
         .__start_back(__start_back),
         .__end_back(__end_back)
+    );
+
+    axis_out u_axis_out (
+        .aclk(clk),
+        .aresetn(~rst),
+
+        .res_data(back_res_data),
+        .res_valid(back_res_valid),
+        .res_ready(),
+        .res_sof(back_res_sof),
+        .res_eol(1'b0),
+        .res_eof(back_res_eof),
+
+        // .m_axis_tdata(),
+        // .m_axis_tvalid(),
+        // .m_axis_tready(),
+        // .m_axis_tlast(),
+        // .m_axis_tkeep(),
+        // .m_axis_tuser(),
+        // .stat_beats(),
+        // .stat_frames()
     );
 
     parameter MODE_ADDR = 9'h00, CMD_REG_ADDR = 9'h10, DATA_REG_ADDR = 9'h20;
