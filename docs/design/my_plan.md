@@ -1,4 +1,5 @@
 ##
+./scripts/build.sh zynq -n fpga_26 -H -R
 
 rm -f csrc/.lock
 

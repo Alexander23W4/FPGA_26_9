@@ -80,7 +80,15 @@ if {$mode eq "noinit"} {
     }
 }
 
-# --------------------------- 4. 回读 UART1 状态 -------------------------------
+# --------------------------- 4. 停核 -----------------------------------------
+# ★ 必须在读内存之前把核停下来。noinit 模式下 CPU 正在跑我们的程序，
+#   没停核就去 mrd，会报：
+#       Cannot read memory if not stopped. Execution context is running
+targets -set -filter {name =~ "ARM*#0"}
+rst -processor
+puts "\[flash\] CPU halted"
+
+# --------------------------- 5. 回读 UART1 状态 -------------------------------
 # xil_printf -> outbyte -> XUartPs_SendByte 是【阻塞轮询】：
 #     while (XUartPs_IsTransmitFull(ba)) { }      <- 等 TX FIFO 有空位
 # 如果 TX 没使能（CR 的 bit4 = 0），FIFO 永远不排空，第一条 xil_printf
@@ -105,9 +113,7 @@ if {$baudgen != 124 || $bauddiv != 6} {
     puts "                      something re-initialised UART1 with other values."
 }
 
-# --------------------------- 5. 下载并运行 -----------------------------------
-targets -set -filter {name =~ "ARM*#0"}
-rst -processor
+# --------------------------- 6. 下载并运行 -----------------------------------
 dow $elf
 con
 

@@ -66,15 +66,19 @@ $payload = [System.Text.Encoding]::ASCII.GetBytes($line)
 $sp.Write($payload, 0, $payload.Length)
 $sp.BaseStream.Flush()
 
-$buf   = New-Object char[] 4096
+$buf   = New-Object byte[] 4096
+$out   = [Console]::OpenStandardOutput()
 $start = Get-Date
 
 try {
     while ($true) {
         try {
+            # 直接读原始字节, 原样吐到 stdout. 不走字符串解码,
+            # 板子发的是 UTF-8, Git Bash 也是 UTF-8 -> 中文不会变乱码.
             $n = $sp.Read($buf, 0, 4096)
             if ($n -gt 0) {
-                [Console]::Write((-join $buf[0..($n - 1)]))
+                $out.Write($buf, 0, $n)
+                $out.Flush()
             }
         } catch [TimeoutException] { }
 
