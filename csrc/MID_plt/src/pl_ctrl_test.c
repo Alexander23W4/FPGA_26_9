@@ -154,34 +154,28 @@ void load_img__emmc_ddr(const char *img)
         if (toc_find((u32)i, &e) != 0) {  // 把 eMMC 目录里面的的第i项取出来, 放进e
             continue;
         }
-        if (name_eq(e.name, want) != 0) {   // emmc里面的文件名和顺序必须要和 此test里面的 IMG1-n 的顺序一样
+        if (name_eq(e.name, want) != 0) {   // 返回1, 说明一样
             break;
         }
     }
 
-    if (i >= cnt) {
+    if (i >= cnt) {  // 没有找到对应的 img 在 eMMC
         xil_printf("!!! no \"%s\" image in eMMC, current catalog:\r\n", want);
         toc_list();
         return;
     }
 
-    if (e.bytes == 0u || e.bytes > SINGLE_IMG_LEN) {
-        xil_printf("!!! 图片 %d 字节，超出单图模式缓冲 %d 字节\r\n",
-                   (s32)e.bytes, (s32)SINGLE_IMG_LEN);
+    if (e.bytes == 0u || e.bytes != SINGLE_IMG_LEN) {   // 检查 图片大小
+        xil_printf("invalid length img\n");
         return;
     }
 
-    xil_printf("\r\n[2] load image : eMMC -> DDR\r\n");
-    xil_printf("    \"%s\" (toc #%d)  %d bytes  eMMC block %d -> DDR 0x%08X\r\n",
-               e.name, i, (s32)e.bytes, (s32)e.start_blk, (s32)SINGLE_IMG_ADDR);
 
+    // load to ddr
     if (read_img_to_ddr(e.start_blk, e.bytes) != 0) {
         return;
     }
 
-    /* ★ PS 写完、PL 要读：把 cache 里的这份数据落回 DDR。
-     *   少了这一句，PL 读到的可能是旧内容 —— 现象是"图是花的/时好时坏"。 */
-    Xil_DCacheFlushRange((INTPTR)SINGLE_IMG_ADDR, (INTPTR)e.bytes);
 }
 
 
