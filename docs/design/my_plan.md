@@ -91,6 +91,19 @@ Ethernet
  ↓
 PC
 
+
+  PS / ARM
+AXI Master
+    │
+    │ AXI-Lite
+    ↓
+Image Controller
+AXI-Lite Slave
+    │
+  CMD_REG
+  STATUS_REG
+
+
 Vivado Block Design 中加入 PS7
 连接 PS7 的 S_AXI_HP0
 加入 AXI SmartConnect
