@@ -3,7 +3,7 @@
 
 rm -f csrc/.lock
 
-./scripts/build.sh app -n MID_plt
+./scripts/build.sh app -n MID_plt -f
 
 
 /e/Xilinx/Vitis/2023.2/bin/xsct.bat "$(cygpath -w scripts/tcl/flash_app.tcl)" \
