@@ -61,7 +61,7 @@ module axi_lite_rcv #(
 
     output __update_reg,
     output [8:0] __update_reg_addr,
-    output __update_data
+    output [31:0] __update_data
 );
 
     reg [31:0] rdata_save;
@@ -81,7 +81,7 @@ module axi_lite_rcv #(
             rdata_save <= '0;
             awaddr_save <= '0;
             wdata_save <= '0;    
-            
+
         end else begin
             state <= next;
             if(state == IDLE && arvalid) begin
