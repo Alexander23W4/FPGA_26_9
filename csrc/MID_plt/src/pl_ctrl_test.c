@@ -31,6 +31,7 @@ while(1){
 #include "app/cfg.h"
 #include "drv/emmc.h"
 #include "drv/vdma.h"
+#include "feat/net_send.h"
 #include "img/catalog.h"
 #include "sleep.h"
 #include "xil_cache.h"
@@ -250,6 +251,7 @@ void pl_ctrl_test_run(void)
             start_vdma();       // ddr -> mm2s -> axis_rcv -> img2buf -> frame_buf
             start_analyze();    // 设置 cmd_reg 为 reoperate
             delay(ANALYZE_MS);
+            feat_net_send_run();        // ddr -> lwIP UDP -> PS ENET0 -> 笔记本
         }
 
     }
