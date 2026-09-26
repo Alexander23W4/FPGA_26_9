@@ -32,6 +32,10 @@ module top1 (
     wire buf_we;
     wire [ADDR_WIDTH-1:0] buf_addr;
     wire [DATA_WIDTH-1:0] buf_din;
+    wire back_en;
+    wire back_we;
+    wire [ADDR_WIDTH-1:0] back_addr;
+    wire [DATA_WIDTH-1:0] back_dout;
 
     axis_rcv u_axis_rcv (
         // .aclk(),
@@ -78,16 +82,31 @@ module top1 (
         .a_addr(buf_addr),
         .a_din(buf_din),
         .a_dout(),
-        .b_en(),
-        .b_we(),
-        .b_addr(),
+        .b_en(back_en),
+        .b_we(back_we),
+        .b_addr(back_addr),
         .b_din(),
-        .b_dout()
+        .b_dout(back_dout)
     );
 
     wire __start_back;
     wire __end_back;
 
+    // **
+    bufback u_bufback (
+        .clk(clk),
+        .rst(rst),
+        .back_en(back_en),
+        .back_we(back_we),
+        .back_addr(back_addr),
+        .back_dout(back_dout),
+        .res_data(),
+        .res_valid(),
+        .res_sof(),
+        .res_eof(),
+        .__start_back(__start_back),
+        .__end_back(__end_back)
+    );
 
     parameter MODE_ADDR = 9'h00, CMD_REG_ADDR = 9'h10, DATA_REG_ADDR = 9'h20;
     parameter SINGLE_MODE = 8'h01, STREAM_MODE = 8'h02;

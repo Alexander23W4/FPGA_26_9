@@ -10,8 +10,8 @@ module bufback(
     output  wire [PIXEL_W-1:0]          res_data,
     output  wire                        res_valid,
     // input wire                        res_ready,     // 给算法的背压
-    // output  wire                        res_sof,       // 本帧第一个像素
-    output  wire                        res_eol,       // 本行最后一个像素
+    output  wire                        res_sof,       // 本帧第一个像素
+    // output  wire                        res_eol,       // 本行最后一个像素
     output  wire                        res_eof,       // 本帧最后一个像素
 
     input __start_back,
@@ -55,6 +55,11 @@ module bufback(
         back_en = 1'b0;
         back_we = 1'b0;
         back_addr = addr_cnt;
+        res_data = back_dout;
+        res_valid = 1'b0;
+        res_eof = 1'b0;
+        __end_back = 1'b0;
+
 
         case(state)
             IDLE: begin
@@ -66,9 +71,16 @@ module bufback(
                 back_en = 1'b1;
 
             end
-            RUN: begin
-                back_en = 1'b1;
-                res_valid = 1'b1;
+            RUN: begin  // 从 addr_cnt = 1开始, 到65535
+                if(addr_cnt == 65536) begin
+                    res_valid = 1'b1;
+                    res_eof = 1'b1;
+                    next = IDLE;
+                    __end_back = 1'b1;
+                end else begin
+                    back_en = 1'b1;
+                    res_valid = 1'b1;    
+                end
                 
             end
         endcase 
