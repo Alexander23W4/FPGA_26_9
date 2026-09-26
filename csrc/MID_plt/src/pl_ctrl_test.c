@@ -25,6 +25,7 @@ while(1){
 
 */
 #include <string.h>
+#include <assert.h>
 
 #include "config/pl_cmd.h"
 #include "app/cfg.h"
@@ -40,19 +41,20 @@ while(1){
 
 #define ANALYZE_MS          10000u
 
+#define IMG_COUNT           3u
+
 #define IMG1 "D:/test_img/iceberg.bin"
 #define IMG2 "D:/test_img/lofoten.bin"
 #define IMG3 "D:/test_img/gb200.bin"
 
 const char *const imgs[IMG_COUNT] = { IMG1, IMG2, IMG3 };
 
-#define IMG_COUNT           3u
 
 /* 一次从 eMMC 读多少块（64 块 = 32KB) */
 #define IMG_READ_CHUNK_BLOCKS   64u
 
 
-#define PL_WR(off, val)     Xil_Out32(PL_CTRL_BASE + (u32)(off), (u32)(val))
+#define PL_WR(off, val)     do { Xil_Out32(PL_CTRL_BASE + (u32)(off), (u32)(val)); dsb(); } while (0)
 // e.g. PL_WR(MODE_ADDR, SINGLE_MODE);
 
 
@@ -216,14 +218,14 @@ void pl_ctrl_test_run(void)
         return;
     }
 
-    choose_single_img_proc();
+    choose_single_img_proc();   // 改 mode_reg 为 单图模式
 
     for (;;) {
         u32 i;
         for (i = 0u; i < IMG_COUNT; i++) {
 
-            load_img__emmc_ddr(imgs[i]);
-            start_analyze();
+            load_img__emmc_ddr(imgs[i]);  // 
+            start_analyze();    // 设置
             delay(ANALYZE_MS);
         }
 

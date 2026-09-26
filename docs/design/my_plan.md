@@ -15,10 +15,12 @@ rm -f csrc/.lock
 
 
 想干什么	命令
-加图到 eMMC	  powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_add.ps1)" -File D:/test_img/iceberg.bin
+加图到 eMMC	    powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_add.ps1)" -File D:/test_img/iceberg.bin
 看 eMMC 里有啥	powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_list.ps1)"
-清空 eMMC	powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_clear.ps1)"
+清空 eMMC	      powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_clear.ps1)"
 
+跑test: 
+               powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/run_test.ps1)" -Test pl_ctrl_test
 
 eMMC 实数据 -> DDR -> VDMA 送流   	powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_to_ddr.ps1)" -Index 0
 
