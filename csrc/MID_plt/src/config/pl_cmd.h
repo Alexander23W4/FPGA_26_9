@@ -2,18 +2,15 @@
 @@ 单图模式: 
 >> arm 向 MODE_ADDR 写入 SINGLE_MODE
 
-有新图片:
+载入图片:
 >> arm 把新图片放到 SINGLE_IMG_ADDR
 
-重新操作:
->> arm 向 CMD_REG_ADDR 写入 REOPERATE
->>> pl 从 SINGLE_IMG_ADDR 读取图片再 operate 一遍, 然后清空 控制寄存器
-
-写入新阈值:
+写入阈值:
 >> arm 把新data值写到 DATA_REG_ADDR, pl 作为slave 自动相应, 更新 
 
-单图模式需要的状态寄存器: 
-
+开始分析:
+>> arm 向 CMD_REG_ADDR 写入 REOPERATE
+>>> pl 从 SINGLE_IMG_ADDR 读取图片再 operate 一遍, 然后清空 控制寄存器
 
 */
 

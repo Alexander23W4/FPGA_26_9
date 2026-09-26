@@ -65,6 +65,7 @@ OBUFDS
   ↓
 HDMI_2
 
+
 PC
  ↓
 Ethernet
