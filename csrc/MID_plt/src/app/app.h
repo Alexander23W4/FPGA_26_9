@@ -15,7 +15,13 @@ int  app_init(void);
 /* 打印可用命令 */
 void app_help(void);
 
-/* 主循环：从串口收一个命令字节，分发给对应 feature。永不返回 */
+/* 分发【一个】单字母命令给对应 feature（app_run() 内部用的就是它）。
+ * main.c 也要用它：串口第一个字节不是 '-' 时，就把这个字节交给这里。
+ * 返回 0 = 认识并执行了，-1 = 不认识（已经打印过提示和帮助） */
+int  app_exec(char c);
+
+/* 主循环：从串口收一个命令字节，分发给对应 feature。永不返回。
+ * ★ 现在 main.c 自己管命令循环了，这个函数只是留着备用。 */
 void app_run(void);
 
 #endif /* APP_APP_H */

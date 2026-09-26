@@ -90,31 +90,30 @@ int app_init(void)
     return emmc_ready();
 }
 
+int app_exec(char c)
+{
+    u32 i;
+
+    for (i = 0u; i < APP_CMD_COUNT; i++) {
+        if (c == cmds[i].cmd) {
+            xil_printf("[cmd] %s\r\n", cmds[i].title);
+            (void)cmds[i].fn();
+            /* 统一的结束标记：PC 脚本靠它判断"这次跑完了"，
+             * 这样每个 feature 不用各自重复打印。 */
+            xil_printf("===== END =====\r\n");
+            return 0;
+        }
+    }
+
+    xil_printf("未知命令 '%c' (0x%02X)\r\n", c, (int)(u8)c);
+    app_help();
+    return -1;
+}
+
 void app_run(void)
 {
     for (;;) {
-        u8 c;
-        u32 i;
-        int found = 0;
-
         xil_printf("\r\n> ");
-        c = uartln_getc();
-
-        for (i = 0u; i < APP_CMD_COUNT; i++) {
-            if ((char)c == cmds[i].cmd) {
-                found = 1;
-                xil_printf("[cmd] %s\r\n", cmds[i].title);
-                (void)cmds[i].fn();
-                /* 统一的结束标记：PC 脚本靠它判断"这次跑完了"，
-                 * 这样每个 feature 不用各自重复打印。 */
-                xil_printf("===== END =====\r\n");
-                break;
-            }
-        }
-
-        if (found == 0) {
-            xil_printf("未知命令 '%c' (0x%02X)\r\n", (char)c, (int)c);
-            app_help();
-        }
+        (void)app_exec((char)uartln_getc());
     }
 }

@@ -21,9 +21,12 @@
 
 #define SINGLE_IMG_ADDR 0x10000000
 #define SINGLE_IMG_LEN  0x20000
+#define IMG_OUT_ADDR    0x10100000
+
+#define PL_CTRL_BASE        0x44000000
 
 // 这两个是伪地址, pl读到这个地址就知道是 写 模式寄存器/控制寄存器/数据寄存器
-#define MODE_ADDR     0x01
+#define MODE_ADDR     0x00
 #define CMD_REG_ADDR  0x10
 #define DATA_REG_ADDR 0x20
 
@@ -33,6 +36,8 @@
 
 // 控制指令
 #define REOPERATE 0x01
+
+
 
 
 
