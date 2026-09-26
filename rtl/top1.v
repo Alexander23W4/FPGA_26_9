@@ -20,32 +20,63 @@ module top1 (
         .__update_data(__update_data)
     );
 
+    parameter DATA_WIDTH = 16,
+    parameter ADDR_WIDTH = 16,          // 地址位宽
+    parameter DEPTH      = 65536        // 深度，必须 = 2^ADDR_WIDTH
+
     wire __rcvf_buf;
     reg __rcvf_buf_save;
     wire __siop;
 
-    img2buf u_img2buf (
-        .clk(clk),
-        .rst(),
+    wire buf_en;
+    wire buf_we;
+    wire [ADDR_WIDTH-1:0] buf_addr;
+    wire [DATA_WIDTH-1:0] buf_din;
+
+    axis_rcv u_axis_rcv (
+        // .aclk(),
+        // .aresetn(),
+        // .s_axis_tdata(),
+        // .s_axis_tvalid(),
+        // .s_axis_tready(),
+        // .s_axis_tlast(),
+        // .s_axis_tkeep(),
+        // .s_axis_tuser(),
         .px_data(),
         .px_valid(),
         .px_ready(),
         .px_sof(),
         .px_eol(),
         .px_eof(),
-        .buf_en(),
-        .buf_we(),
-        .buf_addr(),
-        .buf_din(),
+        // .stat_beats(),
+        // .stat_pixels(),
+        // .stat_frames(),
+        // .stat_tkeep_bad()
+    );
+
+    img2buf u_img2buf (
+        .clk(clk),
+        .rst(rst),
+        .px_data(),
+        .px_valid(),
+        .px_ready(),
+        .px_sof(),
+        .px_eol(),
+        .px_eof(),
+
+        .buf_en(buf_en),
+        .buf_we(buf_we),
+        .buf_addr(buf_addr),
+        .buf_din(buf_din),
         .end_frame(__rcvf_buf)
     );
 
     frame_buf u_frame_buf (
         .clk(clk),
-        .a_en(),
-        .a_we(),
-        .a_addr(),
-        .a_din(),
+        .a_en(buf_en),
+        .a_we(buf_we),
+        .a_addr(buf_addr),
+        .a_din(buf_din),
         .a_dout(),
         .b_en(),
         .b_we(),
@@ -60,7 +91,8 @@ module top1 (
 
     localparam IDLE = 3'b000, 
                FULL_BUF = 3'b001
-               SI_OP = 3'b010,  // 发信号(siop)给图像数据通路, 图像数据通路读到siop后发起一次读ddr, 然后处理, 再通过SS2M返回给PS, 完成整个握手流程后, 数据通路返回一个信号, 
+               SI_OP = 3'b010,  // 发信号(siop)给图像数据通路, 图像数据通路读到siop后发起一次读ddr, 然后处理, 再通过SS2M返回给PS, 完成整个握手流程后, 数据通路返回一个信号,
+               BACK = 3'b011,
 
     reg [2:0] state, next;
 
@@ -103,8 +135,13 @@ module top1 (
                 end
             end
             SI_OP: begin
+                // 现在暂时不实现算法, 直接传回buf里面的图像
+                next = BACK;
+            end
+            BACK: begin
                 
             end
+
         endcase
     end
 
