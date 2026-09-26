@@ -65,6 +65,32 @@ OBUFDS
   ↓
 HDMI_2
 
+PC
+ ↓
+Ethernet
+ ↓
+ARM/Linux
+ ↓
+DDR
+ ↓
+AXI VDMA MM2S
+ ↓
+AXI-Stream
+ ↓
+PL 图像算法
+ ↓
+AXI-Stream
+ ↓
+AXI VDMA S2MM
+ ↓
+DDR
+ ↓
+ARM
+ ↓
+Ethernet
+ ↓
+PC
+
 Vivado Block Design 中加入 PS7
 连接 PS7 的 S_AXI_HP0
 加入 AXI SmartConnect
