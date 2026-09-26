@@ -1,9 +1,9 @@
-﻿<#
+<#
   net_recv.ps1 -- receive the result image that the board sends over UDP.
 
   Board side : csrc/MID_plt/src/feat_net_send.c  (serial command 'N')
   Link       : board PS ENET0 -> RTL8211F -> RJ45 -> laptop USB-Ethernet adapter
-  Board      : 192.168.1.10:5001  ->  192.168.1.100:5000
+  Board      : 192.168.1.10:5001  ->  192.168.1.100:40000
 
   Put the laptop adapter on 192.168.1.100 / 255.255.255.0 first, e.g.
       netsh interface ip set address "Ethernet 2" static 192.168.1.100 255.255.255.0
@@ -22,7 +22,7 @@
 
 [CmdletBinding()]
 param(
-    [int]$Port = 5000,
+    [int]$Port = 40000,
     [string]$Out = 'result.bin',
     [int]$TimeoutSec = 40,
     [int]$Width = 256,

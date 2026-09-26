@@ -30,6 +30,8 @@ collect(PROJECT_LIB_DEPS xiltimer;xilffs;lwip213)
 
 
 
+
+
 collect(PROJECT_LIB_DEPS gcc)
 collect(PROJECT_LIB_DEPS c)
 
@@ -54,8 +56,8 @@ collect (PROJECT_LIB_SOURCES feat_net_send.c)
 collect (PROJECT_LIB_SOURCES img_catalog.c)
 collect (PROJECT_LIB_SOURCES img_ddr.c)
 collect (PROJECT_LIB_SOURCES main.c)
-collect (PROJECT_LIB_SOURCES pl_ctrl_test.c)
 collect (PROJECT_LIB_SOURCES platform.c)
+collect (PROJECT_LIB_SOURCES pl_ctrl_test.c)
 collect (PROJECT_LIB_SOURCES uartln.c)
 collector_list (_sources PROJECT_LIB_SOURCES)
 foreach (source ${_sources})

@@ -94,7 +94,7 @@
 #define NET_PC_IP3          100
 
 #define NET_BOARD_PORT      5001
-#define NET_PC_PORT         5000
+#define NET_PC_PORT         40000
 
 /* UDP payload per packet. 1400 keeps the whole frame under a 1500 byte MTU. */
 #define NET_UDP_PAYLOAD     1400u

@@ -22,6 +22,9 @@ rm -f csrc/.lock
 跑test: 
                powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/run_test.ps1)" -Test pl_ctrl_test
 
+笔记本开接收端:
+powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/net_recv.ps1)" -TimeoutSec 180
+
 eMMC 实数据 -> DDR -> VDMA 送流   	powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_to_ddr.ps1)" -Index 0
 
 
