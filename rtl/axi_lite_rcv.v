@@ -76,12 +76,13 @@ module axi_lite_rcv #(
     reg [2:0] state, next;
 
     always @(posedge clk or negedge rst) begin
-        if(!rst)
+        if(!rst) begin
             state <= IDLE;
             rdata_save <= '0;
             awaddr_save <= '0;
-            wdata_save <= '0;
-        else
+            wdata_save <= '0;    
+            
+        end else begin
             state <= next;
             if(state == IDLE && arvalid) begin
                 case(araddr) 
@@ -95,7 +96,8 @@ module axi_lite_rcv #(
             end
             if(state == W && wvalid) begin
                 __update_data <= wdata;
-            end
+            end         
+        end
     end
 
 // 这里由于考虑到ps不可能同时发送读请求和写请求, 所以读写共用一个状态机
