@@ -225,7 +225,7 @@ void pl_ctrl_test_run(void)
         for (i = 0u; i < IMG_COUNT; i++) {
 
             load_img__emmc_ddr(imgs[i]);  // 
-            start_analyze();    // 设置
+            start_analyze();    // 设置 cmd_reg 为 reoperate
             delay(ANALYZE_MS);
         }
 

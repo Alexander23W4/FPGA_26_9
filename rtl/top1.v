@@ -20,17 +20,20 @@ module top1 (
         .__update_data(__update_data)
     );
 
+    wire __siop;
+
+    (* ram_style = "block" *)
+    reg [15:0] img_mem [0:255][0:255];
+
     parameter MODE_ADDR = 9'h00, CMD_REG_ADDR = 9'h10, DATA_REG_ADDR = 9'h20;
     parameter SINGLE_MODE = 8'h01, STREAM_MODE = 8'h02;
     parameter REOP = 8'h01;
 
     localparam IDLE = 3'b000, 
-               SI_OP = 3'b001,  // 发信号给图像数据通路, 让他发起一次读ddr, 然后处理, 再通过SS2M返回给PS, 完成整个握手流程后, 数据通路返回一个信号, 
-
-
-
+               SI_OP = 3'b001,  // 发信号(siop)给图像数据通路, 图像数据通路读到siop后发起一次读ddr, 然后处理, 再通过SS2M返回给PS, 完成整个握手流程后, 数据通路返回一个信号, 
 
     reg [2:0] state, next;
+
     
     always @(posedge clk or posedge rst) begin
         if(rst) begin
@@ -49,10 +52,12 @@ module top1 (
 
     always @(*) begin
         next = state;
+        siop = 1'b0;
 
         case(state) 
             IDLE: begin
                 if(mode_reg == SINGLE_MODE && cmd_reg == REOP) begin
+                    siop = 1'b1;
                     next = SI_OP;
                 end
             end
