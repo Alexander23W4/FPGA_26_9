@@ -38,8 +38,25 @@ Write-Host "listening on UDP port $Port ..."
 Write-Host "expecting board 192.168.1.10:5001 -> this PC 192.168.1.100:$Port"
 Write-Host ""
 
-$udp = New-Object System.Net.Sockets.UdpClient($Port)
-$udp.Client.ReceiveTimeout = 1000
+# The board bursts all 94 packets (131072 bytes) in about 1 ms at 1000 Mbps.
+# Windows' default UDP receive buffer is only 64 KB and this PowerShell
+# Receive loop cannot drain fast enough, so the OS drops the tail.
+# Symptom: exactly ~48 packets (67200 bytes) every time -- frame never completes.
+#
+# NOTE: build the socket by hand and set ReceiveBufferSize BEFORE Bind.
+# New-Object UdpClient($Port) binds inside the constructor; setting the size
+# afterwards is silently kept at the 65536 default (verified by reading back).
+$sock = New-Object System.Net.Sockets.Socket(
+            [System.Net.Sockets.AddressFamily]::InterNetwork,
+            [System.Net.Sockets.SocketType]::Dgram,
+            [System.Net.Sockets.ProtocolType]::Udp)
+$sock.ReceiveBufferSize = 8 * 1024 * 1024
+$sock.Bind((New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Any, $Port)))
+$sock.ReceiveTimeout = 1000
+
+$rbuf = New-Object byte[] 65536
+Write-Host ("socket rx buffer : {0} bytes" -f $sock.ReceiveBufferSize)
+Write-Host ""
 
 $data   = $null
 $seen   = @{}          # offset -> 1, to count duplicates / missing pieces
@@ -52,7 +69,9 @@ $remote   = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Any, 0)
 
 while ((Get-Date) -lt $deadline) {
     try {
-        $pkt = $udp.Receive([ref]$remote)
+        $rn  = $sock.ReceiveFrom($rbuf, [ref]$remote)
+        $pkt = New-Object byte[] $rn
+        [Array]::Copy($rbuf, $pkt, $rn)
     } catch {
         if ($seen.Count -gt 0 -and $bytes -ge $expect -and $expect -gt 0) { break }
         continue
@@ -81,14 +100,19 @@ while ((Get-Date) -lt $deadline) {
     if (-not $seen.ContainsKey($off)) {
         $seen[$off] = 1
         $bytes += $n
-        [Console]::Write("`r  received {0} / {1} bytes  ({2} packets)" -f $bytes, $expect, $seen.Count)
+        # Do NOT write [Console]::Write("..." -f $a, $b, $c): inside a method
+        # call the commas are ARGUMENT separators, not array construction, so
+        # -f only receives the first value -> "index out of range" FormatError
+        # and the whole script dies.
+        $prog = "`r  received {0} / {1} bytes  ({2} packets)" -f $bytes, $expect, $seen.Count
+        [Console]::Write($prog)
     }
 
     if ($bytes -ge $expect) { break }
 }
 
 [Console]::WriteLine("")
-$udp.Close()
+$sock.Close()
 
 if ($data -eq $null -or $expect -eq 0) {
     Write-Host "ERROR: nothing received." -ForegroundColor Red

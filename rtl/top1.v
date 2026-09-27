@@ -77,6 +77,27 @@ module top1 #(
     wire [8:0] __update_reg_addr;
     wire [31:0] __update_data;
 
+    // 调试用: axis_rcv 的三个现成计数器 + 一条打包的内部状态, PS 可以读回来
+    wire [31:0] dbg_beats;
+    wire [31:0] dbg_pixels;
+    wire [31:0] dbg_frames;
+    wire [31:0] dbg_stat;       // 打包, 见文件末尾的 assign
+    wire [31:0] dbg_stream;     // AXI-Stream 握手观测, 见文件末尾
+
+    // AXI-Stream 上到底有没有出现过 tvalid / tlast (粘滞, 不会漏掉脉冲)
+    reg sx_tv_seen;
+    reg sx_tl_seen;
+
+    always @(posedge clk or posedge rst) begin
+        if(rst) begin
+            sx_tv_seen <= 1'b0;
+            sx_tl_seen <= 1'b0;
+        end else begin
+            if(s_axis_tvalid) sx_tv_seen <= 1'b1;
+            if(s_axis_tlast)  sx_tl_seen <= 1'b1;
+        end
+    end
+
     axi_lite_rcv reg_io(
         .clk(clk),
         .rst(~rst),
@@ -100,6 +121,11 @@ module top1 #(
         .mode_reg(mode_reg),
         .cmd_reg(cmd_reg),
         .data_reg(data_reg),
+        .dbg0(dbg_beats),
+        .dbg1(dbg_pixels),
+        .dbg2(dbg_frames),
+        .dbg3(dbg_stat),
+        .dbg4(dbg_stream),
         .__update_reg(__update_reg),
         .__update_reg_addr(__update_reg_addr),
         .__update_data(__update_data)
@@ -126,9 +152,16 @@ module top1 #(
     wire [DATA_WIDTH-1:0] back_res_data;
     wire back_res_valid;
     wire back_res_sof;
+    wire back_res_eol;      // 本行最后一个像素 -> axis_out 的 tlast(EOL)
     wire back_res_eof;
+    wire back_res_ready;    // axis_out 收不下时拉低 -> bufback 必须停住
 
-    axis_rcv u_axis_rcv (
+    // ★ H_PIXELS / V_PIXELS 必须和图像尺寸、以及 bufback 的 H_PIXELS 一致，
+    //   否则 px_eol / px_eof / res_eol 都会标错位置。256x256 的图 = 256 / 256。
+    axis_rcv #(
+        .H_PIXELS(256),
+        .V_PIXELS(256)
+    ) u_axis_rcv (
         .aclk(clk),
         .aresetn(~rst),
         .s_axis_tdata(s_axis_tdata),
@@ -143,9 +176,9 @@ module top1 #(
         .px_sof(px_sof),
         .px_eol(px_eol),
         .px_eof(px_eof),
-        .stat_beats(),
-        .stat_pixels(),
-        .stat_frames(),
+        .stat_beats(dbg_beats),
+        .stat_pixels(dbg_pixels),
+        .stat_frames(dbg_frames),
         .stat_tkeep_bad()
     );
 
@@ -184,7 +217,9 @@ module top1 #(
     wire __end_back;
 
     // **
-    bufback u_bufback (
+    bufback #(
+        .H_PIXELS(256)                  // 和 axis_rcv 的 H_PIXELS 必须一致
+    ) u_bufback (
         .clk(clk),
         .rst(rst),
         .back_en(back_en),
@@ -194,7 +229,9 @@ module top1 #(
         .res_data(back_res_data),
         .res_valid(back_res_valid),
         .res_sof(back_res_sof),
+        .res_eol(back_res_eol),         // ★ 行尾 -> axis_out 的 tlast(EOL)
         .res_eof(back_res_eof),
+        .res_ready(back_res_ready),     // ★ 背压: 下游收不下就停住, 不许丢像素
         .__start_back(__start_back),
         .__end_back(__end_back)
     );
@@ -205,9 +242,9 @@ module top1 #(
 
         .res_data(back_res_data),
         .res_valid(back_res_valid),
-        .res_ready(),
+        .res_ready(back_res_ready),
         .res_sof(back_res_sof),
-        .res_eol(1'b0),
+        .res_eol(back_res_eol),     // 原来接成 1'b0 —— 行结束根本没接上, 所以做不出 EOL
         .res_eof(back_res_eof),
 
         .m_axis_tdata(m_axis_tdata),
@@ -289,6 +326,33 @@ module top1 #(
 
         endcase
     end
+
+    // 打包的内部状态, PS 读 0x4400003C 就能看到:
+    //   [2:0]   state            [3]     __rcvf_buf_save   [4]     px_eof
+    //   [5]     buf_en           [6]     back_en           [7]     back_res_valid
+    //   [15:8]  buf_addr[7:0]    [23:16] back_addr[7:0]   [26:24] next
+    //   [27]    px_valid         [28]    px_sof
+    //   [29]    __start_back     [30]    __end_back        [31]    0
+    assign dbg_stat = {
+        1'b0,
+        __end_back, __start_back,
+        px_sof, px_valid,
+        next,
+        back_addr[7:0],
+        buf_addr[7:0],
+        back_res_valid, back_en, buf_en, px_eof, __rcvf_buf_save,
+        state
+    };
+
+    // AXI-Stream 握手观测, PS 读 0x44000040:
+    //   [31]    常 1 —— 【存在标记】: 读到 0x80000000 才说明这个寄存器真的在 FPGA 里
+    //   [3] tlast 出现过(粘滞)   [2] tvalid 出现过(粘滞)
+    //   [1] s_axis_tready(实时)  [0] s_axis_tvalid(实时)
+    //
+    // ★ 为什么要这个标记：build/vivado 里 module reference 的 OOC 综合网表
+    //   可能不刷新，新加的寄存器根本没进 FPGA，读它只会得到 default 0，
+    //   排查时会被骗得团团转（实测踩过两次）。
+    assign dbg_stream = { 1'b1, 27'b0, sx_tl_seen, sx_tv_seen, s_axis_tready, s_axis_tvalid };
 
 
 endmodule

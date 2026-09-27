@@ -48,6 +48,10 @@ module axis_rcv #(
     // 一行多少像素。用来产生 px_eol。256x256 的图就是 256。
     // ★ 这个值必须和图像宽度一致，否则 px_eol 会标错位置。
     parameter integer H_PIXELS     = 256,
+    // 一帧多少行。用来产生 px_eof。256x256 的图就是 256。
+    // ★ 加了这个参数之后，帧边界由"数行数"决定，不再依赖 s_axis_tlast
+    //   —— 原因见下面 px_sof/px_eol/px_eof 那段注释。
+    parameter integer V_PIXELS     = 256,
     // 0 = 忽略 px_ready，永远接收（默认，方便先把链路跑通）
     // 1 = 听 px_ready，你的算法可以背压
     parameter integer USE_PX_READY = 0
@@ -90,13 +94,11 @@ module axis_rcv #(
     // 当前正在发的这一拍
     reg [TDATA_W-1:0]   beat_q;
     reg                 beat_valid_q;
-    reg                 beat_last_q;
-    reg                 beat_first_q;
+    reg                 beat_last_q;    // 本拍的 s_axis_tlast( = 行尾 EOL )，只做观察
 
     reg [IDX_W-1:0]     idx_q;      // 本拍里发到第几个像素
     reg [31:0]          col_q;      // 当前像素在行内的列号
-    reg [31:0]          row_q;      // 当前行号（只做统计/观察）
-    reg                 frame_open; // 当前帧是否已经开始（用来找 px_sof）
+    reg [31:0]          row_q;      // 当前行号
 
     // 下游是否收得下。USE_PX_READY=0 时永远收，方便先跑通。
     wire accept = (USE_PX_READY == 0) ? 1'b1 : px_ready;
@@ -116,11 +118,25 @@ module axis_rcv #(
     // -------------------------------------------------------------------------
     //  输出给算法的像素流
     // -------------------------------------------------------------------------
+    //  ★★ 行/帧边界一律由像素计数决定，【不再使用 s_axis_tlast】。
+    //
+    //  AXI VDMA 的 m_axis 上：tlast = 行尾 EOL（每 HSIZE 字节来一次），
+    //  tuser = SOF（帧首）。S2MM 那边是同一条约定 —— xaxivdma_hw.h 里的
+    //  FSZMORE_SOF_LATE / LSZMORE_EOL_LATE 这两个错误位就是按 SOF/EOL 命名的。
+    //
+    //  以前这里把 tlast 当帧尾，后果有两个（实测都出现过）：
+    //    · px_eof 每行都脉冲一次 -> img2buf 每行就 end_frame，frame_idx 每行被清 0，
+    //      缓存区里从来存不下一整帧；
+    //    · frame_open/beat_first_q 建在 tlast 上 -> px_sof 也每行脉冲一次。
+    //  实测数据：beats/8/131072 = 23943 帧，而 tlast 计数 = 6129319 = 23943 x 256。
+    wire last_col = (col_q == (H_PIXELS - 1));
+    wire last_row = (row_q == (V_PIXELS - 1));
+
     assign px_valid = beat_valid_q;
     assign px_data  = beat_q[idx_q*PIXEL_W +: PIXEL_W];
-    assign px_sof   = beat_valid_q && beat_first_q && (idx_q == {IDX_W{1'b0}});
-    assign px_eol   = beat_valid_q && (col_q == (H_PIXELS - 1));
-    assign px_eof   = beat_valid_q && beat_last_q  && (idx_q == LAST_IDX);
+    assign px_sof   = beat_valid_q && (col_q == 32'd0) && (row_q == 32'd0);
+    assign px_eol   = beat_valid_q && last_col;
+    assign px_eof   = beat_valid_q && last_col && last_row;
 
     // -------------------------------------------------------------------------
     //  主体
@@ -130,11 +146,9 @@ module axis_rcv #(
             beat_q         <= {TDATA_W{1'b0}};
             beat_valid_q   <= 1'b0;
             beat_last_q    <= 1'b0;
-            beat_first_q   <= 1'b0;
             idx_q          <= {IDX_W{1'b0}};
             col_q          <= 32'd0;
             row_q          <= 32'd0;
-            frame_open     <= 1'b0;
             stat_beats     <= 32'd0;
             stat_pixels    <= 32'd0;
             stat_frames    <= 32'd0;
@@ -143,8 +157,7 @@ module axis_rcv #(
             // ---------------- 装下一拍 ----------------
             if (load) begin
                 beat_q        <= s_axis_tdata;
-                beat_last_q   <= s_axis_tlast;
-                beat_first_q  <= ~frame_open;      // 上一拍是 tlast 的话，本拍就是新帧
+                beat_last_q   <= s_axis_tlast;     // tlast = 行尾(EOL)，只做观察
                 beat_valid_q  <= 1'b1;
                 idx_q         <= {IDX_W{1'b0}};
                 stat_beats    <= stat_beats + 32'd1;
@@ -153,13 +166,6 @@ module axis_rcv #(
                 // 这里只记录不下判断，方便你从 ILA 上看到。
                 if (s_axis_tkeep != {KEEP_W{1'b1}}) begin
                     stat_tkeep_bad <= 1'b1;
-                end
-
-                // 帧状态：看到 tlast 就关帧，下一个 beat 会被标成 px_sof
-                if (s_axis_tlast) begin
-                    frame_open <= 1'b0;
-                end else begin
-                    frame_open <= 1'b1;
                 end
 
             end else if (beat_valid_q && accept) begin
@@ -172,18 +178,21 @@ module axis_rcv #(
             end
 
             // ---------------- 像素计数 / 行列 ----------------
+            //  列/行边界完全由计数产生：一行 H_PIXELS 个像素，一帧 V_PIXELS 行。
+            //  一行满 H_PIXELS 就换行（px_eol），行满 V_PIXELS 就换帧（px_eof）。
             if (beat_valid_q && accept) begin
                 stat_pixels <= stat_pixels + 32'd1;
 
-                if (beat_last_q && (idx_q == LAST_IDX)) begin
-                    // 一帧的最后一个像素
-                    stat_frames <= stat_frames + 32'd1;
-                    col_q       <= 32'd0;
-                    row_q       <= 32'd0;
-                end else if (col_q == (H_PIXELS - 1)) begin
-                    // 一行结束
+                if (last_col) begin
                     col_q <= 32'd0;
-                    row_q <= row_q + 32'd1;
+                    if (last_row) begin
+                        // 一帧的最后一个像素
+                        stat_frames <= stat_frames + 32'd1;
+                        row_q       <= 32'd0;
+                    end else begin
+                        // 一行结束
+                        row_q <= row_q + 32'd1;
+                    end
                 end else begin
                     col_q <= col_q + 32'd1;
                 end
@@ -191,10 +200,13 @@ module axis_rcv #(
         end
     end
 
-    // s_axis_tuser 暂时不用。VDMA 默认不产生 user 信息。
-    // 留在这里是为了 BD 里能把这个接口完整接上，不会有悬空信号。
+    // s_axis_tuser 是 SOF(帧首)、s_axis_tlast 是 EOL(行尾)。本模块现在用"数行数"
+    // 来定帧边界（更稳，且不依赖 VDMA 是否真的驱动 tuser），所以这两个信号不参与
+    // 分帧；保留连线是为了 BD 里接口完整、不出现悬空信号，也便于以后接 ILA 做
+    // 一致性检查（tlast 应该在 last_col 那一拍为 1）。
     // verilator lint_off UNUSED
-    wire _unused_tuser = s_axis_tuser ^ 1'b0;
+    wire _unused_user = s_axis_tuser ^ 1'b0;
+    wire _unused_last = beat_last_q ^ 1'b0;   // 让 beat_last_q 不被优化掉，便于观察
     // verilator lint_on UNUSED
 
 endmodule

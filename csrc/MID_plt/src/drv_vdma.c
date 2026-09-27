@@ -63,6 +63,11 @@
 /* 复位/轮询的上限 */
 #define VDMA_SPIN_LIMIT         2000000u
 
+/* config() 记下 vsize, start() 在置 RS 之后再写一次。
+ * 直接寄存器模式下, 这一写才是真正启动搬运的"提交"动作, 见 vdma_mm2s_start()。 */
+static u32 g_mm2s_vsize = 0u;
+static u32 g_s2mm_vsize = 0u;
+
 
 /* ======================= 真正有 VDMA 的版本 ============================== */
 
@@ -170,6 +175,7 @@ int vdma_mm2s_config(u32 ddr_addr, u32 hsize_bytes,
     /* 把读通道停在 frame 0，这样它一定从我们给的那块图开始读 */
     vdma_wr(VDMA_PARKPTR_OFFSET, 0u);
 
+    g_mm2s_vsize = vsize_lines;
     vdma_wr(VDMA_MM2S_REG_OFF + VDMA_MM2S_VSIZE_OFF, vsize_lines);
     vdma_wr(VDMA_MM2S_REG_OFF + VDMA_MM2S_HSIZE_OFF, hsize_bytes);
     /* frame delay 填 0 */
@@ -190,10 +196,35 @@ int vdma_mm2s_start(void)
 
     v = vdma_rd(VDMA_CR_OFFSET);
     v |= CR_RUNSTOP;
-    v &= ~CR_TAIL_EN;      /* 循环模式，不用 park-on-tail */
+    /* ★★ CR_TAIL_EN(bit1) = 1 才是【Circular 循环模式】; = 0 是【Park 模式】。
+     *   依据 (官方驱动源码, 不是猜的):
+     *     xaxivdma_channel.c: XAxiVdma_ChannelStopParking() 头注释
+     *       "Set the channel to run in circular mode, exiting parking mode"
+     *     函数体: CrBits = ReadReg(CR) | XAXIVDMA_CR_TAIL_EN_MASK;
+     *     而 XAxiVdma_ChannelStartParking() 是把这一位清 0。
+     *   之前这里写成 v &= ~CR_TAIL_EN 并且注释成"循环模式", 位和注释都反了,
+     *   结果 MM2S 处于 Park 模式: 通道停在 PARK_PTR 指定的帧上, 而我们把
+     *   park 帧写成了 0(= 当前读指针), 于是【一个 AXI 读都不发】——
+     *   现象就是 SR 没停、没错误位、但一个 beat 都不吐。 */
+    v |= CR_TAIL_EN;
     v &= ~CR_SYNC_EN;      /* 不用 genlock */
-    v |= CR_FRMCNT_EN;     /* 开帧计数（硬件没这个特性时会被忽略） */
+    /* ★ 这里原来还有一句 v |= CR_FRMCNT_EN; —— 去掉了。
+     *   开了帧计数使能却没配对应寄存器，MM2S 会出现
+     *   "SR 显示没停、没有错误位，但一个 beat 都不吐" 的现象。
+     *   S2MM 那边本来就没设这一位，两个通道行为应当一致。 */
     vdma_wr(VDMA_CR_OFFSET, v);
+
+    /* ★★ 只置 RS 不够。直接寄存器(Direct Register)模式下, 官方驱动在置 RS 之后
+     *   还要再写一次 VSIZE, 由这次写把帧参数提交给搬运引擎并真正启动通道:
+     *     xaxivdma_channel.c: XAxiVdma_ChannelStart() 末尾
+     *       else {   // Direct register mode
+     *           // Update vsize to start the channel
+     *           XAxiVdma_WriteReg(StartAddrBase, XAXIVDMA_VSIZE_OFFSET, Vsize);
+     *       }
+     *   我们原来是在 config() 里(RS=0 时)写 VSIZE, start() 只置 RS, 于是
+     *   通道"CR 显示在跑、没有错误位、但一个 beat 都不吐"。
+     *   MM2S / S2MM 两个通道都有这个毛病, 所以两个都完全不搬数据。 */
+    vdma_wr(VDMA_MM2S_REG_OFF + VDMA_MM2S_VSIZE_OFF, g_mm2s_vsize);
 
     return 0;
 }
@@ -281,6 +312,7 @@ int vdma_s2mm_config(u32 ddr_addr, u32 hsize_bytes, u32 vsize_lines, u32 stride_
         return -1;
     }
 
+    g_s2mm_vsize = vsize_lines;
     vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_VSIZE_OFF, vsize_lines);
     vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_HSIZE_OFF, hsize_bytes);
     vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_STRD_OFF, stride_bytes & 0xFFFFu);
@@ -298,8 +330,12 @@ int vdma_s2mm_start(void)
     u32 v = vdma_rd(VDMA_S2MM_CR_OFF);
 
     v |= CR_RUNSTOP;
-    v &= ~CR_TAIL_EN;
+    /* 同 MM2S: bit1 = 1 才是 Circular; 置 0 是 Park, 通道会停在 park 帧上不搬数据 */
+    v |= CR_TAIL_EN;
     vdma_wr(VDMA_S2MM_CR_OFF, v);
+
+    /* 同 MM2S: 置 RS 之后必须再写一次 VSIZE 才是"提交启动", 见 vdma_mm2s_start() */
+    vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_VSIZE_OFF, g_s2mm_vsize);
     return 0;
 }
 

@@ -59,6 +59,13 @@ module axi_lite_rcv #(
     input [7:0] cmd_reg,
     input [7:0] data_reg,
 
+    // 只读调试寄存器: 给 PS 看 PL 内部状态, 不参与写
+    input [31:0] dbg0,
+    input [31:0] dbg1,
+    input [31:0] dbg2,
+    input [31:0] dbg3,
+    input [31:0] dbg4,
+
     output reg        __update_reg,
     output reg [8:0]  __update_reg_addr,
     output reg [31:0] __update_data
@@ -68,6 +75,11 @@ module axi_lite_rcv #(
 
 
     parameter MODE_ADDR = 9'h00, CMD_REG_ADDR = 9'h10, DATA_REG_ADDR = 9'h20;
+
+    // 调试寄存器的地址 (只读)
+    parameter DBG0_ADDR = 9'h30, DBG1_ADDR = 9'h34,
+              DBG2_ADDR = 9'h38, DBG3_ADDR = 9'h3C,
+              DBG4_ADDR = 9'h40;
 
     localparam IDLE = 3'b000, R = 3'b010, AW = 3'b011, W = 3'b100, B = 3'b101;
 
@@ -87,6 +99,11 @@ module axi_lite_rcv #(
                     MODE_ADDR: rdata_save <= {{24{1'b0}}, mode_reg};
                     CMD_REG_ADDR: rdata_save <= {{24{1'b0}}, cmd_reg};
                     DATA_REG_ADDR: rdata_save <= {{24{1'b0}}, data_reg};
+                    DBG0_ADDR: rdata_save <= dbg0;
+                    DBG1_ADDR: rdata_save <= dbg1;
+                    DBG2_ADDR: rdata_save <= dbg2;
+                    DBG3_ADDR: rdata_save <= dbg3;
+                    DBG4_ADDR: rdata_save <= dbg4;
                     default: rdata_save <= 32'h0;
                 endcase
             end 

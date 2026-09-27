@@ -110,6 +110,11 @@ DOMAIN = "standalone_" + CPU
 NET_LIB = "lwip213"            # lwIP for the PS Ethernet (raw API, no OS)
 FS_LIB = "xilffs"               # FatFs 文件系统库，读 SD 卡要用
 
+# Ethernet PHY 速率。板子的 RTL8211F 在 lwip213 的自动协商下会失败，必须写死。
+# 可选: CONFIG_LINKSPEED10 / CONFIG_LINKSPEED100 / CONFIG_LINKSPEED1000 /
+#       CONFIG_LINKSPEED_AUTODETECT
+LINK_SPEED = "CONFIG_LINKSPEED1000"
+
 # 有效模板名（本机 Vitis 2023.2 实测）
 #   hello_world（默认，自带源码）  empty_application（空，需自己写）
 #   dhrystone  memory_tests  peripheral_tests
@@ -292,6 +297,80 @@ def restore_dir(stash, comp_dir):
     shutil.rmtree(stash, ignore_errors=True)
 
 
+# -----------------------------------------------------------------------------
+#  Ethernet PHY 固定速率 —— 绕开 lwip213 对 RTL8211F 自动协商的坑
+# -----------------------------------------------------------------------------
+#  现象（串口上能看到）：
+#      Start PHY autonegotiation
+#      autonegotiation complete
+#      Phy setup error                  (xemacpsif_physpeed.c:317)
+#      Phy setup failure init_emacps    (xemacpsif_hw.c:135)
+#
+#  后果（这是最坑的地方）：
+#      phy_setup_emacps() 返回 XST_FAILURE -> init_emacps() 直接 return，
+#      既不 SetUpSLCRDivisors() 也不 XEmacPs_SetOperatingSpeed()，
+#      GEM 的 RGMII 时钟分频没被配置 -> 包一个字节都出不去。
+#      但 lwIP 那边照样打印 "sent N packets" —— 骗人的，那只是交给网卡了。
+#
+#  绕法：跳过 autodetect，强制固定速率。
+#  这个值是 BSP 参数 lwip213_temac_phy_link_speed，链路是：
+#      bsp.yaml -> libsrc/lwip213/src/lwip213.cmake:295
+#               -> "#define ${lwip213_temac_phy_link_speed} 1" -> lwipopts.h
+#
+#  ★ 必须在 platform_obj.build() 【之前】改。改晚了没用：lwip213 库已经按旧宏
+#    编好了，而 xemacpsif_physpeed.c 是库的一部分，只改头文件不会重编它。
+def patch_link_speed():
+    """把 lwip213 的 PHY 速率从 AUTODETECT 改成固定值。返回 True = 改了，需要重编。
+
+    ★ 曾经试过改 bsp.yaml 里的 lwip213_temac_phy_link_speed —— 【无效】：
+      Vitis 在 platform_obj.build() 时会用原来那份内容把它盖回去
+      （连修改时间都不变），实测日志报 "改了" 但文件其实没变。
+
+    所以直接改【CMake 的输入模板】和【已经生成好的头文件】，两条路都堵上：
+      lwipopts.h.in   里的 @linkspeed@  → 换成写死的 #define
+      lwipopts.h      里的 #define CONFIG_LINKSPEED_AUTODETECT 1 → 换成写死的
+    再 touch 一下 xemacpsif_physpeed.c，逼它重编（它是 lwip213 库的一部分，
+    不重编的话改了头文件也没用）。
+    """
+    old = "#define CONFIG_LINKSPEED_AUTODETECT 1"
+    new = "#define " + LINK_SPEED + " 1"
+    bsp = os.path.join(platform_dir, CPU, DOMAIN, "bsp")
+
+    targets = [
+        # CMake 的输入模板：@linkspeed@ 就是展开成那条 #define 的地方
+        os.path.join(bsp, "libsrc", "lwip213", "src", "contrib", "ports",
+                     "xilinx", "include", "lwipopts.h.in"),
+        # 已经生成好的头文件（两份）
+        os.path.join(bsp, "include", "lwipopts.h"),
+        os.path.join(bsp, "libsrc", "build_configs", "gen_bsp", "include",
+                     "lwipopts.h"),
+    ]
+
+    changed = False
+    for p in targets:
+        if not os.path.isfile(p):
+            print("[build_ps] WARNING: not found -- " + p)
+            continue
+        t = open(p, "r", encoding="utf-8", newline="").read()
+        n = t.replace("@linkspeed@", new).replace(old, new)
+        if n != t:
+            open(p, "w", encoding="utf-8", newline="").write(n)
+            print("[build_ps] patched " + os.path.relpath(p, workspace))
+            changed = True
+        else:
+            print("[build_ps] already ok: " + os.path.relpath(p, workspace))
+
+    if changed:
+        # 逼 CMake 重编那个真正决定成败的源文件
+        src = os.path.join(bsp, "libsrc", "lwip213", "src", "contrib", "ports",
+                           "xilinx", "netif", "xemacpsif_physpeed.c")
+        if os.path.isfile(src):
+            os.utime(src, None)
+            print("[build_ps] touched " + os.path.basename(src))
+
+    return changed
+
+
 # ------------------------------ Platform -------------------------------------
 # 组件是否存在，以 vitis-comp.json 为准，不依赖 client 的缓存
 platform_dir = os.path.join(workspace, platform_name)
@@ -344,6 +423,11 @@ if ENABLE_FS:
     if ensure_fs_lib(platform_obj):
         print("[build_ps] BSP changed -- platform will be rebuilt")
         need_build = True
+
+# ---- Ethernet PHY 固定速率（同样必须在 build 之前）----
+if patch_link_speed():
+    print("[build_ps] BSP changed -- platform will be rebuilt")
+    need_build = True
 
 if need_build:
     print("[build_ps] Building platform ...")

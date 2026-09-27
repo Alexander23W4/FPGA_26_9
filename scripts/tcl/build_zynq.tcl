@@ -89,8 +89,21 @@ update_compile_order -fileset sources_1
 puts "\[build_zynq\] Top module: [get_property top [current_fileset]]"
 
 # --------------------------- 3. 综合 / 实现 / 位流 --------------------------
-puts "\[build_zynq\] Starting synthesis ..."
+# ★★ 必须把所有 *_synth_1 都 reset，不能只 reset 顶层的 synth_1。
+#    BD 里每个 module reference / 每个 IP 都有自己的 OOC 综合 run
+#    （system_top1_0_0_synth_1、system_axi_vdma_0_0_synth_1 ...）。
+#    只 reset synth_1 的话，RTL 改了 Vivado 会把旧网表直接拿去用。
+#    现象是"综合实现位流全都跑了，但新加的端口/寄存器在 FPGA 里根本不存在"，
+#    读它只会得到 default 值 —— 排查时会被这个骗得团团转。实测踩过。
+puts "\[build_zynq\] Resetting all synthesis runs ..."
 reset_run -quiet synth_1
+set _ooc [get_runs -quiet *_synth_1]
+foreach _r $_ooc {
+    reset_run -quiet $_r
+}
+puts "\[build_zynq\] OOC synth runs reset: [llength $_ooc]"
+
+puts "\[build_zynq\] Starting synthesis ..."
 launch_runs synth_1 -jobs $jobs
 wait_on_run synth_1
 if {[get_property PROGRESS [get_runs synth_1]] ne "100%"} {
