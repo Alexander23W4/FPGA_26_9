@@ -87,14 +87,24 @@ module top1 #(
     // AXI-Stream 上到底有没有出现过 tvalid / tlast (粘滞, 不会漏掉脉冲)
     reg sx_tv_seen;
     reg sx_tl_seen;
+    // tuser (=SOF 帧首) 是否出现过。这个必须量: 如果 MM2S 真的驱动 tuser,
+    // 接收侧就可以用它给帧定相, 不用靠上电相位硬对(那正是图像会旋转的原因)。
+    reg sx_us_seen;
+
+    // axis_rcv 报的 "tkeep 出现过非全 1" —— 这个信号以前被接空了, 现在接到
+    // dbg_stream 的空位上 (bit4)。它就是判定 "MM2S 是不是只标了低 4 字节有效"
+    // 的关键证据: 如果它置 1, 说明 beat 的高 32 位本来就无效, 被当成像素是错的。
+    wire stat_tkeep_bad;
 
     always @(posedge clk or posedge rst) begin
         if(rst) begin
             sx_tv_seen <= 1'b0;
             sx_tl_seen <= 1'b0;
+            sx_us_seen <= 1'b0;
         end else begin
             if(s_axis_tvalid) sx_tv_seen <= 1'b1;
             if(s_axis_tlast)  sx_tl_seen <= 1'b1;
+            if(s_axis_tuser)  sx_us_seen <= 1'b1;
         end
     end
 
@@ -179,7 +189,7 @@ module top1 #(
         .stat_beats(dbg_beats),
         .stat_pixels(dbg_pixels),
         .stat_frames(dbg_frames),
-        .stat_tkeep_bad()
+        .stat_tkeep_bad(stat_tkeep_bad)
     );
 
     img2buf u_img2buf (
@@ -346,13 +356,16 @@ module top1 #(
 
     // AXI-Stream 握手观测, PS 读 0x44000040:
     //   [31]    常 1 —— 【存在标记】: 读到 0x80000000 才说明这个寄存器真的在 FPGA 里
+    //   [6] tuser(SOF) 出现过(粘滞)   [5] tuser 实时
+    //   [4] s_axis_tkeep 出现过非全 1 (粘滞) —— MM2S 的 beat 有一部分字节无效
     //   [3] tlast 出现过(粘滞)   [2] tvalid 出现过(粘滞)
     //   [1] s_axis_tready(实时)  [0] s_axis_tvalid(实时)
     //
     // ★ 为什么要这个标记：build/vivado 里 module reference 的 OOC 综合网表
     //   可能不刷新，新加的寄存器根本没进 FPGA，读它只会得到 default 0，
     //   排查时会被骗得团团转（实测踩过两次）。
-    assign dbg_stream = { 1'b1, 27'b0, sx_tl_seen, sx_tv_seen, s_axis_tready, s_axis_tvalid };
+    assign dbg_stream = { 1'b1, 24'b0, sx_us_seen, s_axis_tuser, stat_tkeep_bad,
+                          sx_tl_seen, sx_tv_seen, s_axis_tready, s_axis_tvalid };
 
 
 endmodule

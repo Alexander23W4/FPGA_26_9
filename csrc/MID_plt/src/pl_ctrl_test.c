@@ -41,6 +41,13 @@ while(1){
 
 
 
+/* ★★ 临时诊断: 只跑第 1 张图。
+ *   3 张图轮换会让"输入图 vs 结果图"的对比失去意义 —— 等你去读结果缓冲时,
+ *   输入缓冲里已经换成下一张图了(而且帧缓存是边收边被回读, 会撕裂)。
+ *   单张图时每一帧内容都一样, 两边逐字节对比才严格成立。
+ *   诊断完把这里改回 IMG_COUNT 即可。 */
+#define IMG_LOOP_N          1u
+
 #define ANALYZE_MS          10000u
 
 #define IMG_COUNT           3u
@@ -333,14 +340,51 @@ void pl_ctrl_test_run(void)
 
     for (;;) {
         u32 i;
-        for (i = 0u; i < IMG_COUNT; i++) {
+        for (i = 0u; i < IMG_LOOP_N; i++) {
 
-            load_img__emmc_ddr(imgs[i]);  // 
+            load_img__emmc_ddr(imgs[i]);  //
+
+            /* ================= 临时诊断块 (用完删掉) =================
+             * 往输入图前 64 字节写【逐字节递增】图案 (00 01 02 ... 3F),
+             * 并把结果缓冲前 64 字节填成 0xEE 标记。
+             * PL 现在是直通, 所以结果图前 64 字节应当和输入完全相同;
+             * 一旦出现错位 / 丢字节 / 半拍为 0, 从这 64 字节的对应关系就能
+             * 直接定位是哪一级(收包 axis_rcv / 缓存 img2buf / 回读 bufback /
+             * 打包 axis_out), 不用再猜。0xEE 的残留还能区分
+             * "S2MM 没写这几个字节" 和 "写进去的就是 0"。
+             * ======================================================== */
+            {
+                u8 *pin  = (u8 *)SINGLE_IMG_ADDR;
+                u8 *pout = (u8 *)IMG_RES_DDR_BASE;
+                u32  k;
+
+                for (k = 0u; k < 64u; k++) { pin[k]  = (u8)k;  }
+                for (k = 0u; k < 64u; k++) { pout[k] = 0xEEu;  }
+                Xil_DCacheFlushRange((UINTPTR)pin,  64u);
+                Xil_DCacheFlushRange((UINTPTR)pout, 64u);
+
+                xil_printf("pat in [0..15] :");
+                for (k = 0u; k < 16u; k++) { xil_printf(" %02X", (u32)pin[k]); }
+                xil_printf("\r\n");
+            }
+
             start_vdma();       // ddr -> mm2s -> axis_rcv -> img2buf -> frame_buf
             start_analyze();    // 设置 cmd_reg 为 reoperate
             read_pl_dbg("after-cmd");
             delay(ANALYZE_MS);
             read_pl_dbg("after-wait");
+
+            /* ---- 临时诊断块 (用完删掉): 回读结果缓冲前 16 字节 ---- */
+            {
+                u8 *pout = (u8 *)IMG_RES_DDR_BASE;
+                u32  k;
+
+                Xil_DCacheInvalidateRange((UINTPTR)pout, 64u);
+                xil_printf("pat out[0..15] :");
+                for (k = 0u; k < 16u; k++) { xil_printf(" %02X", (u32)pout[k]); }
+                xil_printf("\r\n");
+            }
+
             feat_net_send_run();        // ddr -> lwIP UDP -> PS ENET0 -> 笔记本
         }
 

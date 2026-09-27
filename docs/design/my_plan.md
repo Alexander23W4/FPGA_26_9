@@ -28,6 +28,49 @@ rm -f csrc/.lock
 笔记本开接收端:
 powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/net_recv.ps1)" -TimeoutSec 180
 
+###
+一定要用上的: 
+比较输出(python), ILA(debug) 整个先把功能打通
+用 verilator
+看 vivado reports, 加性能计数器, 看怎么样能够提升性能
+
+                  视频输入
+                     │
+                     ▼
+              ┌─────────────┐
+              │ Golden Model │  ← Python/C/OpenCV
+              └──────┬──────┘
+                     │ reference
+                     ▼
+┌──────────────────────────────────────────┐
+│              RTL / HLS IP                │
+│                                          │
+│ AXI-Stream → Video Processing → AXI     │
+│                     │                    │
+└─────────────────────┼────────────────────┘
+                      │
+                 比较输出
+                      │
+                      ▼
+                 PASS / FAIL
+
+
+          ┌──────────────────────┐
+          │ Vivado Simulation     │
+          │ SV Testbench          │
+          └──────────────────────┘
+
+          ┌──────────────────────┐
+          │ ILA                  │
+          │ 上板实时 Debug        │
+          └──────────────────────┘
+
+          ┌──────────────────────┐
+          │ Vivado Reports       │
+          │ Timing / Utilization │
+          │ Power                │
+          └──────────────────────┘
+
 
 
 #	要做的	说明
@@ -128,3 +171,6 @@ Vivado Block Design 中加入 PS7
 通过 OBUFDS 输出到 HDMI_2
 添加 HDMI 时钟和差分引脚约束
 用 ILA 观察 VDMA 输出和视频流 哪些是配置, 哪些是rtl实现
+
+
+

@@ -34,6 +34,11 @@
 #define VDMA_HI_FRMBUF_OFFSET   0x14u
 #define VDMA_PARKPTR_OFFSET     0x28u
 #define VDMA_VERSION_OFFSET     0x2Cu
+/* S2MM 通道的控制/状态寄存器 —— 只有 0x30/0x34 这两个在 MM2S 的代码里也要用
+ * （vdma_mm2s_stop() 里要一起打印 s2mm 的原始状态），所以提到这里声明。
+ * 剩下的 S2MM 专用偏移（REG_OFF / PARKPTR 掩码）仍放在文件的 S2MM 段里。 */
+#define VDMA_S2MM_CR_OFF        0x30u    /* S2MM_VDMACR */
+#define VDMA_S2MM_SR_OFF        0x34u    /* S2MM_VDMASR */
 
 #define VDMA_MM2S_VSIZE_OFF     0x00u
 #define VDMA_MM2S_HSIZE_OFF     0x04u
@@ -116,6 +121,14 @@ int vdma_mm2s_stop(void)
 {
     u32 spins = VDMA_SPIN_LIMIT;
 
+    /* ★ 先看一眼"进来之前"通道到底是什么状态。
+     *   正常情况下刚配置完 PL / 刚上电时 SR.HALTED 应该是 1；
+     *   如果这里就看到 HALTED=0，说明搬运器早就卡住了，后面的 stop/reset
+     *   超时都只是这个卡死的表现，而不是我们操作错了。 */
+    xil_printf("vdma: pre-stop  mm2s CR=0x%08X SR=0x%08X | s2mm CR=0x%08X SR=0x%08X\r\n",
+               (s32)vdma_rd(VDMA_CR_OFFSET),      (s32)vdma_rd(VDMA_SR_OFFSET),
+               (s32)vdma_rd(VDMA_S2MM_CR_OFF),    (s32)vdma_rd(VDMA_S2MM_SR_OFF));
+
     vdma_wr(VDMA_CR_OFFSET, vdma_rd(VDMA_CR_OFFSET) & ~CR_RUNSTOP);
 
     /* 等 HALTED 置起来，说明通道真的停了 */
@@ -124,7 +137,8 @@ int vdma_mm2s_stop(void)
             return 0;
         }
     }
-    xil_printf("vdma: stop timeout, SR=0x%08X\r\n", (s32)vdma_rd(VDMA_SR_OFFSET));
+    xil_printf("vdma: stop timeout, CR=0x%08X SR=0x%08X\r\n",
+               (s32)vdma_rd(VDMA_CR_OFFSET), (s32)vdma_rd(VDMA_SR_OFFSET));
     return -1;
 }
 
@@ -142,7 +156,16 @@ int vdma_mm2s_reset(void)
             return 0;
         }
     }
-    xil_printf("vdma: reset timeout\r\n");
+
+    /* ★★ 复位没完成 —— 说明搬运器卡在某个没返回的 AXI 事务上。
+     *   【绝对不能把 RESET 位留在 1】: 后面的 start() 只是再 OR 上 RS,
+     *   通道会一直停在复位里, 表现就是 "CR 有 RS、没错误位、但 beats 恒为 0"。
+     *   这里强制把 RESET 清掉, 让 config/start 至少有机会正常跑起来。 */
+    xil_printf("vdma: reset timeout, CR=0x%08X SR=0x%08X -> 强制清 RESET\r\n",
+               (s32)vdma_rd(VDMA_CR_OFFSET), (s32)vdma_rd(VDMA_SR_OFFSET));
+    vdma_wr(VDMA_CR_OFFSET, vdma_rd(VDMA_CR_OFFSET) & ~CR_RESET);
+    xil_printf("vdma: after clear, CR=0x%08X\r\n", (s32)vdma_rd(VDMA_CR_OFFSET));
+
     return -1;
 }
 
@@ -276,8 +299,6 @@ void vdma_mm2s_report(void)
 /* ==========================================================================
  *  S2MM (write channel): the PL result stream goes back into DDR.
  * ========================================================================== */
-#define VDMA_S2MM_CR_OFF      0x30u
-#define VDMA_S2MM_SR_OFF      0x34u
 #define VDMA_S2MM_REG_OFF     0xA0u
 #define PARKPTR_WRTSTR_MASK   0x1F000000u
 #define PARKPTR_WRTSTR_SHIFT  24u
