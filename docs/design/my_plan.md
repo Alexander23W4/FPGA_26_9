@@ -6,11 +6,13 @@ rm -f csrc/.lock
 ./scripts/build.sh app -n MID_plt -f
 
 
-/e/Xilinx/Vitis/2023.2/bin/xsct.bat "$(cygpath -w scripts/tcl/flash_app.tcl)" \
+/e/Xilinx/Vitis/2023.2/bin/xsct.bat "$(cygpath -w scripts/tcl/flash_all.tcl)" \
+  "$(cygpath -w build/out/2026-09-26_234353_7ee674b-dirty/system_wrapper.bit)" \
   "$(cygpath -w csrc/MID_plt/build/MID_plt.elf)" \
   "$(cygpath -w csrc/fpga_26/hw/sdt/ps7_init.tcl)" init
 
-/e/Xilinx/Vitis/2023.2/bin/xsct.bat "$(cygpath -w scripts/tcl/flash_app.tcl)" \
+/e/Xilinx/Vitis/2023.2/bin/xsct.bat "$(cygpath -w scripts/tcl/flash_all.tcl)" \
+  "$(cygpath -w build/out/2026-09-26_234353_7ee674b-dirty/system_wrapper.bit)" \
   "$(cygpath -w csrc/MID_plt/build/MID_plt.elf)" \
   "$(cygpath -w csrc/fpga_26/hw/sdt/ps7_init.tcl)" noinit
 
@@ -26,7 +28,6 @@ rm -f csrc/.lock
 笔记本开接收端:
 powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/net_recv.ps1)" -TimeoutSec 180
 
-eMMC 实数据 -> DDR -> VDMA 送流   	powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_to_ddr.ps1)" -Index 0
 
 
 #	要做的	说明
