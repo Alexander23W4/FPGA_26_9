@@ -53,11 +53,17 @@ module top1 #(
     input  wire        rready,
 
     // ---------------- AXI4-Stream 从口：接 axi_vdma_0/M_AXIS_MM2S ----------------
-    input  wire [63:0] s_axis_tdata,
+    // ★ 流侧位宽 = 32bit, 和 create_zynq_project.tcl 里 VDMA 的
+    //   c_m_axis_mm2s_tdata_width 一致 (内存侧仍是 64, 由 VDMA 自己把两个
+    //   32bit 字拼成一拍)。原因: 实测流侧配 64 位时, s_axis_tdata[63:32]
+    //   恒为 0 而 tkeep 又是全 1, 每 4 个像素里有 2 个变 0 —— 也就是 MM2S
+    //   内部实际只按 32 位在走。
+    //   一拍 = 2 个 16bit 像素; 512 字节/行 ÷ 4 字节 = 128 拍/行。下游像素流不变。
+    input  wire [31:0] s_axis_tdata,
     input  wire        s_axis_tvalid,
     output wire        s_axis_tready,
     input  wire        s_axis_tlast,
-    input  wire [7:0]  s_axis_tkeep,
+    input  wire [3:0]  s_axis_tkeep,
     input  wire        s_axis_tuser,
 
     // ---------------- AXI4-Stream 主口：接 axi_vdma_0/S_AXIS_S2MM ----------------
@@ -96,15 +102,21 @@ module top1 #(
     // 的关键证据: 如果它置 1, 说明 beat 的高 32 位本来就无效, 被当成像素是错的。
     wire stat_tkeep_bad;
 
+    // s_axis_tdata 是否【出现过非 0】(粘滞)。
+    // 流侧是 32bit, 所以这就是最基本的连线自检: 整轮跑完必须为 1。
+    reg sx_data_seen;
+
     always @(posedge clk or posedge rst) begin
         if(rst) begin
             sx_tv_seen <= 1'b0;
             sx_tl_seen <= 1'b0;
             sx_us_seen <= 1'b0;
+            sx_data_seen <= 1'b0;
         end else begin
             if(s_axis_tvalid) sx_tv_seen <= 1'b1;
             if(s_axis_tlast)  sx_tl_seen <= 1'b1;
             if(s_axis_tuser)  sx_us_seen <= 1'b1;
+            if(s_axis_tvalid && (s_axis_tdata != 32'd0)) sx_data_seen <= 1'b1;
         end
     end
 
@@ -169,6 +181,7 @@ module top1 #(
     // ★ H_PIXELS / V_PIXELS 必须和图像尺寸、以及 bufback 的 H_PIXELS 一致，
     //   否则 px_eol / px_eof / res_eol 都会标错位置。256x256 的图 = 256 / 256。
     axis_rcv #(
+        .TDATA_W(32),           // ★ 和 VDMA 的 MM2S 流侧一致 (默认是 64)
         .H_PIXELS(256),
         .V_PIXELS(256)
     ) u_axis_rcv (
@@ -342,9 +355,10 @@ module top1 #(
     //   [5]     buf_en           [6]     back_en           [7]     back_res_valid
     //   [15:8]  buf_addr[7:0]    [23:16] back_addr[7:0]   [26:24] next
     //   [27]    px_valid         [28]    px_sof
-    //   [29]    __start_back     [30]    __end_back        [31]    0
+    //   [29]    __start_back     [30]    __end_back
+    //   [31]    ★ s_axis_tdata 出现过非 0 (粘滞) —— 连线自检, 必须为 1
     assign dbg_stat = {
-        1'b0,
+        sx_data_seen,
         __end_back, __start_back,
         px_sof, px_valid,
         next,

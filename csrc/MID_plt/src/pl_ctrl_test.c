@@ -255,6 +255,13 @@ static void read_pl_dbg(const char *tag)
     xil_printf("        stream raw=0x%08X  tvalid=%d tready=%d tvalid_seen=%d tlast_seen=%d\r\n",
                (s32)t, (s32)(t & 1u), (s32)((t >> 1) & 1u),
                (s32)((t >> 2) & 1u), (s32)((t >> 3) & 1u));
+    /* 新增的观测位 (临时诊断):
+     *   data_seen  = dbg_stat[31]  s_axis_tdata 是否出现过非 0 (连线自检, 必须为 1)
+     *   tkeep_bad  = dbg_stream[4] MM2S 的 tkeep 是否出现过非全 1
+     *   tuser_seen = dbg_stream[6] MM2S 是否发过 SOF */
+    xil_printf("        [dbg] data_seen=%d  tkeep_bad=%d  tuser_seen=%d  tuser_now=%d\r\n",
+               (s32)((s >> 31) & 1u), (s32)((t >> 4) & 1u),
+               (s32)((t >> 6) & 1u), (s32)((t >> 5) & 1u));
     xil_printf("        state=%d rcvd_save=%d px_eof=%d buf_en=%d back_en=%d back_vld=%d\r\n",
                (s32)(s & 7u), (s32)((s >> 3) & 1u), (s32)((s >> 4) & 1u),
                (s32)((s >> 5) & 1u), (s32)((s >> 6) & 1u), (s32)((s >> 7) & 1u));

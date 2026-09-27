@@ -189,19 +189,49 @@ if {$want_axi_infra} {
         #   不接的后果：tready 没人驱动 = 背压，VDMA 搬一点点就停住，帧计数不前进。
         #   链路本身是通的，只是下游暂时没人收数据，这是预期现象。
         create_bd_cell -type ip -vlnv xilinx.com:ip:axi_vdma:6.3 axi_vdma_0
+        # ★ 修 MM2S "64bit beat 高 32 位恒为 0" 的问题 —— 第五条路, 也是唯一
+        #   还没有被实测排除的那条。
+        #
+        #   已实测排除的: AFI0 写 3 (无效)、关 DRE (无效)、开 Store-and-Forward
+        #   (无效)、AXI 通路数据位宽 (日志里只有 ID 位宽告警, 没有数据位宽告警,
+        #   也没有插入 upsizer)。tkeep 也一直全 1 (tkeep_bad=0)。
+        #
+        #   剩下唯一没被解释的事实: MM2S 声明 64 位流, 实际只吐低 32 位真数据、
+        #   高 32 位恒 0 (端口级标志 hi32_seen 始终为 0)。这【恰好就是它的内部
+        #   流路径实际是 32 位】会有的表现。
+        #
+        #   所以把流侧配成 32 位。难点: IP 内部有自动推导
+        #       calc_mm2s_tdata_width(流侧<=32) => 内存侧 = 32
+        #   而内存侧合法值只有 64/128/256/512/1024, 直接设流侧=32 会连带把内存侧
+        #   推成非法的 32 (这条之前实测失败过)。
+        #   Tcl 的 -dict 是按【顺序】处理的, 所以把【流侧放在前面】、
+        #   【内存侧放在后面】显式覆盖回去 —— 最终: 流侧 32 / 内存侧 64。
+        #   这样 VDMA 每拍读一个 32bit 字、两拍拼成一个 64bit 流拍, 数据就是全的。
+        #   PL 侧 top1 的 s_axis 也跟着改成 32 位, 一拍 2 个像素, 下游不变。
+        #   (若这次仍失败, 就只剩 ILA 直接看 m_axi_mm2s 的 rdata 了。)
         if {[catch {
             set_property -dict [list \
                 CONFIG.c_include_s2mm            {1} \
                 CONFIG.c_include_mm2s            {1} \
                 CONFIG.c_num_fstores             {4} \
                 CONFIG.c_addr_width              {32} \
+                CONFIG.c_m_axis_mm2s_tdata_width {32} \
                 CONFIG.c_m_axi_mm2s_data_width   {64} \
-                CONFIG.c_m_axis_mm2s_tdata_width {64} \
-                CONFIG.c_include_mm2s_dre        {1} \
+                CONFIG.c_include_mm2s_dre        {0} \
             ] [get_bd_cells axi_vdma_0]
         } _vd_cfg_err]} {
             puts "\[ACZ7015\] ERROR: could not configure axi_vdma_0: $_vd_cfg_err"
             error "axi_vdma_0 configuration failed"
+        }
+        # ★ 单独一段设置 Store and Forward, 不放进上面那个 dict:
+        #   万一某个 IP 版本不认这个名字, 只告警, 不拖垮整个构建。
+        #   (已核对 axi_vdma_v6_3 的 component.xml: c_include_mm2s_sf 是 resolve=user
+        #    的参数, 显示名 "Enable Store and Forward", 合法值 0/1, 默认 0。)
+        if {[catch {
+            set_property CONFIG.c_include_mm2s_sf {1} [get_bd_cells axi_vdma_0]
+            puts "\[ACZ7015\] axi_vdma_0: c_include_mm2s_sf = 1 (MM2S Store and Forward 打开)"
+        } _sf_err]} {
+            puts "\[ACZ7015\] WARNING: could not set c_include_mm2s_sf: $_sf_err"
         }
         lappend gp_slaves axi_vdma_0
 

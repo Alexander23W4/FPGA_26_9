@@ -45,7 +45,7 @@ powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/net_recv.ps1)"
 ┌──────────────────────────────────────────┐
 │              RTL / HLS IP                │
 │                                          │
-│ AXI-Stream → Video Processing → AXI     │
+│ AXI-Stream → Video Processing → AXI      │
 │                     │                    │
 └─────────────────────┼────────────────────┘
                       │
@@ -71,7 +71,14 @@ powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/net_recv.ps1)"
           │ Power                │
           └──────────────────────┘
 
-
+###
+AXI-Stream
+    ↓
+Line Buffer
+    ↓
+3×3 Sliding Window
+    ↓
+Gaussian
 
 #	要做的	说明
 1	打开 PS 的 S_AXI_HP0	            PL 作为 AXI Master 读 DDR 的唯一入口。不通它，PL 根本看不到 DDR
