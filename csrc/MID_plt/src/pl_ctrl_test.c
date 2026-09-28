@@ -62,10 +62,13 @@ const char *const imgs[IMG_COUNT] = { IMG1, IMG2, IMG3 };
 /* 一次从 eMMC 读多少块（64 块 = 32KB) */
 #define IMG_READ_CHUNK_BLOCKS   64u
 
-/* 一帧的几何: 256 x 256 x 16bit = 0x20000 = SINGLE_IMG_LEN */
+/* 一帧的几何: 256 x 256 x 8bit = 0x10000 = SINGLE_IMG_LEN
+ * ★ 本次从 16bit 改成 8bit: IMG_BPP 2 -> 1, 一行字节数 512 -> 256。
+ *   这个值同时决定 VDMA 的 HSIZE/STRIDE, 必须和 eMMC 里存的 bpp 一致
+ *   (用 emmc_add.ps1 加图时要 -Bpp 1)。 */
 #define IMG_W       256u
 #define IMG_H       256u
-#define IMG_BPP     2u
+#define IMG_BPP     1u
 #define IMG_STRIDE  (IMG_W * IMG_BPP)
 
 

@@ -96,39 +96,42 @@ ps读.bin文件, 然后传给DDR
 pl从ddr里面读取图像, 然后直接用HDMI输出给电脑
 
 
-PS DDR
-  ↑
-PS7 S_AXI_HP0
-  ↑
-AXI SmartConnect
-  ↑
-
-AXI VDMA MM2S
-
-  ↓ AXI4-Stream
-
-AXI4-Stream FIFO
-  ↓
-256×256 图像位置控制
-  ↓
-RGB565 → RGB888
-  ↓
-640×480 视频时序合成
-  ↓
-TMDS Encoder
-  ↓
-OSERDESE2 10:1
-  ↓
-OBUFDS
-  ↓
-HDMI_2
+          DDR
+            │
+            │ 输入帧
+            ▼
+    AXI4-Stream
+            │
+            ▼
+    ┌──────────────┐
+    │ HLS Denoise  │
+    │ 3×3 Gaussian │
+    └──────┬───────┘
+          │
+          │ AXI4-Stream
+          ▼
+    ┌──────────────┐
+    │ Frame Buffer │
+    │              │
+    │  Buffer A    │◄──── 写入
+    │  Buffer B    │
+    └──────┬───────┘
+          │
+          │ 读取
+          ▼
+    HDMI Controller
+          │
+    pixel/hs/vs/de
+          │
+          ▼
+          HDMI
 
 
 PC
  ↓
 Ethernet
  ↓
-ARM/Linux
+PS
  ↓
 DDR
  ↓
@@ -136,17 +139,15 @@ AXI VDMA MM2S
  ↓
 AXI-Stream
  ↓
-PL 图像算法
+denose
  ↓
 AXI-Stream
  ↓
-AXI VDMA S2MM
+output frame buffer
  ↓
-DDR
+HDMI controller
  ↓
-ARM
- ↓
-Ethernet
+HDMI
  ↓
 PC
 

@@ -1,4 +1,4 @@
-﻿<#
+<#
   emmc_add.ps1 -- PC side of the eMMC loader.
 
   Sends a .bin file to the board over the USB-UART link and prints the
@@ -34,7 +34,7 @@ param(
     # uses it to program the VDMA. Leave 0 to infer it from the file size.
     [int]$Width = 0,
     [int]$Height = 0,
-    [int]$Bpp = 2,
+    [int]$Bpp = 1,
     [string]$ImageName = ''
 )
 

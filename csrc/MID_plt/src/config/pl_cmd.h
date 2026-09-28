@@ -20,7 +20,7 @@
 */
 
 #define SINGLE_IMG_ADDR 0x10000000
-#define SINGLE_IMG_LEN  0x20000
+#define SINGLE_IMG_LEN  0x10000      /* 256x256x8bit = 65536 字节 (原 16bit 是 0x20000) */
 #define IMG_OUT_ADDR    0x10100000
 
 #define PL_CTRL_BASE        0x44000000

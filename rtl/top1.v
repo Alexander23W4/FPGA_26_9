@@ -83,46 +83,11 @@ module top1 #(
     wire [8:0] __update_reg_addr;
     wire [31:0] __update_data;
 
-    // 调试用: axis_rcv 的三个现成计数器 + 一条打包的内部状态, PS 可以读回来
-    wire [31:0] dbg_beats;
-    wire [31:0] dbg_pixels;
-    wire [31:0] dbg_frames;
-    wire [31:0] dbg_stat;       // 打包, 见文件末尾的 assign
-    wire [31:0] dbg_stream;     // AXI-Stream 握手观测, 见文件末尾
-
-    // AXI-Stream 上到底有没有出现过 tvalid / tlast (粘滞, 不会漏掉脉冲)
-    reg sx_tv_seen;
-    reg sx_tl_seen;
-    // tuser (=SOF 帧首) 是否出现过。这个必须量: 如果 MM2S 真的驱动 tuser,
-    // 接收侧就可以用它给帧定相, 不用靠上电相位硬对(那正是图像会旋转的原因)。
-    reg sx_us_seen;
-
-    // axis_rcv 报的 "tkeep 出现过非全 1" —— 这个信号以前被接空了, 现在接到
-    // dbg_stream 的空位上 (bit4)。它就是判定 "MM2S 是不是只标了低 4 字节有效"
-    // 的关键证据: 如果它置 1, 说明 beat 的高 32 位本来就无效, 被当成像素是错的。
-    wire stat_tkeep_bad;
-
-    // s_axis_tdata 是否【出现过非 0】(粘滞)。
-    // 流侧是 32bit, 所以这就是最基本的连线自检: 整轮跑完必须为 1。
-    reg sx_data_seen;
-
-    always @(posedge clk or posedge rst) begin
-        if(rst) begin
-            sx_tv_seen <= 1'b0;
-            sx_tl_seen <= 1'b0;
-            sx_us_seen <= 1'b0;
-            sx_data_seen <= 1'b0;
-        end else begin
-            if(s_axis_tvalid) sx_tv_seen <= 1'b1;
-            if(s_axis_tlast)  sx_tl_seen <= 1'b1;
-            if(s_axis_tuser)  sx_us_seen <= 1'b1;
-            if(s_axis_tvalid && (s_axis_tdata != 32'd0)) sx_data_seen <= 1'b1;
-        end
-    end
 
     axi_lite_rcv reg_io(
         .clk(clk),
         .rst(~rst),
+
         .awaddr(awaddr),
         .awvalid(awvalid),
         .awready(awready),
@@ -140,246 +105,21 @@ module top1 #(
         .rresp(rresp),
         .rvalid(rvalid),
         .rready(rready),
+
         .mode_reg(mode_reg),
         .cmd_reg(cmd_reg),
         .data_reg(data_reg),
+
         .dbg0(dbg_beats),
         .dbg1(dbg_pixels),
         .dbg2(dbg_frames),
         .dbg3(dbg_stat),
         .dbg4(dbg_stream),
+
         .__update_reg(__update_reg),
         .__update_reg_addr(__update_reg_addr),
         .__update_data(__update_data)
     );
-
-    wire __rcvf_buf;
-    reg __rcvf_buf_save;
-    reg __siop;
-
-    wire buf_en;
-    wire buf_we;
-    wire [ADDR_WIDTH-1:0] buf_addr;
-    wire [DATA_WIDTH-1:0] buf_din;
-    wire back_en;
-    wire back_we;
-    wire [ADDR_WIDTH-1:0] back_addr;
-    wire [DATA_WIDTH-1:0] back_dout;
-    wire [DATA_WIDTH-1:0] px_data;
-    wire px_valid;
-    wire px_ready;
-    wire px_sof;
-    wire px_eol;
-    wire px_eof;
-    wire [DATA_WIDTH-1:0] back_res_data;
-    wire back_res_valid;
-    wire back_res_sof;
-    wire back_res_eol;      // 本行最后一个像素 -> axis_out 的 tlast(EOL)
-    wire back_res_eof;
-    wire back_res_ready;    // axis_out 收不下时拉低 -> bufback 必须停住
-
-    // ★ H_PIXELS / V_PIXELS 必须和图像尺寸、以及 bufback 的 H_PIXELS 一致，
-    //   否则 px_eol / px_eof / res_eol 都会标错位置。256x256 的图 = 256 / 256。
-    axis_rcv #(
-        .TDATA_W(32),           // ★ 和 VDMA 的 MM2S 流侧一致 (默认是 64)
-        .H_PIXELS(256),
-        .V_PIXELS(256)
-    ) u_axis_rcv (
-        .aclk(clk),
-        .aresetn(~rst),
-        .s_axis_tdata(s_axis_tdata),
-        .s_axis_tvalid(s_axis_tvalid),
-        .s_axis_tready(s_axis_tready),
-        .s_axis_tlast(s_axis_tlast),
-        .s_axis_tkeep(s_axis_tkeep),
-        .s_axis_tuser(s_axis_tuser),
-        .px_data(px_data),
-        .px_valid(px_valid),
-        .px_ready(px_ready),
-        .px_sof(px_sof),
-        .px_eol(px_eol),
-        .px_eof(px_eof),
-        .stat_beats(dbg_beats),
-        .stat_pixels(dbg_pixels),
-        .stat_frames(dbg_frames),
-        .stat_tkeep_bad(stat_tkeep_bad)
-    );
-
-    img2buf u_img2buf (
-        .clk(clk),
-        .rst(rst),
-        .px_data(px_data),
-        .px_valid(px_valid),
-        .px_ready(px_ready),
-        .px_sof(px_sof),
-        .px_eol(px_eol),
-        .px_eof(px_eof),
-
-        .buf_en(buf_en),
-        .buf_we(buf_we),
-        .buf_addr(buf_addr),
-        .buf_din(buf_din),
-        .end_frame(__rcvf_buf)
-    );
-
-    frame_buf u_frame_buf (
-        .clk(clk),
-        .a_en(buf_en),
-        .a_we(buf_we),
-        .a_addr(buf_addr),
-        .a_din(buf_din),
-        .a_dout(),
-        .b_en(back_en),
-        .b_we(back_we),
-        .b_addr(back_addr),
-        .b_din(),
-        .b_dout(back_dout)
-    );
-
-    reg __start_back;
-    wire __end_back;
-
-    // **
-    bufback #(
-        .H_PIXELS(256)                  // 和 axis_rcv 的 H_PIXELS 必须一致
-    ) u_bufback (
-        .clk(clk),
-        .rst(rst),
-        .back_en(back_en),
-        .back_we(back_we),
-        .back_addr(back_addr),
-        .back_dout(back_dout),
-        .res_data(back_res_data),
-        .res_valid(back_res_valid),
-        .res_sof(back_res_sof),
-        .res_eol(back_res_eol),         // ★ 行尾 -> axis_out 的 tlast(EOL)
-        .res_eof(back_res_eof),
-        .res_ready(back_res_ready),     // ★ 背压: 下游收不下就停住, 不许丢像素
-        .__start_back(__start_back),
-        .__end_back(__end_back)
-    );
-
-    axis_out u_axis_out (
-        .aclk(clk),
-        .aresetn(~rst),
-
-        .res_data(back_res_data),
-        .res_valid(back_res_valid),
-        .res_ready(back_res_ready),
-        .res_sof(back_res_sof),
-        .res_eol(back_res_eol),     // 原来接成 1'b0 —— 行结束根本没接上, 所以做不出 EOL
-        .res_eof(back_res_eof),
-
-        .m_axis_tdata(m_axis_tdata),
-        .m_axis_tvalid(m_axis_tvalid),
-        .m_axis_tready(m_axis_tready),
-        .m_axis_tlast(m_axis_tlast),
-        .m_axis_tkeep(m_axis_tkeep),
-        .m_axis_tuser(m_axis_tuser),
-        .stat_beats(),
-        .stat_frames()
-    );
-
-    parameter MODE_ADDR = 9'h00, CMD_REG_ADDR = 9'h10, DATA_REG_ADDR = 9'h20;
-    parameter SINGLE_MODE = 8'h01, STREAM_MODE = 8'h02;
-    parameter REOP = 8'h01;
-
-    localparam IDLE = 3'b000, 
-               FULL_BUF = 3'b001,
-               SI_OP = 3'b010,  // 发信号(siop)给图像数据通路, 图像数据通路读到siop后发起一次读ddr, 然后处理, 再通过SS2M返回给PS, 完成整个握手流程后, 数据通路返回一个信号,
-               BACK = 3'b011;
-
-    reg [2:0] state, next;
-
-    
-    always @(posedge clk or posedge rst) begin
-        if(rst) begin
-            state <= IDLE;
-            __rcvf_buf_save <= 1'b0;
-            mode_reg <= 8'h0;
-            cmd_reg <= 8'h0;
-            data_reg <= 8'h0;
-        end else begin
-            state <= next;
-            if(__update_reg) begin
-                case (__update_reg_addr)
-                    MODE_ADDR: mode_reg <= __update_data[7:0];
-                    CMD_REG_ADDR: cmd_reg <= __update_data[7:0];
-                    DATA_REG_ADDR: data_reg <= __update_data[7:0]; 
-                    default: 
-                        ;
-                endcase
-            end
-            if(__rcvf_buf) begin
-                __rcvf_buf_save <= 1'b1;
-            end
-            if(state == IDLE && mode_reg == SINGLE_MODE && cmd_reg == REOP) begin
-                cmd_reg <= 8'h00;           // 清空cmd, 避免循环触发状态机
-                __rcvf_buf_save <= 1'b0;    // 清掉上一帧的标志, 重新等这一帧填完
-            end
-        end
-    end
-
-    always @(*) begin
-        next = state;
-        __siop = 1'b0;
-        __start_back = 1'b0;
-
-        case(state) 
-            IDLE: begin
-                if(mode_reg == SINGLE_MODE && cmd_reg == REOP) begin
-                    next = FULL_BUF;
-                end
-            end
-            FULL_BUF: begin
-                if(__rcvf_buf_save) begin
-                    next = SI_OP;
-                end
-            end
-            SI_OP: begin
-                // 现在暂时不实现算法, 直接传回buf里面的图像
-                next = BACK;
-            end
-            BACK: begin
-                __start_back = 1'b1;
-                if(__end_back) begin
-                    next = IDLE;
-                end
-            end
-
-        endcase
-    end
-
-    // 打包的内部状态, PS 读 0x4400003C 就能看到:
-    //   [2:0]   state            [3]     __rcvf_buf_save   [4]     px_eof
-    //   [5]     buf_en           [6]     back_en           [7]     back_res_valid
-    //   [15:8]  buf_addr[7:0]    [23:16] back_addr[7:0]   [26:24] next
-    //   [27]    px_valid         [28]    px_sof
-    //   [29]    __start_back     [30]    __end_back
-    //   [31]    ★ s_axis_tdata 出现过非 0 (粘滞) —— 连线自检, 必须为 1
-    assign dbg_stat = {
-        sx_data_seen,
-        __end_back, __start_back,
-        px_sof, px_valid,
-        next,
-        back_addr[7:0],
-        buf_addr[7:0],
-        back_res_valid, back_en, buf_en, px_eof, __rcvf_buf_save,
-        state
-    };
-
-    // AXI-Stream 握手观测, PS 读 0x44000040:
-    //   [31]    常 1 —— 【存在标记】: 读到 0x80000000 才说明这个寄存器真的在 FPGA 里
-    //   [6] tuser(SOF) 出现过(粘滞)   [5] tuser 实时
-    //   [4] s_axis_tkeep 出现过非全 1 (粘滞) —— MM2S 的 beat 有一部分字节无效
-    //   [3] tlast 出现过(粘滞)   [2] tvalid 出现过(粘滞)
-    //   [1] s_axis_tready(实时)  [0] s_axis_tvalid(实时)
-    //
-    // ★ 为什么要这个标记：build/vivado 里 module reference 的 OOC 综合网表
-    //   可能不刷新，新加的寄存器根本没进 FPGA，读它只会得到 default 0，
-    //   排查时会被骗得团团转（实测踩过两次）。
-    assign dbg_stream = { 1'b1, 24'b0, sx_us_seen, s_axis_tuser, stat_tkeep_bad,
-                          sx_tl_seen, sx_tv_seen, s_axis_tready, s_axis_tvalid };
 
 
 endmodule

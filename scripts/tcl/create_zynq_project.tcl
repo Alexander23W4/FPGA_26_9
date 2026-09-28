@@ -207,7 +207,8 @@ if {$want_axi_infra} {
         #   Tcl 的 -dict 是按【顺序】处理的, 所以把【流侧放在前面】、
         #   【内存侧放在后面】显式覆盖回去 —— 最终: 流侧 32 / 内存侧 64。
         #   这样 VDMA 每拍读一个 32bit 字、两拍拼成一个 64bit 流拍, 数据就是全的。
-        #   PL 侧 top1 的 s_axis 也跟着改成 32 位, 一拍 2 个像素, 下游不变。
+        #   PL 侧 pl_img_top / axis_rx_8b 的 TDATA_W 也是 32, 一拍 4 个 8bit 像素
+        #   (256 字节/行 -> 64 拍/行 -> 16384 拍/帧)。
         #   (若这次仍失败, 就只剩 ILA 直接看 m_axi_mm2s 的 rdata 了。)
         if {[catch {
             set_property -dict [list \
@@ -256,16 +257,15 @@ if {$want_axi_infra} {
     # ---- 控制通路 AXI Interconnect（PS 当主）----
     set nm [llength $gp_slaves]
 
-    # PL 顶层 rtl/top1.v（里面自带 axi_lite_rcv + 整条图像通路）。
-    # 它的子模块都齐了才多留一个 MI 口（M04_AXI）给它。
+    # PL 顶层 rtl/pl_img_top.v（单文件单模块：收 AXI-Stream + 8bit 像素流 + AXI-Lite）。
+    #
+    # ★ 本次改造：旧的一整条 16bit 通路已作废删除
+    #   （top1 / axis_rcv / axis_out / img2buf / bufback / frame_buf / axi_lite_rcv），
+    #   现在只保留"接收 VDMA 的 AXI-Stream、并把它暴露成 8bit 像素流"这一段。
+    #   画面从 256x256x16bit 改成 256x256x8bit，一行 512 -> 256 字节。
+    #   （原来单独的 axis_rx_8b.v 已内联进 pl_img_top.v，不再有子模块。）
     set _pl_rtl [list \
-        [file normalize [file join $repo_root rtl axi_lite_rcv.v]] \
-        [file normalize [file join $repo_root rtl img2buf.v]] \
-        [file normalize [file join $repo_root rtl bufback.v]] \
-        [file normalize [file join $repo_root rtl frame_buf.v]] \
-        [file normalize [file join $repo_root rtl axis_rcv.v]] \
-        [file normalize [file join $repo_root rtl axis_out.v]] \
-        [file normalize [file join $repo_root rtl top1.v]]]
+        [file normalize [file join $repo_root rtl pl_img_top.v]]]
     set _pl_ok 1
     foreach _f $_pl_rtl {
         if {![file exists $_f]} {
@@ -273,7 +273,7 @@ if {$want_axi_infra} {
             set _pl_ok 0
         }
     }
-    # 只有 -hp（有 axi_vdma_0）时才接 top1，否则它的两个流口没人接
+    # 只有 -hp（有 axi_vdma_0）时才接 PL 顶层，否则它的 AXI-Stream 从口没人接
     set _pl_en [expr {$_pl_ok && $want_hp}]
     set nmi   [expr {$nm + $_pl_en}]
 
@@ -319,47 +319,47 @@ if {$want_axi_infra} {
     }
 
     # =========================================================================
-    #  PL 顶层：rtl/top1.v
+    #  PL 顶层：rtl/pl_img_top.v
     #
     #      PS(M_AXI_GP0) -> axi_interconnect_0/S00_AXI
-    #                          -> M04_AXI -> top1_0/S_AXI
+    #                          -> M04_AXI -> pl_img_top_0/S_AXI
     #
-    #  top1 里面自己就有一个 axi_lite_rcv，所以 BD 里【只加 top1 这一个】，
-    #  不要再单独加 axi_lite_rcv（那样同一个 0x44000000 会挂两个从机）。
+    #  pl_img_top 里面自带 AXI-Lite 从机（模式/控制寄存器 + 调试计数），
+    #  所以 BD 里【只加这一个】模块。
     #
-    #  top1 的 slave 看到的是【偏移】地址（interconnect 把基地址剥掉了）：
+    #  它看到的 slave 地址是【偏移】后的（interconnect 把基地址剥掉了）：
     #      awaddr = 0x000 / 0x010 / 0x020   (MODE / CMD / DATA)
     #
-    #  top1 的 rst 是【高有效】，而 BD 只有低有效的 peripheral_aresetn，
+    #  pl_img_top 的 rst 是【高有效】，而 BD 只有低有效的 peripheral_aresetn，
     #  所以中间串一个反相器。
     # =========================================================================
     if {$_pl_en} {
         add_files -norecurse $_pl_rtl
-        create_bd_cell -type module -reference top1 top1_0
+        create_bd_cell -type module -reference pl_img_top pl_img_top_0
 
-        if {[get_bd_intf_pins -quiet top1_0/S_AXI] eq ""} {
-            error "top1_0/S_AXI 接口没被推断出来（检查 top1.v 端口上的 X_INTERFACE_INFO）"
+        if {[get_bd_intf_pins -quiet pl_img_top_0/S_AXI] eq ""} {
+            error "pl_img_top_0/S_AXI 接口没被推断出来（检查 pl_img_top.v 端口上的 X_INTERFACE_INFO）"
         }
 
         set _mm [format "M%02d" $nm]
 
         connect_bd_intf_net [get_bd_intf_pins axi_interconnect_0/${_mm}_AXI] \
-                            [get_bd_intf_pins top1_0/S_AXI]
+                            [get_bd_intf_pins pl_img_top_0/S_AXI]
         connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins axi_interconnect_0/${_mm}_ACLK]
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/${_mm}_ARESETN]
 
         # 时钟
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins top1_0/clk]
+        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins pl_img_top_0/clk]
 
-        # 复位反相： peripheral_aresetn(低有效) -> top1_0/rst(高有效)
-        create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 top1_rst_inv
-        set_property -dict [list CONFIG.C_OPERATION {not} CONFIG.C_SIZE {1}] [get_bd_cells top1_rst_inv]
-        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins top1_rst_inv/Op1]
-        connect_bd_net [get_bd_pins top1_rst_inv/Res]               [get_bd_pins top1_0/rst]
+        # 复位反相： peripheral_aresetn(低有效) -> pl_img_top_0/rst(高有效)
+        create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 pl_rst_inv
+        set_property -dict [list CONFIG.C_OPERATION {not} CONFIG.C_SIZE {1}] [get_bd_cells pl_rst_inv]
+        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins pl_rst_inv/Op1]
+        connect_bd_net [get_bd_pins pl_rst_inv/Res]                 [get_bd_pins pl_img_top_0/rst]
 
-        puts "\[ACZ7015\] top1_0 -> axi_interconnect_0/${_mm}_AXI  (PL top, rst inverted)"
+        puts "\[ACZ7015\] pl_img_top_0 -> axi_interconnect_0/${_mm}_AXI  (PL top, rst inverted)"
     } else {
-        puts "\[ACZ7015\] WARNING: rtl/top1.v 或它的子模块缺失，BD 里没有 PL 逻辑"
+        puts "\[ACZ7015\] WARNING: rtl/pl_img_top.v 缺失，BD 里没有 PL 逻辑"
     }
 }
 
@@ -423,16 +423,22 @@ if {$want_hp} {
         puts "\[ACZ7015\] WARNING: axi_vdma_0 不存在，HP0 这条 Master 通路是空的"
     }
 
-    # --- AXI4-Stream：VDMA <-> top1 -------------------------------------------
-    #       VDMA MM2S --S_AXIS--> top1_0 --M_AXIS--> VDMA S2MM
-    #   top1 内部：axis_rcv -> img2buf -> frame_buf -> bufback -> axis_out
-    if {[get_bd_cells -quiet top1_0] ne ""} {
+    # --- AXI4-Stream：VDMA MM2S -> pl_img_top ---------------------------------
+    #       VDMA MM2S ══AXI4-Stream══► pl_img_top_0/S_AXIS
+    #                                  └─► 8bit 像素流 px_* (引到顶层, 接 denose)
+    #
+    #  ★ 这里就是"把输入 AXI-Stream 的反压激活"的地方：
+    #    pl_img_top 内部的 axis_rx_8b 会驱动 s_axis_tready，VDMA 收到 tready
+    #    才会继续吐数据；下游 px_ready 拉低时整条流自动停住。
+    #    如果 pl_img_top_0 不存在，VDMA 的 M_AXIS_MM2S 就没人接、tready 悬空，
+    #    VDMA 会一直背压停住、帧指针不动 —— 这正是以前"数据一个都不来"的原因。
+    if {[get_bd_cells -quiet pl_img_top_0] ne ""} {
 
         if {[catch {
             connect_bd_intf_net [get_bd_intf_pins axi_vdma_0/M_AXIS_MM2S] \
-                                [get_bd_intf_pins top1_0/S_AXIS]
+                                [get_bd_intf_pins pl_img_top_0/S_AXIS]
         } _e]} {
-            puts "\[ACZ7015\] top1_0/S_AXIS 没被推断出来，逐根连"
+            puts "\[ACZ7015\] pl_img_top_0/S_AXIS 没被推断出来，逐根连"
             foreach {vp rp} {
                 M_AXIS_MM2S_TDATA  s_axis_tdata
                 M_AXIS_MM2S_TVALID s_axis_tvalid
@@ -441,29 +447,18 @@ if {$want_hp} {
                 M_AXIS_MM2S_TKEEP  s_axis_tkeep
                 M_AXIS_MM2S_TUSER  s_axis_tuser
             } {
-                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins top1_0/$rp]
+                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins pl_img_top_0/$rp]
             }
         }
 
-        if {[catch {
-            connect_bd_intf_net [get_bd_intf_pins top1_0/M_AXIS] \
-                                [get_bd_intf_pins axi_vdma_0/S_AXIS_S2MM]
-        } _e]} {
-            puts "\[ACZ7015\] top1_0/M_AXIS 没被推断出来，逐根连"
-            foreach {sp dp} {
-                m_axis_tdata  S_AXIS_S2MM_TDATA
-                m_axis_tvalid S_AXIS_S2MM_TVALID
-                m_axis_tready S_AXIS_S2MM_TREADY
-                m_axis_tlast  S_AXIS_S2MM_TLAST
-                m_axis_tkeep  S_AXIS_S2MM_TKEEP
-                m_axis_tuser  S_AXIS_S2MM_TUSER
-            } {
-                connect_bd_net [get_bd_pins top1_0/$sp] [get_bd_pins axi_vdma_0/$dp]
-            }
-        }
-        puts "\[ACZ7015\] top1_0: VDMA MM2S -> top1 -> VDMA S2MM"
+        # denose 之后的回写通路（VDMA S2MM）按本次改造范围【暂不接】。
+        # 留一个悬空接口，Vivado 会给 unconnected 警告，不影响 MM2S 读取。
+        puts "\[ACZ7015\] pl_img_top_0: VDMA MM2S -> 8bit 像素流 (tready 反压已激活)"
+        puts "\[ACZ7015\]   像素流出口(接 denose): px_data/px_valid/px_eof/px_ready"
+        puts "\[ACZ7015\]   (px_sof=帧首, px_eol=行尾, mode_reg/cmd_reg/cmd_pulse 备用)"
+        puts "\[ACZ7015\]   VDMA S_AXIS_S2MM 本步不接(denose 之后的回写通路)"
     } else {
-        puts "\[ACZ7015\] WARNING: top1_0 不存在，VDMA 两个流口悬空"
+        puts "\[ACZ7015\] WARNING: pl_img_top_0 不存在，VDMA 的 MM2S 流口悬空"
     }
 
     foreach p {ACLK S00_ACLK S01_ACLK M00_ACLK} {
@@ -493,18 +488,18 @@ if {$want_hp} {
 if {$want_axi_infra} {
     assign_bd_address
 
-    # ★ PL 的 AXI-Lite 从机（在 top1 里面）必须固定落在 0x44000000
+    # ★ PL 的 AXI-Lite 从机（在 pl_img_top 里面）必须固定落在 0x44000000
     #   （PS 侧 pl_ctrl_test.c 里的 PL_CTRL_BASE 就是它，自动分配不会给这个地址）
-    if {[get_bd_cells -quiet top1_0] ne ""} {
+    if {[get_bd_cells -quiet pl_img_top_0] ne ""} {
         set _seg [get_bd_addr_segs -quiet \
                      -of_objects [get_bd_addr_spaces processing_system7_0/Data] \
-                     -filter {NAME =~ "*top1*"}]
+                     -filter {NAME =~ "*pl_img_top*"}]
         if {$_seg ne ""} {
             set_property offset 0x44000000 $_seg
             puts [format "\[ACZ7015\] %s -> offset %s" \
                       [get_property NAME $_seg] [get_property offset $_seg]]
         } else {
-            error "top1_0 没有分配到地址段，检查 S_AXI 接口"
+            error "pl_img_top_0 没有分配到地址段，检查 S_AXI 接口"
         }
     }
 
