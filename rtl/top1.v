@@ -1,10 +1,43 @@
+// =============================================================================
+//  top1.v —— PL 算法层
+//
+//  ★ 本次改动: 去掉原来的 AXI4-Stream 从口(s_axis_*), 改成【直接接 pl_img_top
+//    的 8bit 像素流输出】。数据通路现在是:
+//
+//        VDMA MM2S ══AXIS══► pl_img_top ══8bit 像素流══► top1 ══► denose
+//                                                             │
+//                                                             └── AXI-Lite: PS 控制/调试
+//
+//    ⇒ pl_img_top 只负责 "AXI-Stream -> 8bit 像素流", 之后都归 top1 管。
+//
+//  ★ 端口方向(接线的关键):
+//        px_data / px_valid / px_sof / px_eol / px_eof  : 【输入】来自 pl_img_top
+//        px_ready                                       : 【输出】告诉 pl_img_top 收不收
+//      在 BD 里这样连:
+//        pl_img_top_0/px_data  -> top1_0/px_data
+//        pl_img_top_0/px_valid -> top1_0/px_valid
+//        pl_img_top_0/px_eof   -> top1_0/px_eof
+//        pl_img_top_0/px_sof   -> top1_0/px_sof
+//        pl_img_top_0/px_eol   -> top1_0/px_eol
+//        top1_0/px_ready       -> pl_img_top_0/px_ready
+//
+//  ★ denose 就接在这几个像素信号上 —— 见下面 "denose 接这里" 那段。
+//    在 denose 接进来之前, 本模块先把像素流【直通】(px_ready 恒 1),
+//    这样整条通路可以先跑通、调试计数器先能对上。
+//
+//  ⚠ AXI-Lite 地址: 本模块自带 axi_lite_rcv(0x44000000)。
+//    pl_img_top 里也有一份内联的 AXI-Lite 从机, 两者【不能落在同一个地址】。
+//    如果两个模块都在 BD 里, 必须把 pl_img_top 的那份 S_AXI 去掉(或分配别的段),
+//    否则 assign_bd_address / set_property offset 会冲突。
+// =============================================================================
+
+`timescale 1ns / 1ps
+
 module top1 #(
-    parameter DATA_WIDTH = 16,
-    parameter ADDR_WIDTH = 16,          // 地址位宽
-    parameter DEPTH      = 65536        // 深度，必须 = 2^ADDR_WIDTH
+    parameter integer PIXEL_W = 8       // 像素位宽: 8bit 灰度
 )(
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS:M_AXIS, ASSOCIATED_RESET rst" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI, ASSOCIATED_RESET rst" *)
     input  wire        clk,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
@@ -52,28 +85,16 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
     input  wire        rready,
 
-    // ---------------- AXI4-Stream 从口：接 axi_vdma_0/M_AXIS_MM2S ----------------
-    // ★ 流侧位宽 = 32bit, 和 create_zynq_project.tcl 里 VDMA 的
-    //   c_m_axis_mm2s_tdata_width 一致 (内存侧仍是 64, 由 VDMA 自己把两个
-    //   32bit 字拼成一拍)。原因: 实测流侧配 64 位时, s_axis_tdata[63:32]
-    //   恒为 0 而 tkeep 又是全 1, 每 4 个像素里有 2 个变 0 —— 也就是 MM2S
-    //   内部实际只按 32 位在走。
-    //   一拍 = 2 个 16bit 像素; 512 字节/行 ÷ 4 字节 = 128 拍/行。下游像素流不变。
-    input  wire [31:0] s_axis_tdata,
-    input  wire        s_axis_tvalid,
-    output wire        s_axis_tready,
-    input  wire        s_axis_tlast,
-    input  wire [3:0]  s_axis_tkeep,
-    input  wire        s_axis_tuser,
-
-    // ---------------- AXI4-Stream 主口：接 axi_vdma_0/S_AXIS_S2MM ----------------
-    output wire [63:0] m_axis_tdata,
-    output wire        m_axis_tvalid,
-    input  wire        m_axis_tready,
-    output wire        m_axis_tlast,
-    output wire [7:0]  m_axis_tkeep,
-    output wire        m_axis_tuser
+    // ---------------- 8bit 像素流输入: 直接接 pl_img_top 的像素流输出 ----------
+    //   注意方向: 这 5 个是【输入】(pl_img_top -> top1), px_ready 是【输出】。
+    input  wire [PIXEL_W-1:0]      px_data,
+    input  wire                    px_valid,
+    input  wire                    px_eof,      // 帧尾 EOF: 最后一行的最后一个像素
+    input  wire                    px_sof,      // 帧首 SOF: 每帧第一个像素
+    input  wire                    px_eol,      // 行尾 EOL: 每行最后一个像素
+    output wire                    px_ready     // 收不收(接 pl_img_top 的 px_ready)
 );
+
 
     reg [7:0] mode_reg;
     reg [7:0] cmd_reg;
@@ -83,10 +104,15 @@ module top1 #(
     wire [8:0] __update_reg_addr;
     wire [31:0] __update_data;
 
+    wire [31:0] dbg_beats;
+    wire [31:0] dbg_pixels;
+    wire [31:0] dbg_frames;
+    wire [31:0] dbg_stat;
+    wire [31:0] dbg_stream;
 
     axi_lite_rcv reg_io(
         .clk(clk),
-        .rst(~rst),
+        .rst(~rst),                 
 
         .awaddr(awaddr),
         .awvalid(awvalid),
@@ -120,6 +146,30 @@ module top1 #(
         .__update_reg_addr(__update_reg_addr),
         .__update_data(__update_data)
     );
+
+
+
+    wire [PIXEL_W-1:0] dn_data;
+    wire               dn_valid;
+    wire               dn_last;
+
+    denose u_denose (
+        .ap_clk    (clk),
+        .ap_rst    (rst),   
+                  
+        .in_data   (px_data),
+        .in_valid  (px_valid),
+        .in_last   (px_eof),  
+        .in_ready  (px_ready),    
+
+        .out_ready (1'b1),             
+        .out_data  (dn_data),
+        .out_valid (dn_valid),
+        .out_last  (dn_last)      
+    );
+
+    
+
 
 
 endmodule

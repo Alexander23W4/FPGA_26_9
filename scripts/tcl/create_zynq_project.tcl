@@ -273,9 +273,12 @@ if {$want_axi_infra} {
             set _pl_ok 0
         }
     }
-    # 只有 -hp（有 axi_vdma_0）时才接 PL 顶层，否则它的 AXI-Stream 从口没人接
+    # 只有 -hp（有 axi_vdma_0）时才接 PL 前端，否则它的 AXI-Stream 从口没人接
     set _pl_en [expr {$_pl_ok && $want_hp}]
-    set nmi   [expr {$nm + $_pl_en}]
+    # ★ pl_img_top 只做 "AXI-Stream -> 8bit 像素流", 没有 AXI-Lite 从口,
+    #   所以它不占 axi_interconnect_0 的 MI 口, 也不需要分配地址段。
+    #   （PS 的控制/状态寄存器在 rtl/top1.v 的 axi_lite_rcv 里, 等 top1 加进 BD 再分配）
+    set nmi   $nm
 
     create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0
     set_property -dict [list CONFIG.NUM_MI $nmi CONFIG.NUM_SI {1}] [get_bd_cells axi_interconnect_0]
@@ -337,16 +340,8 @@ if {$want_axi_infra} {
         add_files -norecurse $_pl_rtl
         create_bd_cell -type module -reference pl_img_top pl_img_top_0
 
-        if {[get_bd_intf_pins -quiet pl_img_top_0/S_AXI] eq ""} {
-            error "pl_img_top_0/S_AXI 接口没被推断出来（检查 pl_img_top.v 端口上的 X_INTERFACE_INFO）"
-        }
-
-        set _mm [format "M%02d" $nm]
-
-        connect_bd_intf_net [get_bd_intf_pins axi_interconnect_0/${_mm}_AXI] \
-                            [get_bd_intf_pins pl_img_top_0/S_AXI]
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]                 [get_bd_pins axi_interconnect_0/${_mm}_ACLK]
-        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/${_mm}_ARESETN]
+        # ★ pl_img_top 没有 AXI-Lite 从口, 所以不接 axi_interconnect_0,
+        #   也不需要分配地址段。PS 的控制/状态寄存器在 rtl/top1.v 里。
 
         # 时钟
         connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins pl_img_top_0/clk]
@@ -357,7 +352,7 @@ if {$want_axi_infra} {
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins pl_rst_inv/Op1]
         connect_bd_net [get_bd_pins pl_rst_inv/Res]                 [get_bd_pins pl_img_top_0/rst]
 
-        puts "\[ACZ7015\] pl_img_top_0 -> axi_interconnect_0/${_mm}_AXI  (PL top, rst inverted)"
+        puts "\[ACZ7015\] pl_img_top_0: 只做 AXI-Stream -> 8bit 像素流 (无 AXI-Lite, 不占 MI 口)"
     } else {
         puts "\[ACZ7015\] WARNING: rtl/pl_img_top.v 缺失，BD 里没有 PL 逻辑"
     }
@@ -488,18 +483,21 @@ if {$want_hp} {
 if {$want_axi_infra} {
     assign_bd_address
 
-    # ★ PL 的 AXI-Lite 从机（在 pl_img_top 里面）必须固定落在 0x44000000
+    # ★ PL 的 AXI-Lite 从机现在在 rtl/top1.v(里面的 axi_lite_rcv) —— pl_img_top 里没有。
+    #   top1 加进 BD 之后, 把它的地址段固定到 0x44000000
     #   （PS 侧 pl_ctrl_test.c 里的 PL_CTRL_BASE 就是它，自动分配不会给这个地址）
-    if {[get_bd_cells -quiet pl_img_top_0] ne ""} {
-        set _seg [get_bd_addr_segs -quiet \
-                     -of_objects [get_bd_addr_spaces processing_system7_0/Data] \
-                     -filter {NAME =~ "*pl_img_top*"}]
-        if {$_seg ne ""} {
-            set_property offset 0x44000000 $_seg
-            puts [format "\[ACZ7015\] %s -> offset %s" \
-                      [get_property NAME $_seg] [get_property offset $_seg]]
-        } else {
-            error "pl_img_top_0 没有分配到地址段，检查 S_AXI 接口"
+    foreach _cand {top1_0} {
+        if {[get_bd_cells -quiet $_cand] ne ""} {
+            set _seg [get_bd_addr_segs -quiet \
+                         -of_objects [get_bd_addr_spaces processing_system7_0/Data] \
+                         -filter "NAME =~ \"*$_cand*\""]
+            if {$_seg ne ""} {
+                set_property offset 0x44000000 $_seg
+                puts [format "\[ACZ7015\] %s -> offset %s" \
+                          [get_property NAME $_seg] [get_property offset $_seg]]
+            } else {
+                error "$_cand 没有分配到地址段，检查它的 S_AXI 接口"
+            }
         }
     }
 
