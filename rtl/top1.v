@@ -151,7 +151,7 @@ module top1 #(
 
     wire [PIXEL_W-1:0] dn_data;
     wire               dn_valid;
-    wire               dn_last;
+    wire               dn_eof;
 
     denose u_denose (
         .ap_clk    (clk),
@@ -165,7 +165,7 @@ module top1 #(
         .out_ready (1'b1),             
         .out_data  (dn_data),
         .out_valid (dn_valid),
-        .out_last  (dn_last)      
+        .out_last  (dn_eof)      
     );
 
     

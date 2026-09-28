@@ -356,6 +356,34 @@ if {$want_axi_infra} {
     } else {
         puts "\[ACZ7015\] WARNING: rtl/pl_img_top.v 缺失，BD 里没有 PL 逻辑"
     }
+
+    # =========================================================================
+    #  HDMI 控制器: 输出 -> 板上 HDMI_2 (J7) 的原生 TMDS 引脚
+    #
+    #  引脚约束已经在 constrs/acz7015/acz7015.xdc 里写好了(端口名一致):
+    #      tmds_data_p[2]  K7      tmds_data_p[1]  M8
+    #      tmds_data_p[0]  N6      tmds_clk_p      T2      (IOSTANDARD TMDS_33)
+    #  差分对 N 端由 OBUFDS 自动配对, XDC 里不用单列。
+    #
+    #  ★ 输入(pclk / pclk_x5 / rst / vid_r / vid_g / vid_b / vid_hs / vid_vs /
+    #    vid_de)按你的要求【留空】, 你自己在 BD 里接。
+    # =========================================================================
+    set _hdmi_rtl [file normalize [file join $repo_root rtl hdmi_tx.v]]
+    if {[file exists $_hdmi_rtl]} {
+        add_files -norecurse [list $_hdmi_rtl]
+        create_bd_cell -type module -reference hdmi_tx hdmi_tx_0
+
+        # TMDS 输出引到 BD 顶层端口(名字和 XDC 里的约束一致)
+        create_bd_port -dir O -from 2 -to 0 tmds_data_p
+        create_bd_port -dir O                   tmds_clk_p
+        connect_bd_net [get_bd_pins hdmi_tx_0/tmds_data_p] [get_bd_ports tmds_data_p]
+        connect_bd_net [get_bd_pins hdmi_tx_0/tmds_clk_p]  [get_bd_ports tmds_clk_p]
+
+        puts "\[ACZ7015\] hdmi_tx_0: TMDS 输出 -> tmds_data_p[2:0] / tmds_clk_p (板上 HDMI_2 J7)"
+        puts "\[ACZ7015\]          输入 pclk/pclk_x5/rst/vid_* 留空, 待接"
+    } else {
+        puts "\[ACZ7015\] WARNING: rtl/hdmi_tx.v 缺失，BD 里没有 HDMI 控制器"
+    }
 }
 
 # =============================================================================
