@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module pl_img_top #(
+module axi2px #(
     parameter integer TDATA_W  = 32,     // AXI-Stream 侧位宽(和 VDMA 的流位宽一致)
     parameter integer PIXEL_W  = 8,      // 像素位宽: 8bit 灰度
     parameter integer H_PIXELS = 256,    // 一行像素数

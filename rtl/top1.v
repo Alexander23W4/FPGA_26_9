@@ -144,12 +144,12 @@ module top1 #(
     wire               px_eol;
     wire               px_ready;
 
-    pl_img_top #(
+    axi2px #(
         .TDATA_W(32),
         .PIXEL_W(PIXEL_W),
         .H_PIXELS(256),
         .V_PIXELS(256)
-    ) u_pl_img_top (
+    ) u_axi2px (
         .clk(clk),
         .rst(rst),
         .s_axis_tdata(s_axis_tdata),
