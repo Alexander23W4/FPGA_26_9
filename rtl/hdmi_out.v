@@ -40,8 +40,51 @@ module hdmi_out(
     input done_accept;
 );
 
-    
+    reg [9:0] hcnt, vcnt;
 
+    reg buf_idx_save;
+    assign buf_idx = buf_idx_save;
 
+    localparam IDLE = 0, BUF = 1;
+    reg state, next;
+
+    always @(posedge clk or posedge clk) begin
+        if(clk) begin
+            state <= IDLE;
+            buf_idx_save <= '0;
+            hcnt <= '0;
+            vcnt <= '0;
+            //
+        end else begin
+            state <= next;
+            if(state == IDLE) begin
+                hcnt <= '0;
+                vcnt <= '0;
+            end
+            
+            if(state == BUF) begin
+                
+            end
+            //
+        end
+    end
+
+    always @(*) begin
+        next = state;
+        hdmi_0_done = 1'b0;
+        hdmi_1_done = 1'b0;
+        //
+        case(state) 
+            IDLE: begin
+                hdmi_1_done = 1'b1; // 为了 hdl_out 在初始化之后能够成功第一次跳到 buf1
+                if(done_accept) begin
+                    next = BUF;
+                end
+            end
+            BUF: begin
+                
+            end
+        endcase
+    end
 endmodule
 
