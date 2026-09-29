@@ -3,8 +3,9 @@
 module top1 #(
     parameter integer PIXEL_W = 8       // 像素位宽: 8bit 灰度
 )(
+
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI S_AXIS, ASSOCIATED_RESET rst" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI S_AXIS, ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
     input  wire        clk,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)

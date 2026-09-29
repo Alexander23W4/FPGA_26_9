@@ -112,7 +112,7 @@ foreach intf {DDR FIXED_IO} {
 # 无论是否使用 AXI 外设都必须接，否则 DRC 报 [BD 41-758]
 set _aclk [get_bd_pins -quiet $ps7/M_AXI_GP0_ACLK]
 if {$_aclk ne ""} {
-    if {[catch {connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] $_aclk} _e]} {
+    if {[catch {connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] $_aclk} _e]} {
         puts "\[ACZ7015\] M_AXI_GP0_ACLK already connected"
     }
 }
@@ -131,10 +131,41 @@ if {$want_axi_infra} {
         CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ $fclk0 \
     ] $ps7
 
+    # =========================================================================
+    #  时钟源: 板载 50MHz 晶振 (clk50M, 引脚 L5) -> clk_wiz_0
+    #      clk_out1 = 25.2 MHz  (clk / pclk / 所有 AXI)
+    #      clk_out2 = 126 MHz   (pclk_x5, = 5 * clk_out1)
+    #  ★ 整条 PL 【所有】时钟都用 clk_out1, 只有 pclk_x5 用 clk_out2。
+    #  ★ clk50M 的引脚/时序约束在 constrs/acz7015/acz7015.xdc 里已有。
+    # =========================================================================
+    if {[get_bd_ports -quiet clk50M] eq ""} {
+        create_bd_port -dir I clk50M
+    }
+    create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0
+    set_property -dict [list \
+        CONFIG.PRIMITIVE                   {MMCM} \
+        CONFIG.PRIM_IN_FREQ                {50.000} \
+        CONFIG.MMCM_CLKIN1_PERIOD          {20.000} \
+        CONFIG.MMCM_DIVCLK_DIVIDE          {5} \
+        CONFIG.MMCM_CLKFBOUT_MULT_F        {63.000} \
+        CONFIG.MMCM_CLKOUT0_DIVIDE_F       {25.000} \
+        CONFIG.MMCM_CLKOUT1_DIVIDE         {5} \
+        CONFIG.CLKOUT1_REQUESTED_OUT_FREQ  {25.2} \
+        CONFIG.CLKOUT2_USED                {true} \
+        CONFIG.CLKOUT2_REQUESTED_OUT_FREQ  {126.000} \
+        CONFIG.USE_LOCKED                  {true} \
+        CONFIG.USE_RESET                   {false} \
+    ] [get_bd_cells clk_wiz_0]
+    connect_bd_net [get_bd_ports clk50M] [get_bd_pins clk_wiz_0/clk_in1]
+    puts "\[ACZ7015\] clk_wiz_0: 50MHz -> clk_out1 25.2MHz / clk_out2 126MHz"
+
     # ---- Processor System Reset ----
     create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps7_50M
-    connect_bd_net [get_bd_pins $ps7/FCLK_CLK0]     [get_bd_pins rst_ps7_50M/slowest_sync_clk]
+    connect_bd_net [get_bd_pins clk_wiz_0/clk_out1]     [get_bd_pins rst_ps7_50M/slowest_sync_clk]
     connect_bd_net [get_bd_pins $ps7/FCLK_RESET0_N] [get_bd_pins rst_ps7_50M/ext_reset_in]
+    # ★ MMCM 未锁定前把复位按住: clk_wiz_0/locked -> proc_sys_reset/dcm_locked
+    #   否则上电初期 clk_out1 还没稳, PL 会跑在乱时钟上, TMDS 吐垃圾电平。
+    connect_bd_net [get_bd_pins clk_wiz_0/locked] [get_bd_pins rst_ps7_50M/dcm_locked]
 
     # ---- 1) LED GPIO（-axi）----
     if {$want_axi} {
@@ -257,15 +288,22 @@ if {$want_axi_infra} {
     # ---- 控制通路 AXI Interconnect（PS 当主）----
     set nm [llength $gp_slaves]
 
-    # PL 顶层 rtl/pl_img_top.v（单文件单模块：收 AXI-Stream + 8bit 像素流 + AXI-Lite）。
-    #
-    # ★ 本次改造：旧的一整条 16bit 通路已作废删除
-    #   （top1 / axis_rcv / axis_out / img2buf / bufback / frame_buf / axi_lite_rcv），
-    #   现在只保留"接收 VDMA 的 AXI-Stream、并把它暴露成 8bit 像素流"这一段。
-    #   画面从 256x256x16bit 改成 256x256x8bit，一行 512 -> 256 字节。
-    #   （原来单独的 axis_rx_8b.v 已内联进 pl_img_top.v，不再有子模块。）
+    # PL 唯一顶层: rtl/top1.v
+    #   内部: axi2px -> denose -> hdl_out -> double_buf -> hdmi_out -> hdmi_tx
+    #         以及 axi_lite_rcv 给 PS 做控制/状态
+    #   它带一个 AXI-Lite 从口(S_AXI), 所以要多占 axi_interconnect_0 的一个 MI 口。
     set _pl_rtl [list \
-        [file normalize [file join $repo_root rtl pl_img_top.v]]]
+        [file normalize [file join $repo_root rtl top1.v]] \
+        [file normalize [file join $repo_root rtl axi_lite_rcv.v]] \
+        [file normalize [file join $repo_root rtl axi2px.v]] \
+        [file normalize [file join $repo_root rtl hdl_out.v]] \
+        [file normalize [file join $repo_root rtl hdmi_out.v]] \
+        [file normalize [file join $repo_root rtl double_buf.v]] \
+        [file normalize [file join $repo_root rtl hdmi_tx.v]] \
+        [file normalize [file join $repo_root rtl denose.v]] \
+        [file normalize [file join $repo_root rtl denose_denoise.v]] \
+        [file normalize [file join $repo_root rtl denose_denoise_q_RAM_AUTO_1R1W.v]] \
+        [file normalize [file join $repo_root rtl denose_denoise_rear_frame_RAM_AUTO_1R1W.v]]]
     set _pl_ok 1
     foreach _f $_pl_rtl {
         if {![file exists $_f]} {
@@ -273,18 +311,16 @@ if {$want_axi_infra} {
             set _pl_ok 0
         }
     }
-    # 只有 -hp（有 axi_vdma_0）时才接 PL 前端，否则它的 AXI-Stream 从口没人接
+    # 只有 -hp（有 axi_vdma_0）时才接 top1，否则它的 AXI-Stream 从口没人接
     set _pl_en [expr {$_pl_ok && $want_hp}]
-    # ★ pl_img_top 只做 "AXI-Stream -> 8bit 像素流", 没有 AXI-Lite 从口,
-    #   所以它不占 axi_interconnect_0 的 MI 口, 也不需要分配地址段。
-    #   （PS 的控制/状态寄存器在 rtl/top1.v 的 axi_lite_rcv 里, 等 top1 加进 BD 再分配）
-    set nmi   $nm
+    # top1 带 AXI-Lite 从口, 要多占一个 MI 口
+    set nmi   [expr {$nm + $_pl_en}]
 
     create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0
     set_property -dict [list CONFIG.NUM_MI $nmi CONFIG.NUM_SI {1}] [get_bd_cells axi_interconnect_0]
 
-    connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_interconnect_0/ACLK]
-    connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_interconnect_0/S00_ACLK]
+    connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins axi_interconnect_0/ACLK]
+    connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins axi_interconnect_0/S00_ACLK]
     connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/ARESETN]
     connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/S00_ARESETN]
     connect_bd_intf_net [get_bd_intf_pins $ps7/M_AXI_GP0] [get_bd_intf_pins axi_interconnect_0/S00_AXI]
@@ -300,7 +336,7 @@ if {$want_axi_infra} {
             set _saxi S_AXI_LITE
         }
         connect_bd_intf_net [get_bd_intf_pins axi_interconnect_0/${mm}_AXI] [get_bd_intf_pins $c/$_saxi]
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_interconnect_0/${mm}_ACLK]
+        connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins axi_interconnect_0/${mm}_ACLK]
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/${mm}_ARESETN]
         # 从口的时钟/复位引脚名各 IP、各版本都不一样，逐个探测，别写死：
         #   axi_gpio : s_axi_aclk      / s_axi_aresetn
@@ -317,44 +353,43 @@ if {$want_axi_infra} {
         if {$_aclk_pin eq "" || $_arst_pin eq ""} {
             error "cannot find clock/reset pins on $c (aclk='$_aclk_pin' arst='$_arst_pin')"
         }
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins $c/$_aclk_pin]
+        connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins $c/$_aclk_pin]
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins $c/$_arst_pin]
     }
 
     # =========================================================================
-    #  PL 顶层：rtl/pl_img_top.v
-    #
-    #      PS(M_AXI_GP0) -> axi_interconnect_0/S00_AXI
-    #                          -> M04_AXI -> pl_img_top_0/S_AXI
-    #
-    #  pl_img_top 里面自带 AXI-Lite 从机（模式/控制寄存器 + 调试计数），
-    #  所以 BD 里【只加这一个】模块。
-    #
-    #  它看到的 slave 地址是【偏移】后的（interconnect 把基地址剥掉了）：
-    #      awaddr = 0x000 / 0x010 / 0x020   (MODE / CMD / DATA)
-    #
-    #  pl_img_top 的 rst 是【高有效】，而 BD 只有低有效的 peripheral_aresetn，
-    #  所以中间串一个反相器。
+    #  PL 顶层: rtl/top1.v
+    #      PS(M_AXI_GP0) -> axi_interconnect_0/S00_AXI -> M0x_AXI -> top1_0/S_AXI
+    #  top1 的 rst 是【高有效】，BD 只有低有效的 peripheral_aresetn, 串一个反相器。
+    #  时钟统一: clk / pclk 都接 clk_wiz_0/clk_out1 (25.2MHz), pclk_x5 接 clk_out2。
     # =========================================================================
     if {$_pl_en} {
         add_files -norecurse $_pl_rtl
-        create_bd_cell -type module -reference pl_img_top pl_img_top_0
+        create_bd_cell -type module -reference top1 top1_0
 
-        # ★ pl_img_top 没有 AXI-Lite 从口, 所以不接 axi_interconnect_0,
-        #   也不需要分配地址段。PS 的控制/状态寄存器在 rtl/top1.v 里。
+        if {[get_bd_intf_pins -quiet top1_0/S_AXI] eq ""} {
+            error "top1_0/S_AXI 接口没被推断出来（检查 top1.v 端口上的 X_INTERFACE_INFO）"
+        }
 
-        # 时钟
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins pl_img_top_0/clk]
+        set _mm [format "M%02d" $nm]
 
-        # 复位反相： peripheral_aresetn(低有效) -> pl_img_top_0/rst(高有效)
+        connect_bd_intf_net [get_bd_intf_pins axi_interconnect_0/${_mm}_AXI] \
+                            [get_bd_intf_pins top1_0/S_AXI]
+        connect_bd_net [get_bd_pins clk_wiz_0/clk_out1]             [get_bd_pins axi_interconnect_0/${_mm}_ACLK]
+        connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_interconnect_0/${_mm}_ARESETN]
+
+        # 时钟 (全部 clk_wiz_0/clk_out1 = 25.2MHz)
+        connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins top1_0/clk]
+
+        # 复位反相: peripheral_aresetn(低有效) -> top1_0/rst(高有效)
         create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 pl_rst_inv
         set_property -dict [list CONFIG.C_OPERATION {not} CONFIG.C_SIZE {1}] [get_bd_cells pl_rst_inv]
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins pl_rst_inv/Op1]
-        connect_bd_net [get_bd_pins pl_rst_inv/Res]                 [get_bd_pins pl_img_top_0/rst]
+        connect_bd_net [get_bd_pins pl_rst_inv/Res]                 [get_bd_pins top1_0/rst]
 
-        puts "\[ACZ7015\] pl_img_top_0: 只做 AXI-Stream -> 8bit 像素流 (无 AXI-Lite, 不占 MI 口)"
+        puts "\[ACZ7015\] top1_0 -> axi_interconnect_0/${_mm}_AXI (PL top, rst inverted)"
     } else {
-        puts "\[ACZ7015\] WARNING: rtl/pl_img_top.v 缺失，BD 里没有 PL 逻辑"
+        puts "\[ACZ7015\] WARNING: rtl/top1.v 或它的子模块缺失，BD 里没有 PL 逻辑"
     }
 
     # =========================================================================
@@ -370,14 +405,12 @@ if {$want_axi_infra} {
     # =========================================================================
     set _hdmi_rtl [file normalize [file join $repo_root rtl hdmi_tx.v]]
     if {[file exists $_hdmi_rtl]} {
-        add_files -norecurse [list $_hdmi_rtl]
-        create_bd_cell -type module -reference hdmi_tx hdmi_tx_0
-
-        # TMDS 输出引到 BD 顶层端口(名字和 XDC 里的约束一致)
+        # hdmi_tx 已经实例化在 top1 里面, 这里【不再单独建 cell】,
+        # 只把顶层 TMDS 端口建出来, 由 top1_0 驱动。
         create_bd_port -dir O -from 2 -to 0 tmds_data_p
         create_bd_port -dir O                   tmds_clk_p
-        connect_bd_net [get_bd_pins hdmi_tx_0/tmds_data_p] [get_bd_ports tmds_data_p]
-        connect_bd_net [get_bd_pins hdmi_tx_0/tmds_clk_p]  [get_bd_ports tmds_clk_p]
+        connect_bd_net [get_bd_pins top1_0/tmds_data_p] [get_bd_ports tmds_data_p]
+        connect_bd_net [get_bd_pins top1_0/tmds_clk_p]  [get_bd_ports tmds_clk_p]
 
         puts "\[ACZ7015\] hdmi_tx_0: TMDS 输出 -> tmds_data_p[2:0] / tmds_clk_p (板上 HDMI_2 J7)"
         puts "\[ACZ7015\]          输入 pclk/pclk_x5/rst/vid_* 留空, 待接"
@@ -386,53 +419,17 @@ if {$want_axi_infra} {
     }
 
     # =========================================================================
-    #  板载 50 MHz 有源晶振 (clk50M, 引脚 L5) 引入 BD
-    #
-    #  constrs/acz7015/acz7015.xdc 第 1 节已经写好:
-    #      create_clock -period 20.000 -name sys_clk [get_ports clk50M]
-    #      set_property PACKAGE_PIN L5 [get_ports clk50M]
-    #  这里 BD 顶层端口用【同名】clk50M, 上面的约束自动生效, 不需要改 XDC。
-    #
-    #  ★ 板子上【只有】这一颗时钟晶振。pclk_x5(126MHz) / pclk(25.2MHz) 板上没有,
-    #    必须由这颗 50MHz 经 clk_wiz(MMCM) 产生:
-    #         CLKFBOUT_MULT = 63, DIVCLK_DIVIDE = 5   -> VCO = 630 MHz
-    #         CLKOUT0_DIVIDE = 25 -> pclk    = 25.2 MHz
-    #         CLKOUT1_DIVIDE =  5 -> pclk_x5 = 126 MHz   (严格 5 倍)
+    #  时钟: 整条 PL 统一用 clk_wiz_0/clk_out1 (25.2MHz)
+    #  (clk50M 端口 + clk_wiz_0 已在上面 AXI 基础设施之前建好)
     # =========================================================================
-    if {[get_bd_ports -quiet clk50M] eq ""} {
-        create_bd_port -dir I clk50M
-        puts "\[ACZ7015\] clk50M (L5, 50MHz) 已引到 BD 顶层"
-    }
-
-    # ---- clk_wiz: 50MHz -> pclk 25.2MHz + pclk_x5 126MHz (严格 5 倍) ----
-    #      VCO = 50 * 63 / 5 = 630 MHz
-    #      pclk    = 630 / 25 = 25.2 MHz
-    #      pclk_x5 = 630 /  5 = 126  MHz      126 / 25.2 = 5.000 ✓
-    create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0
-    set_property -dict [list \
-        CONFIG.PRIMITIVE                   {MMCM} \
-        CONFIG.PRIM_IN_FREQ                {50.000} \
-        CONFIG.MMCM_CLKIN1_PERIOD          {20.000} \
-        CONFIG.MMCM_DIVCLK_DIVIDE          {5} \
-        CONFIG.MMCM_CLKFBOUT_MULT_F        {63.000} \
-        CONFIG.MMCM_CLKOUT0_DIVIDE_F       {25.000} \
-        CONFIG.MMCM_CLKOUT1_DIVIDE         {5} \
-        CONFIG.CLKOUT1_REQUESTED_OUT_FREQ  {25.2} \
-        CONFIG.CLKOUT2_USED                {true} \
-        CONFIG.CLKOUT2_REQUESTED_OUT_FREQ  {126.000} \
-        CONFIG.USE_LOCKED                  {true} \
-        CONFIG.USE_RESET                   {false} \
-    ] [get_bd_cells clk_wiz_0]
-    connect_bd_net [get_bd_ports clk50M] [get_bd_pins clk_wiz_0/clk_in1]
-
     if {[get_bd_cells -quiet top1_0] ne ""} {
+        # 注意: top1_0/clk 已经在建 cell 那一段接过了, 这里【不能】再接一次。
         connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins top1_0/pclk]
         connect_bd_net [get_bd_pins clk_wiz_0/clk_out2] [get_bd_pins top1_0/pclk_x5]
-        puts "\[ACZ7015\] clk_wiz_0: 50MHz -> pclk 25.2MHz / pclk_x5 126MHz -> top1_0"
-        puts "\[ACZ7015\]   VCO=630MHz, M=63 D=5 O0=25 O1=5, 126/25.2 = 5.000"
-        puts "\[ACZ7015\]   clk_wiz_0/locked 待接(复位要用它)"
+        puts "\[ACZ7015\] clk_wiz_0: clk_out1(25.2M) -> top1_0/clk + top1_0/pclk"
+        puts "\[ACZ7015\]             clk_out2(126M)  -> top1_0/pclk_x5"
     } else {
-        puts "\[ACZ7015\] clk_wiz_0 已建好(50MHz -> 25.2/126MHz); top1_0 还没加进 BD, 待接"
+        puts "\[ACZ7015\] clk_wiz_0 已建好; top1_0 还没加进 BD, 待接"
     }
 }
 
@@ -487,7 +484,7 @@ if {$want_hp} {
         # 复位由上面 gp_slaves 循环里的 axi_resetn 负责，这里不要重复接。
         foreach _cp {m_axi_mm2s_aclk m_axis_mm2s_aclk m_axi_s2mm_aclk s_axis_s2mm_aclk} {
             if {[get_bd_pins -quiet axi_vdma_0/$_cp] ne ""} {
-                connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_vdma_0/$_cp]
+                connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins axi_vdma_0/$_cp]
             } else {
                 puts "\[ACZ7015\] WARNING: axi_vdma_0/$_cp not found (skipped)"
             }
@@ -497,21 +494,21 @@ if {$want_hp} {
     }
 
     # --- AXI4-Stream：VDMA MM2S -> pl_img_top ---------------------------------
-    #       VDMA MM2S ══AXI4-Stream══► pl_img_top_0/S_AXIS
+    #       VDMA MM2S ══AXI4-Stream══► top1_0/S_AXIS
     #                                  └─► 8bit 像素流 px_* (引到顶层, 接 denose)
     #
     #  ★ 这里就是"把输入 AXI-Stream 的反压激活"的地方：
     #    pl_img_top 内部的 axis_rx_8b 会驱动 s_axis_tready，VDMA 收到 tready
     #    才会继续吐数据；下游 px_ready 拉低时整条流自动停住。
-    #    如果 pl_img_top_0 不存在，VDMA 的 M_AXIS_MM2S 就没人接、tready 悬空，
+    #    如果 top1_0 不存在，VDMA 的 M_AXIS_MM2S 就没人接、tready 悬空，
     #    VDMA 会一直背压停住、帧指针不动 —— 这正是以前"数据一个都不来"的原因。
-    if {[get_bd_cells -quiet pl_img_top_0] ne ""} {
+    if {[get_bd_cells -quiet top1_0] ne ""} {
 
         if {[catch {
             connect_bd_intf_net [get_bd_intf_pins axi_vdma_0/M_AXIS_MM2S] \
-                                [get_bd_intf_pins pl_img_top_0/S_AXIS]
+                                [get_bd_intf_pins top1_0/S_AXIS]
         } _e]} {
-            puts "\[ACZ7015\] pl_img_top_0/S_AXIS 没被推断出来，逐根连"
+            puts "\[ACZ7015\] top1_0/S_AXIS 没被推断出来，逐根连"
             foreach {vp rp} {
                 M_AXIS_MM2S_TDATA  s_axis_tdata
                 M_AXIS_MM2S_TVALID s_axis_tvalid
@@ -520,24 +517,24 @@ if {$want_hp} {
                 M_AXIS_MM2S_TKEEP  s_axis_tkeep
                 M_AXIS_MM2S_TUSER  s_axis_tuser
             } {
-                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins pl_img_top_0/$rp]
+                connect_bd_net [get_bd_pins axi_vdma_0/$vp] [get_bd_pins top1_0/$rp]
             }
         }
 
         # denose 之后的回写通路（VDMA S2MM）按本次改造范围【暂不接】。
         # 留一个悬空接口，Vivado 会给 unconnected 警告，不影响 MM2S 读取。
-        puts "\[ACZ7015\] pl_img_top_0: VDMA MM2S -> 8bit 像素流 (tready 反压已激活)"
+        puts "\[ACZ7015\] top1_0: VDMA MM2S -> 8bit 像素流 (tready 反压已激活)"
         puts "\[ACZ7015\]   像素流出口(接 denose): px_data/px_valid/px_eof/px_ready"
         puts "\[ACZ7015\]   (px_sof=帧首, px_eol=行尾, mode_reg/cmd_reg/cmd_pulse 备用)"
         puts "\[ACZ7015\]   VDMA S_AXIS_S2MM 本步不接(denose 之后的回写通路)"
     } else {
-        puts "\[ACZ7015\] WARNING: pl_img_top_0 不存在，VDMA 的 MM2S 流口悬空"
+        puts "\[ACZ7015\] WARNING: top1_0 不存在，VDMA 的 MM2S 流口悬空"
     }
 
     foreach p {ACLK S00_ACLK S01_ACLK M00_ACLK} {
-        connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins axi_ic_hp/$p]
+        connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins axi_ic_hp/$p]
     }
-    connect_bd_net [get_bd_pins $ps7/FCLK_CLK0] [get_bd_pins $ps7/S_AXI_HP0_ACLK]
+    connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins $ps7/S_AXI_HP0_ACLK]
     foreach p {S00_ARESETN S01_ARESETN M00_ARESETN} {
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_ic_hp/$p]
     }
