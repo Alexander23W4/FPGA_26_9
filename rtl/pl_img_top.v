@@ -6,27 +6,15 @@ module pl_img_top #(
     parameter integer H_PIXELS = 256,    // 一行像素数
     parameter integer V_PIXELS = 256     // 一帧行数
 )(
-    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXIS, ASSOCIATED_RESET rst" *)
     input  wire                    clk,
-
-    (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
-    (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_HIGH" *)
     input  wire                    rst,
 
-    // ---------------- AXI4-Stream 从端: 接 axi_vdma_0/M_AXIS_MM2S --------
-    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TDATA" *)
-    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXIS, TDATA_NUM_BYTES 4, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 50000000, PHASE 0.0, INSERT_VIP 0" *)
+    // ---------------- 普通信号输入: s_axis_* -> px_* --------------------
     input  wire [TDATA_W-1:0]      s_axis_tdata,
-    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TVALID" *)
     input  wire                    s_axis_tvalid,
-    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TREADY" *)
     output wire                    s_axis_tready,
-    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TLAST" *)
     input  wire                    s_axis_tlast,
-    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TKEEP" *)
     input  wire [TDATA_W/8-1:0]    s_axis_tkeep,
-    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TUSER" *)
     input  wire                    s_axis_tuser,
 
     // ---------------- 8bit 像素流输出: 接 top1 ----------------------------
@@ -114,10 +102,6 @@ module pl_img_top #(
         end
     end
 
-    // s_axis_tlast/tuser/tkeep 不参与分帧(用数像素更稳), 保留连线是为了 BD 里
-    // AXI-Stream 接口完整。要做一致性检查可以接 ILA:
-    //   tlast 应该在 px_eol 那一拍为 1。
-    // verilator lint_off UNUSED
     wire _unused = s_axis_tuser ^ s_axis_tlast ^ (|s_axis_tkeep) ^ 1'b0;
     // verilator lint_on UNUSED
 

@@ -1,34 +1,12 @@
 // =============================================================================
 //  top1.v —— PL 算法层
 //
-//  ★ 本次改动: 去掉原来的 AXI4-Stream 从口(s_axis_*), 改成【直接接 pl_img_top
-//    的 8bit 像素流输出】。数据通路现在是:
+//  ★ pl_img_top 集成在本模块内部。数据通路现在是:
 //
-//        VDMA MM2S ══AXIS══► pl_img_top ══8bit 像素流══► top1 ══► denose
-//                                                             │
-//                                                             └── AXI-Lite: PS 控制/调试
+//        AXI-Stream ══► pl_img_top ══8bit 像素流══► denose
+//        AXI-Lite: PS 控制/调试
 //
-//    ⇒ pl_img_top 只负责 "AXI-Stream -> 8bit 像素流", 之后都归 top1 管。
-//
-//  ★ 端口方向(接线的关键):
-//        px_data / px_valid / px_sof / px_eol / px_eof  : 【输入】来自 pl_img_top
-//        px_ready                                       : 【输出】告诉 pl_img_top 收不收
-//      在 BD 里这样连:
-//        pl_img_top_0/px_data  -> top1_0/px_data
-//        pl_img_top_0/px_valid -> top1_0/px_valid
-//        pl_img_top_0/px_eof   -> top1_0/px_eof
-//        pl_img_top_0/px_sof   -> top1_0/px_sof
-//        pl_img_top_0/px_eol   -> top1_0/px_eol
-//        top1_0/px_ready       -> pl_img_top_0/px_ready
-//
-//  ★ denose 就接在这几个像素信号上 —— 见下面 "denose 接这里" 那段。
-//    在 denose 接进来之前, 本模块先把像素流【直通】(px_ready 恒 1),
-//    这样整条通路可以先跑通、调试计数器先能对上。
-//
-//  ⚠ AXI-Lite 地址: 本模块自带 axi_lite_rcv(0x44000000)。
-//    pl_img_top 里也有一份内联的 AXI-Lite 从机, 两者【不能落在同一个地址】。
-//    如果两个模块都在 BD 里, 必须把 pl_img_top 的那份 S_AXI 去掉(或分配别的段),
-//    否则 assign_bd_address / set_property offset 会冲突。
+//    AXI-Stream 从口由 top1 顶层引出，便于在 BD 中连接 VDMA。
 // =============================================================================
 
 `timescale 1ns / 1ps
@@ -37,12 +15,27 @@ module top1 #(
     parameter integer PIXEL_W = 8       // 像素位宽: 8bit 灰度
 )(
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI, ASSOCIATED_RESET rst" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI S_AXIS, ASSOCIATED_RESET rst" *)
     input  wire        clk,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
     (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_HIGH" *)
     input  wire        rst,
+
+    // ---------------- AXI4-Stream 从端：连接 VDMA MM2S ----------------
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TDATA" *)
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXIS, TDATA_NUM_BYTES 4, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 50000000, PHASE 0.0, INSERT_VIP 0" *)
+    input  wire [31:0] s_axis_tdata,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TVALID" *)
+    input  wire        s_axis_tvalid,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TREADY" *)
+    output wire        s_axis_tready,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TLAST" *)
+    input  wire        s_axis_tlast,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TKEEP" *)
+    input  wire [3:0]  s_axis_tkeep,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TUSER" *)
+    input  wire        s_axis_tuser,
 
     // ---------------- AXI-Lite 从口：接 PS ----------------
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWADDR" *)
@@ -85,14 +78,9 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
     input  wire        rready,
 
-    // ---------------- 8bit 像素流输入: 直接接 pl_img_top 的像素流输出 ----------
-    //   注意方向: 这 5 个是【输入】(pl_img_top -> top1), px_ready 是【输出】。
-    input  wire [PIXEL_W-1:0]      px_data,
-    input  wire                    px_valid,
-    input  wire                    px_eof,      // 帧尾 EOF: 最后一行的最后一个像素
-    input  wire                    px_sof,      // 帧首 SOF: 每帧第一个像素
-    input  wire                    px_eol,      // 行尾 EOL: 每行最后一个像素
-    output wire                    px_ready     // 收不收(接 pl_img_top 的 px_ready)
+    input  wire                    pclk_x5,
+    output wire [2:0]              tmds_data_p,
+    output wire                    tmds_clk_p
 );
 
 
@@ -149,6 +137,35 @@ module top1 #(
 
 
 
+    wire [PIXEL_W-1:0] px_data;
+    wire               px_valid;
+    wire               px_eof;
+    wire               px_sof;
+    wire               px_eol;
+    wire               px_ready;
+
+    pl_img_top #(
+        .TDATA_W(32),
+        .PIXEL_W(PIXEL_W),
+        .H_PIXELS(256),
+        .V_PIXELS(256)
+    ) u_pl_img_top (
+        .clk(clk),
+        .rst(rst),
+        .s_axis_tdata(s_axis_tdata),
+        .s_axis_tvalid(s_axis_tvalid),
+        .s_axis_tready(s_axis_tready),
+        .s_axis_tlast(s_axis_tlast),
+        .s_axis_tkeep(s_axis_tkeep),
+        .s_axis_tuser(s_axis_tuser),
+        .px_data(px_data),
+        .px_valid(px_valid),
+        .px_eof(px_eof),
+        .px_sof(px_sof),
+        .px_eol(px_eol),
+        .px_ready(px_ready)
+    );
+
     wire [PIXEL_W-1:0] dn_data;
     wire               dn_valid;
     wire               dn_eof;
@@ -192,6 +209,12 @@ module top1 #(
     wire        hdmi_0_done;
     wire        hdmi_1_done;
     wire        done_accept;
+    wire [7:0]  hdmi_vid_r;
+    wire [7:0]  hdmi_vid_g;
+    wire [7:0]  hdmi_vid_b;
+    wire        hdmi_vid_hs;
+    wire        hdmi_vid_vs;
+    wire        hdmi_vid_de;
     
     hdl_out u_hdl_out (
         .clk(clk),
@@ -230,29 +253,29 @@ module top1 #(
         .buf_idx(fb_read_idx),
         .buf_addr(fb_read_addr),
         .buf_data(fb_read_data),
-        .vid_r(),
-        .vid_g(),
-        .vid_b(),
-        .vid_hs(),
-        .vid_vs(),
-        .vid_de(),
+        .vid_r(hdmi_vid_r),
+        .vid_g(hdmi_vid_g),
+        .vid_b(hdmi_vid_b),
+        .vid_hs(hdmi_vid_hs),
+        .vid_vs(hdmi_vid_vs),
+        .vid_de(hdmi_vid_de),
         .hdmi_0_done(hdmi_0_done),
         .hdmi_1_done(hdmi_1_done),
         .done_accept(done_accept)
     );
 
     hdmi_tx u_hdmi_tx (
-        .pclk(),
-        .pclk_x5(),
-        .rst(),
-        .vid_r(),
-        .vid_g(),
-        .vid_b(),
-        .vid_hs(),
-        .vid_vs(),
-        .vid_de(),
-        .tmds_data_p(),
-        .tmds_clk_p()
+        .pclk(clk),
+        .pclk_x5(pclk_x5),
+        .rst(rst),
+        .vid_r(hdmi_vid_r),
+        .vid_g(hdmi_vid_g),
+        .vid_b(hdmi_vid_b),
+        .vid_hs(hdmi_vid_hs),
+        .vid_vs(hdmi_vid_vs),
+        .vid_de(hdmi_vid_de),
+        .tmds_data_p(tmds_data_p),
+        .tmds_clk_p(tmds_clk_p)
     );
 
 endmodule
