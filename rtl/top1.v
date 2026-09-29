@@ -152,6 +152,7 @@ module top1 #(
     wire [PIXEL_W-1:0] dn_data;
     wire               dn_valid;
     wire               dn_eof;
+    wire               dn_ready;
 
     denose u_denose (
         .ap_clk    (clk),
@@ -171,9 +172,15 @@ module top1 #(
     wire hdl_ready;
     wire [PIXEL_W-1:0] hdl_data;
     wire hdl_valid;
-    wire hdl_last;
+    wire hdl_eof;
 
-    
+    assign hdl_ready = dn_ready;
+    assign hdl_data = dn_data;
+    assign hdl_valid = dn_valid;
+    assign hdl_eof = dn_eof;
+
+
+
 
     
 
