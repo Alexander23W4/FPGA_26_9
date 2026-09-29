@@ -235,6 +235,7 @@ module top1 #(
 
     double_buf u_double_buf (
         .clk(clk),
+        .pclk(pclk),
         .write_en(fb_write_en),
         .read_buf_idx(fb_read_idx),
         .write_buf_idx(fb_write_idx),
@@ -246,7 +247,7 @@ module top1 #(
 
 
     hdmi_out u_hdmi_out (
-        .clk(clk),
+        .clk(pclk),
         .rst(rst),
         .buf_idx(fb_read_idx),
         .buf_addr(fb_read_addr),

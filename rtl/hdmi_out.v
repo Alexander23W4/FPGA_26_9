@@ -29,7 +29,7 @@ assign vid_vs = !((vcnt >= 490) && (vcnt < 492));
 
 module hdmi_out(
 
-    input clk,
+    input pclk,
     input rst,
 
     output buf_idx,
@@ -58,7 +58,7 @@ module hdmi_out(
 
     reg [15:0] counter;
 
-    always @(posedge clk or posedge rst) begin
+    always @(posedge pclk or posedge rst) begin
         if(rst) begin
             state <= IDLE;
 

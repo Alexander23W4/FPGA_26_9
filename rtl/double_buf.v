@@ -8,7 +8,8 @@ buf_idx 选择 read/write 的存储区
 */
 
 module double_buf (
-    input               clk,           
+    input               clk,
+    input               pclk,
 
     input               write_en,       
 
@@ -38,12 +39,12 @@ module double_buf (
             mem1[write_addr] <= write_data;
     end
 
-    // ---- 读通道：各自一个读口，1 拍延迟，读出后二选一 ----
+    // ---- 读通道：pclk 域，各自一个读口，1 拍延迟，读出后二选一 ----
     reg [7:0] q0;
     reg [7:0] q1;
 
-    always @(posedge clk) q0 <= mem0[read_addr];
-    always @(posedge clk) q1 <= mem1[read_addr];
+    always @(posedge pclk) q0 <= mem0[read_addr];
+    always @(posedge pclk) q1 <= mem1[read_addr];
 
     assign read_data = read_buf_idx ? q1 : q0;
 
