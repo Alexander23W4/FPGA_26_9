@@ -31,7 +31,6 @@ while(1){
 #include "app/cfg.h"
 #include "drv/emmc.h"
 #include "drv/vdma.h"
-#include "feat/net_send.h"
 #include "img/catalog.h"
 #include "sleep.h"
 #include "xil_cache.h"
@@ -41,10 +40,8 @@ while(1){
 
 
 
-#define IMG_LOOP_N          1u
-
+#define IMG_LOOP_N          3u      /* 三张图轮流: 原来是 1u, 只会载第一张 iceberg */
 #define ANALYZE_MS          10000u
-
 #define IMG_COUNT           3u
 
 #define IMG1 "D:/test_img/iceberg.bin"
@@ -57,10 +54,6 @@ const char *const imgs[IMG_COUNT] = { IMG1, IMG2, IMG3 };
 /* 一次从 eMMC 读多少块（64 块 = 32KB) */
 #define IMG_READ_CHUNK_BLOCKS   64u
 
-/* 一帧的几何: 256 x 256 x 8bit = 0x10000 = SINGLE_IMG_LEN
- * ★ 本次从 16bit 改成 8bit: IMG_BPP 2 -> 1, 一行字节数 512 -> 256。
- *   这个值同时决定 VDMA 的 HSIZE/STRIDE, 必须和 eMMC 里存的 bpp 一致
- *   (用 emmc_add.ps1 加图时要 -Bpp 1)。 */
 #define IMG_W       256u
 #define IMG_H       256u
 #define IMG_BPP     1u
@@ -72,7 +65,7 @@ const char *const imgs[IMG_COUNT] = { IMG1, IMG2, IMG3 };
 
 
 // 把 path 里面的纯文件名, 提取出来到 out
-static void short_name_from_path(const char *path, char *out, u32 cap)   
+static void short_name_from_path(const char *path, char *out, u32 cap)
 {
     const char *base = path;
     const char *p;
@@ -256,12 +249,12 @@ void pl_ctrl_test_run(void)
     for (;;) {
         u32 i;
         for (i = 0u; i < IMG_LOOP_N; i++) {
+            vdma_mm2s_stop();
 
             load_img__emmc_ddr(imgs[i]);  //
-            
-            start_vdma();       // ddr -> mm2s -> axis_rcv -> img2buf -> frame_buf
+
+            start_vdma();       // ddr -> mm2s -> top1 的 axi-stream
             delay(ANALYZE_MS);
         }
-
     }
 }

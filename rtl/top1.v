@@ -265,8 +265,8 @@ module top1 #(
     );
 
     hdmi_tx u_hdmi_tx (
-        .pclk(pclk),          // ★ 像素时钟: clk_wiz clk_out1 (25.2MHz), 不再是 clk
-        .pclk_x5(pclk_x5),    // ★ 串行时钟: clk_wiz clk_out2 (126MHz) = 5*pclk
+        .pclk(pclk),         
+        .pclk_x5(pclk_x5),  
         .rst(rst),
         .vid_r(hdmi_vid_r),
         .vid_g(hdmi_vid_g),
