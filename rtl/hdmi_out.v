@@ -29,20 +29,23 @@ assign vid_vs = !((vcnt >= 490) && (vcnt < 492));
 
 module hdmi_out(
 
+    input clk,
+    input rst,
+
     output buf_idx,
-    output [15:0] buf_addr,
+    output reg [15:0] buf_addr,
     input [7:0] buf_data,
 
-    output [7:0]  vid_r,
-    output [7:0]  vid_g,
-    output [7:0]  vid_b,
-    output        vid_hs,   // Data Enable：这一拍是不是"可见像素"
-    output        vid_vs,   // 行同步：每行一次，显示器靠它对齐"这一行从哪开始"   低有效
-    output        vid_de,   // 场同步：每帧一次，显示器靠它对齐"这一帧从哪开始"   低有效
+    output reg [7:0]  vid_r,
+    output reg [7:0]  vid_g,
+    output reg [7:0]  vid_b,
+    output reg        vid_hs,   // 行同步，低有效
+    output reg        vid_vs,   // 场同步，低有效
+    output reg        vid_de,   // 数据有效
 
-    output hdmi_0_done;
-    output hdmi_1_done;
-    input done_accept;
+    output reg hdmi_0_done,
+    output reg hdmi_1_done,
+    input done_accept
 );
 
     reg [9:0] hcnt, vcnt;
@@ -55,7 +58,7 @@ module hdmi_out(
 
     reg [15:0] counter;
 
-    always @(posedge clk or posedge clk) begin
+    always @(posedge clk or posedge rst) begin
         if(rst) begin
             state <= IDLE;
 
@@ -128,7 +131,7 @@ module hdmi_out(
                     vid_g = buf_data;
                     vid_b = buf_data;
                 end
-                if(vcnt <= 480 && hcnt <= 640) begin
+                if(vcnt <= 479 && hcnt <= 639) begin
                     vid_de = 1'b1;
                 end
                 if(vcnt >= 490 && vcnt <= 491) begin
