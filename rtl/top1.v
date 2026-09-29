@@ -162,11 +162,18 @@ module top1 #(
         .in_last   (px_eof),  
         .in_ready  (px_ready),    
 
-        .out_ready (1'b1),             
+        .out_ready (dn_ready),             
         .out_data  (dn_data),
         .out_valid (dn_valid),
         .out_last  (dn_eof)      
     );
+
+    wire hdl_ready;
+    wire [PIXEL_W-1:0] hdl_data;
+    wire hdl_valid;
+    wire hdl_last;
+
+    
 
     
 
