@@ -384,6 +384,56 @@ if {$want_axi_infra} {
     } else {
         puts "\[ACZ7015\] WARNING: rtl/hdmi_tx.v 缺失，BD 里没有 HDMI 控制器"
     }
+
+    # =========================================================================
+    #  板载 50 MHz 有源晶振 (clk50M, 引脚 L5) 引入 BD
+    #
+    #  constrs/acz7015/acz7015.xdc 第 1 节已经写好:
+    #      create_clock -period 20.000 -name sys_clk [get_ports clk50M]
+    #      set_property PACKAGE_PIN L5 [get_ports clk50M]
+    #  这里 BD 顶层端口用【同名】clk50M, 上面的约束自动生效, 不需要改 XDC。
+    #
+    #  ★ 板子上【只有】这一颗时钟晶振。pclk_x5(126MHz) / pclk(25.2MHz) 板上没有,
+    #    必须由这颗 50MHz 经 clk_wiz(MMCM) 产生:
+    #         CLKFBOUT_MULT = 63, DIVCLK_DIVIDE = 5   -> VCO = 630 MHz
+    #         CLKOUT0_DIVIDE = 25 -> pclk    = 25.2 MHz
+    #         CLKOUT1_DIVIDE =  5 -> pclk_x5 = 126 MHz   (严格 5 倍)
+    # =========================================================================
+    if {[get_bd_ports -quiet clk50M] eq ""} {
+        create_bd_port -dir I clk50M
+        puts "\[ACZ7015\] clk50M (L5, 50MHz) 已引到 BD 顶层"
+    }
+
+    # ---- clk_wiz: 50MHz -> pclk 25.2MHz + pclk_x5 126MHz (严格 5 倍) ----
+    #      VCO = 50 * 63 / 5 = 630 MHz
+    #      pclk    = 630 / 25 = 25.2 MHz
+    #      pclk_x5 = 630 /  5 = 126  MHz      126 / 25.2 = 5.000 ✓
+    create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0
+    set_property -dict [list \
+        CONFIG.PRIMITIVE                   {MMCM} \
+        CONFIG.PRIM_IN_FREQ                {50.000} \
+        CONFIG.MMCM_CLKIN1_PERIOD          {20.000} \
+        CONFIG.MMCM_DIVCLK_DIVIDE          {5} \
+        CONFIG.MMCM_CLKFBOUT_MULT_F        {63.000} \
+        CONFIG.MMCM_CLKOUT0_DIVIDE_F       {25.000} \
+        CONFIG.MMCM_CLKOUT1_DIVIDE         {5} \
+        CONFIG.CLKOUT1_REQUESTED_OUT_FREQ  {25.2} \
+        CONFIG.CLKOUT2_USED                {true} \
+        CONFIG.CLKOUT2_REQUESTED_OUT_FREQ  {126.000} \
+        CONFIG.USE_LOCKED                  {true} \
+        CONFIG.USE_RESET                   {false} \
+    ] [get_bd_cells clk_wiz_0]
+    connect_bd_net [get_bd_ports clk50M] [get_bd_pins clk_wiz_0/clk_in1]
+
+    if {[get_bd_cells -quiet top1_0] ne ""} {
+        connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins top1_0/pclk]
+        connect_bd_net [get_bd_pins clk_wiz_0/clk_out2] [get_bd_pins top1_0/pclk_x5]
+        puts "\[ACZ7015\] clk_wiz_0: 50MHz -> pclk 25.2MHz / pclk_x5 126MHz -> top1_0"
+        puts "\[ACZ7015\]   VCO=630MHz, M=63 D=5 O0=25 O1=5, 126/25.2 = 5.000"
+        puts "\[ACZ7015\]   clk_wiz_0/locked 待接(复位要用它)"
+    } else {
+        puts "\[ACZ7015\] clk_wiz_0 已建好(50MHz -> 25.2/126MHz); top1_0 还没加进 BD, 待接"
+    }
 }
 
 # =============================================================================

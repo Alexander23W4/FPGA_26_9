@@ -1,14 +1,3 @@
-// =============================================================================
-//  top1.v —— PL 算法层
-//
-//  ★ pl_img_top 集成在本模块内部。数据通路现在是:
-//
-//        AXI-Stream ══► pl_img_top ══8bit 像素流══► denose
-//        AXI-Lite: PS 控制/调试
-//
-//    AXI-Stream 从口由 top1 顶层引出，便于在 BD 中连接 VDMA。
-// =============================================================================
-
 `timescale 1ns / 1ps
 
 module top1 #(
@@ -21,6 +10,14 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
     (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_HIGH" *)
     input  wire        rst,
+
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 pclk CLK" *)
+    (* X_INTERFACE_PARAMETER = "FREQ_HZ 25200000" *)
+    input  wire                    pclk,        // 像素时钟 25.2MHz (clk_wiz clk_out1)
+
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 pclk_x5 CLK" *)
+    (* X_INTERFACE_PARAMETER = "FREQ_HZ 126000000" *)
+    input  wire                    pclk_x5,     // 串行时钟 126MHz = 5*pclk (clk_wiz clk_out2)
 
     // ---------------- AXI4-Stream 从端：连接 VDMA MM2S ----------------
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TDATA" *)
@@ -78,7 +75,7 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
     input  wire        rready,
 
-    input  wire                    pclk_x5,
+    // HDMI 输出信号
     output wire [2:0]              tmds_data_p,
     output wire                    tmds_clk_p
 );
@@ -87,6 +84,7 @@ module top1 #(
     reg [7:0] mode_reg;
     reg [7:0] cmd_reg;
     reg [7:0] data_reg;
+
 
     wire __update_reg;
     wire [8:0] __update_reg_addr;
@@ -265,8 +263,8 @@ module top1 #(
     );
 
     hdmi_tx u_hdmi_tx (
-        .pclk(clk),
-        .pclk_x5(pclk_x5),
+        .pclk(pclk),          // ★ 像素时钟: clk_wiz clk_out1 (25.2MHz), 不再是 clk
+        .pclk_x5(pclk_x5),    // ★ 串行时钟: clk_wiz clk_out2 (126MHz) = 5*pclk
         .rst(rst),
         .vid_r(hdmi_vid_r),
         .vid_g(hdmi_vid_g),
