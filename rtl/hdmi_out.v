@@ -1,4 +1,5 @@
 /*
+
 每一行：640 个可见像素(de=1) + 16 前肩 + 96 同步(hs 拉低) + 48 后肩  = 800
 每一帧：480 行可见         + 10 前肩 +  2 同步(vs 拉低) + 33 后肩  = 525
 
@@ -8,6 +9,9 @@
 
 hcnt: 0 ~ 799
 vcnt: 0 ~ 524
+
+hcnt = 192 ~ 447
+vcnt = 112 ~ 367
 
 0 ~ 639      visible
 640 ~ 655    front porch
@@ -20,6 +24,7 @@ assign vid_hs = !((hcnt >= 656) && (hcnt < 752));
 490 ~ 491     VSYNC
 492 ~ 524     back porch
 assign vid_vs = !((vcnt >= 490) && (vcnt < 492));
+
 */
 
 module hdmi_out(
@@ -32,8 +37,8 @@ module hdmi_out(
     output [7:0]  vid_g,
     output [7:0]  vid_b,
     output        vid_hs,   // Data Enable：这一拍是不是"可见像素"
-    output        vid_vs,   // 行同步：每行一次，显示器靠它对齐"这一行从哪开始"
-    output        vid_de,   // 场同步：每帧一次，显示器靠它对齐"这一帧从哪开始"
+    output        vid_vs,   // 行同步：每行一次，显示器靠它对齐"这一行从哪开始"   低有效
+    output        vid_de,   // 场同步：每帧一次，显示器靠它对齐"这一帧从哪开始"   低有效
 
     output hdmi_0_done;
     output hdmi_1_done;
@@ -48,12 +53,15 @@ module hdmi_out(
     localparam IDLE = 0, BUF = 1;
     reg state, next;
 
+    reg [15:0] counter;
+
     always @(posedge clk or posedge clk) begin
         if(clk) begin
             state <= IDLE;
             buf_idx_save <= '0;
             hcnt <= '0;
             vcnt <= '0;
+            counter <= '0;
             //
         end else begin
             state <= next;
@@ -73,6 +81,14 @@ module hdmi_out(
         next = state;
         hdmi_0_done = 1'b0;
         hdmi_1_done = 1'b0;
+        buf_addr = counter;
+
+        vid_r = '0;
+        vid_g = '0;
+        vid_b = '0;
+        vid_hs = 1'b1;
+        vid_vs = 1'b1;
+        vid_de = 1'b0;
         //
         case(state) 
             IDLE: begin
@@ -82,9 +98,29 @@ module hdmi_out(
                 end
             end
             BUF: begin
-                
+                if(vcnt >= 112 && vcnt <= 367 && hcnt >= 192 && hcnt <= 447) begin  // 灰度图输出有效范围
+                    vid_r = buf_data;
+                    vid_g = buf_data;
+                    vid_b = buf_data;
+                end
+                if(vcnt <= 480 && hcnt <= 640) begin
+                    vid_de = 1'b1;
+                end
+                if(vcnt >= 490 && vcnt <= 491) begin
+                    vid_vs = 1'b0;
+                end
+                if(hvnt >= 656 && hcnt <= 751) begin
+                    vid_hs = 1'b0;
+                end
             end
         endcase
     end
 endmodule
 
+/*
+hcnt = 192 ~ 447
+vcnt = 112 ~ 367
+
+656 ~ 751    HSYNC
+490 ~ 491     VSYNC
+*/
