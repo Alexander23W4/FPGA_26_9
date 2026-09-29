@@ -169,21 +169,90 @@ module top1 #(
         .out_last  (dn_eof)      
     );
 
-    wire hdl_ready;
     wire [PIXEL_W-1:0] hdl_data;
     wire hdl_valid;
     wire hdl_eof;
+    wire hdl_ready;
 
-    assign hdl_ready = dn_ready;
     assign hdl_data = dn_data;
     assign hdl_valid = dn_valid;
     assign hdl_eof = dn_eof;
+    assign dn_ready = hdl_ready;
 
 
 
+    wire        fb_write_idx;
+    wire        fb_read_idx;
+    wire [15:0] fb_write_addr;
+    wire [15:0] fb_read_addr;
+    wire [7:0]  fb_write_data;
+    wire [7:0]  fb_read_data;
+    wire        fb_write_en;
 
+    wire        hdmi_0_done;
+    wire        hdmi_1_done;
+    wire        done_accept;
     
+    hdl_out u_hdl_out (
+        .clk(clk),
+        .rst(rst),
+
+        .hdl_data(hdl_data),
+        .hdl_valid(hdl_valid),
+        .hdl_eof(hdl_eof),
+        .hdl_ready(hdl_ready),
+
+        .buf_idx(fb_write_idx),
+        .buf_addr(fb_write_addr),
+        .buf_data(fb_write_data),
+        .en(fb_write_en),
+
+        .hdmi_0_done(hdmi_0_done),
+        .hdmi_1_done(hdmi_1_done),
+        .done_accept(done_accept)
+    );
+
+    double_buf u_double_buf (
+        .clk(clk),
+        .write_en(fb_write_en),
+        .read_buf_idx(fb_read_idx),
+        .write_buf_idx(fb_write_idx),
+        .read_addr(fb_read_addr),
+        .write_addr(fb_write_addr),
+        .read_data(fb_read_data),
+        .write_data(fb_write_data)
+    );
 
 
+    hdmi_out u_hdmi_out (
+        .clk(clk),
+        .rst(rst),
+        .buf_idx(fb_read_idx),
+        .buf_addr(fb_read_addr),
+        .buf_data(fb_read_data),
+        .vid_r(),
+        .vid_g(),
+        .vid_b(),
+        .vid_hs(),
+        .vid_vs(),
+        .vid_de(),
+        .hdmi_0_done(hdmi_0_done),
+        .hdmi_1_done(hdmi_1_done),
+        .done_accept(done_accept)
+    );
+
+    hdmi_tx u_hdmi_tx (
+        .pclk(),
+        .pclk_x5(),
+        .rst(),
+        .vid_r(),
+        .vid_g(),
+        .vid_b(),
+        .vid_hs(),
+        .vid_vs(),
+        .vid_de(),
+        .tmds_data_p(),
+        .tmds_clk_p()
+    );
 
 endmodule
