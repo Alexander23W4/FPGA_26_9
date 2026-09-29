@@ -62,29 +62,29 @@ module hdmi_out(
         if(rst) begin
             state <= IDLE;
 
-            buf_idx_save <= '0;
+            buf_idx_save <= 0;
 
-            hcnt <= '0;
-            vcnt <= '0;
-            counter <= '0;
+            hcnt <= 0;
+            vcnt <= 0;
+            counter <= 0;
             //
         end else begin
             state <= next;
             if(state == IDLE) begin
-                hcnt <= '0;
-                vcnt <= '0;
+                hcnt <= 0;
+                vcnt <= 0;
             end
             
             if(state == BUF) begin
                 // hcnt比输出灰度信号早一个周期读buf, 错开读延迟
                 if(hcnt == 799) begin
                     if(vcnt == 524) begin
-                        vcnt <= '0;
-                        counter <= '0;
+                        vcnt <= 0;
+                        counter <= 0;
                     end else begin
                         vcnt <= vcnt + 1;
                     end
-                    hcnt <= '0;
+                    hcnt <= 0;
                 end else begin
                     hcnt <= hcnt + 1;
                 end
@@ -111,9 +111,9 @@ module hdmi_out(
         hdmi_1_done = 1'b0;
         buf_addr = counter;
 
-        vid_r = '0;
-        vid_g = '0;
-        vid_b = '0;
+        vid_r = 0;
+        vid_g = 0;
+        vid_b = 0;
         vid_hs = 1'b1;
         vid_vs = 1'b1;
         vid_de = 1'b0;

@@ -108,6 +108,36 @@ foreach intf {DDR FIXED_IO} {
     }
 }
 
+# =============================================================================
+#  时钟源: 板载 50MHz 晶振 (clk50M, 引脚 L5) -> clk_wiz_0
+#      clk_out1 = 25.2 MHz  (clk / pclk / 所有 AXI)
+#      clk_out2 = 126 MHz   (pclk_x5, = 5 * clk_out1)
+#  ★ 整条 PL 【所有】时钟都用 clk_out1, 只有 pclk_x5 用 clk_out2。
+#  ★ 必须建在 M_AXI_GP0_ACLK 回接【之前】: 否则那条连接找不到 clk_wiz_0,
+#    会被 catch 吞掉, 现象就是 M_AXI_GP0_ACLK 悬空 -> BD 41-758。
+#  ★ clk50M 的引脚/时序约束在 constrs/acz7015/acz7015.xdc 里已有。
+# =============================================================================
+if {[get_bd_ports -quiet clk50M] eq ""} {
+    create_bd_port -dir I clk50M
+}
+create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0
+set_property -dict [list \
+    CONFIG.PRIMITIVE                   {MMCM} \
+    CONFIG.PRIM_IN_FREQ                {50.000} \
+    CONFIG.MMCM_CLKIN1_PERIOD          {20.000} \
+    CONFIG.MMCM_DIVCLK_DIVIDE          {5} \
+    CONFIG.MMCM_CLKFBOUT_MULT_F        {63.000} \
+    CONFIG.MMCM_CLKOUT0_DIVIDE_F       {25.000} \
+    CONFIG.MMCM_CLKOUT1_DIVIDE         {5} \
+    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ  {25.2} \
+    CONFIG.CLKOUT2_USED                {true} \
+    CONFIG.CLKOUT2_REQUESTED_OUT_FREQ  {126.000} \
+    CONFIG.USE_LOCKED                  {true} \
+    CONFIG.USE_RESET                   {false} \
+] [get_bd_cells clk_wiz_0]
+connect_bd_net [get_bd_ports clk50M] [get_bd_pins clk_wiz_0/clk_in1]
+puts "\[ACZ7015\] clk_wiz_0: 50MHz -> clk_out1 25.2MHz / clk_out2 126MHz"
+
 # ---- PS7 的 AXI 主口时钟回接 ----
 # 无论是否使用 AXI 外设都必须接，否则 DRC 报 [BD 41-758]
 set _aclk [get_bd_pins -quiet $ps7/M_AXI_GP0_ACLK]
@@ -131,33 +161,7 @@ if {$want_axi_infra} {
         CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ $fclk0 \
     ] $ps7
 
-    # =========================================================================
-    #  时钟源: 板载 50MHz 晶振 (clk50M, 引脚 L5) -> clk_wiz_0
-    #      clk_out1 = 25.2 MHz  (clk / pclk / 所有 AXI)
-    #      clk_out2 = 126 MHz   (pclk_x5, = 5 * clk_out1)
-    #  ★ 整条 PL 【所有】时钟都用 clk_out1, 只有 pclk_x5 用 clk_out2。
-    #  ★ clk50M 的引脚/时序约束在 constrs/acz7015/acz7015.xdc 里已有。
-    # =========================================================================
-    if {[get_bd_ports -quiet clk50M] eq ""} {
-        create_bd_port -dir I clk50M
-    }
-    create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0
-    set_property -dict [list \
-        CONFIG.PRIMITIVE                   {MMCM} \
-        CONFIG.PRIM_IN_FREQ                {50.000} \
-        CONFIG.MMCM_CLKIN1_PERIOD          {20.000} \
-        CONFIG.MMCM_DIVCLK_DIVIDE          {5} \
-        CONFIG.MMCM_CLKFBOUT_MULT_F        {63.000} \
-        CONFIG.MMCM_CLKOUT0_DIVIDE_F       {25.000} \
-        CONFIG.MMCM_CLKOUT1_DIVIDE         {5} \
-        CONFIG.CLKOUT1_REQUESTED_OUT_FREQ  {25.2} \
-        CONFIG.CLKOUT2_USED                {true} \
-        CONFIG.CLKOUT2_REQUESTED_OUT_FREQ  {126.000} \
-        CONFIG.USE_LOCKED                  {true} \
-        CONFIG.USE_RESET                   {false} \
-    ] [get_bd_cells clk_wiz_0]
-    connect_bd_net [get_bd_ports clk50M] [get_bd_pins clk_wiz_0/clk_in1]
-    puts "\[ACZ7015\] clk_wiz_0: 50MHz -> clk_out1 25.2MHz / clk_out2 126MHz"
+    # (clk50M 端口 + clk_wiz_0 已经在上面建好 —— M_AXI_GP0_ACLK 回接要先用到它)
 
     # ---- Processor System Reset ----
     create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps7_50M

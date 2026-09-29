@@ -29,7 +29,7 @@ module hdl_out(
         if(rst) begin
             state <= BUF;
             buf_idx_save <= 1'b0;
-            counter <= '0;
+            counter <= 0;
             // 
         end else begin
             state <= next;
@@ -38,7 +38,7 @@ module hdl_out(
                 counter <= counter + 1;
             end
             if(state == IDLE) begin
-                counter <= '0;
+                counter <= 0;
             end
             
             // 切换buf: 输出此帧已完成且另一个buf 已经被 HDMI完整输出
@@ -61,7 +61,7 @@ module hdl_out(
         buf_addr = counter;
         en = 1'b0;
         done_accept = 1'b0;
-        buf_data = '0;
+        buf_data = 0;
         //
         case (state)
             BUF: begin
