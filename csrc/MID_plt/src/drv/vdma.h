@@ -76,20 +76,9 @@ int  vdma_mm2s_wait_running(u32 spins);
 void vdma_mm2s_report(void);
 
 /* ==========================================================================
- *  S2MM (write channel): the PL streams the result image back into DDR,
- *  and the PS reads it from there.
- *
- *  Register map mirrors MM2S:
- *      S2MM channel control/status : base + 0x30 / base + 0x34
- *      S2MM parameter register file: base + 0xA0
- *          +0x00 VSIZE  +0x04 HSIZE  +0x08 STRIDE|FRMDLY  +0x0C START_ADDRESS
- *      current write frame number  : PARK_PTR[28:24]
+ *  S2MM (write channel) 已删除
+ *  原来 PL 的结果经 AXI-Stream 回写 DDR, 再由 PS 网口回读。
+ *  现在结果由 PL 直接走 HDMI 输出, 不需要回读。
  * ========================================================================== */
-int  vdma_s2mm_stop(void);
-int  vdma_s2mm_config(u32 ddr_addr, u32 hsize_bytes, u32 vsize_lines, u32 stride_bytes);
-int  vdma_s2mm_start(void);
-u32  vdma_s2mm_write_frame(void);
-int  vdma_s2mm_wait_frames(u32 f0, u32 spins);
-void vdma_s2mm_report(void);
 
 #endif /* DRV_VDMA_H */

@@ -160,26 +160,6 @@ int feat_img2ddr_run(void)
                    (s32)sr, (int)(sr & 1u), (int)((sr >> 1) & 1u));
         if ((sr & 0x00000FF0u) != 0u) {
             xil_printf("        !!! VDMA 报了错误位，通路有问题:\r\n");
-            /* ---------- 7. S2MM: PL result stream goes back into DDR ---------- */
-    xil_printf("\r\n===== step 7: VDMA S2MM (AXI-Stream -> DDR) =====\r\n");
-    (void)vdma_s2mm_stop();
-    if (vdma_s2mm_config(IMG_RES_DDR_BASE, hsize, g.h, hsize) == 0) {
-        u32 wf0 = vdma_s2mm_write_frame();
-
-        (void)vdma_s2mm_start();
-        xil_printf("  S2MM started, results go to DDR 0x%08X\r\n", (s32)IMG_RES_DDR_BASE);
-
-        if (vdma_s2mm_wait_frames(wf0, 4000000u) == 0) {
-            xil_printf("  >>> S2MM write frame advanced: the PL result stream reached DDR\r\n");
-        } else {
-            xil_printf("  >>> S2MM write frame did not move: your algorithm module is not"
-                       " attached yet\r\n");
-            xil_printf("      (wire it between axis_rcv_0/px_* and axis_out_0/res_*)\r\n");
-        }
-        vdma_s2mm_report();
-    }
-
-    vdma_mm2s_report();
             xil_printf("\r\nRESULT: FAILED (VDMA error bits set)\r\n");
             return -1;
         }
@@ -207,24 +187,7 @@ int feat_img2ddr_run(void)
         }
     }
 
-    /* ---------- 7. S2MM: PL result stream goes back into DDR ---------- */
-    xil_printf("\r\n===== step 7: VDMA S2MM (AXI-Stream -> DDR) =====\r\n");
-    (void)vdma_s2mm_stop();
-    if (vdma_s2mm_config(IMG_RES_DDR_BASE, hsize, g.h, hsize) == 0) {
-        u32 wf0 = vdma_s2mm_write_frame();
-
-        (void)vdma_s2mm_start();
-        xil_printf("  S2MM started, results go to DDR 0x%08X\r\n", (s32)IMG_RES_DDR_BASE);
-
-        if (vdma_s2mm_wait_frames(wf0, 4000000u) == 0) {
-            xil_printf("  >>> S2MM write frame advanced: the PL result stream reached DDR\r\n");
-        } else {
-            xil_printf("  >>> S2MM write frame did not move: your algorithm module is not"
-                       " attached yet\r\n");
-            xil_printf("      (wire it between axis_rcv_0/px_* and axis_out_0/res_*)\r\n");
-        }
-        vdma_s2mm_report();
-    }
+    /* step 7 (VDMA S2MM 回写) 已删除: 结果由 PL 直接走 HDMI 输出, 不再回 DDR。 */
 
     vdma_mm2s_report();
     return 0;

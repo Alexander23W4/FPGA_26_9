@@ -26,11 +26,8 @@
  * ========================================================================== */
 #define IMG_DDR_BASE        0x20000000u
 #define IMG_DDR_SIZE        (16u * 1024u * 1024u)
-/* Result image buffer: the PL writes the segmentation result back here and
- * the PS reads it out to send over Ethernet. Placed right after the input
- * buffer so the two never overlap. */
-#define IMG_RES_DDR_BASE    (IMG_DDR_BASE + 0x00800000u)
-#define IMG_RES_DDR_SIZE    (4u * 1024u * 1024u)      /* 预留 16MB */
+/* 结果图回写缓冲区 IMG_RES_DDR_BASE / IMG_RES_DDR_SIZE 已删除:
+ * 结果不再经 VDMA S2MM 回 DDR, 由 PL 直接走 HDMI 输出。 */
 
 /* ==========================================================================
  *  eMMC 布局

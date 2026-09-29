@@ -34,11 +34,7 @@
 #define VDMA_HI_FRMBUF_OFFSET   0x14u
 #define VDMA_PARKPTR_OFFSET     0x28u
 #define VDMA_VERSION_OFFSET     0x2Cu
-/* S2MM 通道的控制/状态寄存器 —— 只有 0x30/0x34 这两个在 MM2S 的代码里也要用
- * （vdma_mm2s_stop() 里要一起打印 s2mm 的原始状态），所以提到这里声明。
- * 剩下的 S2MM 专用偏移（REG_OFF / PARKPTR 掩码）仍放在文件的 S2MM 段里。 */
-#define VDMA_S2MM_CR_OFF        0x30u    /* S2MM_VDMACR */
-#define VDMA_S2MM_SR_OFF        0x34u    /* S2MM_VDMASR */
+/* S2MM 通道(0x30/0x34 等)已废弃, 见文件末尾说明。 */
 
 #define VDMA_MM2S_VSIZE_OFF     0x00u
 #define VDMA_MM2S_HSIZE_OFF     0x04u
@@ -71,7 +67,6 @@
 /* config() 记下 vsize, start() 在置 RS 之后再写一次。
  * 直接寄存器模式下, 这一写才是真正启动搬运的"提交"动作, 见 vdma_mm2s_start()。 */
 static u32 g_mm2s_vsize = 0u;
-static u32 g_s2mm_vsize = 0u;
 
 
 /* ======================= 真正有 VDMA 的版本 ============================== */
@@ -125,9 +120,8 @@ int vdma_mm2s_stop(void)
      *   正常情况下刚配置完 PL / 刚上电时 SR.HALTED 应该是 1；
      *   如果这里就看到 HALTED=0，说明搬运器早就卡住了，后面的 stop/reset
      *   超时都只是这个卡死的表现，而不是我们操作错了。 */
-    xil_printf("vdma: pre-stop  mm2s CR=0x%08X SR=0x%08X | s2mm CR=0x%08X SR=0x%08X\r\n",
-               (s32)vdma_rd(VDMA_CR_OFFSET),      (s32)vdma_rd(VDMA_SR_OFFSET),
-               (s32)vdma_rd(VDMA_S2MM_CR_OFF),    (s32)vdma_rd(VDMA_S2MM_SR_OFF));
+    xil_printf("vdma: pre-stop  mm2s CR=0x%08X SR=0x%08X\r\n",
+               (s32)vdma_rd(VDMA_CR_OFFSET), (s32)vdma_rd(VDMA_SR_OFFSET));
 
     vdma_wr(VDMA_CR_OFFSET, vdma_rd(VDMA_CR_OFFSET) & ~CR_RUNSTOP);
 
@@ -297,92 +291,10 @@ void vdma_mm2s_report(void)
 
 
 /* ==========================================================================
- *  S2MM (write channel): the PL result stream goes back into DDR.
+ *  S2MM (write channel) 已删除
+ * --------------------------------------------------------------------------
+ *  原来 PL 的处理结果经 AXI-Stream 回写 DDR(VDMA S2MM), 再由 PS 网口发给笔记本。
+ *  现在结果由 PL 直接走 HDMI 输出, 不需要回读, 所以:
+ *      vdma_s2mm_stop / config / start / write_frame / wait_frames / report
+ *  以及 S2MM 的寄存器偏移全部删掉。
  * ========================================================================== */
-#define VDMA_S2MM_REG_OFF     0xA0u
-#define PARKPTR_WRTSTR_MASK   0x1F000000u
-#define PARKPTR_WRTSTR_SHIFT  24u
-
-int vdma_s2mm_stop(void)
-{
-    u32 spins = VDMA_SPIN_LIMIT;
-
-    vdma_wr(VDMA_S2MM_CR_OFF, vdma_rd(VDMA_S2MM_CR_OFF) & ~CR_RUNSTOP);
-    while (spins-- != 0u) {
-        if ((vdma_rd(VDMA_S2MM_SR_OFF) & SR_HALTED) != 0u) {
-            return 0;
-        }
-    }
-    return -1;
-}
-
-int vdma_s2mm_config(u32 ddr_addr, u32 hsize_bytes, u32 vsize_lines, u32 stride_bytes)
-{
-    u32 i;
-
-    if (hsize_bytes == 0u || hsize_bytes > 0xFFFFu) {
-        xil_printf("vdma: s2mm hsize %d out of range\r\n", (s32)hsize_bytes);
-        return -1;
-    }
-    if (vsize_lines == 0u || vsize_lines > 0x1FFFu) {
-        xil_printf("vdma: s2mm vsize %d out of range\r\n", (s32)vsize_lines);
-        return -1;
-    }
-    if ((ddr_addr & 0x3u) != 0u) {
-        xil_printf("vdma: s2mm addr 0x%08X not 4-byte aligned\r\n", (s32)ddr_addr);
-        return -1;
-    }
-
-    g_s2mm_vsize = vsize_lines;
-    vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_VSIZE_OFF, vsize_lines);
-    vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_HSIZE_OFF, hsize_bytes);
-    vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_STRD_OFF, stride_bytes & 0xFFFFu);
-    for (i = 0u; i < VDMA_SAME_ADDR_FRAMES; i++) {
-        vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_STARTADDR_OFF + (i * 4u), ddr_addr);
-    }
-
-    xil_printf("vdma: s2mm cfg addr=0x%08X hsize=%d vsize=%d stride=%d\r\n",
-               (s32)ddr_addr, (s32)hsize_bytes, (s32)vsize_lines, (s32)stride_bytes);
-    return 0;
-}
-
-int vdma_s2mm_start(void)
-{
-    u32 v = vdma_rd(VDMA_S2MM_CR_OFF);
-
-    v |= CR_RUNSTOP;
-    /* 同 MM2S: bit1 = 1 才是 Circular; 置 0 是 Park, 通道会停在 park 帧上不搬数据 */
-    v |= CR_TAIL_EN;
-    vdma_wr(VDMA_S2MM_CR_OFF, v);
-
-    /* 同 MM2S: 置 RS 之后必须再写一次 VSIZE 才是"提交启动", 见 vdma_mm2s_start() */
-    vdma_wr(VDMA_S2MM_REG_OFF + VDMA_MM2S_VSIZE_OFF, g_s2mm_vsize);
-    return 0;
-}
-
-u32 vdma_s2mm_write_frame(void)
-{
-    return (vdma_rd(VDMA_PARKPTR_OFFSET) & PARKPTR_WRTSTR_MASK) >> PARKPTR_WRTSTR_SHIFT;
-}
-
-int vdma_s2mm_wait_frames(u32 f0, u32 spins)
-{
-    while (spins-- != 0u) {
-        if (vdma_s2mm_write_frame() != f0) {
-            return 0;
-        }
-    }
-    return -1;
-}
-
-void vdma_s2mm_report(void)
-{
-    u32 sr = vdma_rd(VDMA_S2MM_SR_OFF);
-
-    xil_printf("  S2MM SR : 0x%08X  HALTED=%d IDLE=%d  write frame=%d\r\n",
-               (s32)sr, (int)(sr & SR_HALTED), (int)((sr >> 1) & 1u),
-               (s32)vdma_s2mm_write_frame());
-    if ((sr & SR_ERR_ALL) != 0u) {
-        xil_printf("    S2MM ERRORS: 0x%03X\r\n", (s32)((sr & SR_ERR_ALL) >> 4));
-    }
-}

@@ -243,7 +243,7 @@ if {$want_axi_infra} {
         #   (若这次仍失败, 就只剩 ILA 直接看 m_axi_mm2s 的 rdata 了。)
         if {[catch {
             set_property -dict [list \
-                CONFIG.c_include_s2mm            {1} \
+                CONFIG.c_include_s2mm            {0} \
                 CONFIG.c_include_mm2s            {1} \
                 CONFIG.c_num_fstores             {4} \
                 CONFIG.c_addr_width              {32} \
@@ -460,17 +460,14 @@ if {$want_hp} {
 
     create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_ic_hp
     # S00 = AXI VDMA 的 M_AXI_MM2S（VDMA 从这里读 DDR）
-    set_property -dict [list CONFIG.NUM_SI {2} CONFIG.NUM_MI {1}] [get_bd_cells axi_ic_hp]
+    set_property -dict [list CONFIG.NUM_SI {1} CONFIG.NUM_MI {1}] [get_bd_cells axi_ic_hp]
 
     # S_AXI_HP0 在 Zynq-7000 上是 AXI3 / 64bit，interconnect 负责协议转换
     connect_bd_intf_net [get_bd_intf_pins axi_ic_hp/M00_AXI] [get_bd_intf_pins $ps7/S_AXI_HP0]
 
-    # --- AXI VDMA memory WRITE port (S2MM) -> S01 : result image goes back to DDR ---
-    if {[get_bd_pins -quiet axi_vdma_0/m_axi_s2mm_aclk] ne ""} {
-        puts "\[ACZ7015\] Connecting AXI VDMA S2MM -> axi_ic_hp/S01_AXI -> PS S_AXI_HP0"
-        connect_bd_intf_net [get_bd_intf_pins axi_vdma_0/M_AXI_S2MM] \
-                            [get_bd_intf_pins axi_ic_hp/S01_AXI]
-    }
+    # --- VDMA S2MM (回写通道) 已废弃 ---
+    # 结果由 PL 直接走 HDMI 输出, 不再回写 DDR: axi_vdma_0 的 c_include_s2mm=0,
+    # 这里不再连 M_AXI_S2MM, axi_ic_hp 也只留 S00。
 
     # --- AXI VDMA 的内存读口接到 S00 ---
     # 注意：VDMA 的 s_axi_lite_aclk / axi_resetn 已经在上面 gp_slaves
@@ -482,7 +479,7 @@ if {$want_hp} {
         # VDMA 有时钟域：内存/控制一个（m_axi_mm2s_aclk）+ 流一个（m_axis_mm2s_aclk）。
         # 全部给同一个 FCLK_CLK0。m_axis_mm2s_aclk 不接的话流那边根本不工作。
         # 复位由上面 gp_slaves 循环里的 axi_resetn 负责，这里不要重复接。
-        foreach _cp {m_axi_mm2s_aclk m_axis_mm2s_aclk m_axi_s2mm_aclk s_axis_s2mm_aclk} {
+        foreach _cp {m_axi_mm2s_aclk m_axis_mm2s_aclk} {
             if {[get_bd_pins -quiet axi_vdma_0/$_cp] ne ""} {
                 connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins axi_vdma_0/$_cp]
             } else {
@@ -531,11 +528,11 @@ if {$want_hp} {
         puts "\[ACZ7015\] WARNING: top1_0 不存在，VDMA 的 MM2S 流口悬空"
     }
 
-    foreach p {ACLK S00_ACLK S01_ACLK M00_ACLK} {
+    foreach p {ACLK S00_ACLK M00_ACLK} {
         connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins axi_ic_hp/$p]
     }
     connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins $ps7/S_AXI_HP0_ACLK]
-    foreach p {S00_ARESETN S01_ARESETN M00_ARESETN} {
+    foreach p {S00_ARESETN M00_ARESETN} {
         connect_bd_net [get_bd_pins rst_ps7_50M/peripheral_aresetn] [get_bd_pins axi_ic_hp/$p]
     }
     # interconnect 自己的全局复位

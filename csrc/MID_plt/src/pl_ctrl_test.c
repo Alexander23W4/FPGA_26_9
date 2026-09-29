@@ -14,11 +14,11 @@ while(1){
 开始分析
 等10秒
 
-载入第二章图片
+载入第二张图片
 开始分析
 等10秒
 
-第三章
+第三张
 开始分析
 等10秒
 }
@@ -40,7 +40,7 @@ while(1){
 
 
 
-#define IMG_LOOP_N          3u      /* 三张图轮流: 原来是 1u, 只会载第一张 iceberg */
+#define IMG_LOOP_N          3u     
 #define ANALYZE_MS          10000u
 #define IMG_COUNT           3u
 
@@ -200,9 +200,6 @@ void start_vdma(void)
     vdma_mm2s_config(SINGLE_IMG_ADDR, IMG_STRIDE, IMG_H, IMG_STRIDE);
     vdma_mm2s_start();
 
-    vdma_s2mm_stop();
-    vdma_s2mm_config(IMG_RES_DDR_BASE, IMG_STRIDE, IMG_H, IMG_STRIDE);
-    vdma_s2mm_start();
 }
 
 
