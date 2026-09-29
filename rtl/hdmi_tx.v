@@ -6,7 +6,7 @@
 //        tmds_data_p[2]  K7   TMDS_33
 //        tmds_data_p[1]  M8   TMDS_33
 //        tmds_data_p[0]  N6   TMDS_33
-//        tmds_clk_p      T2   TMDS_33
+//        tmds_tx_p      T2   TMDS_33
 //    (差分对 N 端由 OBUFDS 自动配对, 不需要在 XDC 里单列。)
 //
 //  实现: 8b/10b TMDS 编码 + OSERDESE2 (DDR, 10:1) 串化 + OBUFDS 差分输出。
@@ -39,9 +39,17 @@ module hdmi_tx (
     input  wire        vid_vs,
     input  wire        vid_de,
 
-    // ---------------- TMDS 输出: 接板上 HDMI_2 ----------------
-    output wire [2:0]  tmds_data_p,
-    output wire        tmds_clk_p
+    // ---------------- TMDS 串行位输出 (OBUFDS 在 top1 里, 紧贴模块端口) -------
+    //   ★ 这里【不】实例化 OBUFDS。原因: BD 的 module-reference 流程会给本模块
+    //     的端口加 IO_BUFFER_TYPE=NONE, 表示"缓冲在模块输出口这一层"。
+    //     如果 OBUFDS 放在更深一层(top1_0/inst/u_hdmi_tx/obuf_*), 它和
+    //     OSERDESE2 组成的那组 shape 会被判定无法落在被 PACKAGE_PIN 钉住的 IO 上,
+    //     报 [Vivado 12-1411] Cannot set LOC property of ports —— 引脚约束失效,
+    //     最终 UCIO-1 挡住 bitstream。
+    output wire        tmds_ser_r,
+    output wire        tmds_ser_g,
+    output wire        tmds_ser_b,
+    output wire        tmds_ser_c
 );
 
     // -------------------------------------------------------------------------
@@ -64,7 +72,7 @@ module hdmi_tx (
         input [4:0] cnt;               // 进入本级的游程差
         reg   [3:0] n1d;               // 数据里 1 的个数
         reg   [3:0] n0d;
-        reg   [4:0] q_m;               // 一次编码结果(9bit: 8 数据 + 1 标志)
+        reg   [8:0] q_m;               // 一次编码结果(9bit: 8 数据 + 1 标志)
         reg   [3:0] n1q;
         reg   [3:0] n0q;
         reg   [9:0] q_out;
@@ -150,7 +158,7 @@ module hdmi_tx (
     wire ser_r, ser_g, ser_b, ser_c;
 
     // 时钟通道用固定图案 1111100000
-    wire [9:0] tmds_clk_pat = 10'b1111100000;
+    wire [9:0] tmds_tx_pat = 10'b1111100000;
 
     // ---- R ----
     OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
@@ -216,8 +224,8 @@ module hdmi_tx (
     OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_c_m (
         .OQ(ser_c), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(tmds_clk_pat[0]), .D2(tmds_clk_pat[1]), .D3(tmds_clk_pat[2]), .D4(tmds_clk_pat[3]),
-        .D5(tmds_clk_pat[4]), .D6(tmds_clk_pat[5]), .D7(tmds_clk_pat[6]), .D8(tmds_clk_pat[7]),
+        .D1(tmds_tx_pat[0]), .D2(tmds_tx_pat[1]), .D3(tmds_tx_pat[2]), .D4(tmds_tx_pat[3]),
+        .D5(tmds_tx_pat[4]), .D6(tmds_tx_pat[5]), .D7(tmds_tx_pat[6]), .D8(tmds_tx_pat[7]),
         .SHIFTIN1(1'b0), .SHIFTIN2(1'b0), .SHIFTOUT1(sh1_c), .SHIFTOUT2(sh2_c),
         .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
         .TBYTEOUT(), .TFB(), .TQ()
@@ -225,7 +233,7 @@ module hdmi_tx (
     OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_c_s (
         .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(1'b0), .D2(1'b0), .D3(tmds_clk_pat[8]), .D4(tmds_clk_pat[9]),
+        .D1(1'b0), .D2(1'b0), .D3(tmds_tx_pat[8]), .D4(tmds_tx_pat[9]),
         .D5(1'b0), .D6(1'b0), .D7(1'b0), .D8(1'b0),
         .SHIFTIN1(sh1_c), .SHIFTIN2(sh2_c), .SHIFTOUT1(), .SHIFTOUT2(),
         .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
@@ -233,12 +241,13 @@ module hdmi_tx (
     );
 
     // -------------------------------------------------------------------------
-    //  差分输出: OBUFDS -> tmds_data_p[x] / tmds_clk_p
+    //  差分输出: OBUFDS -> tmds_data_p[x] / tmds_tx_p
     //  (N 端由 OBUFDS 产生, XDC 里只约束了 P 端, 差分对自动配对)
     // -------------------------------------------------------------------------
-    OBUFDS obuf_r (.I(ser_r), .O(tmds_data_p[0]), .OB());
-    OBUFDS obuf_g (.I(ser_g), .O(tmds_data_p[1]), .OB());
-    OBUFDS obuf_b (.I(ser_b), .O(tmds_data_p[2]), .OB());
-    OBUFDS obuf_c (.I(ser_c), .O(tmds_clk_p),      .OB());
+    // OBUFDS 已移到 top1.v (紧贴 module-reference 端口边界), 这里只把串行位送出去。
+    assign tmds_ser_r = ser_r;
+    assign tmds_ser_g = ser_g;
+    assign tmds_ser_b = ser_b;
+    assign tmds_ser_c = ser_c;
 
 endmodule

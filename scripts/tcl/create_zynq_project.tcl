@@ -63,6 +63,12 @@ set script_dir [file normalize [file dirname [info script]]]
 set repo_root  [file normalize [file join $script_dir .. ..]]
 set preset_tcl [file normalize [file join $repo_root board acz7015 ps7_preset.tcl]]
 set xdc_file   [file normalize [file join $repo_root constrs "${proj_name}.xdc"]]
+# ★ 板级引脚模板: 所有 PACKAGE_PIN / IOSTANDARD 都在这个文件里
+#   (clk50M=L5, tmds_data_p[2:0]=K7/M8/N6, tmds_tx_p=T2 ...)。
+#   create_pl_project.tcl 里本来就挂了它, zynq 流程之前漏了 —— 后果是
+#   这些端口全都没有 LOC/IOSTANDARD, 实现时 place 直接报
+#   [Place 30-379] "Output of OBUF instance ... is not driving any port"。
+set board_xdc  [file normalize [file join $repo_root constrs acz7015 acz7015.xdc]]
 set part_name  "xc7z015clg485-2"
 
 puts "=============================================="
@@ -85,6 +91,14 @@ set_property target_language Verilog [current_project]
 if {[file exists $xdc_file]} {
     add_files -fileset constrs_1 -norecurse $xdc_file
     puts "\[ACZ7015\] Project constraints added: $xdc_file"
+} else {
+    puts "\[ACZ7015\] NOTE: $xdc_file 不存在（工程专用约束，可以缺省）"
+}
+if {[file exists $board_xdc]} {
+    add_files -fileset constrs_1 -norecurse $board_xdc
+    puts "\[ACZ7015\] Board constraints added: $board_xdc"
+} else {
+    error "板级约束缺失: $board_xdc —— 没有它所有引脚都没有 LOC/IOSTANDARD"
 }
 
 # ----------------------------- Block Design ---------------------------------
@@ -401,7 +415,7 @@ if {$want_axi_infra} {
     #
     #  引脚约束已经在 constrs/acz7015/acz7015.xdc 里写好了(端口名一致):
     #      tmds_data_p[2]  K7      tmds_data_p[1]  M8
-    #      tmds_data_p[0]  N6      tmds_clk_p      T2      (IOSTANDARD TMDS_33)
+    #      tmds_data_p[0]  N6      tmds_tx_p      T2      (IOSTANDARD TMDS_33)
     #  差分对 N 端由 OBUFDS 自动配对, XDC 里不用单列。
     #
     #  ★ 输入(pclk / pclk_x5 / rst / vid_r / vid_g / vid_b / vid_hs / vid_vs /
@@ -412,11 +426,15 @@ if {$want_axi_infra} {
         # hdmi_tx 已经实例化在 top1 里面, 这里【不再单独建 cell】,
         # 只把顶层 TMDS 端口建出来, 由 top1_0 驱动。
         create_bd_port -dir O -from 2 -to 0 tmds_data_p
-        create_bd_port -dir O                   tmds_clk_p
+        create_bd_port -dir O -from 2 -to 0 tmds_data_n
+        create_bd_port -dir O                   tmds_tx_p
+        create_bd_port -dir O                   tmds_tx_n
         connect_bd_net [get_bd_pins top1_0/tmds_data_p] [get_bd_ports tmds_data_p]
-        connect_bd_net [get_bd_pins top1_0/tmds_clk_p]  [get_bd_ports tmds_clk_p]
+        connect_bd_net [get_bd_pins top1_0/tmds_data_n] [get_bd_ports tmds_data_n]
+        connect_bd_net [get_bd_pins top1_0/tmds_tx_p]  [get_bd_ports tmds_tx_p]
+        connect_bd_net [get_bd_pins top1_0/tmds_tx_n]  [get_bd_ports tmds_tx_n]
 
-        puts "\[ACZ7015\] hdmi_tx_0: TMDS 输出 -> tmds_data_p[2:0] / tmds_clk_p (板上 HDMI_2 J7)"
+        puts "\[ACZ7015\] hdmi_tx_0: TMDS 输出 -> tmds_data_p[2:0] / tmds_tx_p (板上 HDMI_2 J7)"
         puts "\[ACZ7015\]          输入 pclk/pclk_x5/rst/vid_* 留空, 待接"
     } else {
         puts "\[ACZ7015\] WARNING: rtl/hdmi_tx.v 缺失，BD 里没有 HDMI 控制器"

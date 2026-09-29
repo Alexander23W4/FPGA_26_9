@@ -48,8 +48,13 @@ set_property IOSTANDARD LVCMOS33 [get_ports clk50M]
 
 # ---- 摄像头像素时钟（OV5640 PCLK，输入）-----------------------------------
 # 周期 13.888 ns ≈ 72 MHz（OV5640 常用 PCLK 上限）
-create_clock -period 13.888 -name Cam_PCLK [get_ports Cam_PCLK]
-set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets Cam_PCLK_IBUF]
+# ★★ 已注释掉: 本设计(zynq 流程)里【没有】Cam_PCLK 这个端口。
+#   这两行配上空的 get_ports / get_nets 会让 Vivado 在此处报错并【中断整个
+#   约束文件】, 于是它【后面所有】约束(包括 HDMI_2 那 8 个端口的 PACKAGE_PIN)
+#   全部失效 —— 现象就是 write_bitstream 前 UCIO-1 报 "8 ports have no LOC"。
+#   以后要接摄像头再放开。
+# create_clock -period 13.888 -name Cam_PCLK [get_ports Cam_PCLK]
+# set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets Cam_PCLK_IBUF]
 
 
 # =============================================================================
@@ -60,25 +65,33 @@ set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets Cam_PCLK_IBUF]
 #  需要 7 系列 OSERDESE2 做 10:1 串行化（5:1 DDR × 2），
 #  配合 OBUFDS 输出差分对。IOSTANDARD 必须是 TMDS_33。
 #
-#  ⚠ 只约束差分对的 P 端，N 端由 Vivado 自动配对。
+#  ⚠ P/N 两端【都要】声明 IOSTANDARD。只声明 P 端的话, Vivado 会把端口当成
+#    单端, 报 [DRC IOSTDTYPE-1] "Single-Ended but TMDS_33 requires
+#    Differential", 并在 place 时报 [Place 30-379] "Output of OBUF instance
+#    is not driving any port"。
+#  ⚠ PACKAGE_PIN 只给 P 端 —— 差分对里 Vivado 会把 N 端自动放到配对引脚上。
 #  ⚠ 这 4 对引脚在 bank 34，属于 VCCIO_BANK1(3.3V) 域。
 # =============================================================================
 set_property IOSTANDARD TMDS_33 [get_ports {tmds_data_p[2]}]
 set_property IOSTANDARD TMDS_33 [get_ports {tmds_data_p[1]}]
 set_property IOSTANDARD TMDS_33 [get_ports {tmds_data_p[0]}]
-set_property IOSTANDARD TMDS_33 [get_ports tmds_clk_p]
+set_property IOSTANDARD TMDS_33 [get_ports tmds_tx_p]
+set_property IOSTANDARD TMDS_33 [get_ports {tmds_data_n[2]}]
+set_property IOSTANDARD TMDS_33 [get_ports {tmds_data_n[1]}]
+set_property IOSTANDARD TMDS_33 [get_ports {tmds_data_n[0]}]
+set_property IOSTANDARD TMDS_33 [get_ports tmds_tx_n]
 set_property PACKAGE_PIN K7 [get_ports {tmds_data_p[2]}]
 set_property PACKAGE_PIN M8 [get_ports {tmds_data_p[1]}]
 set_property PACKAGE_PIN N6 [get_ports {tmds_data_p[0]}]
-set_property PACKAGE_PIN T2 [get_ports tmds_clk_p]
+set_property PACKAGE_PIN T2 [get_ports tmds_tx_p]
 
 # 原始 XDC 里同一组引脚还有一组别名（tmds_data_p_0 / tmds_clk_0_clk_p），
-# 是不同例程留下的重复定义，此处已统一为 tmds_data_p / tmds_clk_p。
+# 是不同例程留下的重复定义，此处已统一为 tmds_data_p / tmds_tx_p。
 # 若你的顶层用旧名字，请改成：
 #   set_property PACKAGE_PIN K7 [get_ports {tmds_data_p_0[2]}]
 #   set_property PACKAGE_PIN M8 [get_ports {tmds_data_p_0[1]}]
 #   set_property PACKAGE_PIN N6 [get_ports {tmds_data_p_0[0]}]
-#   set_property PACKAGE_PIN T2 [get_ports tmds_clk_p_0]
+#   set_property PACKAGE_PIN T2 [get_ports tmds_tx_p_0]
 
 
 # =============================================================================

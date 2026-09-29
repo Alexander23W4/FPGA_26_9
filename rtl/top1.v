@@ -76,9 +76,11 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
     input  wire        rready,
 
-    // HDMI 输出信号
+    // HDMI 输出信号 (P/N 都要引出来, 见 hdmi_tx.v 里的说明)
     output wire [2:0]              tmds_data_p,
-    output wire                    tmds_clk_p
+    output wire [2:0]              tmds_data_n,
+    output wire                    tmds_tx_p,
+    output wire                    tmds_tx_n
 );
 
 
@@ -248,7 +250,7 @@ module top1 #(
 
 
     hdmi_out u_hdmi_out (
-        .clk(pclk),
+        .pclk(pclk),
         .rst(rst),
         .buf_idx(fb_read_idx),
         .buf_addr(fb_read_addr),
@@ -264,6 +266,12 @@ module top1 #(
         .done_accept(done_accept)
     );
 
+    // TMDS 串行位: 来自 hdmi_tx, 在这里紧贴端口做 OBUFDS
+    wire tmds_ser_r;
+    wire tmds_ser_g;
+    wire tmds_ser_b;
+    wire tmds_ser_c;
+
     hdmi_tx u_hdmi_tx (
         .pclk(pclk),         
         .pclk_x5(pclk_x5),  
@@ -274,8 +282,24 @@ module top1 #(
         .vid_hs(hdmi_vid_hs),
         .vid_vs(hdmi_vid_vs),
         .vid_de(hdmi_vid_de),
-        .tmds_data_p(tmds_data_p),
-        .tmds_clk_p(tmds_clk_p)
+        .tmds_ser_r(tmds_ser_r),
+        .tmds_ser_g(tmds_ser_g),
+        .tmds_ser_b(tmds_ser_b),
+        .tmds_ser_c(tmds_ser_c)
     );
+
+    // =========================================================================
+    //  ★ OBUFDS 放在这一层 —— 紧贴 top1 的端口, 也就是 module-reference 的端口边界。
+    //    BD 会给本模块的 TMDS 端口加 IO_BUFFER_TYPE=NONE, 意思是"缓冲在模块输出口
+    //    这一层"。OBUFDS 必须就在这里; 放在更深一层的话, 它和 OSERDESE2 组成的
+    //    shape 无法落在被 PACKAGE_PIN 钉住的 IO 上, 会报
+    //    [Vivado 12-1411] Cannot set LOC property of ports, 引脚约束失效 -> UCIO-1,
+    //    bitstream 出不来。
+    //    P/N 都接出来 (N 是差分对另一端, 不写 PACKAGE_PIN, 由 P 端自动配对)。
+    // =========================================================================
+    OBUFDS obuf_r (.I(tmds_ser_r), .O(tmds_data_p[0]), .OB(tmds_data_n[0]));
+    OBUFDS obuf_g (.I(tmds_ser_g), .O(tmds_data_p[1]), .OB(tmds_data_n[1]));
+    OBUFDS obuf_b (.I(tmds_ser_b), .O(tmds_data_p[2]), .OB(tmds_data_n[2]));
+    OBUFDS obuf_c (.I(tmds_ser_c), .O(tmds_tx_p),      .OB(tmds_tx_n));
 
 endmodule
