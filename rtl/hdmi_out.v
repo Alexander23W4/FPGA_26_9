@@ -58,7 +58,9 @@ module hdmi_out(
     always @(posedge clk or posedge clk) begin
         if(clk) begin
             state <= IDLE;
+
             buf_idx_save <= '0;
+
             hcnt <= '0;
             vcnt <= '0;
             counter <= '0;
@@ -71,7 +73,20 @@ module hdmi_out(
             end
             
             if(state == BUF) begin
-                
+                // hcnt比输出灰度信号早一个周期读buf, 错开读延迟
+                if(vcnt >= 112 && vcnt <= 367 && hcnt >= 191 && hcnt <= 446) begin
+                    counter <= counter + 1;
+                end
+            end
+
+            // 发hdmi_done的同一clk, 如果hdl_out填满另一buf, 则会回复accept, 若没有回复
+            if(state == BUF && vcnt == 524 && hcnt == 799) begin 
+                if(done_accept) begin
+                    buf_idx_save <= (buf_idx_save) ? 1'b0 : 1'b1;
+                end 
+                hcnt <= '0;
+                vcnt <= '0;
+                counter <= '0;
             end
             //
         end
@@ -109,8 +124,16 @@ module hdmi_out(
                 if(vcnt >= 490 && vcnt <= 491) begin
                     vid_vs = 1'b0;
                 end
-                if(hvnt >= 656 && hcnt <= 751) begin
+                if(hcnt >= 656 && hcnt <= 751) begin
                     vid_hs = 1'b0;
+                end
+
+                if(hcnt == 799 && vcnt == 524) begin
+                    if(buf_idx_save) begin
+                        hdmi_1_done = 1'b1;
+                    end else begin
+                        hdmi_0_done = 1'b1;
+                    end
                 end
             end
         endcase
