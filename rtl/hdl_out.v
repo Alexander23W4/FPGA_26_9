@@ -10,10 +10,11 @@ module hdl_out(
     output buf_idx,   // 双帧缓存, 选择哪一帧
     output [15:0] buf_addr,  // 写入像素地址, 0-65535
     output [7:0]  buf_data,  // 写入的灰度值
-    output en    // 写入enable
+    output en         // 写入enable
 
     input hdmi_0_done;
     input hdmi_1_done;
+    output done_accept;
 );
 
     localparam IDLE = 0, BUF = 1;
@@ -29,7 +30,7 @@ module hdl_out(
             state <= BUF;
             buf_inx_save <= 1'b0;
             counter <= '0;
-            //
+            // 
         end else begin
             state <= next;
 
@@ -59,13 +60,14 @@ module hdl_out(
         hdl_ready = 1'b1;
         buf_addr = buf_counter;
         en = 1'b0;
+        done_accept = 1'b0;
         //
         case (state)
             BUF: begin
                 if(hdl_valid) begin
                     en = 1'b1;
                     buf_data = hdl_data;
-                    if(hdl_eof) begin
+                    if(hdl_eof) begin  // 不论如何, 填满一帧之后必定进去IDLE, 拉低ready反压输入端 暂停接收
                         next = IDLE;
                     end
                 end
@@ -74,6 +76,7 @@ module hdl_out(
                 hdl_ready = 1'b0;
                 if(hdmi_0_done | hdmi_1_done) begin
                     next = BUF;
+                    done_accept = 1'b1;
                 end
             end
             
