@@ -161,7 +161,7 @@ module hdmi_tx (
     wire [9:0] tmds_tx_pat = 10'b1111100000;
 
     // ---- R ----
-    OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
+    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_r_m (
         .OQ(ser_r), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
         .D1(tmds_r[0]), .D2(tmds_r[1]), .D3(tmds_r[2]), .D4(tmds_r[3]),
@@ -170,7 +170,7 @@ module hdmi_tx (
         .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
         .TBYTEOUT(), .TFB(), .TQ()
     );
-    OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
+    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_r_s (
         .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
         .D1(1'b0), .D2(1'b0), .D3(tmds_r[8]), .D4(tmds_r[9]),
@@ -181,7 +181,7 @@ module hdmi_tx (
     );
 
     // ---- G ----
-    OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
+    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_g_m (
         .OQ(ser_g), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
         .D1(tmds_g[0]), .D2(tmds_g[1]), .D3(tmds_g[2]), .D4(tmds_g[3]),
@@ -190,7 +190,7 @@ module hdmi_tx (
         .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
         .TBYTEOUT(), .TFB(), .TQ()
     );
-    OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
+    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_g_s (
         .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
         .D1(1'b0), .D2(1'b0), .D3(tmds_g[8]), .D4(tmds_g[9]),
@@ -201,7 +201,7 @@ module hdmi_tx (
     );
 
     // ---- B ----
-    OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
+    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_b_m (
         .OQ(ser_b), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
         .D1(tmds_b[0]), .D2(tmds_b[1]), .D3(tmds_b[2]), .D4(tmds_b[3]),
@@ -210,7 +210,7 @@ module hdmi_tx (
         .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
         .TBYTEOUT(), .TFB(), .TQ()
     );
-    OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
+    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_b_s (
         .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
         .D1(1'b0), .D2(1'b0), .D3(tmds_b[8]), .D4(tmds_b[9]),
@@ -221,7 +221,7 @@ module hdmi_tx (
     );
 
     // ---- 时钟通道 ----
-    OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
+    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_c_m (
         .OQ(ser_c), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
         .D1(tmds_tx_pat[0]), .D2(tmds_tx_pat[1]), .D3(tmds_tx_pat[2]), .D4(tmds_tx_pat[3]),
@@ -230,7 +230,7 @@ module hdmi_tx (
         .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
         .TBYTEOUT(), .TFB(), .TQ()
     );
-    OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
+    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
                 .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_c_s (
         .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
         .D1(1'b0), .D2(1'b0), .D3(tmds_tx_pat[8]), .D4(tmds_tx_pat[9]),

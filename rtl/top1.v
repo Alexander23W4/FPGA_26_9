@@ -288,18 +288,10 @@ module top1 #(
         .tmds_ser_c(tmds_ser_c)
     );
 
-    // =========================================================================
-    //  ★ OBUFDS 放在这一层 —— 紧贴 top1 的端口, 也就是 module-reference 的端口边界。
-    //    BD 会给本模块的 TMDS 端口加 IO_BUFFER_TYPE=NONE, 意思是"缓冲在模块输出口
-    //    这一层"。OBUFDS 必须就在这里; 放在更深一层的话, 它和 OSERDESE2 组成的
-    //    shape 无法落在被 PACKAGE_PIN 钉住的 IO 上, 会报
-    //    [Vivado 12-1411] Cannot set LOC property of ports, 引脚约束失效 -> UCIO-1,
-    //    bitstream 出不来。
-    //    P/N 都接出来 (N 是差分对另一端, 不写 PACKAGE_PIN, 由 P 端自动配对)。
-    // =========================================================================
-    OBUFDS obuf_r (.I(tmds_ser_r), .O(tmds_data_p[0]), .OB(tmds_data_n[0]));
-    OBUFDS obuf_g (.I(tmds_ser_g), .O(tmds_data_p[1]), .OB(tmds_data_n[1]));
-    OBUFDS obuf_b (.I(tmds_ser_b), .O(tmds_data_p[2]), .OB(tmds_data_n[2]));
-    OBUFDS obuf_c (.I(tmds_ser_c), .O(tmds_tx_p),      .OB(tmds_tx_n));
+
+    (* DONT_TOUCH = "TRUE" *) OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_r (.I(tmds_ser_r), .O(tmds_data_p[0]), .OB(tmds_data_n[0]));
+    (* DONT_TOUCH = "TRUE" *) OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_g (.I(tmds_ser_g), .O(tmds_data_p[1]), .OB(tmds_data_n[1]));
+    (* DONT_TOUCH = "TRUE" *) OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_b (.I(tmds_ser_b), .O(tmds_data_p[2]), .OB(tmds_data_n[2]));
+    (* DONT_TOUCH = "TRUE" *) OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_c (.I(tmds_ser_c), .O(tmds_tx_p),      .OB(tmds_tx_n));
 
 endmodule
