@@ -149,96 +149,61 @@ module hdmi_tx (
     end
 
     // -------------------------------------------------------------------------
-    //  10:1 串化: OSERDESE2 master+slave (DDR, DATA_WIDTH=10)
-    //    CLK    = pclk_x5
-    //    CLKDIV = pclk
-    //    master 取 D1..D8 (bit0..7), slave 的 D3/D4 取 bit8/bit9
+    //  10:1 串化 —— 官方 ACZ7015 做法: ODDR + 5bit 移位寄存器
+    //    来源: 小梅哥 ch33_acz7015_colour_bar_io_hdmi / serdes_4b_10to1.v
+    //
+    //  ★★ 不要用 OSERDESE2 !! ★★
+    //    这颗板子这组引脚(N6/M8/K7/T2)上, OSERDESE2 的 master+slave 需要一套
+    //    特殊的物理 shape, 构不出合法 placement, 报:
+    //       [Vivado 12-1411] Cannot set LOC property of ports (shape 含 oser_*_s)
+    //       [Place 30-475]   IO terminal ... is not placeable anywhere
+    //    -> 引脚约束全部失效 -> UCIO-1 -> 位流出不来。
+    //    官方在同一器件、同一组引脚、同一 TMDS_33 下用的是 ODDR:
+    //       ODDR 是 OLOGIC 里的简单原语, 和 OBUFDS 天然共存。
+    //    (已实测: ODDR 版 + TMDS_33 @ N6/M8/K7/T2 => write_bitstream 成功)
+    //
+    //  时序: 移位寄存器跑 pclk_x5(5倍像素时钟), 模5回绕时重载 10bit;
+    //        ODDR 在 pclk_x5 上下沿各取 1bit -> 每 5 个 clkx5 出 10bit。
     // -------------------------------------------------------------------------
-    wire sh1_r, sh2_r, sh1_g, sh2_g, sh1_b, sh2_b, sh1_c, sh2_c;
-    wire ser_r, ser_g, ser_b, ser_c;
+    reg [2:0] tmds_mod5;
+    always @(posedge pclk_x5)
+        tmds_mod5 <= tmds_mod5[2] ? 3'd0 : tmds_mod5 + 3'd1;
+
+    // 偶位走"高"半拍, 奇位走"低"半拍 (与官方 serdes_4b_10to1 一致)
+    wire [4:0] tmds_r_h = {tmds_r[8],tmds_r[6],tmds_r[4],tmds_r[2],tmds_r[0]};
+    wire [4:0] tmds_r_l = {tmds_r[9],tmds_r[7],tmds_r[5],tmds_r[3],tmds_r[1]};
+    wire [4:0] tmds_g_h = {tmds_g[8],tmds_g[6],tmds_g[4],tmds_g[2],tmds_g[0]};
+    wire [4:0] tmds_g_l = {tmds_g[9],tmds_g[7],tmds_g[5],tmds_g[3],tmds_g[1]};
+    wire [4:0] tmds_b_h = {tmds_b[8],tmds_b[6],tmds_b[4],tmds_b[2],tmds_b[0]};
+    wire [4:0] tmds_b_l = {tmds_b[9],tmds_b[7],tmds_b[5],tmds_b[3],tmds_b[1]};
 
     // 时钟通道用固定图案 1111100000
-    wire [9:0] tmds_tx_pat = 10'b1111100000;
+    wire [9:0] tmds_c_pat = 10'b1111100000;
+    wire [4:0] tmds_c_h = {tmds_c_pat[8],tmds_c_pat[6],tmds_c_pat[4],tmds_c_pat[2],tmds_c_pat[0]};
+    wire [4:0] tmds_c_l = {tmds_c_pat[9],tmds_c_pat[7],tmds_c_pat[5],tmds_c_pat[3],tmds_c_pat[1]};
 
-    // ---- R ----
-    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
-                .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_r_m (
-        .OQ(ser_r), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(tmds_r[0]), .D2(tmds_r[1]), .D3(tmds_r[2]), .D4(tmds_r[3]),
-        .D5(tmds_r[4]), .D6(tmds_r[5]), .D7(tmds_r[6]), .D8(tmds_r[7]),
-        .SHIFTIN1(1'b0), .SHIFTIN2(1'b0), .SHIFTOUT1(sh1_r), .SHIFTOUT2(sh2_r),
-        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
-        .TBYTEOUT(), .TFB(), .TQ()
-    );
-    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
-                .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_r_s (
-        .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(1'b0), .D2(1'b0), .D3(tmds_r[8]), .D4(tmds_r[9]),
-        .D5(1'b0), .D6(1'b0), .D7(1'b0), .D8(1'b0),
-        .SHIFTIN1(sh1_r), .SHIFTIN2(sh2_r), .SHIFTOUT1(), .SHIFTOUT2(),
-        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
-        .TBYTEOUT(), .TFB(), .TQ()
-    );
+    reg [4:0] sh_r_h, sh_r_l, sh_g_h, sh_g_l, sh_b_h, sh_b_l, sh_c_h, sh_c_l;
+    always @(posedge pclk_x5) begin
+        sh_r_h <= tmds_mod5[2] ? tmds_r_h : sh_r_h[4:1];
+        sh_r_l <= tmds_mod5[2] ? tmds_r_l : sh_r_l[4:1];
+        sh_g_h <= tmds_mod5[2] ? tmds_g_h : sh_g_h[4:1];
+        sh_g_l <= tmds_mod5[2] ? tmds_g_l : sh_g_l[4:1];
+        sh_b_h <= tmds_mod5[2] ? tmds_b_h : sh_b_h[4:1];
+        sh_b_l <= tmds_mod5[2] ? tmds_b_l : sh_b_l[4:1];
+        sh_c_h <= tmds_mod5[2] ? tmds_c_h : sh_c_h[4:1];
+        sh_c_l <= tmds_mod5[2] ? tmds_c_l : sh_c_l[4:1];
+    end
 
-    // ---- G ----
-    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
-                .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_g_m (
-        .OQ(ser_g), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(tmds_g[0]), .D2(tmds_g[1]), .D3(tmds_g[2]), .D4(tmds_g[3]),
-        .D5(tmds_g[4]), .D6(tmds_g[5]), .D7(tmds_g[6]), .D8(tmds_g[7]),
-        .SHIFTIN1(1'b0), .SHIFTIN2(1'b0), .SHIFTOUT1(sh1_g), .SHIFTOUT2(sh2_g),
-        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
-        .TBYTEOUT(), .TFB(), .TQ()
-    );
-    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
-                .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_g_s (
-        .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(1'b0), .D2(1'b0), .D3(tmds_g[8]), .D4(tmds_g[9]),
-        .D5(1'b0), .D6(1'b0), .D7(1'b0), .D8(1'b0),
-        .SHIFTIN1(sh1_g), .SHIFTIN2(sh2_g), .SHIFTOUT1(), .SHIFTOUT2(),
-        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
-        .TBYTEOUT(), .TFB(), .TQ()
-    );
+    wire ser_r, ser_g, ser_b, ser_c;
 
-    // ---- B ----
-    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
-                .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_b_m (
-        .OQ(ser_b), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(tmds_b[0]), .D2(tmds_b[1]), .D3(tmds_b[2]), .D4(tmds_b[3]),
-        .D5(tmds_b[4]), .D6(tmds_b[5]), .D7(tmds_b[6]), .D8(tmds_b[7]),
-        .SHIFTIN1(1'b0), .SHIFTIN2(1'b0), .SHIFTOUT1(sh1_b), .SHIFTOUT2(sh2_b),
-        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
-        .TBYTEOUT(), .TFB(), .TQ()
-    );
-    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
-                .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_b_s (
-        .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(1'b0), .D2(1'b0), .D3(tmds_b[8]), .D4(tmds_b[9]),
-        .D5(1'b0), .D6(1'b0), .D7(1'b0), .D8(1'b0),
-        .SHIFTIN1(sh1_b), .SHIFTIN2(sh2_b), .SHIFTOUT1(), .SHIFTOUT2(),
-        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
-        .TBYTEOUT(), .TFB(), .TQ()
-    );
-
-    // ---- 时钟通道 ----
-    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("MASTER"),
-                .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_c_m (
-        .OQ(ser_c), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(tmds_tx_pat[0]), .D2(tmds_tx_pat[1]), .D3(tmds_tx_pat[2]), .D4(tmds_tx_pat[3]),
-        .D5(tmds_tx_pat[4]), .D6(tmds_tx_pat[5]), .D7(tmds_tx_pat[6]), .D8(tmds_tx_pat[7]),
-        .SHIFTIN1(1'b0), .SHIFTIN2(1'b0), .SHIFTOUT1(sh1_c), .SHIFTOUT2(sh2_c),
-        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
-        .TBYTEOUT(), .TFB(), .TQ()
-    );
-    (* DONT_TOUCH = "TRUE" *) OSERDESE2 #(.DATA_RATE_OQ("DDR"), .DATA_WIDTH(10), .SERDES_MODE("SLAVE"),
-                .TRISTATE_WIDTH(1), .DATA_RATE_TQ("SDR"), .TBYTE_CTL("FALSE")) oser_c_s (
-        .OQ(), .CLK(pclk_x5), .CLKDIV(pclk), .OCE(1'b1), .RST(rst),
-        .D1(1'b0), .D2(1'b0), .D3(tmds_tx_pat[8]), .D4(tmds_tx_pat[9]),
-        .D5(1'b0), .D6(1'b0), .D7(1'b0), .D8(1'b0),
-        .SHIFTIN1(sh1_c), .SHIFTIN2(sh2_c), .SHIFTOUT1(), .SHIFTOUT2(),
-        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0), .TBYTEIN(1'b0),
-        .TBYTEOUT(), .TFB(), .TQ()
-    );
+    ODDR #(.DDR_CLK_EDGE("SAME_EDGE"), .INIT(1'b0), .SRTYPE("SYNC")) oddr_r (
+        .Q(ser_r), .C(pclk_x5), .CE(1'b1), .D1(sh_r_h[0]), .D2(sh_r_l[0]), .R(1'b0), .S(1'b0));
+    ODDR #(.DDR_CLK_EDGE("SAME_EDGE"), .INIT(1'b0), .SRTYPE("SYNC")) oddr_g (
+        .Q(ser_g), .C(pclk_x5), .CE(1'b1), .D1(sh_g_h[0]), .D2(sh_g_l[0]), .R(1'b0), .S(1'b0));
+    ODDR #(.DDR_CLK_EDGE("SAME_EDGE"), .INIT(1'b0), .SRTYPE("SYNC")) oddr_b (
+        .Q(ser_b), .C(pclk_x5), .CE(1'b1), .D1(sh_b_h[0]), .D2(sh_b_l[0]), .R(1'b0), .S(1'b0));
+    ODDR #(.DDR_CLK_EDGE("SAME_EDGE"), .INIT(1'b0), .SRTYPE("SYNC")) oddr_c (
+        .Q(ser_c), .C(pclk_x5), .CE(1'b1), .D1(sh_c_h[0]), .D2(sh_c_l[0]), .R(1'b0), .S(1'b0));
 
     // -------------------------------------------------------------------------
     //  差分输出: OBUFDS -> tmds_data_p[x] / tmds_tx_p

@@ -289,9 +289,10 @@ module top1 #(
     );
 
 
-    (* DONT_TOUCH = "TRUE" *) OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_r (.I(tmds_ser_r), .O(tmds_data_p[0]), .OB(tmds_data_n[0]));
-    (* DONT_TOUCH = "TRUE" *) OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_g (.I(tmds_ser_g), .O(tmds_data_p[1]), .OB(tmds_data_n[1]));
-    (* DONT_TOUCH = "TRUE" *) OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_b (.I(tmds_ser_b), .O(tmds_data_p[2]), .OB(tmds_data_n[2]));
-    (* DONT_TOUCH = "TRUE" *) OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_c (.I(tmds_ser_c), .O(tmds_tx_p),      .OB(tmds_tx_n));
+    // OBUFDS: IOSTANDARD 写在实例上 (官方 ch33 写法, 只是官方写 DEFAULT 由 XDC 给)
+    OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_r (.I(tmds_ser_r), .O(tmds_data_p[0]), .OB(tmds_data_n[0]));
+    OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_g (.I(tmds_ser_g), .O(tmds_data_p[1]), .OB(tmds_data_n[1]));
+    OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_b (.I(tmds_ser_b), .O(tmds_data_p[2]), .OB(tmds_data_n[2]));
+    OBUFDS #(.IOSTANDARD("TMDS_33")) obuf_c (.I(tmds_ser_c), .O(tmds_tx_p),      .OB(tmds_tx_n));
 
 endmodule

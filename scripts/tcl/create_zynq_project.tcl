@@ -83,6 +83,11 @@ puts "   PS7 options  : $ps7_opts"
 puts "=============================================="
 
 # ----------------------------- 创建工程 -------------------------------------
+# ---------------------------------------------------------------------------
+# 注: 曾经试过 set_param board.repoPaths + set_property BOARD_PART 来给 bank 电压,
+#     实测板级定义挂不上, 而且后来用"纯 -part"已成功出过位流(OBUFDS-only 测试),
+#     所以这里保持最简: 只用 -part, 不再碰 BOARD_PART。
+# ---------------------------------------------------------------------------
 file mkdir $proj_dir
 create_project $proj_name [file join $proj_dir $proj_name] -part $part_name -force
 set_property target_language Verilog [current_project]
