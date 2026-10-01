@@ -237,20 +237,20 @@ if {$want_axi_infra} {
         #   不接的后果：tready 没人驱动 = 背压，VDMA 搬一点点就停住，帧计数不前进。
         #   链路本身是通的，只是下游暂时没人收数据，这是预期现象。
         create_bd_cell -type ip -vlnv xilinx.com:ip:axi_vdma:6.3 axi_vdma_0
-        # ILA 已实测：M_AXI_MM2S=64、M_AXIS_MM2S=32 时，每 8 个像素会有
-        # 4 个在 VDMA 流出口变为 0x00，形成画面中间的竖直黑条。
-        # VDMA 的内存读口和流口都设为 32 bit，使每一个 AXI-Stream beat 对应
-        # DDR 中连续且真实的 4 字节。axi_ic_hp 会自动把该 32-bit AXI4 主口
-        # 适配到 Zynq HP0 的 64-bit AXI3 接口。
-        # 图像地址、HSIZE、STRIDE 均为 4 字节对齐，因此无需启用 DRE。
+        # 板上实测：DDR 0x10000000 的连续数据完整，但每次经过 32-bit
+        # 宽度转换（VDMA 64->32 或 axi_ic_hp 32->64）后，流出口都会变成
+        # "4 字节为 0 + 4 字节真实数据"，从而形成竖直黑条。
+        # 因此 MM2S 从 VDMA 到 HP0 保持原生 64 bit；top1/axi2px 直接把一个
+        # 64-bit AXI-Stream beat 依次展开成 8 个 8-bit 像素，避开全部 AXI
+        # 宽度转换器。图像地址、HSIZE、STRIDE 均为 8 字节对齐，DRE 无需启用。
         if {[catch {
             set_property -dict [list \
                 CONFIG.c_include_s2mm            {0} \
                 CONFIG.c_include_mm2s            {1} \
                 CONFIG.c_num_fstores             {4} \
                 CONFIG.c_addr_width              {32} \
-                CONFIG.c_m_axis_mm2s_tdata_width {32} \
-                CONFIG.c_m_axi_mm2s_data_width   {32} \
+                CONFIG.c_m_axis_mm2s_tdata_width {64} \
+                CONFIG.c_m_axi_mm2s_data_width   {64} \
                 CONFIG.c_include_mm2s_dre        {0} \
             ] [get_bd_cells axi_vdma_0]
         } _vd_cfg_err]} {
@@ -413,6 +413,63 @@ if {$want_axi_infra} {
         connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins u_ila_hdmi/clk]
         connect_bd_net [get_bd_pins top1_0/debug_probe] [get_bd_pins u_ila_hdmi/probe0]
         puts "\[ACZ7015\] u_ila_hdmi: 128-bit probe on VDMA/frame-buffer/HDMI state"
+    }
+
+    # =========================================================================
+    #  VDMA MM2S memory-side ILA
+    #
+    #  HDMI ILA shows TKEEP=0xFF while the upper half of each stream beat is
+    #  zero. Observe the VDMA memory-read pins without inserting anything in
+    #  the transfer path:
+    #  Ten native probes avoid inserting any AXI component or data-width
+    #  conversion in the transfer path.
+    # =========================================================================
+    if {[get_bd_cells -quiet axi_vdma_0] ne ""} {
+        if {[get_bd_cells -quiet u_ila_vdma_mm2s] eq ""} {
+            create_bd_cell -type ip -vlnv xilinx.com:ip:ila:6.2 u_ila_vdma_mm2s
+            # Native mode keeps the ten probes independent of any AXI
+            # interface, so this core only observes the existing nets.
+            set_property -dict [list \
+                CONFIG.C_MONITOR_TYPE   {Native} \
+                CONFIG.C_ENABLE_ILA_AXI_MON {false} \
+                CONFIG.C_DATA_DEPTH     {2048} \
+                CONFIG.C_NUM_OF_PROBES  {10} \
+                CONFIG.C_PROBE0_WIDTH   {64} \
+                CONFIG.C_PROBE1_WIDTH   {32} \
+                CONFIG.C_PROBE2_WIDTH   {8} \
+                CONFIG.C_PROBE3_WIDTH   {3} \
+                CONFIG.C_PROBE4_WIDTH   {1} \
+                CONFIG.C_PROBE5_WIDTH   {1} \
+                CONFIG.C_PROBE6_WIDTH   {1} \
+                CONFIG.C_PROBE7_WIDTH   {1} \
+                CONFIG.C_PROBE8_WIDTH   {1} \
+                CONFIG.C_PROBE9_WIDTH   {2} \
+            ] [get_bd_cells u_ila_vdma_mm2s]
+        }
+
+        # Explicitly attach every probe to the already-existing net.  Passing
+        # an AXI interface itself to an ILA would replace the connection;
+        # adding a scalar/vector sink to its net is passive observation.
+        set _clk_net [get_bd_nets -quiet -of_objects [get_bd_pins clk_wiz_0/clk_out1]]
+        if {[llength $_clk_net] != 1} { error "VDMA ILA: cannot find MM2S clock net" }
+        connect_bd_net $_clk_net [get_bd_pins u_ila_vdma_mm2s/clk]
+        foreach {src probe} {
+            axi_vdma_0/m_axi_mm2s_rdata   probe0
+            axi_vdma_0/m_axi_mm2s_araddr  probe1
+            axi_vdma_0/m_axi_mm2s_arlen   probe2
+            axi_vdma_0/m_axi_mm2s_arsize  probe3
+            axi_vdma_0/m_axi_mm2s_arvalid probe4
+            axi_vdma_0/m_axi_mm2s_arready probe5
+            axi_vdma_0/m_axi_mm2s_rready  probe6
+            axi_vdma_0/m_axi_mm2s_rvalid  probe7
+            axi_vdma_0/m_axi_mm2s_rlast   probe8
+            axi_vdma_0/m_axi_mm2s_rresp   probe9
+        } {
+            set _tap_net [get_bd_nets -quiet -of_objects [get_bd_pins $src]]
+            if {[llength $_tap_net] != 1} { error "VDMA ILA: cannot find net for $src" }
+            connect_bd_net $_tap_net [get_bd_pins u_ila_vdma_mm2s/$probe]
+        }
+        puts "\[ACZ7015\] u_ila_vdma_mm2s: passive probes on VDMA MM2S memory reads"
     }
 
     # =========================================================================

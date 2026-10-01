@@ -26,8 +26,8 @@ module top1 #(
 
     // ---------------- AXI4-Stream 从端：连接 VDMA MM2S ----------------
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TDATA" *)
-    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXIS, TDATA_NUM_BYTES 4, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 25200000, PHASE 0.0, INSERT_VIP 0" *)
-    input  wire [31:0] s_axis_tdata,
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXIS, TDATA_NUM_BYTES 8, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 25200000, PHASE 0.0, INSERT_VIP 0" *)
+    input  wire [63:0] s_axis_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TVALID" *)
     input  wire        s_axis_tvalid,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TREADY" *)
@@ -35,7 +35,7 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TLAST" *)
     input  wire        s_axis_tlast,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TKEEP" *)
-    input  wire [3:0]  s_axis_tkeep,
+    input  wire [7:0]  s_axis_tkeep,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TUSER" *)
     input  wire        s_axis_tuser,
 
@@ -157,7 +157,7 @@ module top1 #(
     wire               px_ready;
 
     axi2px #(
-        .TDATA_W(32),
+        .TDATA_W(64),
         .PIXEL_W(PIXEL_W),
         .H_PIXELS(256),
         .V_PIXELS(256)
@@ -316,16 +316,18 @@ module top1 #(
                          s_axis_tuser, px_eof, hdl_eof, fb_write_en,
                          fb_write_idx, fb_read_idx, done_accept};
 
-    // 128-bit 单 probe：避免大量窄 probe 消耗 ILA 资源。位定义从高到低：
-    // hdl 状态、HDMI 状态、写/读地址、VDMA 当前 32bit 数据、控制信号。
+    // 128-bit 单 probe。当前优先观察 VDMA 的完整 64-bit 流拍、TKEEP 和实际
+    // 写入帧缓存的单字节数据；用来区分上游高 32bit 为 0、TKEEP 填充和 axi2px
+    // 展开错误。
+    // 位定义从高到低：
+    // [127:119] hdl 状态低 9 位, [118:103] 写地址, [102:95] 写数据,
+    // [94:87] TKEEP, [86:23] VDMA 64-bit TDATA, [22:16] 标志, [15:0] 保留。
     // create_zynq_project.tcl 会把这个 net 接到 BD 内的 u_ila_hdmi。
     (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] hdmi_ila_probe;
     assign hdmi_ila_probe = {
-        hdl_dbg_status, hdmi_dbg_status,
-        fb_write_addr, fb_read_addr,
-        s_axis_tdata,
+        hdl_dbg_status[8:0], fb_write_addr, fb_write_data, s_axis_tkeep, s_axis_tdata,
         s_axis_tvalid, s_axis_tready, s_axis_tlast,
-        px_eof, hdl_eof, fb_write_en, done_accept
+        px_eof, hdl_eof, fb_write_en, done_accept, 16'd0
     };
     assign debug_probe = hdmi_ila_probe;
 

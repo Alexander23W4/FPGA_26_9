@@ -26,7 +26,7 @@ module axi2px #(
     input  wire                    px_ready     // 下游收不收(接 top1 的 px_ready)
 );
 
-    localparam integer PPC    = TDATA_W / PIXEL_W;                 // 一拍几个像素 = 4
+    localparam integer PPC    = TDATA_W / PIXEL_W;                 // 一拍几个像素
     localparam integer IDX_W  = (PPC <= 2) ? 1 : $clog2(PPC);
     localparam integer KEEP_W = TDATA_W / 8;
     // 本拍最后一个像素的索引(PPC-1)。
@@ -34,20 +34,25 @@ module axi2px #(
     localparam [IDX_W-1:0] LAST_IDX = PPC - 1;
 
     reg [TDATA_W-1:0] beat_q;
+    reg [KEEP_W-1:0]  keep_q;
     reg               beat_valid_q;
-    reg [IDX_W-1:0]   idx_q;        // 本拍里发到第几个像素
+    reg [IDX_W-1:0]   idx_q;        // 本拍里当前检查的 byte lane
     reg [12:0]        col_q;        // 当前像素在行内的列号
     reg [12:0]        row_q;        // 当前行号
 
     wire aresetn = ~rst;
-    wire accept  = px_ready;                        // 下游收得下吗
-    wire px_taken = beat_valid_q && accept;
+    // AXI4-Stream 的 TKEEP 是每个 byte lane 的有效标志。此前这里忽略了
+    // TKEEP，若上游只声明低 4 byte 有效，仍会把高 4 byte 的填充值 0 当成
+    // 像素写入帧缓存，从而产生 4 像素周期的黑色竖条。
+    wire lane_valid = beat_valid_q && keep_q[idx_q];
+    wire px_taken   = lane_valid && px_ready;
+    // 无效 lane 不需要等待下游，可在本模块内直接跳过；有效 lane 则必须等
+    // px_ready。到达物理最后一个 lane 后，才能接收下一条 AXI beat。
+    wire advance_lane = beat_valid_q && (!keep_q[idx_q] || px_ready);
 
-    // s_axis_tready: 没有待发拍 -> 可以收; 有待发拍但已发到本拍最后一个像素,
-    // 且下游肯收 -> 同一拍就能收下一拍。只看 accept, 不看 tvalid。
     assign s_axis_tready = aresetn &&
                            ((beat_valid_q == 1'b0) ||
-                            ((idx_q == LAST_IDX) && accept));
+                            ((idx_q == LAST_IDX) && advance_lane));
 
     wire load = s_axis_tvalid && s_axis_tready;
 
@@ -55,16 +60,17 @@ module axi2px #(
     wire last_row = (row_q == (V_PIXELS - 1));
 
     assign px_data  = beat_q[idx_q * PIXEL_W +: PIXEL_W];
-    assign px_valid = beat_valid_q;
-    assign px_sof   = beat_valid_q && (col_q == 13'd0) && (row_q == 13'd0);
-    assign px_eol   = beat_valid_q && last_col;
+    assign px_valid = lane_valid;
+    assign px_sof   = lane_valid && (col_q == 13'd0) && (row_q == 13'd0);
+    assign px_eol   = lane_valid && last_col;
     // ★ 帧尾 EOF: 最后一行的最后一个像素。top1 里 denose 的 in_last 要的就是这个。
     //   注意它和 px_eol 不是一回事: px_eol 每行都来(256 次/帧), px_eof 每帧只来一次。
-    assign px_eof   = beat_valid_q && last_col && last_row;
+    assign px_eof   = lane_valid && last_col && last_row;
 
     always @(posedge clk) begin
         if (rst) begin
             beat_q       <= {TDATA_W{1'b0}};
+            keep_q       <= {KEEP_W{1'b0}};
             beat_valid_q <= 1'b0;
             idx_q        <= {IDX_W{1'b0}};
             col_q        <= 13'd0;
@@ -73,10 +79,11 @@ module axi2px #(
             // ---------------- 装下一拍 ----------------
             if (load) begin
                 beat_q       <= s_axis_tdata;
+                keep_q       <= s_axis_tkeep;
                 beat_valid_q <= 1'b1;
                 idx_q        <= {IDX_W{1'b0}};
-            end else if (px_taken) begin
-                // ---------------- 把本拍的像素一个个发出去 ----------------
+            end else if (advance_lane) begin
+                // ---------------- 逐 lane 发送有效像素，跳过无效 lane ----------------
                 if (idx_q == LAST_IDX) begin
                     beat_valid_q <= 1'b0;
                 end else begin
@@ -102,7 +109,7 @@ module axi2px #(
         end
     end
 
-    wire _unused = s_axis_tuser ^ s_axis_tlast ^ (|s_axis_tkeep) ^ 1'b0;
+    wire _unused = s_axis_tuser ^ s_axis_tlast;
     // verilator lint_on UNUSED
 
 endmodule
