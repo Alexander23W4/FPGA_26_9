@@ -1,0 +1,32 @@
++====================+===================+===========================+
+| Launch Setup Clock | Launch Hold Clock | Pin                       |
++====================+===================+===========================+
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_l_reg[2]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_h_reg[1]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_l_reg[0]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_l_reg[3]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_l_reg[2]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_h_reg[3]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_h_reg[0]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_h_reg[2]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_h_reg[3]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_h_reg[2]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_h_reg[1]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_l_reg[4]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_l_reg[4]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_l_reg[0]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_b_l_reg[1]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_l_reg[3]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_l_reg[1]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_l_reg[1]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_h_reg[3]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_h_reg[2]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_h_reg[0]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_l_reg[0]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_h_reg[1]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_h_reg[0]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_l_reg[2]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_l_reg[3]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_g_l_reg[4]/D |
+| clk_out1           | clk_out1          | u_hdmi_tx/sh_r_h_reg[4]/D |
++--------------------+-------------------+---------------------------+

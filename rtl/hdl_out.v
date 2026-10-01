@@ -29,17 +29,8 @@ module hdl_out(
         if(rst) begin
             state <= BUF;
             buf_idx_save <= 1'b0;
-            counter <= 0;
-            // 
         end else begin
             state <= next;
-
-            if(state == BUF && hdl_valid) begin
-                counter <= counter + 1;
-            end
-            if(state == IDLE) begin
-                counter <= 0;
-            end
             
             // 切换buf: 输出此帧已完成且另一个buf 已经被 HDMI完整输出
             if(state == IDLE) begin
@@ -51,6 +42,21 @@ module hdl_out(
                 end
             end
             //
+        end
+    end
+
+    // counter 直接驱动 Block RAM 的写地址。使用同步复位，避免异步复位
+    // 在 BRAM 地址线上产生未被时序分析覆盖的变化。
+    always @(posedge clk) begin
+        if(rst) begin
+            counter <= 16'd0;
+        end else begin
+            if(state == BUF && hdl_valid) begin
+                counter <= counter + 1'b1;
+            end
+            if(state == IDLE) begin
+                counter <= 16'd0;
+            end
         end
     end
 
