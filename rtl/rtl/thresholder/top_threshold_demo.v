@@ -67,6 +67,7 @@ module top_threshold_demo (
     wire [31:0] reg_cmd;          // command register
     wire [7:0]  reg_threshold;    // threshold register from host
     wire        host_wr_en;       // pulse when host writes threshold
+    wire [7:0]  threshold;        // final threshold
 
     axi_lite_slave u_axi_slv (
         .s_axi_aclk    (clk),
@@ -110,7 +111,6 @@ module top_threshold_demo (
     );
 
     // ---- Threshold selector: Otsu auto + host manual ----
-    wire [7:0] threshold;          // final threshold
     wire       auto_mode;          // 1 = auto, 0 = manual
 
     th_select u_thsel (

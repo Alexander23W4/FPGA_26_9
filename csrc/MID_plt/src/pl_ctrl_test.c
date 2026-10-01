@@ -25,7 +25,6 @@ while(1){
 
 */
 #include <string.h>
-#include <assert.h>
 
 #include "config/pl_cmd.h"
 #include "app/cfg.h"
@@ -106,7 +105,9 @@ static int name_eq(const char *a, const char *b)
     return (*a == '\0' && *b == '\0') ? 1 : 0;
 }
 
-/* 从 eMMC 的 start_blk 读 bytes 字节到 SINGLE_IMG_ADDR（分块读） */
+/* 从 eMMC 的 start_blk 读 bytes 字节到 SINGLE_IMG_ADDR（分块读）。
+ * XSdPs_ReadPolled 结束后，CPU cache 中的数据对 VDMA 不一定可见；
+ * 在启动 VDMA 前必须回写，确保 PL 经 HP0 读到本次刚加载的图。 */
 static int read_img_to_ddr(u32 start_blk, u32 bytes)
 {
     u32 total_blocks = (bytes + EMMC_BLK_SIZE - 1u) / EMMC_BLK_SIZE;
@@ -125,6 +126,9 @@ static int read_img_to_ddr(u32 start_blk, u32 bytes)
         }
         done += n;
     }
+
+    Xil_DCacheFlushRange((INTPTR)SINGLE_IMG_ADDR,
+                         (INTPTR)(total_blocks * EMMC_BLK_SIZE));
     return 0;
 }
 
@@ -137,7 +141,7 @@ void choose_single_img_proc(void)
 }
 
 
-void load_img__emmc_ddr(const char *img)
+static int load_img__emmc_ddr(const char *img)
 {
     char        want[TOC_NAME_LEN];   // 纯文件名  e.g. iceberg  lofoten...
     toc_entry_t e;
@@ -146,14 +150,18 @@ void load_img__emmc_ddr(const char *img)
 
     if (emmc_ready() == 0) {
         xil_printf("emmc error!\r\n");
-        return;
+        return -1;
     }
     if (toc_load() != 0) {
-        return;
+        xil_printf("!!! eMMC catalog load failed\r\n");
+        return -1;
     }
 
     cnt = toc_count();   // emmc 目录里面的图片数量
-    assert(cnt > 0);
+    if (cnt <= 0) {
+        xil_printf("!!! eMMC catalog is empty\r\n");
+        return -1;
+    }
 
 
     short_name_from_path(img, want, sizeof(want));  // 取纯文件名到 want
@@ -170,35 +178,60 @@ void load_img__emmc_ddr(const char *img)
     if (i >= cnt) {  // 没有找到对应的 img 在 eMMC
         xil_printf("!!! no \"%s\" image in eMMC, current catalog:\r\n", want);
         toc_list();
-        return;
+        return -1;
     }
 
     if (e.bytes == 0u || e.bytes != SINGLE_IMG_LEN) {   // 检查 图片大小
-        xil_printf("invalid length img\n");
-        return;
+        xil_printf("!!! image \"%s\" has %d bytes; expected %d (256x256x8-bit)\r\n",
+                   want, (s32)e.bytes, (s32)SINGLE_IMG_LEN);
+        return -1;
     }
 
 
     // load to ddr
     if (read_img_to_ddr(e.start_blk, e.bytes) != 0) {
-        return;
+        xil_printf("!!! eMMC -> DDR failed for \"%s\"\r\n", want);
+        return -1;
     }
 
+    xil_printf("image \"%s\": eMMC block %d -> DDR 0x%08X, %d bytes\r\n",
+               want, (s32)e.start_blk, (s32)SINGLE_IMG_ADDR, (s32)e.bytes);
+    return 0;
 }
 
 
-void start_vdma(void)
+static int start_vdma(void)
 {
+    u32 sr;
+
     Xil_Out32(0xF8000008u, 0x0000DF0Du);        /* SLCR unlock */
     Xil_Out32(0xF8008000u, 0x00000003u);        /* AFI0: 读+写通道使能 */
 
     xil_printf("afi0 ctrl = 0x%08X  cfg = 0x%08X\r\n",
                (s32)Xil_In32(0xF8008000u), (s32)Xil_In32(0xF8008004u));
 
-    vdma_mm2s_stop();
-    vdma_mm2s_reset();
-    vdma_mm2s_config(SINGLE_IMG_ADDR, IMG_STRIDE, IMG_H, IMG_STRIDE);
-    vdma_mm2s_start();
+    if (vdma_mm2s_stop() != 0) {
+        xil_printf("vdma: stop did not report HALTED; trying reset\r\n");
+    }
+    if (vdma_mm2s_reset() != 0) {
+        xil_printf("!!! VDMA reset failed\r\n");
+        return -1;
+    }
+    if (vdma_mm2s_config(SINGLE_IMG_ADDR, IMG_STRIDE, IMG_H, IMG_STRIDE) != 0) {
+        xil_printf("!!! VDMA configuration failed\r\n");
+        return -1;
+    }
+    if (vdma_mm2s_start() != 0) {
+        xil_printf("!!! VDMA start failed\r\n");
+        return -1;
+    }
+
+    sr = vdma_mm2s_status();
+    if ((sr & 0x00000FF0u) != 0u) {
+        xil_printf("!!! VDMA error after start: SR=0x%08X\r\n", (s32)sr);
+        return -1;
+    }
+    return 0;
 
 }
 
@@ -246,11 +279,19 @@ void pl_ctrl_test_run(void)
     for (;;) {
         u32 i;
         for (i = 0u; i < IMG_LOOP_N; i++) {
+            xil_printf("\r\n[PL test] image %d/%d: %s\r\n",
+                       (s32)(i + 1u), (s32)IMG_LOOP_N, imgs[i]);
             vdma_mm2s_stop();
 
-            load_img__emmc_ddr(imgs[i]);  //
+            if (load_img__emmc_ddr(imgs[i]) != 0) {
+                xil_printf("\r\nRESULT: FAILED (image load); VDMA remains stopped\r\n");
+                return;
+            }
 
-            start_vdma();       // ddr -> mm2s -> top1 的 axi-stream
+            if (start_vdma() != 0) {
+                xil_printf("\r\nRESULT: FAILED (VDMA setup)\r\n");
+                return;
+            }
             delay(ANALYZE_MS);
         }
     }

@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module hdl_out(
     input clk,
     input rst,
@@ -25,7 +27,9 @@ module hdl_out(
 
     reg [15:0] counter;
 
-    always @(posedge clk or posedge rst) begin
+    // state 和 buf_idx_save 会参与生成 BRAM 的 write_en / write_buf_idx。
+    // 两者与 counter 一样使用同步复位，避免复位断言时异步改变 BRAM 控制输入。
+    always @(posedge clk) begin
         if(rst) begin
             state <= BUF;
             buf_idx_save <= 1'b0;
