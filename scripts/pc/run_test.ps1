@@ -13,8 +13,9 @@
       powershell -ExecutionPolicy Bypass -File scripts\pc\run_test.ps1 -Test pl_ctrl_test -Port COM7
       powershell -ExecutionPolicy Bypass -File scripts\pc\run_test.ps1 -Test pl_ctrl_test -TimeoutSec 60
 
-  The board side loops forever, so this streams its output until you press
-  Ctrl+C, or until -TimeoutSec is reached (0 = forever).
+  The board side loops until this script closes. In finally (including Ctrl+C),
+  the script sends '!' so pl_ctrl_test halts VDMA and returns to main's command
+  loop. -TimeoutSec has the same stop behaviour (0 = forever).
 
   NOTE: close any serial terminal (SSCOM / putty) before running this -- it
         owns the COM port exclusively.
@@ -62,9 +63,11 @@ try {
     exit 1
 }
 
+$testSent = $false
 $payload = [System.Text.Encoding]::ASCII.GetBytes($line)
 $sp.Write($payload, 0, $payload.Length)
 $sp.BaseStream.Flush()
+$testSent = $true
 
 $buf   = New-Object byte[] 4096
 $out   = [Console]::OpenStandardOutput()
@@ -89,5 +92,18 @@ try {
         }
     }
 } finally {
+    # Ctrl+C enters finally in PowerShell. The board test polls for this byte
+    # during its delay, stops VDMA, and returns to the normal command loop.
+    if ($testSent -and $sp.IsOpen) {
+        try {
+            $stop = [byte[]]@([byte][char]'!')
+            $sp.Write($stop, 0, 1)
+            $sp.BaseStream.Flush()
+            Write-Host "`nrequesting board test stop ('!') ..."
+            Start-Sleep -Milliseconds 100
+        } catch {
+            Write-Host "`nwarning: could not send board stop byte -- $($_.Exception.Message)"
+        }
+    }
     $sp.Close()
 }

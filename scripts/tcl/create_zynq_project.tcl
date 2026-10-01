@@ -237,27 +237,12 @@ if {$want_axi_infra} {
         #   不接的后果：tready 没人驱动 = 背压，VDMA 搬一点点就停住，帧计数不前进。
         #   链路本身是通的，只是下游暂时没人收数据，这是预期现象。
         create_bd_cell -type ip -vlnv xilinx.com:ip:axi_vdma:6.3 axi_vdma_0
-        # ★ 修 MM2S "64bit beat 高 32 位恒为 0" 的问题 —— 第五条路, 也是唯一
-        #   还没有被实测排除的那条。
-        #
-        #   已实测排除的: AFI0 写 3 (无效)、关 DRE (无效)、开 Store-and-Forward
-        #   (无效)、AXI 通路数据位宽 (日志里只有 ID 位宽告警, 没有数据位宽告警,
-        #   也没有插入 upsizer)。tkeep 也一直全 1 (tkeep_bad=0)。
-        #
-        #   剩下唯一没被解释的事实: MM2S 声明 64 位流, 实际只吐低 32 位真数据、
-        #   高 32 位恒 0 (端口级标志 hi32_seen 始终为 0)。这【恰好就是它的内部
-        #   流路径实际是 32 位】会有的表现。
-        #
-        #   所以把流侧配成 32 位。难点: IP 内部有自动推导
-        #       calc_mm2s_tdata_width(流侧<=32) => 内存侧 = 32
-        #   而内存侧合法值只有 64/128/256/512/1024, 直接设流侧=32 会连带把内存侧
-        #   推成非法的 32 (这条之前实测失败过)。
-        #   Tcl 的 -dict 是按【顺序】处理的, 所以把【流侧放在前面】、
-        #   【内存侧放在后面】显式覆盖回去 —— 最终: 流侧 32 / 内存侧 64。
-        #   这样 VDMA 每拍读一个 32bit 字、两拍拼成一个 64bit 流拍, 数据就是全的。
-        #   PL 侧 pl_img_top / axis_rx_8b 的 TDATA_W 也是 32, 一拍 4 个 8bit 像素
-        #   (256 字节/行 -> 64 拍/行 -> 16384 拍/帧)。
-        #   (若这次仍失败, 就只剩 ILA 直接看 m_axi_mm2s 的 rdata 了。)
+        # ILA 已实测：M_AXI_MM2S=64、M_AXIS_MM2S=32 时，每 8 个像素会有
+        # 4 个在 VDMA 流出口变为 0x00，形成画面中间的竖直黑条。
+        # VDMA 的内存读口和流口都设为 32 bit，使每一个 AXI-Stream beat 对应
+        # DDR 中连续且真实的 4 字节。axi_ic_hp 会自动把该 32-bit AXI4 主口
+        # 适配到 Zynq HP0 的 64-bit AXI3 接口。
+        # 图像地址、HSIZE、STRIDE 均为 4 字节对齐，因此无需启用 DRE。
         if {[catch {
             set_property -dict [list \
                 CONFIG.c_include_s2mm            {0} \
@@ -265,7 +250,7 @@ if {$want_axi_infra} {
                 CONFIG.c_num_fstores             {4} \
                 CONFIG.c_addr_width              {32} \
                 CONFIG.c_m_axis_mm2s_tdata_width {32} \
-                CONFIG.c_m_axi_mm2s_data_width   {64} \
+                CONFIG.c_m_axi_mm2s_data_width   {32} \
                 CONFIG.c_include_mm2s_dre        {0} \
             ] [get_bd_cells axi_vdma_0]
         } _vd_cfg_err]} {
@@ -407,6 +392,27 @@ if {$want_axi_infra} {
         puts "\[ACZ7015\] top1_0 -> axi_interconnect_0/${_mm}_AXI (PL top, rst inverted)"
     } else {
         puts "\[ACZ7015\] WARNING: rtl/top1.v 或它的子模块缺失，BD 里没有 PL 逻辑"
+    }
+
+    # =========================================================================
+    #  HDMI / 帧缓存调试 ILA（BD 内部连接，不增加任何外部 IO）
+    #
+    #  probe0 是 top1 的 128bit debug_probe：VDMA 输入握手、帧尾、
+    #  hdl_out 的写 bank/地址、hdmi_out 的读 bank/地址及扫描计数器。
+    #  2048 深度足够观察一帧切换附近的行为，同时控制 BRAM 占用。
+    # =========================================================================
+    if {[get_bd_cells -quiet top1_0] ne ""} {
+        if {[get_bd_cells -quiet u_ila_hdmi] eq ""} {
+            create_bd_cell -type ip -vlnv xilinx.com:ip:ila:6.2 u_ila_hdmi
+            set_property -dict [list \
+                CONFIG.C_DATA_DEPTH     {2048} \
+                CONFIG.C_NUM_OF_PROBES  {1} \
+                CONFIG.C_PROBE0_WIDTH   {128} \
+            ] [get_bd_cells u_ila_hdmi]
+        }
+        connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins u_ila_hdmi/clk]
+        connect_bd_net [get_bd_pins top1_0/debug_probe] [get_bd_pins u_ila_hdmi/probe0]
+        puts "\[ACZ7015\] u_ila_hdmi: 128-bit probe on VDMA/frame-buffer/HDMI state"
     }
 
     # =========================================================================

@@ -28,6 +28,7 @@ while(1){
 
 #include "config/pl_cmd.h"
 #include "app/cfg.h"
+#include "common/uartln.h"
 #include "drv/emmc.h"
 #include "drv/vdma.h"
 #include "img/catalog.h"
@@ -243,16 +244,39 @@ void start_analyze(void)
 
 
 
-void delay(u32 ms)
+/* run_test.ps1 在结束（含 Ctrl+C）时发送 '!'。测试不能一直困在循环里，
+ * 所以等待期间轮询 UART；收到停止符就返回 main 的命令循环。 */
+static int test_stop_requested(void)
+{
+    if (uartln_rx_ready() != 0) {
+        if (uartln_getc() == (u8)'!') {
+            return 1;
+        }
+        xil_printf("\r\n[PL test] ignored unexpected UART byte\r\n");
+    }
+    return 0;
+}
+
+static int delay_or_stop(u32 ms)
 {
     u32 left = ms;
-    while (left > 0u) {
-        u32 step = (left > 1000u) ? 1000u : left;
+    u32 dot_ms = 0u;
 
+    while (left > 0u) {
+        u32 step = (left > 20u) ? 20u : left;
+
+        if (test_stop_requested() != 0) {
+            return -1;
+        }
         usleep((unsigned long)step * 1000ul);
         left -= step;
-        xil_printf(".");
+        dot_ms += step;
+        if (dot_ms >= 1000u) {
+            xil_printf(".");
+            dot_ms = 0u;
+        }
     }
+    return 0;
 }
 
 
@@ -292,7 +316,11 @@ void pl_ctrl_test_run(void)
                 xil_printf("\r\nRESULT: FAILED (VDMA setup)\r\n");
                 return;
             }
-            delay(ANALYZE_MS);
+            if (delay_or_stop(ANALYZE_MS) != 0) {
+                (void)vdma_mm2s_stop();
+                xil_printf("\r\nRESULT: STOPPED (VDMA halted; command loop restored)\r\n");
+                return;
+            }
         }
     }
 }

@@ -1,7 +1,11 @@
 `timescale 1ns / 1ps
 
 module top1 #(
-    parameter integer PIXEL_W = 8       // 像素位宽: 8bit 灰度
+    parameter integer PIXEL_W = 8,      // 像素位宽: 8bit 灰度
+    // 当前仓库的 denose RTL 固化为 515 像素输入行，而 VDMA 配置为
+    // 256x256。默认直通，先保证帧边界和 HDMI 输出正确；重新生成匹配
+    // 256x256 协议的 HLS 核后，才可设为 0 启用去噪。
+    parameter integer BYPASS_DENOISE = 1
 )(
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
@@ -76,6 +80,9 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
     input  wire        rready,
 
+    // 仅接到 BD 内部 ILA，不会成为 system_wrapper 的外部 IO。
+    output wire [127:0] debug_probe,
+
     // HDMI 输出信号 (P/N 都要引出来, 见 hdmi_tx.v 里的说明)
     output wire [2:0]              tmds_data_p,
     output wire [2:0]              tmds_data_n,
@@ -98,6 +105,10 @@ module top1 #(
     wire [31:0] dbg_frames;
     wire [31:0] dbg_stat;
     wire [31:0] dbg_stream;
+
+    reg [31:0] dbg_axis_beats_q;
+    reg [31:0] dbg_input_frames_q;
+    reg [31:0] dbg_output_frames_q;
 
     axi_lite_rcv reg_io(
         .clk(clk),
@@ -172,30 +183,40 @@ module top1 #(
     wire               dn_eof;
     wire               dn_ready;
 
-    denose u_denose (
-        .ap_clk    (clk),
-        .ap_rst    (rst),   
-                  
-        .in_data   (px_data),
-        .in_valid  (px_valid),
-        .in_last   (px_eof),  
-        .in_ready  (px_ready),    
-
-        .out_ready (dn_ready),             
-        .out_data  (dn_data),
-        .out_valid (dn_valid),
-        .out_last  (dn_eof)      
-    );
-
     wire [PIXEL_W-1:0] hdl_data;
     wire hdl_valid;
     wire hdl_eof;
     wire hdl_ready;
 
-    assign hdl_data = dn_data;
-    assign hdl_valid = dn_valid;
-    assign hdl_eof = dn_eof;
-    assign dn_ready = hdl_ready;
+    generate
+        if (BYPASS_DENOISE != 0) begin : g_bypass_denoise
+            // VDMA 的 256x256 帧直接进入帧缓存。这样 px_eof 每 65536
+            // 像素到达一次，和 hdl_out 的固定 bank 容量严格一致。
+            assign hdl_data = px_data;
+            assign hdl_valid = px_valid;
+            assign hdl_eof = px_eof;
+            assign px_ready = hdl_ready;
+            assign dn_ready = 1'b0;
+        end else begin : g_use_denoise
+            denose u_denose (
+                .ap_clk    (clk),
+                .ap_rst    (rst),
+                .in_data   (px_data),
+                .in_valid  (px_valid),
+                .in_last   (px_eof),
+                .in_ready  (px_ready),
+                .out_ready (dn_ready),
+                .out_data  (dn_data),
+                .out_valid (dn_valid),
+                .out_last  (dn_eof)
+            );
+
+            assign hdl_data  = dn_data;
+            assign hdl_valid = dn_valid;
+            assign hdl_eof   = dn_eof;
+            assign dn_ready  = hdl_ready;
+        end
+    endgenerate
 
 
 
@@ -210,6 +231,8 @@ module top1 #(
     wire        hdmi_0_done;
     wire        hdmi_1_done;
     wire        done_accept;
+    wire [18:0] hdl_dbg_status;
+    wire [37:0] hdmi_dbg_status;
     wire [7:0]  hdmi_vid_r;
     wire [7:0]  hdmi_vid_g;
     wire [7:0]  hdmi_vid_b;
@@ -233,7 +256,8 @@ module top1 #(
 
         .hdmi_0_done(hdmi_0_done),
         .hdmi_1_done(hdmi_1_done),
-        .done_accept(done_accept)
+        .done_accept(done_accept),
+        .dbg_status(hdl_dbg_status)
     );
 
     double_buf u_double_buf (
@@ -263,8 +287,47 @@ module top1 #(
         .vid_de(hdmi_vid_de),
         .hdmi_0_done(hdmi_0_done),
         .hdmi_1_done(hdmi_1_done),
-        .done_accept(done_accept)
+        .done_accept(done_accept),
+        .dbg_status(hdmi_dbg_status)
     );
+
+    // -------- 板上观测：可经 AXI-Lite 读取，也会送入 ILA --------
+    always @(posedge clk) begin
+        if (rst) begin
+            dbg_axis_beats_q   <= 32'd0;
+            dbg_input_frames_q <= 32'd0;
+            dbg_output_frames_q <= 32'd0;
+        end else begin
+            if (s_axis_tvalid && s_axis_tready)
+                dbg_axis_beats_q <= dbg_axis_beats_q + 1'b1;
+            if (px_valid && px_ready && px_eof)
+                dbg_input_frames_q <= dbg_input_frames_q + 1'b1;
+            if (fb_write_en && fb_write_addr == 16'hFFFF)
+                dbg_output_frames_q <= dbg_output_frames_q + 1'b1;
+        end
+    end
+
+    assign dbg_beats  = dbg_axis_beats_q;
+    assign dbg_pixels = {16'd0, fb_write_addr};
+    assign dbg_frames = {16'd0, dbg_input_frames_q[7:0],
+                         dbg_output_frames_q[7:0]};
+    assign dbg_stat   = {13'd0, hdl_dbg_status};
+    assign dbg_stream = {22'd0, s_axis_tvalid, s_axis_tready, s_axis_tlast,
+                         s_axis_tuser, px_eof, hdl_eof, fb_write_en,
+                         fb_write_idx, fb_read_idx, done_accept};
+
+    // 128-bit 单 probe：避免大量窄 probe 消耗 ILA 资源。位定义从高到低：
+    // hdl 状态、HDMI 状态、写/读地址、VDMA 当前 32bit 数据、控制信号。
+    // create_zynq_project.tcl 会把这个 net 接到 BD 内的 u_ila_hdmi。
+    (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] hdmi_ila_probe;
+    assign hdmi_ila_probe = {
+        hdl_dbg_status, hdmi_dbg_status,
+        fb_write_addr, fb_read_addr,
+        s_axis_tdata,
+        s_axis_tvalid, s_axis_tready, s_axis_tlast,
+        px_eof, hdl_eof, fb_write_en, done_accept
+    };
+    assign debug_probe = hdmi_ila_probe;
 
     // TMDS 串行位: 来自 hdmi_tx, 在这里紧贴端口做 OBUFDS
     wire tmds_ser_r;

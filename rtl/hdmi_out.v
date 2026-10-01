@@ -47,7 +47,10 @@ module hdmi_out(
 
     output reg hdmi_0_done,
     output reg hdmi_1_done,
-    input done_accept
+    input done_accept,
+
+    // ILA / AXI-Lite 调试状态：{state, read_bank, hcnt, vcnt, read_addr}
+    output wire [37:0] dbg_status
 );
 
     reg [9:0] hcnt, vcnt;
@@ -59,6 +62,8 @@ module hdmi_out(
     reg state, next;
 
     reg [15:0] counter;
+
+    assign dbg_status = {state, buf_idx_save, hcnt, vcnt, counter};
 
     always @(posedge pclk or posedge rst) begin
         if(rst) begin
