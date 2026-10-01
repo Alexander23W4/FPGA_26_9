@@ -1,138 +1,267 @@
-# FPGA Medical Image Display Demo
+# FPGA_26：Zynq 灰度图像去噪与 HDMI 显示
 
-这是一个面向 FPGA 学习和工程演示的医学影像处理项目。当前实现了一条简化的数据通路：
+本项目面向“基于 FPGA 的医学影像实时分析与智能辅助展示”竞赛方向，使用小梅哥 ACZ7015 开发板，搭建从图像存储、DDR 搬运、硬件去噪到 HDMI 显示的数据通路。
 
-```text
-SD 卡 SPI 输入 -> 8-bit 灰度归一化 -> 640x480 视频时序 -> TMDS 编码 -> HDMI
-```
+当前代码处理 **256×256、8 位灰度图像**：ARM 端负责图片管理和传输控制，FPGA 端负责去噪、帧缓存和视频输出。医学影像智能分析是后续扩展方向，当前尚未实现病灶识别、模型推理或分割结果叠加。
 
-## 当前功能
+> 本文按当前源码整理。模块已有实现不代表已经通过完整上板验证；实际功能、时序和性能需要结合仿真、实现报告及硬件测试确认。
 
-- 通过 SPI 模式读取 SD 卡上的连续 8-bit 灰度数据；
-- 对输入像素进行黑电平和白电平归一化；
-- 生成 640x480@60Hz 视频时序；
-- 将灰度图像复制到 RGB 三个通道，形成黑白显示；
-- 生成 HDMI TMDS 10-bit 符号，供外部高速串行器使用；
-- 按功能拆分为多个独立的 SystemVerilog 模块。
-
-## 目录结构
+## 数据通路
 
 ```text
-.
-├── rtl/                         FPGA 源码（SystemVerilog）
-│   ├── top/          sd_hdmi_gray_top.sv     顶层模块
-│   ├── video/        hdmi_video_640x480.sv   视频时序
-│   │                 tmds_encoder.sv         TMDS 编码
-│   ├── storage/      sd_spi_stream.sv        SD 卡 SPI 字节流接收
-│   ├── imgproc/      gray_normalize.sv       灰度归一化
-│   └── common/       sync_fifo.sv            通用同步 FIFO
-│
-├── sim/                         仿真
-│   └── tb/                       测试平台
-│
-├── constrs/                     约束
-│   └── acz7015/      acz7015.xdc   板级引脚模板
-│                     pinmap.csv    引脚速查表
-│
-├── board/                       板级支持包（不随项目变）
-│   └── acz7015/      ps7_preset.tcl   PS7 一键配置
-│                     board_files/     Vivado Board File
-│                     drivers/         板载串口驱动
-│
-├── csrc/                        Vitis 工作区（你的 C 源码）
-│   └── <组件名>/src/           由 scripts 自动生成，源码入库            ★
-│
-├── scripts/                     构建与自动化（详见 scripts/README.md）
-│   ├── build.sh                 唯一入口 ★
-│   ├── env_check.sh             环境自检
-│   └── tcl/  vitis/             执行层
-│
-├── docs/                        文档（详见 docs/README.md）
-│   ├── design/                  项目设计文档
-│   ├── reference/               参考资料
-│   └── env/                     环境与硬件事实库
-│
-├── bd/  ip/                     预留：Block Design Tcl / 自定义 IP
-├── build/                       生成物（git 忽略）
-└── LICENSE
+电脑上的灰度 .bin 文件
+    │ USB 串口 / PowerShell 脚本
+    ▼
+PS / ARM：接收数据、CRC32 校验、管理图片目录
+    │
+    ▼
+板载 eMMC ──读取──► PS DDR
+                       │ AXI VDMA MM2S，经 PS S_AXI_HP0 读取
+                       ▼
+                 AXI4-Stream（32 位）
+                       │ axi2px：拆成 8 位像素，生成帧边界
+                       ▼
+                 denose：HLS 去噪模块
+                       │
+                       ▼
+                 hdl_out → 双 BRAM 帧缓存
+                                  │
+                                  ▼
+                 hdmi_out：640×480 视频时序
+                                  │
+                                  ▼
+                 hdmi_tx：TMDS 编码、OSERDESE2 串行化
+                                  │ OBUFDS 差分输出
+                                  ▼
+                          HDMI_2（J7）显示器
 ```
 
-## 顶层模块
+PS 通过 AXI-Lite 配置 VDMA。PL 自定义控制寄存器接口也已接入，但模式、命令和调试寄存器的内部逻辑仍需补全。
 
-顶层模块名为 `sd_hdmi_gray_top`，主要接口如下：
+当前主链路使用 **eMMC 裸块存储**。早期 SD 卡 SPI 输入方案，以及处理结果经 VDMA S2MM 回写 DDR、通过网口回传的方案，均不属于当前主链路。
 
-- `clk_pixel`：像素时钟，640x480@60Hz 建议约为 25.175 MHz；
-- `clk_5x`：预留给外部 10:1 HDMI 串行器；
-- `rst_n`：低有效复位；
-- `start`：启动 SD 卡 SPI 数据接收；
-- `sd_sck`、`sd_cs_n`、`sd_mosi`、`sd_miso`：SD 卡 SPI 接口；
-- `hdmi_tmds_data`：三个颜色通道的 10-bit TMDS 符号；
-- `hdmi_tmds_clock`：TMDS 时钟符号；
-- `hdmi_hsync`、`hdmi_vsync`、`hdmi_de`：视频控制信号。
+## 当前实现
 
-## 目标板：小梅哥 ACZ7015（Zynq-7015）
+| 部分 | 内容 |
+| --- | --- |
+| 图片上传 | 通过串口接收图片，执行 CRC32 校验，写入 eMMC 后读回比对 |
+| 图片目录 | 自定义 TOC，最多登记 8 张图片，记录名称、尺寸、数据位置和 CRC |
+| DDR 搬运 | 将指定图片载入 DDR，维护 CPU cache 一致性，再配置 VDMA |
+| 像素拆分 | 将每个 32 位 AXI-Stream 数据拍拆成 4 个 8 位灰度像素，支持下游反压 |
+| 去噪 | 接入 Vitis HLS 2023.2 生成的 `denose` RTL，设计采用 3×3 高斯平滑 |
+| 帧缓存 | 两块 256×256×8 bit BRAM，共 128 KiB；协调处理端写入和显示端读取 |
+| 视频显示 | 640×480、60 Hz 时序；256×256 图像居中显示，外围填黑，灰度复制到 RGB 三通道 |
+| HDMI 输出 | TMDS 编码、10:1 串行化和差分输出均已有代码 |
+| 工程工具 | Tcl 生成 Vivado 工程及 Block Design，脚本构建位流、XSA 和 ARM 应用 |
 
-| 项目 | 值 |
-|---|---|
-| 器件 | `xc7z015clg485-2` |
-| 系统时钟 | **L5**，50 MHz |
-| DDR3 | 1 GB，32 位，1.35V，DDR3-1066 |
-| **HDMI_2 (J7)** | **FGPA 原生 TMDS**：数据 `N6 / M8 / K7`，时钟 `T2` ← 本项目走这条 |
-| HDMI_1 (J6) | 经 SIL9022A，FPGA 侧是并行 RGB |
+60 Hz 是视频输出时序，**不等同于去噪算法每秒处理 60 张新图**。没有新帧可切换时，显示端继续读取当前帧。
 
-> ⚠️ 本项目输出 10-bit TMDS 符号，对应的是 **HDMI_2 (J7)**，不是 HDMI_1。
-> 板上**没有外部 10:1 串行器**，需用 7 系列 **OSERDESE2**（5:1 DDR = 总计 10:1）。
-> 详见 `docs/env/硬件核对表.md` 第 8 节。
+## 硬件与工具
 
-## 构建
+| 项目 | 配置 |
+| --- | --- |
+| 开发板 | 小梅哥 ACZ7015 |
+| FPGA | `xc7z015clg485-2`（Zynq-7015） |
+| DDR3 | 1 GB，32 位总线 |
+| 板载输入时钟 | 50 MHz |
+| 当前 PL / 像素时钟 | 25.2 MHz，由 Clocking Wizard 产生 |
+| HDMI 串行时钟 | 126 MHz，与像素时钟同源 |
+| 视频接口 | HDMI_2（J7），FPGA 原生 TMDS |
+| 串口 | PS UART1，115200 波特，8N1；PC 脚本默认 `COM7` |
+| 工具链 | Vivado / Vitis 2023.2，Windows、Git Bash、PowerShell |
 
-**入口只有 `./scripts/build.sh`（需要 Git Bash）**
+HDMI_1（J6）使用 SIL9022A，与当前输出路径不同。连接显示器时使用 HDMI_2；电脑普通 HDMI 输出口不能直接作为视频输入。
+
+板级配置位于 `board/acz7015/`，引脚约束位于 `constrs/acz7015/acz7015.xdc`。
+
+## 目录与主要模块
+
+```text
+rtl/                       FPGA Verilog 源码
+  top1.v                   PL 顶层，连接处理与显示链路
+  axi2px.v                 AXI-Stream 转灰度像素流
+  axi_lite_rcv.v           PS 控制寄存器接口
+  denose*.v                HLS 生成的去噪模块与内部 RAM
+  hdl_out.v                处理结果写入及帧缓存切换协调
+  double_buf.v             两块 BRAM 帧缓存
+  hdmi_out.v               视频时序、图像窗口和缓存读取
+  hdmi_tx.v                TMDS 编码及串行化
+csrc/MID_plt/src/          ARM 裸机应用
+  main.c / app.c           初始化、串口命令及测试分发
+  drv_emmc.c / drv_vdma.c  eMMC 与 VDMA 驱动
+  img_catalog.c           图片目录管理
+  img_ddr.c               DDR 缓冲及 cache 维护
+  feat_*.c                上传、清空、载入 DDR 等功能
+  pl_ctrl_test.c          三图轮换测试
+scripts/
+  build.sh                构建入口（Git Bash）
+  tcl/                    建工程、实现、导出及 JTAG 下载
+  vitis/                  Vitis 平台和应用构建
+  pc/                     PC 端串口操作脚本（PowerShell）
+board/acz7015/            板卡文件、PS7 预设及驱动资料
+constrs/acz7015/          引脚约束
+docs/                    需求、设计记录和环境排查文档
+sim/tb/                  仿真测试平台预留目录，目前只有占位文件
+bd/、ip/                 预留目录
+build/                   生成的工程、构建日志与归档产物
+```
+
+ARM 源码采用 `.c` 文件平铺、头文件按功能分目录的方式，以适配当前 Vitis 构建流程。
+
+## 构建与下载
+
+以下构建命令在仓库根目录的 **Git Bash** 中执行。
+
+### 1. 检查环境
 
 ```bash
-./scripts/build.sh check                          # 环境自检
-
-./scripts/build.sh pl   -n led_demo -t sd_hdmi_gray_top   # 纯 PL 全流程
-./scripts/build.sh zynq -n zynq_led -a                    # Zynq 流程（带 AXI）
-./scripts/build.sh sim  -n sd_hdmi -b tb_video            # 仿真
+./scripts/build.sh check
 ```
 
-产物自动归档到 `build/out/<时间戳>_<githash>/`，含位流、日志和 `MANIFEST.txt`。
+脚本默认从 `E:/Xilinx` 查找 2023.2 工具链。安装位置不同时，在当前 Git Bash 会话中设置：
 
-> 工程目录 `build/` 不入库 —— 每次由脚本重建。
-> 需要 GUI 时先建出来再打开：`vivado build/vivado/<工程名>/<工程名>.xpr`
-> 在 GUI 里改完后跑 `./scripts/build.sh export -n <工程名>` 把改动导回 Tcl 提交。
+```bash
+export XILINX_ROOT=/d/Xilinx
+export VIVADO_VER=2023.2
+```
 
-详细说明见 `scripts/README.md`。
+### 2. 构建 Zynq 硬件
 
-## 使用说明
+```bash
+./scripts/build.sh zynq -n fpga_26 -H
+```
 
-将 `rtl/` 下的 `.sv` 文件全部加入 FPGA 工程，并将 `sd_hdmi_gray_top` 设置为顶层模块。然后根据目标 FPGA 开发板补充：
+`-H` 启用当前显示链路所需的 HP0、VDMA 和 PL 连接。修改 Block Design 生成脚本后，需要重新生成工程：
 
-1. 时钟生成与 PLL/MMCM 配置；
-2. SD 卡和 HDMI 的引脚约束；
-3. FPGA 厂商对应的 OSERDES 或高速串行输出原语；
-4. HDMI 差分输出缓冲；
-5. SD 卡初始化、命令发送和图像文件读取逻辑。
+```bash
+./scripts/build.sh zynq -n fpga_26 -H -R
+```
 
+`-R` 会删除并重建 `build/vivado/fpga_26/`。如有尚未保存到源码或 Tcl 的 GUI 修改，应先导出：
 
-## 当前简化假设
+```bash
+./scripts/build.sh export -n fpga_26
+```
 
-本项目代码用于教学和算法链路演示，并不是完整的 SD 卡文件系统或 HDMI PHY 实现：
+### 3. 构建 ARM 应用
 
-- SD 卡已经处于 SPI 模式，并能够连续提供图像字节流；
-- 输入数据按行优先排列，每个像素占 1 个字节；
-- SD 卡初始化和扇区选择由外部逻辑或后续模块完成；
-- TMDS 10:1 串行化和 HDMI 物理层输出由目标 FPGA 平台实现；
-- 当前视频模块没有 DDR 帧缓存，输入吞吐率需要与显示时序匹配。
+```bash
+./scripts/build.sh app -n MID_plt -p fpga_26 -f
+```
 
-## 后续扩展
+应用名为 `MID_plt`，平台名为 `fpga_26`，二者必须不同。`-f` 强制重建平台，适用于硬件 XSA 更新后；仅修改 C 源码时可省略。
 
-- 增加 SD 卡初始化和 FAT 文件读取；
-- 增加 DDR 帧缓存和跨时钟域处理；
-- 增加伪彩色、滤波、阈值分割和形态学处理；
-- 增加医学图像分割模型和 FPGA 推理加速；
-- 增加图像信息、帧率、延迟和分割结果的 HDMI 叠加显示。
+脚本会从 `build/out/` 选择按路径排序最后的 XSA。构建前检查日志中的 `Using hardware platform`，确保它来自本次硬件工程。
+
+生成的 Vivado 工程位于 `build/vivado/fpga_26/`，Vitis 工作区位于 `csrc/`。位流、XSA、ELF 按构建步骤归档到 `build/out/<时间戳>_<git版本>/`，并附日志与 `MANIFEST.txt`。
+
+### 4. 通过 JTAG 下载并运行
+
+连接开发板电源和 JTAG，在 Git Bash 中调用：
+
+```bash
+# 替换为本次硬件构建实际生成的 .bit 路径
+BIT="build/out/<本次硬件构建目录>/system_wrapper.bit"
+ELF="csrc/MID_plt/build/MID_plt.elf"
+PS_INIT="csrc/fpga_26/hw/sdt/ps7_init.tcl"
+
+"${XILINX_ROOT:-/e/Xilinx}/Vitis/${VIVADO_VER:-2023.2}/bin/xsct.bat" \
+  "$(cygpath -w scripts/tcl/flash_all.tcl)" \
+  "$(cygpath -w "$BIT")" \
+  "$(cygpath -w "$ELF")" \
+  "$(cygpath -w "$PS_INIT")" init
+```
+
+核对 ELF 和 `ps7_init.tcl` 的实际生成位置，并使用同一硬件版本对应的文件。该脚本初始化 PS、配置 PL 并运行 ARM 应用；这是 JTAG 下载流程，不是掉电后自动启动的启动镜像制作流程。
+
+## 上传和显示图片
+
+### 图片格式
+
+当前 PL 固定按以下格式处理：
+
+- 宽 256、高 256，按行排列。
+- 每个像素 1 字节，取值 0～255。
+- 文件为无文件头的原始灰度数据，总长度 **65,536 字节**。
+
+PNG、JPEG、DICOM 等文件需先解码、调整尺寸并导出灰度原始数据。上传脚本允许填写其他尺寸，但当前 PL 并不自动适配其他分辨率。
+
+### PC 端操作
+
+以下命令在仓库根目录的 **PowerShell** 中执行。将 `COM7` 替换为开发板实际串口，运行脚本前关闭占用该串口的终端。
+
+```powershell
+# 上传图片，默认由板端分配存储位置
+powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_add.ps1 -File D:\test_img\iceberg.bin -Port COM7 -Width 256 -Height 256 -Bpp 1
+
+# 列出板上图片
+powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_list.ps1 -Port COM7
+
+# 选择第 0 张图片，载入 DDR 并启动 VDMA
+powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_to_ddr.ps1 -Index 0 -Port COM7
+```
+
+索引从 0 开始。载入命令的日志会检查 CRC、VDMA 寄存器、复位、错误位和运行状态；这些检查不能代替对去噪结果和 HDMI 画面的验证。
+
+需要删除所有已登记图片并重置目录时，执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\pc\emmc_clear.ps1 -Port COM7
+```
+
+### 串口命令
+
+| 命令 | 作用 |
+| --- | --- |
+| `?` | 打印帮助 |
+| `I` | 列出图片目录 |
+| `A` | 上传图片；后续二进制协议由 `emmc_add.ps1` 处理 |
+| `D` | 载入图片并启动 VDMA，后跟 4 字节小端图片索引 |
+| `E` | 清除已登记图片并重置目录 |
+| `-pl_ctrl_test` 加换行 | 进入三张图片轮换测试 |
+
+三图测试按 `pl_ctrl_test.c` 中配置的名称寻找 `iceberg`、`lofoten`、`gb200`，需预先上传对应图片。测试循环间隔约 10 秒：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\pc\run_test.ps1 -Test pl_ctrl_test -Port COM7
+```
+
+停止 PC 脚本不会停止 ARM 上的无限循环；要恢复普通命令交互，需重启板端应用。
+
+## 存储与地址约定
+
+| 项目 | 当前值 |
+| --- | --- |
+| eMMC 块大小 | 512 字节 |
+| 图片目录 TOC | 第 1024 块 |
+| 图片数据起点 | 第 2048 块 |
+| 图片目录容量 | 最多 8 张 |
+| 普通 `D` 命令的 DDR 缓冲 | `0x20000000`，预留 16 MiB |
+| 三图测试的 DDR 缓冲 | `0x10000000` |
+| VDMA 寄存器基地址 | `0x43000000` |
+| PL 控制寄存器基地址 | `0x44000000` |
+
+对应定义分布在 `csrc/MID_plt/src/app/cfg.h`、`csrc/MID_plt/src/config/pl_cmd.h` 和 Block Design 生成脚本中，修改时需保持一致。eMMC 使用项目自定义裸块布局，不依赖 FAT 文件系统。
+
+## 当前限制与后续工作
+
+- **控制逻辑待补全**：`top1.v` 中模式、命令和数据寄存器没有接入更新逻辑，调试寄存器输入也未完整驱动，不能据此宣称模式切换或参数配置已可用。
+- **验证资料待补齐**：`sim/tb/` 目前只有占位文件；需补像素拆分、去噪、帧切换和视频输出的测试平台及参考结果比对。
+- **HLS 源码待纳入仓库**：当前包含生成的去噪 Verilog，尚未找到对应 HLS C++ 源码及完整复现工程。
+- **性能需要实测**：需记录处理吞吐、端到端延迟、资源占用和实现后时序，不能将 HDMI 刷新率直接当作算法处理帧率。
+- **医学分析功能待扩展**：尚未实现医学文件解析、模型推理、病灶分割、结果叠加或图形操作界面。
+
+## 更多资料
+
+- 构建脚本说明：`scripts/README.md`
+- ARM 源码组织：`csrc/MID_plt/src/README.md`
+- 开发流程：`docs/开发流程.md`
+- 选题与评分要求：`docs/design/requirement.md`
+- 硬件核对：`docs/env/硬件核对表.md`
+- 环境配置：`docs/env/环境搭建指南.md`
+
+部分设计笔记和脚本注释保留了历史方案；接口和命令应以当前实现为准。
 
 ## 许可证
 
-本项目采用 MIT License，具体内容见 [LICENSE](LICENSE)。项目中的医学影像相关内容仅用于工程教学与算法演示，不作为临床诊断依据。
+本项目采用 MIT License，详见 `LICENSE`。医学影像相关内容用于工程教学与算法演示，不作为临床诊断依据。

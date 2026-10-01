@@ -85,6 +85,22 @@ set_property PACKAGE_PIN M8 [get_ports {tmds_data_p[1]}]
 set_property PACKAGE_PIN N6 [get_ports {tmds_data_p[0]}]
 set_property PACKAGE_PIN T2 [get_ports tmds_tx_p]
 
+# ---------------------------------------------------------------------------
+#  ★★ TMDS 串化器的跨时钟域约束 (必须, 否则时序必违例) ★★
+#    hdmi_tx 的移位寄存器跑在 clk_out2(126MHz), 但它只在 tmds_mod5[2] 时重载,
+#    即【每 5 个 clk_out2 周期才采样一次】像素域(clk_out1=25.2MHz)数据。
+#    不加这条时, 时序引擎按"每个 126MHz 周期都要满足"算, 必然违例:
+#        Inter Clock: clk_out1 -> clk_out2   WNS = -3.146ns, 28 个失败端点
+#    加多周期后 requirement = 5 x 7.937 = 39.68ns, 正好等于像素时钟周期,
+#    与设计意图一致 (域内路径余量本来就很大: clk_out1 +25.7ns / clk_out2 +3.2ns)。
+#
+#    注: XDC 不是通用 Tcl —— 不支持 set / if / puts(会报 20-1307 并被忽略)。
+#        必须直写字面时钟名。若 clk_wiz 的时钟此刻还没定义, 该行会报错,
+#        届时应把这两行挪到本文件最末尾或改用 -post 脚本。
+# ---------------------------------------------------------------------------
+set_multicycle_path -setup 5 -from [get_clocks clk_out1_system_clk_wiz_0_0_1] -to [get_clocks clk_out2_system_clk_wiz_0_0_1]
+set_multicycle_path -hold  4 -from [get_clocks clk_out1_system_clk_wiz_0_0_1] -to [get_clocks clk_out2_system_clk_wiz_0_0_1]
+
 # 原始 XDC 里同一组引脚还有一组别名（tmds_data_p_0 / tmds_clk_0_clk_p），
 # 是不同例程留下的重复定义，此处已统一为 tmds_data_p / tmds_tx_p。
 # 若你的顶层用旧名字，请改成：
