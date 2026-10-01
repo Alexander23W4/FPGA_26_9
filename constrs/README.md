@@ -2,8 +2,9 @@
 
 ```
 constrs/
+├── fpga_26.xdc           FPGA_26 工程实际使用的约束
 └── acz7015/
-    ├── acz7015.xdc       板级引脚约束模板（含时钟约束）
+    ├── acz7015.xdc       板级引脚参考（不直接加入工程）
     └── pinmap.csv        引脚总表速查
 ```
 
@@ -15,9 +16,9 @@ constrs/
 
 | 情况 | 做法 |
 |---|---|
-| 你的顶层端口名和它一致 | 直接用 |
-| 不一致 | 只复制用到的段落，改端口名 |
-| 用不到的段落 | **整段注释掉**，否则 `get_ports` 找不到对象会报错 |
+| 需要某个外设的引脚 | 复制对应段落到 `constrs/<工程名>.xdc` |
+| 顶层端口名不同 | 在工程约束中改成实际端口名 |
+| 用不到的段落 | 不要复制到工程约束 |
 
 如果顶层模块端口和 XDC 里有任何一处对不上，Vivado 会在综合时报
 `[Common 17-55] 'set_property' expects at least one object`。
@@ -70,10 +71,11 @@ set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets Cam_PCLK_IBUF]
 
 ---
 
-## 每次建工程都自动挂载
+## 每次建工程加载工程专用约束
 
-`scripts/tcl/create_pl_project.tcl` 和 `create_zynq_project.tcl` 会自动把
-本目录下的 `acz7015.xdc` 加进 `constrs_1`。
+`scripts/tcl/create_zynq_project.tcl` 会加载 `constrs/<工程名>.xdc`。
+例如，FPGA_26 使用 `constrs/fpga_26.xdc`。完整板级参考不会自动加入，
+所以未使用外设不会产生 `get_ports` 警告。
 
 用 `build.sh` 的话就是：
 

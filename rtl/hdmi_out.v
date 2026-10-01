@@ -66,7 +66,6 @@ module hdmi_out(
 
             hcnt <= 0;
             vcnt <= 0;
-            counter <= 0;
             //
         end else begin
             state <= next;
@@ -80,18 +79,12 @@ module hdmi_out(
                 if(hcnt == 799) begin
                     if(vcnt == 524) begin
                         vcnt <= 0;
-                        counter <= 0;
                     end else begin
                         vcnt <= vcnt + 1;
                     end
                     hcnt <= 0;
                 end else begin
                     hcnt <= hcnt + 1;
-                end
-
-
-                if(vcnt >= 112 && vcnt <= 367 && hcnt >= 191 && hcnt <= 446) begin
-                    counter <= counter + 1;
                 end
             end
 
@@ -102,6 +95,20 @@ module hdmi_out(
                 end 
             end
             //
+        end
+    end
+
+    // counter 直接驱动 Block RAM 的读地址。使用同步复位，避免异步复位
+    // 在 BRAM 地址线上产生未被时序分析覆盖的变化。
+    always @(posedge pclk) begin
+        if(rst) begin
+            counter <= 16'd0;
+        end else if(state == BUF) begin
+            if(hcnt == 799 && vcnt == 524) begin
+                counter <= 16'd0;
+            end else if(vcnt >= 112 && vcnt <= 367 && hcnt >= 191 && hcnt <= 446) begin
+                counter <= counter + 1'b1;
+            end
         end
     end
 

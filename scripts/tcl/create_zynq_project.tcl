@@ -68,7 +68,6 @@ set xdc_file   [file normalize [file join $repo_root constrs "${proj_name}.xdc"]
 #   create_pl_project.tcl 里本来就挂了它, zynq 流程之前漏了 —— 后果是
 #   这些端口全都没有 LOC/IOSTANDARD, 实现时 place 直接报
 #   [Place 30-379] "Output of OBUF instance ... is not driving any port"。
-set board_xdc  [file normalize [file join $repo_root constrs acz7015 acz7015.xdc]]
 set part_name  "xc7z015clg485-2"
 
 puts "=============================================="
@@ -93,18 +92,13 @@ create_project $proj_name [file join $proj_dir $proj_name] -part $part_name -for
 set_property target_language Verilog [current_project]
 
 # ----------------------------- 约束 -----------------------------------------
-if {[file exists $xdc_file]} {
-    add_files -fileset constrs_1 -norecurse $xdc_file
-    puts "\[ACZ7015\] Project constraints added: $xdc_file"
-} else {
-    puts "\[ACZ7015\] NOTE: $xdc_file 不存在（工程专用约束，可以缺省）"
+# 每个工程只加载自己的约束。acz7015/acz7015.xdc 是完整板级参考，
+# 直接加载会为未引出的外设端口产生 get_ports 警告。
+if {![file exists $xdc_file]} {
+    error "缺少工程约束: $xdc_file。请从 constrs/acz7015/acz7015.xdc 复制实际使用端口的约束。"
 }
-if {[file exists $board_xdc]} {
-    add_files -fileset constrs_1 -norecurse $board_xdc
-    puts "\[ACZ7015\] Board constraints added: $board_xdc"
-} else {
-    error "板级约束缺失: $board_xdc —— 没有它所有引脚都没有 LOC/IOSTANDARD"
-}
+add_files -fileset constrs_1 -norecurse $xdc_file
+puts "\[ACZ7015\] Project constraints added: $xdc_file"
 
 # ----------------------------- Block Design ---------------------------------
 puts "\[ACZ7015\] Creating Block Design 'system' ..."
@@ -134,7 +128,7 @@ foreach intf {DDR FIXED_IO} {
 #  ★ 整条 PL 【所有】时钟都用 clk_out1, 只有 pclk_x5 用 clk_out2。
 #  ★ 必须建在 M_AXI_GP0_ACLK 回接【之前】: 否则那条连接找不到 clk_wiz_0,
 #    会被 catch 吞掉, 现象就是 M_AXI_GP0_ACLK 悬空 -> BD 41-758。
-#  ★ clk50M 的引脚/时序约束在 constrs/acz7015/acz7015.xdc 里已有。
+#  ★ clk50M 的引脚/时序约束在本工程 constrs/<工程名>.xdc 里定义。
 # =============================================================================
 if {[get_bd_ports -quiet clk50M] eq ""} {
     create_bd_port -dir I clk50M
@@ -418,7 +412,7 @@ if {$want_axi_infra} {
     # =========================================================================
     #  HDMI 控制器: 输出 -> 板上 HDMI_2 (J7) 的原生 TMDS 引脚
     #
-    #  引脚约束已经在 constrs/acz7015/acz7015.xdc 里写好了(端口名一致):
+    #  引脚约束已经在本工程 constrs/<工程名>.xdc 里写好(端口名一致):
     #      tmds_data_p[2]  K7      tmds_data_p[1]  M8
     #      tmds_data_p[0]  N6      tmds_tx_p      T2      (IOSTANDARD TMDS_33)
     #  差分对 N 端由 OBUFDS 自动配对, XDC 里不用单列。
