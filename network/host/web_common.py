@@ -248,25 +248,41 @@ body{margin:0;background:#0f1720;color:#e5edf5;font-family:Segoe UI,Microsoft Ya
 h1{font-size:20px;margin:0 0 14px}label{display:block;margin:12px 0 4px}input[type=range]{width:100%}
 select,button{width:100%;padding:7px;background:#203342;color:#fff;border:1px solid #426078;border-radius:5px}
 button{cursor:pointer;margin-top:6px}.metric{display:flex;justify-content:space-between;border-bottom:1px solid #263b4b;padding:5px 0}
+.threshold-mode{display:flex;align-items:center;justify-content:space-between;margin:12px 0 4px}
+.threshold-mode label{margin:0}
+.switch{position:relative;width:48px;height:26px;padding:0;margin:0;border:0;border-radius:999px;background:#164674;transition:background .2s;flex:none}
+.switch::after{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;border-radius:50%;background:#1687ff;transition:transform .2s,background .2s}
+.switch[aria-checked="true"]{background:#1b5d94}
+.switch[aria-checked="true"]::after{transform:translateX(22px);background:#1687ff}
+.switch:disabled{cursor:not-allowed;background:#303a42;opacity:.65}
+.switch:disabled::after{background:#737e86}
+.threshold-value{display:flex;justify-content:space-between;align-items:center}
+input:disabled{opacity:.4;cursor:not-allowed}
 pre{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:12px;background:#0c141b;padding:8px}
 </style></head><body><div class="wrap">
 <div class="panel"><h1>FPGA医学影像监控</h1>
 <label>显示模式</label><select id="mode"><option value="0">原图</option><option value="1">增强</option><option value="2">掩膜</option><option value="3" selected>叠加</option></select>
-<label>分割阈值 <span id="thresholdValue">128</span></label><input id="threshold" type="range" min="0" max="255" value="128">
+<div class="threshold-mode"><label id="thresholdModeLabel" for="thresholdMode">阈值模式：自动</label><button id="thresholdMode" class="switch" type="button" role="switch" aria-checked="false" aria-label="切换自动或手动阈值模式" disabled></button></div>
+<div class="threshold-value"><label for="threshold">分割阈值</label><span id="thresholdValue">128</span></div><input id="threshold" type="range" min="0" max="255" value="128" disabled>
 <label>窗位 <span id="centerValue">128</span></label><input id="center" type="range" min="0" max="255" value="128">
 <label>窗宽 <span id="widthValue">255</span></label><input id="width" type="range" min="1" max="255" value="255">
 <label>叠加透明度 <span id="alphaValue">45</span>%</label><input id="alpha" type="range" min="0" max="100" value="45">
-<button id="simulate">切换模拟模式</button><button id="request">请求FPGA状态</button>
+<button id="simulate">切换模拟模式</button><button id="request">请求FPGA状态</button><button id="transfer">传输给FPGA</button>
 <div id="metrics"></div><pre id="logs"></pre></div>
 <div class="view"><img id="view" alt="FPGA display"></div></div>
 <script>
 const ids=['threshold','center','width','alpha'];for(const id of ids){const e=document.getElementById(id);e.addEventListener('input',()=>{document.getElementById(id+'Value').textContent=e.value;});}
-let lastThreshold=null;function sendThreshold(){const t=document.getElementById('threshold').value;if(t!==lastThreshold){lastThreshold=t;fetch('/api/command?threshold='+t);}}
+const thresholdMode=document.getElementById('thresholdMode');const threshold=document.getElementById('threshold');let simulateOn=false;
+function updateThresholdControls(){thresholdMode.disabled=simulateOn;const manual=thresholdMode.getAttribute('aria-checked')==='true';document.getElementById('thresholdModeLabel').textContent='阈值模式：'+(manual?'手动':'自动');threshold.disabled=simulateOn||!manual;}
+let lastThreshold=null;function sendThreshold(){if(simulateOn||thresholdMode.getAttribute('aria-checked')!=='true')return;const t=threshold.value;if(t!==lastThreshold){lastThreshold=t;fetch('/api/command?threshold='+t);}}
+thresholdMode.addEventListener('click',()=>{thresholdMode.setAttribute('aria-checked',thresholdMode.getAttribute('aria-checked')!=='true'?'true':'false');lastThreshold=null;updateThresholdControls();sendThreshold();});
 setInterval(sendThreshold,150);
 document.getElementById('mode').addEventListener('change',e=>fetch('/api/command?mode='+e.target.value));
 document.getElementById('simulate').addEventListener('click',()=>fetch('/api/command?simulate=toggle').then(poll));
 document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));
-async function poll(){try{const q=new URLSearchParams({mode:document.getElementById('mode').value,center:document.getElementById('center').value,width:document.getElementById('width').value,alpha:document.getElementById('alpha').value});const r=await fetch('/api/state?'+q);const j=await r.json();document.getElementById('view').src='data:image/png;base64,'+j.image;document.getElementById('imageName').textContent='当前图像: '+j.image_name;const s=j.status||{};const rows={frame:s.frame_id,mode:s.mode_name,threshold:s.threshold,area_pixels:s.area_pixels,area_mm2:s.area_mm2,inference_ms:s.inference_us===undefined?'-':(s.inference_us/1000).toFixed(3),serial:j.serial_connected?'connected':'offline',simulate:j.simulate?'on':'off'};document.getElementById('metrics').innerHTML=Object.entries(rows).map(([k,v])=>'<div class="metric"><span>'+k+'</span><b>'+(v===undefined?'-':v)+'</b></div>').join('');document.getElementById('logs').textContent=(j.logs||[]).join('\\n');}catch(e){}}
+function setSimulateState(enabled){if(simulateOn!==enabled){lastThreshold=null;}simulateOn=enabled;updateThresholdControls();}
+updateThresholdControls();
+async function poll(){try{const q=new URLSearchParams({mode:document.getElementById('mode').value,center:document.getElementById('center').value,width:document.getElementById('width').value,alpha:document.getElementById('alpha').value});const r=await fetch('/api/state?'+q);const j=await r.json();setSimulateState(Boolean(j.simulate));document.getElementById('view').src='data:image/png;base64,'+j.image;document.getElementById('imageName').textContent='当前图像: '+j.image_name;const s=j.status||{};const rows={frame:s.frame_id,mode:s.mode_name,threshold:s.threshold,area_pixels:s.area_pixels,area_mm2:s.area_mm2,inference_ms:s.inference_us===undefined?'-':(s.inference_us/1000).toFixed(3),serial:j.serial_connected?'connected':'offline',simulate:j.simulate?'on':'off'};document.getElementById('metrics').innerHTML=Object.entries(rows).map(([k,v])=>'<div class="metric"><span>'+k+'</span><b>'+(v===undefined?'-':v)+'</b></div>').join('');document.getElementById('logs').textContent=(j.logs||[]).join('\\n');}catch(e){}}
 poll();setInterval(poll,150);
 </script></body></html>"""
 

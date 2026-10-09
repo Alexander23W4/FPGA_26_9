@@ -30,6 +30,26 @@ sys.exit(0 if all(states) else 2 if any(states) else 1)
 PY
 }
 
+wait_for_ports() {
+  "$PYTHON" - "$@" <<'PY'
+import socket
+import sys
+import time
+
+ports = list(map(int, sys.argv[1:]))
+deadline = time.monotonic() + 5
+while time.monotonic() < deadline:
+    try:
+        for port in ports:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                pass
+        sys.exit(0)
+    except OSError:
+        time.sleep(0.1)
+sys.exit(1)
+PY
+}
+
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -72,20 +92,11 @@ else
     --host 127.0.0.1 --control-port 5000 --image-port 5001 &
   MOCK_PID=$!
 
-  MOCK_READY=0
-  for _ in {1..20}; do
-    if probe_ports 5000 5001; then
-      MOCK_READY=1
-      break
-    fi
+  if ! wait_for_ports 5000 5001; then
     if ! kill -0 "$MOCK_PID" 2>/dev/null; then
       echo "Mock PS server exited before startup completed." >&2
       exit 1
     fi
-    sleep 0.25
-  done
-
-  if [[ "$MOCK_READY" -ne 1 ]]; then
     echo "Mock PS service did not open both ports 5000 and 5001." >&2
     exit 1
   fi
