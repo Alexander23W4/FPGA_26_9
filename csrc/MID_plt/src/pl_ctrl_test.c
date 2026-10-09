@@ -42,6 +42,9 @@ while(1){
 
 #define IMG_LOOP_N          3u     
 #define ANALYZE_MS          3000u
+/* 等 VDMA 完整搬完一帧的轮询上限。wait_running 一旦发现帧编号变化就立刻返回,
+   正常情况最多等一帧的时间; 这个值只是超时保护。*/
+#define WAIT_ONE_FRAME_SPINS 5000000u
 #define IMG_COUNT           3u
 
 #define IMG1 "D:/test_img/iceberg.bin"
@@ -324,6 +327,22 @@ void pl_ctrl_test_run(void)
                 xil_printf("\r\nRESULT: FAILED (VDMA setup)\r\n");
                 return;
             }
+
+            /* ★★★ 只搬一帧, 然后停在帧边界 ★★★
+               vdma_mm2s_stop() 只清 CR.RUNSTOP, VDMA 会在"当前这一次传输做完"
+               的位置立刻停, 并不会等到帧边界。如果它停在帧中间, 那一帧就没有
+               tlast, PL 侧 hdl_out 的写地址会停在一帧的中途, 下一帧的像素就被
+               写到偏移 N 的地址上 => 整张图平移 => 拼图 / 看起来不轮动。
+
+               vdma_mm2s_wait_running() 轮询 PARKPTR.READSTR(已完成帧编号):
+               帧编号一变, 就说明又【完整】搬完了一帧, 此刻停必定落在帧边界。*/
+            if (vdma_mm2s_wait_running(WAIT_ONE_FRAME_SPINS) != 0) {
+                xil_printf("[PL test] WARNING: wait one frame timeout, SR=0x%08X\r\n",
+                           (s32)vdma_mm2s_status());
+            }
+            (void)vdma_mm2s_stop();          /* 停在帧边界: 这一帧是完整的 */
+
+            /* 停完之后再 delay: 画面由 PL 的双缓冲持续扫描输出, 不靠 VDMA 继续搬 */
             if (delay_or_stop(ANALYZE_MS) != 0) {
                 (void)vdma_mm2s_stop();
                 xil_printf("\r\nRESULT: STOPPED (VDMA halted; command loop restored)\r\n");

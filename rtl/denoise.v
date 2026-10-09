@@ -65,9 +65,6 @@ module denoise (
         + ({4'd0, pixel_buf[r1]} << 1)         // 下中 权2
         + {4'd0, in_data};                     // 下右 权1
 
-    // ★ 帧边界 = in_last (eof)。流水线的流控就是 eof, 这里必须信任它。
-    //   (此前我一度改成"自计数 65536"来兜底, 那会绕开 eof 流控、让本层
-    //    的帧边界与上下游脱钩, 已撤销。)
     always @(posedge ap_clk) begin
         if (ap_rst) begin
             wr_ptr      <= 10'd0;

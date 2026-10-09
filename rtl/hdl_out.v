@@ -53,8 +53,9 @@ module hdl_out(
                 end
             end
 
-            // hdl_eof 作为协议一致性检查: 它与"计数到 65535"应当同时成立。
-            // 若不一致, 说明上游 eof 与像素数不符 (只用于诊断, 不影响帧边界)。
+            // hdl_eof 只作为协议一致性检查。帧缓存的容量固定为 256x256，
+            // 实际 bank 切换必须由精确的写入计数决定，不能被上游错误的
+            // last 标记截断，否则 HDMI 会读到一张只写了一部分的图。
             if (state == BUF && hdl_valid &&
                 (hdl_eof != (counter == 16'hFFFF))) begin
                 eof_mismatch <= 1'b1;
@@ -92,17 +93,10 @@ module hdl_out(
                 if(hdl_valid) begin
                     en = 1'b1;
                     buf_data = hdl_data;
-                    // ★★★ 帧边界 = hdl_eof ★★★
-                    //   流水线每一层的流控都是通过 eof 实现的(last/eof 是一个东西),
-                    //   帧尾必须由上游的 eof 决定。
-                    //   原来这里用 counter == 0xFFFF 自己数, 理由是"怕上游 last 标错";
-                    //   但那样会让本层的帧边界与上游脱钩:
-                    //     上游被掐断(vdma_mm2s_stop)后, 计数的相位就永久停在掐断点,
-                    //     于是每一个显示帧都横跨两张图 => 拼图 + 不轮动。
-                    //   改用 eof 之后, 掐断的那一帧没有 eof, 就继续写, 直到下一帧的
-                    //   eof 才切 bank => 只坏一帧, 之后永久对齐。
-                    //   eof_mismatch 仍然保留, 作为"上游 eof 与计数不符"的诊断。
-                    if(hdl_eof) begin
+                    // 一帧固定为 65536 个像素。不要让 hdl_eof 单独决定帧尾：
+                    // 它来自可替换的 HLS 核，而错误/缺失的 last 会让正在显示
+                    // 的 bank 被下一帧覆盖。
+                    if(counter == 16'hFFFF) begin
                         next = IDLE;
                     end
                 end
