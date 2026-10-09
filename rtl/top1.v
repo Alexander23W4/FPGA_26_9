@@ -136,6 +136,20 @@ module top1 #(
     wire               dn_eof;
     wire               dn_ready;
 
+    denose u_denoise (
+        .ap_clk    (clk),
+        .ap_rst    (rst),
+        
+        .in_data   (px_data[7:0]),
+        .in_valid  (px_valid),
+        .in_last   (px_eof),
+        .in_ready  (px_ready),
+
+        .out_ready (dn_ready),
+        .out_data  (dn_data),
+        .out_valid (dn_valid),
+        .out_last  (dn_eof)
+    );
 
 
 
