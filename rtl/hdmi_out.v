@@ -47,7 +47,8 @@ module hdmi_out(
 
     output reg hdmi_0_done,
     output reg hdmi_1_done,
-    input done_accept,       // ★ 现在是 clk 域翻转电平(已同步), 不是单周期脉冲
+    input done_accept,       // ★ 只用于 IDLE 启动放行, 不再驱动 bank 切换
+    input write_idx_sync,    // ★ 写端当前 bank(已打拍), 读端永远读它的【另一块】
 
     // ILA / AXI-Lite 调试状态：{state, read_bank, hcnt, vcnt, read_addr}
     output wire [37:0] dbg_status
@@ -73,12 +74,9 @@ module hdmi_out(
         if(rst) begin
             state <= IDLE;
 
-            // ★★ 初始读 bank 必须是 1, 不能是 0 ★★
-            //   写端复位后是 state=BUF, buf_idx_save=0 => 先写 bank 0。
-            //   读端若也从 0 开始, 进 BUF 后就会读到写端正覆盖的 bank => 撕裂。
-            //   读端从 1 开始, 两边天然错开; 且读端帧尾会发 hdmi_1_done,
-            //   正好是写端(buf_idx_save==0)在 IDLE 里等待的那一个, 不会死锁。
-            buf_idx_save <= 1'b1;
+            // ★ 初始读 bank = 0: 写端复位后先写 bank0, 读端启动后读的
+            //   第一个完整帧就是 bank0 (由帧边界锁存 write_idx_sync 得到)。
+            buf_idx_save <= 1'b0;
             accept_seen  <= 1'b0;
 
             hcnt <= 0;
@@ -105,13 +103,23 @@ module hdmi_out(
                 end
             end
 
-            // 发hdmi_done的同一clk, 如果hdl_out填满另一buf, 则会回复accept, 若没有回复, 则继续输出这一buf
-            // ★ done_accept 是 clk 域翻转电平: 与上次消费过的值不同 => 有新请求,
-            //   切换 bank 并记下新值。这样帧中间到达的请求会一直保持, 不会被丢。
+            // ★★ 关键修正: 读 bank 不再"自己切换", 而是永远 = ~写 bank ★★
+            //
+            //   原来的写法: 写端切到 ~W, 读端收到 done_accept 也切到 ~W
+            //   => 两端同时落在同一个 bank => 边写边读同一块 => 撕裂/拼图。
+            //   (仿真实测: wr_idx==rd_idx, 6 帧 × 65536 个像素全部违规)
+            //
+            //   正确约定: 写端写 W, 读端读另一块。
+            //   关键在【锁存时刻】: 读端在自己的帧边界锁存 write_idx_sync,
+            //   而此时写端还没切(写端要等同一个帧完成信号才切走),
+            //   所以此刻 write_idx_sync 仍是【旧】写 bank。
+            //   读端锁存它 => 读端读旧写bank; 写端随即切到 ~旧写bank
+            //   => 两端正好互换, 永远错开。
+            //   (若这里写成 ~write_idx_sync, 就会和写端切到同一块 => 撕裂)
             if(state == BUF && vcnt == 524 && hcnt == 799) begin 
+                buf_idx_save <= write_idx_sync;           // ★ 锁存旧写 bank
                 if(done_accept != accept_seen) begin
-                    accept_seen  <= done_accept;
-                    buf_idx_save <= (buf_idx_save) ? 1'b0 : 1'b1;
+                    accept_seen <= done_accept;
                 end 
             end
             //

@@ -172,51 +172,31 @@ module top1 #(
         .s_axis_tuser(s_axis_tuser),
         .px_data(px_data),
         .px_valid(px_valid),
-        .px_eof(px_eof),
+        .px_eof(px_eof),   // "my last"  -- end of frame
         .px_sof(px_sof),
         .px_eol(px_eol),
         .px_ready(px_ready)
     );
 
-    wire [PIXEL_W-1:0] dn_data;
-    wire               dn_valid;
-    wire               dn_eof;
-    wire               dn_ready;
+    // wire [PIXEL_W-1:0] dn_data;
+    // wire               dn_valid;
+    // wire               dn_eof;
+    // wire               dn_ready;
 
     wire [PIXEL_W-1:0] hdl_data;
     wire hdl_valid;
     wire hdl_eof;
     wire hdl_ready;
 
-    generate
-        if (BYPASS_DENOISE != 0) begin : g_bypass_denoise
-            // VDMA 的 256x256 帧直接进入帧缓存。这样 px_eof 每 65536
-            // 像素到达一次，和 hdl_out 的固定 bank 容量严格一致。
-            assign hdl_data = px_data;
-            assign hdl_valid = px_valid;
-            assign hdl_eof = px_eof;
-            assign px_ready = hdl_ready;
-            assign dn_ready = 1'b0;
-        end else begin : g_use_denoise
-            denose u_denose (
-                .ap_clk    (clk),
-                .ap_rst    (rst),
-                .in_data   (px_data),
-                .in_valid  (px_valid),
-                .in_last   (px_eof),
-                .in_ready  (px_ready),
-                .out_ready (dn_ready),
-                .out_data  (dn_data),
-                .out_valid (dn_valid),
-                .out_last  (dn_eof)
-            );
 
-            assign hdl_data  = dn_data;
-            assign hdl_valid = dn_valid;
-            assign hdl_eof   = dn_eof;
-            assign dn_ready  = hdl_ready;
-        end
-    endgenerate
+
+
+    // assign hdl_data = px_data;
+    // assign hdl_valid = px_valid;
+    // assign hdl_eof = px_eof;
+    // assign px_ready = hdl_ready;
+    // assign dn_ready = 1'b0;
+
 
 
 
@@ -300,8 +280,13 @@ module top1 #(
         .buf_data(fb_write_data),
         .en(fb_write_en),
 
-        .hdmi_0_done(hdmi_0_done_c),   // ★ 已同步到 clk 域
-        .hdmi_1_done(hdmi_1_done_c),   // ★ 已同步到 clk 域
+        // ★ 必须接【电平】, 不能接边沿脉冲!
+        //   hdl_out 在 IDLE 里是每一拍都查 if(state==IDLE && hdmi_1_done),
+        //   而且 hdmi_out 在 IDLE 期间会把 hdmi_1_done 恒置 1(启动引导)。
+        //   若接边沿脉冲, 那个 1 的边沿只在启动瞬间出现一次, 写端当时还在
+        //   BUF 里, 边沿被错过 => 写端进 IDLE 后永远等不到 => 死锁。
+        .hdmi_0_done(hdmi_done_s0[2]),
+        .hdmi_1_done(hdmi_done_s1[2]),
         .done_accept(done_accept),
         .dbg_status(hdl_dbg_status)
     );
@@ -319,6 +304,13 @@ module top1 #(
     );
 
 
+    // 写端 bank 打一拍送进读端 (同频, 只为一拍对齐; 读端取反使用)
+    reg write_idx_sync;
+    always @(posedge pclk) begin
+        if (rst) write_idx_sync <= 1'b0;
+        else     write_idx_sync <= fb_write_idx;
+    end
+
     hdmi_out u_hdmi_out (
         .pclk(pclk),
         .rst(rst),
@@ -334,6 +326,7 @@ module top1 #(
         .hdmi_0_done(hdmi_0_done),
         .hdmi_1_done(hdmi_1_done),
         .done_accept(accept_tgl_s[2]),   // ★ clk 域翻转电平(已两级同步), 非脉冲
+        .write_idx_sync(write_idx_sync), // ★ 读端永远读写端的另一块
         .dbg_status(hdmi_dbg_status)
     );
 

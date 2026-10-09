@@ -30,7 +30,7 @@ module tb_bank_handshake;
     // ---------------- hdmi_out (读端) ----------------
     wire        rd_idx;
     wire [15:0] rd_addr;
-    wire [7:0]  hm0d, hm1d;
+    wire        hm0d, hm1d;
     wire [7:0]  vr, vg, vb;
     wire        hs, vs, de;
     wire [37:0] hdmi_dbg;
@@ -63,7 +63,8 @@ module tb_bank_handshake;
         .hdl_data(hdl_data), .hdl_valid(hdl_valid), .hdl_eof(hdl_eof),
         .hdl_ready(hdl_ready),
         .buf_idx(wr_idx), .buf_addr(wr_addr), .buf_data(wr_data), .en(wr_en),
-        .hdmi_0_done(hdmi_0_done_c), .hdmi_1_done(hdmi_1_done_c),
+        // ★ 必须接【电平】(与修好的 top1.v 一致), 不能接边沿脉冲
+        .hdmi_0_done(d0s[2]), .hdmi_1_done(d1s[2]),
         .done_accept(done_accept),
         .dbg_status(hdl_dbg)
     );
@@ -75,13 +76,21 @@ module tb_bank_handshake;
         .read_data(), .write_data(wr_data)
     );
 
+    // 写端 bank 打一拍送读端 (与 top1.v 一致)
+    reg write_idx_sync;
+    always @(posedge clk) begin
+        if (rst) write_idx_sync <= 1'b0;
+        else     write_idx_sync <= wr_idx;
+    end
+
     hdmi_out u_hdmi_out (
         .pclk(clk), .rst(rst),
         .buf_idx(rd_idx), .buf_addr(rd_addr), .buf_data(8'h5A),
         .vid_r(vr), .vid_g(vg), .vid_b(vb),
         .vid_hs(hs), .vid_vs(vs), .vid_de(de),
         .hdmi_0_done(hm0d), .hdmi_1_done(hm1d),
-        .done_accept(accept_tgl_s[2]),      // ★ 翻转电平
+        .done_accept(accept_tgl_s[2]),      // ★ 翻转电平(仅启动放行)
+        .write_idx_sync(write_idx_sync),    // ★ 读端读写端的另一块
         .dbg_status(hdmi_dbg)
     );
 
@@ -114,9 +123,12 @@ module tb_bank_handshake;
     end
 
     // ---------------- 不变量检查 ----------------
+    //  只在【读端真正在显示时】才算违规: hdmi_out 处于 BUF(state=1) 才有撕裂
+    //  可能。启动阶段读端在 IDLE(输出黑屏), 此时写 bank 与读 bank 相同不算问题。
+    //  hdmi_dbg = {state, buf_idx_save, hcnt, vcnt, counter}, 共 38 位, state 是最高位。
     integer viol = 0;
     always @(posedge clk) begin
-        if (!rst && wr_en && (wr_idx === rd_idx)) begin
+        if (!rst && wr_en && (wr_idx === rd_idx) && hdmi_dbg[37]) begin
             viol = viol + 1;
             if (viol <= 5)
                 $display("[VIOLATION] t=%0t wr_en=1 wr_idx=%b rd_idx=%b  <== 读正在写的 bank",
