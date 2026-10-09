@@ -47,7 +47,7 @@ module hdmi_out(
 
     output reg hdmi_0_done,
     output reg hdmi_1_done,
-    input done_accept,
+    input done_accept,       // ★ 现在是 clk 域翻转电平(已同步), 不是单周期脉冲
 
     // ILA / AXI-Lite 调试状态：{state, read_bank, hcnt, vcnt, read_addr}
     output wire [37:0] dbg_status
@@ -62,6 +62,10 @@ module hdmi_out(
     reg state, next;
 
     reg [15:0] counter;
+    // ★ 记住上一次消费过的 done_accept 电平。因为本模块只在帧边界
+    //   (vcnt==524 && hcnt==799) 采样, 若用单周期脉冲, 帧中间到达的请求
+    //   会被直接丢掉 -> 读端不切 bank -> 图像撕裂。改成翻转电平后可靠。
+    reg accept_seen;
 
     assign dbg_status = {state, buf_idx_save, hcnt, vcnt, counter};
 
@@ -69,7 +73,13 @@ module hdmi_out(
         if(rst) begin
             state <= IDLE;
 
-            buf_idx_save <= 0;
+            // ★★ 初始读 bank 必须是 1, 不能是 0 ★★
+            //   写端复位后是 state=BUF, buf_idx_save=0 => 先写 bank 0。
+            //   读端若也从 0 开始, 进 BUF 后就会读到写端正覆盖的 bank => 撕裂。
+            //   读端从 1 开始, 两边天然错开; 且读端帧尾会发 hdmi_1_done,
+            //   正好是写端(buf_idx_save==0)在 IDLE 里等待的那一个, 不会死锁。
+            buf_idx_save <= 1'b1;
+            accept_seen  <= 1'b0;
 
             hcnt <= 0;
             vcnt <= 0;
@@ -96,8 +106,11 @@ module hdmi_out(
             end
 
             // 发hdmi_done的同一clk, 如果hdl_out填满另一buf, 则会回复accept, 若没有回复, 则继续输出这一buf
+            // ★ done_accept 是 clk 域翻转电平: 与上次消费过的值不同 => 有新请求,
+            //   切换 bank 并记下新值。这样帧中间到达的请求会一直保持, 不会被丢。
             if(state == BUF && vcnt == 524 && hcnt == 799) begin 
-                if(done_accept) begin
+                if(done_accept != accept_seen) begin
+                    accept_seen  <= done_accept;
                     buf_idx_save <= (buf_idx_save) ? 1'b0 : 1'b1;
                 end 
             end
@@ -135,7 +148,8 @@ module hdmi_out(
         case(state) 
             IDLE: begin
                 hdmi_1_done = 1'b1; // 为了 hdl_out 在初始化之后能够成功第一次跳到 buf1
-                if(done_accept) begin
+                // ★ done_accept 是翻转电平: 与已消费值不同 => 写端已开始写新 bank
+                if(done_accept != accept_seen) begin
                     next = BUF;
                 end
             end

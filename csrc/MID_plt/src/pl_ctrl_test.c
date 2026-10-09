@@ -41,7 +41,7 @@ while(1){
 
 
 #define IMG_LOOP_N          3u     
-#define ANALYZE_MS          10000u
+#define ANALYZE_MS          3000u
 #define IMG_COUNT           3u
 
 #define IMG1 "D:/test_img/iceberg.bin"

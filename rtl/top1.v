@@ -231,6 +231,52 @@ module top1 #(
     wire        hdmi_0_done;
     wire        hdmi_1_done;
     wire        done_accept;
+
+    // =========================================================================
+    //  ★★★ bank 切换握手修复 (必须!!) ★★★
+    //
+    //   注: clk 和 pclk 在 BD 里接的是【同一个 clk_wiz_0/clk_out1 = 25.2MHz】,
+    //       所以这不是跨时钟域问题, 而是【脉冲宽度 vs 采样频率】问题:
+    //
+    //   hdl_out 的 done_accept 只保持 1 个时钟周期(它由 always @(*) 产生,
+    //   state 一进 BUF 就消失)。而 hdmi_out 只在【帧边界】
+    //   (vcnt==524 && hcnt==799) 采样它 —— 一帧 800x525 = 420000 个时钟
+    //   才看 1 次。=> 这个 1 周期脉冲几乎必然被丢掉。
+    //
+    //   后果: 读端不切 bank, 写端却按 hdmi_X_done 切了
+    //         => 写端把像素写进读端正显示的 bank
+    //         => 图像撕裂 / 拼图状, 且两端帧节拍错位时好时坏。
+    //
+    //   修法: 把 done_accept 变成【翻转电平】(请求一直保持到被消费),
+    //         hdmi_out 用 accept_seen 记住上次消费值, 在帧边界比较后再消费。
+    //         这样无论两端节拍如何错位, 请求都不会丢。
+    //   (下面的两级寄存对同频只是延时, 但保持了对称性, 也不影响正确性。)
+    // =========================================================================
+    reg [2:0] hdmi_done_s0, hdmi_done_s1;
+    always @(posedge clk) begin
+        if (rst) begin
+            hdmi_done_s0 <= 3'd0;
+            hdmi_done_s1 <= 3'd0;
+        end else begin
+            hdmi_done_s0 <= {hdmi_done_s0[1:0], hdmi_0_done};
+            hdmi_done_s1 <= {hdmi_done_s1[1:0], hdmi_1_done};
+        end
+    end
+    wire hdmi_0_done_c = hdmi_done_s0[2] & ~hdmi_done_s0[1];   // 单拍
+    wire hdmi_1_done_c = hdmi_done_s1[2] & ~hdmi_done_s1[1];   // 单拍
+
+    reg accept_tgl;
+    always @(posedge clk) begin
+        if (rst)              accept_tgl <= 1'b0;
+        else if (done_accept) accept_tgl <= ~accept_tgl;        // ★ 每次 accept 翻转
+    end
+    reg [2:0] accept_tgl_s;
+    always @(posedge pclk) begin
+        if (rst) accept_tgl_s <= 3'd0;
+        else     accept_tgl_s <= {accept_tgl_s[1:0], accept_tgl};
+    end
+    wire done_accept_c = accept_tgl_s[2] ^ accept_tgl_s[1];     // 单拍(未用, 保留)
+
     wire [18:0] hdl_dbg_status;
     wire [37:0] hdmi_dbg_status;
     wire [7:0]  hdmi_vid_r;
@@ -254,8 +300,8 @@ module top1 #(
         .buf_data(fb_write_data),
         .en(fb_write_en),
 
-        .hdmi_0_done(hdmi_0_done),
-        .hdmi_1_done(hdmi_1_done),
+        .hdmi_0_done(hdmi_0_done_c),   // ★ 已同步到 clk 域
+        .hdmi_1_done(hdmi_1_done_c),   // ★ 已同步到 clk 域
         .done_accept(done_accept),
         .dbg_status(hdl_dbg_status)
     );
@@ -287,7 +333,7 @@ module top1 #(
         .vid_de(hdmi_vid_de),
         .hdmi_0_done(hdmi_0_done),
         .hdmi_1_done(hdmi_1_done),
-        .done_accept(done_accept),
+        .done_accept(accept_tgl_s[2]),   // ★ clk 域翻转电平(已两级同步), 非脉冲
         .dbg_status(hdmi_dbg_status)
     );
 
