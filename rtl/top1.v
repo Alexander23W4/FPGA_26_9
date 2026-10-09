@@ -90,6 +90,7 @@ module top1 #(
     output wire                    tmds_tx_n
 );
 
+    // reg [PIXEL_W-1:0] threshold;
 
     wire [31:0] dbg_beats;
     wire [31:0] dbg_pixels;
