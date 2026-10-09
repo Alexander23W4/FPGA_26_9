@@ -28,16 +28,26 @@ except Exception:
     serial = None
 
 MODE_NAMES = ["原图", "增强", "掩膜", "叠加"]
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".bin"}
+MAX_IMAGE_UPLOAD_BYTES = 16 * 1024 * 1024
+
+
+def decode_gray_image(data: bytes, filename: str) -> np.ndarray:
+    suffix = Path(filename).suffix.lower()
+    if suffix not in IMAGE_SUFFIXES:
+        raise ValueError(f"unsupported image format: {suffix or '(no extension)'}")
+    if suffix == ".bin":
+        data_array = np.frombuffer(data, dtype=np.uint8)
+        if data_array.size != 256 * 256:
+            raise ValueError(f"expected 65536 bytes, got {data_array.size}")
+        return data_array.reshape(256, 256).copy()
+    with Image.open(io.BytesIO(data)) as image:
+        return np.asarray(image.convert("L").resize((256, 256), Image.Resampling.BILINEAR), dtype=np.uint8)
 
 
 def load_gray(path: str | Path) -> np.ndarray:
     path = Path(path)
-    if path.suffix.lower() == ".bin":
-        data = np.fromfile(path, dtype=np.uint8)
-        if data.size != 256 * 256:
-            raise ValueError(f"expected 65536 bytes, got {data.size}")
-        return data.reshape(256, 256)
-    return np.asarray(Image.open(path).convert("L").resize((256, 256), Image.Resampling.BILINEAR), dtype=np.uint8)
+    return decode_gray_image(path.read_bytes(), path.name)
 
 
 def window_level(image: np.ndarray, center: int, width: int) -> np.ndarray:
@@ -77,6 +87,7 @@ class WebState:
     def __init__(self, image_path: str, simulate: bool):
         self.lock = threading.Lock()
         self.image = load_gray(image_path)
+        self.image_name = Path(image_path).name
         self.mask: np.ndarray | None = None
         self.status: dict[str, int | float] = {}
         self.mask_assembler = proto.MaskAssembler()
@@ -84,6 +95,14 @@ class WebState:
         self.logs: list[str] = []
         self.simulate = simulate
         self.serial_connected = False
+
+    def replace_image(self, data: bytes, filename: str) -> None:
+        image = decode_gray_image(data, filename)
+        with self.lock:
+            self.image = image
+            self.image_name = Path(filename).name
+            self.mask = None
+        self.log(f"已选择图像: {self.image_name}")
 
     def log(self, message: str) -> None:
         with self.lock:
@@ -119,9 +138,11 @@ class WebState:
             logs = list(self.logs)
             simulate = self.simulate
             connected = self.serial_connected
+            image_name = self.image_name
         status["mode_name"] = MODE_NAMES[status.get("mode", mode)] if int(status.get("mode", mode)) < len(MODE_NAMES) else str(status.get("mode", mode))
         return {"image": self.render_png(mode, center, width, alpha), "status": status,
-                "logs": logs, "simulate": simulate, "serial_connected": connected}
+                "logs": logs, "simulate": simulate, "serial_connected": connected,
+                "image_name": image_name}
 
 
 class WebSimulator:
@@ -245,7 +266,7 @@ setInterval(sendThreshold,150);
 document.getElementById('mode').addEventListener('change',e=>fetch('/api/command?mode='+e.target.value));
 document.getElementById('simulate').addEventListener('click',()=>fetch('/api/command?simulate=toggle').then(poll));
 document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));
-async function poll(){try{const q=new URLSearchParams({mode:document.getElementById('mode').value,center:document.getElementById('center').value,width:document.getElementById('width').value,alpha:document.getElementById('alpha').value});const r=await fetch('/api/state?'+q);const j=await r.json();document.getElementById('view').src='data:image/png;base64,'+j.image;const s=j.status||{};const rows={frame:s.frame_id,mode:s.mode_name,threshold:s.threshold,area_pixels:s.area_pixels,area_mm2:s.area_mm2,inference_ms:s.inference_us===undefined?'-':(s.inference_us/1000).toFixed(3),serial:j.serial_connected?'connected':'offline',simulate:j.simulate?'on':'off'};document.getElementById('metrics').innerHTML=Object.entries(rows).map(([k,v])=>'<div class="metric"><span>'+k+'</span><b>'+(v===undefined?'-':v)+'</b></div>').join('');document.getElementById('logs').textContent=(j.logs||[]).join('\\n');}catch(e){}}
+async function poll(){try{const q=new URLSearchParams({mode:document.getElementById('mode').value,center:document.getElementById('center').value,width:document.getElementById('width').value,alpha:document.getElementById('alpha').value});const r=await fetch('/api/state?'+q);const j=await r.json();document.getElementById('view').src='data:image/png;base64,'+j.image;document.getElementById('imageName').textContent='当前图像: '+j.image_name;const s=j.status||{};const rows={frame:s.frame_id,mode:s.mode_name,threshold:s.threshold,area_pixels:s.area_pixels,area_mm2:s.area_mm2,inference_ms:s.inference_us===undefined?'-':(s.inference_us/1000).toFixed(3),serial:j.serial_connected?'connected':'offline',simulate:j.simulate?'on':'off'};document.getElementById('metrics').innerHTML=Object.entries(rows).map(([k,v])=>'<div class="metric"><span>'+k+'</span><b>'+(v===undefined?'-':v)+'</b></div>').join('');document.getElementById('logs').textContent=(j.logs||[]).join('\\n');}catch(e){}}
 poll();setInterval(poll,150);
 </script></body></html>"""
 
@@ -258,9 +279,9 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, _format, *_args):
         return
 
-    def send_json(self, data: dict[str, object]) -> None:
+    def send_json(self, data: dict[str, object], status: int = 200) -> None:
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
@@ -277,6 +298,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            return
+        if parsed.path == "/api/image":
+            self.send_json({"error": "POST an image file"}, status=405)
             return
         if parsed.path == "/api/state":
             mode = int(query.get("mode", ["3"])[0])
@@ -307,6 +331,35 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.send_response(404)
         self.end_headers()
+
+    def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path != "/api/image":
+            self.send_response(404)
+            self.end_headers()
+            return
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self.send_json({"error": "invalid Content-Length"}, status=400)
+            return
+        if content_length <= 0:
+            self.send_json({"error": "empty image upload"}, status=400)
+            return
+        if content_length > MAX_IMAGE_UPLOAD_BYTES:
+            self.send_json({"error": "image upload exceeds 16 MiB"}, status=413)
+            return
+        filename = parse_qs(parsed.query).get("name", [""])[0]
+        try:
+            data = self.rfile.read(content_length)
+            if len(data) != content_length:
+                raise ValueError("incomplete image upload")
+            self.state.replace_image(data, filename)
+        except (OSError, ValueError) as exc:
+            self.state.log(f"图像选择失败: {exc}")
+            self.send_json({"error": str(exc)}, status=400)
+            return
+        self.send_json({"ok": True, "name": self.state.image_name})
 
 
 def main() -> int:

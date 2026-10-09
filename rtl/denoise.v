@@ -65,6 +65,15 @@ module denoise (
         + ({4'd0, pixel_buf[r1]} << 1)         // 下中 权2
         + {4'd0, in_data};                     // 下右 权1
 
+    // ★★ 帧边界判定: 自己数, 不依赖 in_last ★★
+    //   原来只在 in_last 到来时复位 pixel_idx / wr_ptr。
+    //   in_last 来自 axi2px.px_eof, 只要它少来/多来/位置偏一像素,
+    //   pixel_idx 与 wr_ptr 就永久失步 => 3x3 空间窗口读错位置
+    //   => 图像被切成错位的块(拼图), 且失步后永不恢复(不轮动)。
+    //   hdl_out 早就是"自己数到 0xFFFF"的做法, 这里对齐它。
+    wire frame_last   = (pixel_idx == FRAME_PIXELS - 1);  // 本帧第 65536 个像素
+    wire do_frame_end = in_last | frame_last;             // 两个条件都接受
+
     always @(posedge ap_clk) begin
         if (ap_rst) begin
             wr_ptr      <= 10'd0;
@@ -110,7 +119,7 @@ module denoise (
                 else
                     wr_ptr <= wr_ptr + 1'b1;
 
-                if (in_last) begin
+                if (do_frame_end) begin
                     pixel_idx <= 17'd0;
                     wr_ptr    <= 10'd0;
                     flush_idx <= 9'd0;

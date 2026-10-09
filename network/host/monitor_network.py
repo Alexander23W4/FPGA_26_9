@@ -100,7 +100,11 @@ class TcpImageSender:
         self.chunk_size = chunk_size
 
     def send_file(self, path, frame_id=1):
-        image = load_gray(path)
+        return self.send_image(load_gray(path), frame_id)
+
+    def send_image(self, image, frame_id=1):
+        if image.shape != (256, 256):
+            raise ValueError(f'expected 256x256 image, got {image.shape}')
         packets = proto.encode_image_packets(image.tobytes(), 256, 256, frame_id, self.chunk_size)
         start = time.perf_counter()
         with socket.create_connection((self.host, self.port), timeout=3.0) as sock:
@@ -114,9 +118,9 @@ class TcpImageSender:
 
 def customize_page(page):
     page = page.replace('<button id="request">请求FPGA状态</button>',
-                        '<button id="request">请求FPGA状态</button><button id="upload">上传当前图像</button>')
+                        '<button id="request">请求FPGA状态</button><button id="chooseImage">选择本地图像</button><input id="imageFile" type="file" accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.bin" hidden><div id="imageName"></div><button id="upload">上传当前图像</button>')
     page = page.replace("document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));",
-                        "document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));document.getElementById('upload').addEventListener('click',()=>fetch('/api/upload').then(poll));")
+                        "document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));document.getElementById('chooseImage').addEventListener('click',()=>document.getElementById('imageFile').click());document.getElementById('imageFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const r=await fetch('/api/image?name='+encodeURIComponent(f.name),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:f});const j=await r.json();if(!r.ok){alert('图像加载失败: '+j.error);return;}document.getElementById('imageName').textContent='当前图像: '+j.name;poll();});document.getElementById('upload').addEventListener('click',()=>fetch('/api/upload').then(poll));")
     page = page.replace('serial:j.serial_connected?', 'network:j.serial_connected?')
     return page
 
@@ -153,7 +157,9 @@ class NetworkHandler(web_common.Handler):
             try:
                 if self.image_sender is None:
                     raise RuntimeError('image sender is not configured')
-                result = self.image_sender.send_file(self.server.image_path, self.server.next_image_frame())
+                with self.state.lock:
+                    image = self.state.image.copy()
+                result = self.image_sender.send_image(image, self.server.next_image_frame())
                 if self.control_worker is not None:
                     self.control_worker.write(proto.encode_set_threshold(self.server.threshold))
                     self.control_worker.write(proto.encode_set_mode(self.server.pl_mode))
