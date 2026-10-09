@@ -256,6 +256,7 @@ button{cursor:pointer;margin-top:6px}.metric{display:flex;justify-content:space-
 .switch[aria-checked="true"]::after{transform:translateX(22px);background:#1687ff}
 .switch:disabled{cursor:not-allowed;background:#303a42;opacity:.65}
 .switch:disabled::after{background:#737e86}
+button:active:not(:disabled){background:#1687ff;border-color:#7bc0ff;color:#fff}
 .threshold-value{display:flex;justify-content:space-between;align-items:center}
 input:disabled{opacity:.4;cursor:not-allowed}
 pre{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:12px;background:#0c141b;padding:8px}

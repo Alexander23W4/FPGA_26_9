@@ -14,8 +14,10 @@
 #include "feat/emmc_load.h"
 #include "feat/img2ddr.h"
 #include "feat/clear.h"
+#include "config/pl_cmd.h"
 #include "xil_printf.h"
 #include "xil_types.h"
+#include "xil_io.h"
 
 /* -------------------------------------------------------------------------
  *  一个命令 = 一个 feature
@@ -44,12 +46,39 @@ static int cmd_help(void)
     return 0;
 }
 
+/* 阈值更新: 收 2 字节 -> 写 PL 的 CMD_REG / DATA_REG
+     byte0 = 模式   0 = 自动 -> 只写 CMD_REG_ADDR = 0
+                    1 = 手动 -> 写 CMD_REG_ADDR = 1, 再写 DATA_REG_ADDR = byte1
+     byte1 = 手动模式下的阈值
+   MODE_ADDR 暂不使用。 */
+static int cmd_threshold_set(void)
+{
+    u8 p[2];
+
+    uartln_get_bytes(p, 2);
+
+    Xil_Out32(PL_CTRL_BASE + CMD_REG_ADDR, (u32)p[0]);
+    if (p[0] != 0u) {
+        Xil_Out32(PL_CTRL_BASE + DATA_REG_ADDR, (u32)p[1]);
+    }
+    dsb();
+
+    xil_printf("[PL reg] CMD_REG(0x%02X) = %d\r\n", (unsigned)CMD_REG_ADDR, (int)p[0]);
+    if (p[0] != 0u) {
+        xil_printf("[PL reg] DATA_REG(0x%02X) = %d\r\n", (unsigned)DATA_REG_ADDR, (int)p[1]);
+    } else {
+        xil_printf("[PL reg] 自动模式, 不写阈值\r\n");
+    }
+    return 0;
+}
+
 static const app_cmd_t cmds[] = {
     { CMD_HELP,        "? help", "list these commands", cmd_help },
     { CMD_LIST_IMAGES, "I list", "list the images registered in the eMMC catalog", cmd_list_images },
     { CMD_EMMC_LOAD,   "A add ", "PC -> eMMC  : receive a .bin and verify it on eMMC", feat_emmc_load_run },
-    { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR : load an image into DDR and start VDMA", feat_img2ddr_run },
+    { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR : load an image, VDMA sends exactly ONE frame", feat_img2ddr_run },
     { CMD_EMMC_CLEAR,  "E clear","wipe every registered image on the eMMC and reset the catalog", feat_emmc_clear_run },
+    { CMD_THRESHOLD,   "T thr",  "PL threshold: send 2 bytes (mode: 0 auto / 1 manual, value)", cmd_threshold_set },
 };
 #define APP_CMD_COUNT   (sizeof(cmds) / sizeof(cmds[0]))
 

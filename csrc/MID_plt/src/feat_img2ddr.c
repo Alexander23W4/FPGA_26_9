@@ -187,6 +187,20 @@ int feat_img2ddr_run(void)
         }
     }
 
+    /* ---------- 6.7 ★ 只发一帧: 停在帧边界 ★ ----------
+       start() 之后 VDMA 本来会一直循环搬同一帧。这里改成发完一帧就停:
+         · 帧缓存里留下的是一整张完整的图
+         · stop 不落在帧中间 => PL 侧 hdl_out 的写地址不会偏移 => 不会拼图
+       做法和 pl_ctrl_test.c 里"等帧边界再停"完全一样。 */
+    {
+        u32 fr0 = vdma_mm2s_read_frame();
+
+        (void)vdma_mm2s_wait_running(4000000u);
+        (void)vdma_mm2s_stop();
+        xil_printf("  [6.7] 发完一帧并停在帧边界: read frame %d -> %d\r\n",
+                   (s32)fr0, (s32)vdma_mm2s_read_frame());
+    }
+
     /* step 7 (VDMA S2MM 回写) 已删除: 结果由 PL 直接走 HDMI 输出, 不再回 DDR。 */
 
     vdma_mm2s_report();

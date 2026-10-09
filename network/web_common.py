@@ -227,6 +227,7 @@ body{margin:0;background:#0f1720;color:#e5edf5;font-family:Segoe UI,Microsoft Ya
 h1{font-size:20px;margin:0 0 14px}label{display:block;margin:12px 0 4px}input[type=range]{width:100%}
 select,button{width:100%;padding:7px;background:#203342;color:#fff;border:1px solid #426078;border-radius:5px}
 button{cursor:pointer;margin-top:6px}.metric{display:flex;justify-content:space-between;border-bottom:1px solid #263b4b;padding:5px 0}
+button:active:not(:disabled){background:#1687ff;border-color:#7bc0ff;color:#fff}
 pre{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:12px;background:#0c141b;padding:8px}
 </style></head><body><div class="wrap">
 <div class="panel"><h1>FPGA医学影像监控</h1>

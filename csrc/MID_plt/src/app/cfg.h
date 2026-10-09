@@ -77,6 +77,12 @@
 #define CMD_EMMC_LOAD       'A'      /* feature: PC -> eMMC */
 #define CMD_EMMC_CLEAR      'E'      /* feature: 清空 eMMC（抹数据 + 清目录） */
 #define CMD_IMG_TO_DDR      'D'
+/* ★ 阈值更新 (上位机"阈值更新"按钮): 后跟 2 字节
+     byte0 = 模式   0 = 自动 -> 只写 CMD_REG_ADDR = 0
+                    1 = 手动 -> 写 CMD_REG_ADDR = 1, 再写 DATA_REG_ADDR = byte1
+     byte1 = 手动模式下的阈值 (0..255)
+   MODE_ADDR 暂不使用。 */
+#define CMD_THRESHOLD       'T'
 /* ---- 网口回传已废弃 ----
  * 原来 PL 把结果写回 DDR(VDMA S2MM), 再由 PS 经 ENET0 用 UDP 发给笔记本。
  * 现在结果直接走 HDMI, 这条路连同 feat_net_send.c / net_send.h / net_recv.ps1
