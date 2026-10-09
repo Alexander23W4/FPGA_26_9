@@ -1,6 +1,6 @@
 `timescale 1 ns / 1 ps
 
-module denose (
+module denoise (
     input  wire       ap_clk,
     input  wire       ap_rst,
     input  wire [7:0] in_data,

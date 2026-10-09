@@ -294,24 +294,43 @@ if {$want_axi_infra} {
     #   内部: axi2px -> denose -> hdl_out -> double_buf -> hdmi_out -> hdmi_tx
     #         以及 axi_lite_rcv 给 PS 做控制/状态
     #   它带一个 AXI-Lite 从口(S_AXI), 所以要多占 axi_interconnect_0 的一个 MI 口。
-    set _pl_rtl [list \
-        [file normalize [file join $repo_root rtl top1.v]] \
-        [file normalize [file join $repo_root rtl axi_lite_rcv.v]] \
-        [file normalize [file join $repo_root rtl axi2px.v]] \
-        [file normalize [file join $repo_root rtl hdl_out.v]] \
-        [file normalize [file join $repo_root rtl hdmi_out.v]] \
-        [file normalize [file join $repo_root rtl double_buf.v]] \
-        [file normalize [file join $repo_root rtl hdmi_tx.v]] \
-        [file normalize [file join $repo_root rtl denose.v]] \
-        [file normalize [file join $repo_root rtl denose_denoise.v]] \
-        [file normalize [file join $repo_root rtl denose_denoise_q_RAM_AUTO_1R1W.v]] \
-        [file normalize [file join $repo_root rtl denose_denoise_rear_frame_RAM_AUTO_1R1W.v]]]
+    # ---------------------------------------------------------------------------
+    #  PL 源文件: 递归收集 rtl/ 下【所有】.v, 包括子目录
+    #    ★ 不再硬编码平铺路径 —— 以后把 .v 分到 rtl/thresholder/、rtl/rub/ ...
+    #      任何层级都不会漏。
+    #    ★ 之前是写死的 11 个平铺路径, 文件一挪目录就 "缺少 xxx.v" 直接漏编。
+    # ---------------------------------------------------------------------------
+    proc _acz_collect_v {dir} {
+        set out {}
+        foreach f [lsort [glob -nocomplain -directory $dir -types f *.v]] {
+            lappend out [file normalize $f]
+        }
+        foreach d [lsort [glob -nocomplain -directory $dir -types d *]] {
+            set out [concat $out [_acz_collect_v $d]]
+        }
+        return $out
+    }
+    set _pl_rtl [_acz_collect_v [file join $repo_root rtl]]
+
     set _pl_ok 1
     foreach _f $_pl_rtl {
         if {![file exists $_f]} {
             puts "\[ACZ7015\] WARNING: 缺少 [file tail $_f]"
             set _pl_ok 0
         }
+    }
+    # 顶层必须存在
+    set _has_top 0
+    foreach _f $_pl_rtl {
+        if {[file tail $_f] eq "top1.v"} { set _has_top 1 }
+    }
+    if {!$_has_top} {
+        puts "\[ACZ7015\] WARNING: rtl/top1.v 未找到"
+        set _pl_ok 0
+    }
+    puts "\[ACZ7015\] PL RTL: 共 [llength $_pl_rtl] 个 .v (递归含子目录)"
+    foreach _f $_pl_rtl {
+        puts "             [string map [list [file join $repo_root ""] ""] $_f]"
     }
     # 只有 -hp（有 axi_vdma_0）时才接 top1，否则它的 AXI-Stream 从口没人接
     set _pl_en [expr {$_pl_ok && $want_hp}]
