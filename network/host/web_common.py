@@ -264,6 +264,7 @@ pre{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:12px;backgroun
 <label>显示模式</label><select id="mode"><option value="0">原图</option><option value="1">增强</option><option value="2">掩膜</option><option value="3" selected>叠加</option></select>
 <div class="threshold-mode"><label id="thresholdModeLabel" for="thresholdMode">阈值模式：自动</label><button id="thresholdMode" class="switch" type="button" role="switch" aria-checked="false" aria-label="切换自动或手动阈值模式" disabled></button></div>
 <div class="threshold-value"><label for="threshold">分割阈值</label><span id="thresholdValue">128</span></div><input id="threshold" type="range" min="0" max="255" value="128" disabled>
+<button id="thresholdUpdate" type="button">阈值更新</button>
 <label>窗位 <span id="centerValue">128</span></label><input id="center" type="range" min="0" max="255" value="128">
 <label>窗宽 <span id="widthValue">255</span></label><input id="width" type="range" min="1" max="255" value="255">
 <label>叠加透明度 <span id="alphaValue">45</span>%</label><input id="alpha" type="range" min="0" max="100" value="45">
