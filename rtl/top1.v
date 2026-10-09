@@ -24,7 +24,7 @@ module top1 #(
     (* X_INTERFACE_PARAMETER = "FREQ_HZ 126000000" *)
     input  wire                    pclk_x5,     // 串行时钟 126MHz = 5*pclk (clk_wiz clk_out2)
 
-    // ---------------- AXI4-Stream 从端：连接 VDMA MM2S ----------------
+    // ---------------- AXI4-Stream 从端：向上接 VDMA MM2S ----------------
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TDATA" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXIS, TDATA_NUM_BYTES 8, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 25200000, PHASE 0.0, INSERT_VIP 0" *)
     input  wire [63:0] s_axis_tdata,
@@ -39,7 +39,7 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TUSER" *)
     input  wire        s_axis_tuser,
 
-    // ---------------- AXI-Lite 从口：接 PS ----------------
+    // ---------------- AXI-Lite 从口：向上接 PS ----------------
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWADDR" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXI, PROTOCOL AXI4LITE, ADDR_WIDTH 9, DATA_WIDTH 32, FREQ_HZ 25200000, ID_WIDTH 0, AWUSER_WIDTH 0, ARUSER_WIDTH 0, WUSER_WIDTH 0, RUSER_WIDTH 0, BUSER_WIDTH 0, READ_WRITE_MODE READ_WRITE, HAS_BURST 0, HAS_LOCK 0, HAS_PROT 0, HAS_CACHE 0, HAS_QOS 0, HAS_REGION 0, HAS_WSTRB 1, HAS_BRESP 1, HAS_RRESP 1, SUPPORTS_NARROW_BURST 0, NUM_READ_OUTSTANDING 1, NUM_WRITE_OUTSTANDING 1, MAX_BURST_LENGTH 1, PHASE 0.0, NUM_READ_THREADS 1, NUM_WRITE_THREADS 1, RUSER_BITS_PER_BYTE 0, WUSER_BITS_PER_BYTE 0, INSERT_VIP 0" *)
     input  wire [8:0]  awaddr,
@@ -91,15 +91,6 @@ module top1 #(
 );
 
 
-    reg [7:0] mode_reg;
-    reg [7:0] cmd_reg;
-    reg [7:0] data_reg;
-
-
-    wire __update_reg;
-    wire [8:0] __update_reg_addr;
-    wire [31:0] __update_data;
-
     wire [31:0] dbg_beats;
     wire [31:0] dbg_pixels;
     wire [31:0] dbg_frames;
@@ -109,45 +100,6 @@ module top1 #(
     reg [31:0] dbg_axis_beats_q;
     reg [31:0] dbg_input_frames_q;
     reg [31:0] dbg_output_frames_q;
-
-    axi_lite_rcv reg_io(
-        .clk(clk),
-        .rst(~rst),                 
-
-        .awaddr(awaddr),
-        .awvalid(awvalid),
-        .awready(awready),
-        .wdata(wdata),
-        .wstrb(wstrb),
-        .wvalid(wvalid),
-        .wready(wready),
-        .bresp(bresp),
-        .bvalid(bvalid),
-        .bready(bready),
-        .araddr(araddr),
-        .arvalid(arvalid),
-        .arready(arready),
-        .rdata(rdata),
-        .rresp(rresp),
-        .rvalid(rvalid),
-        .rready(rready),
-
-        .mode_reg(mode_reg),
-        .cmd_reg(cmd_reg),
-        .data_reg(data_reg),
-
-        .dbg0(dbg_beats),
-        .dbg1(dbg_pixels),
-        .dbg2(dbg_frames),
-        .dbg3(dbg_stat),
-        .dbg4(dbg_stream),
-
-        .__update_reg(__update_reg),
-        .__update_reg_addr(__update_reg_addr),
-        .__update_data(__update_data)
-    );
-
-
 
     wire [PIXEL_W-1:0] px_data;
     wire               px_valid;
@@ -178,8 +130,52 @@ module top1 #(
         .px_ready(px_ready)
     );
 
-    // wire [PIXEL_W-1:0] dn_data;
-    // wire               dn_valid;
+    // 阈值检测演示模块：AXI-Lite 直接接顶层 AXI-Lite，像素流直接接 axi2px 的输出
+    // 这里先保留输出口为空，等后续再接到下游或状态汇总模块。
+    top_threshold_demo u_top_threshold_demo (
+        .clk(clk),
+        .rst_n(~rst),
+
+        .s_axi_awaddr({23'd0, awaddr}),
+        .s_axi_awvalid(awvalid),
+        .s_axi_awready(awready),
+        .s_axi_wdata(wdata),
+        .s_axi_wstrb(wstrb),
+        .s_axi_wvalid(wvalid),
+        .s_axi_wready(wready),
+        .s_axi_bresp(bresp),
+        .s_axi_bvalid(bvalid),
+        .s_axi_bready(bready),
+        .s_axi_araddr({23'd0, araddr}),
+        .s_axi_arvalid(arvalid),
+        .s_axi_arready(arready),
+        .s_axi_rdata(rdata),
+        .s_axi_rresp(rresp),
+        .s_axi_rvalid(rvalid),
+        .s_axi_rready(rready),
+
+        .s_axis_tdata(px_data[7:0]),
+        .s_axis_tvalid(px_valid),
+        .s_axis_tready(px_ready),
+        .s_axis_tlast(px_eof),
+
+        .m_axis_tdata(ts_data),
+        .m_axis_tvalid(hdl_valid),
+        .m_axis_tready(hdl_ready),
+        .m_axis_tlast(hdl_eof),
+        .m_axis_tmask(),
+        .m_axis_tcontour(ts_contour),
+
+        .threshold_out(),
+        .auto_mode_out(),
+        .frame_done_out()
+    );
+
+    wire [PIXEL_W-1:0] ts_data;
+    wire ts_contour;
+
+    assign hdl_data = ts_data | {PIXEL_W{ts_contour}};  // 轮廓用白色突出
+    // wire [PIXEL_W-1:0] dn_data;    // wire               dn_valid;
     // wire               dn_eof;
     // wire               dn_ready;
 
