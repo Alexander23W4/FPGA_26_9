@@ -63,9 +63,9 @@ module top_threshold_demo (
     wire       frame_done = s_axis_tlast;   // frame end (last pixel)
 
     // ---- AXI-Lite slave ----
-    wire [31:0] reg_mode;         // mode register
-    wire [31:0] reg_cmd;          // command register
-    wire [7:0]  reg_threshold;    // threshold register from host
+    wire [31:0] reg_mode;         // mode register  0x00
+    wire [31:0] reg_cmd;          // command register   0x04
+    wire [7:0]  reg_threshold;    // threshold register from host   0x08
     wire        host_wr_en;       // pulse when host writes threshold
     wire [7:0]  threshold;        // final threshold
 
@@ -120,6 +120,7 @@ module top_threshold_demo (
         .otsu_done  (otsu_done),
         .host_wr_en (host_wr_en),
         .host_th    (reg_threshold),
+        .host_mode  (reg_cmd[0]),     // ★ 0x04=0 自动 / 0x04=1 手动
         .threshold  (threshold),
         .auto_mode  (auto_mode)
     );
@@ -163,7 +164,8 @@ module top_threshold_demo (
     assign auto_mode_out = auto_mode;   // auto/manual mode
     assign frame_done_out= frame_done;  // frame done forwarded
 
-    // Prevent unused signal optimization
-    wire _unused = &{1'b0, reg_mode, reg_cmd};
+    // ★ Prevent unused signal optimization
+    // reg_cmd 现在用于选择阈值模式, 不能再丢进 _unused
+    wire _unused = &{1'b0, reg_mode};
 
 endmodule

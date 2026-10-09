@@ -7,7 +7,7 @@ import threading
 import time
 import webbrowser
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 import numpy as np
 from PIL import Image
 
@@ -122,10 +122,125 @@ def customize_page(page):
     page = page.replace("document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));",
                         "document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));document.getElementById('chooseImage').addEventListener('click',()=>document.getElementById('imageFile').click());document.getElementById('imageFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const r=await fetch('/api/image?name='+encodeURIComponent(f.name),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:f});const j=await r.json();if(!r.ok){alert('图像加载失败: '+j.error);return;}document.getElementById('imageName').textContent='当前图像: '+j.name;poll();});document.getElementById('upload').addEventListener('click',()=>fetch('/api/upload').then(poll));")
     page = page.replace('serial:j.serial_connected?', 'network:j.serial_connected?')
+    # ★★★ 只做两件事, 完全不碰原有脚本块 ★★★
+    #   ① 给两个按钮加 onclick 属性
+    #   ② 在 </body> 前追加一个独立的 <script>, 里面是我们自己的函数
+    #   (追加在最后 => 即使写错也影响不到上面的 poll(), 前面的脚本已经执行完了)
+    page = page.replace(
+        '<button id="thresholdUpdate" type="button">阈值更新</button>',
+        '<button id="thresholdUpdate" type="button" onclick="dshThrUpdate()">阈值更新</button>')
+    page = page.replace(
+        '<button id="transfer">传输给FPGA</button>',
+        '<button id="transfer" onclick="dshTransfer()">传输给FPGA</button>')
+    page = page.replace(
+        '</body>',
+        '<script>'
+        'function dshThrUpdate(){'
+        '  var sw=document.getElementById("thresholdMode");'
+        '  var manual=sw&&sw.getAttribute("aria-checked")==="true";'
+        '  var v=document.getElementById("threshold").value;'
+        '  fetch("/api/serial/threshold?mode="+(manual?1:0)+"&value="+v)'
+        '    .then(function(r){return r.json();})'
+        '    .then(function(j){alert(j.ok?("threshold OK\\n\\n"+j.log):("threshold FAIL\\n\\n"+j.log));})'
+        '    .catch(function(e){alert("threshold err: "+e);});'
+        '}'
+        'function dshTransfer(){'
+        '  var el=document.getElementById("imageFile");'
+        '  var ff=el&&el.files&&el.files[0];'
+        '  if(!ff){alert("please choose a local image first");return;}'
+        '  ff.arrayBuffer().then(function(buf){'
+        '    return fetch("/api/serial/transfer?index=0",{method:"POST",headers:{"Content-Type":"application/octet-stream"},body:buf});'
+        '  }).then(function(r){return r.json();})'
+        '    .then(function(j){alert(j.ok?("transfer OK\\n\\n"+j.log):("transfer FAIL\\n\\n"+j.log));})'
+        '    .catch(function(e){alert("transfer err: "+e);});'
+        '}'
+        '</script></body>')
     return page
 
 
+import os as _os
+import subprocess as _sp
+import tempfile as _tmp
+from pathlib import Path as _Path
+
+_REPO = _Path(__file__).resolve().parents[2]
+_SERIAL_PORT = _os.environ.get("SERIAL_PORT", "COM7")
+
+
+def _board_talk(payload, wait=1.5):
+    """send bytes to the board serial port, return what the board prints"""
+    import serial
+    s = serial.Serial(_SERIAL_PORT, 115200, timeout=0.3)
+    try:
+        s.reset_input_buffer()
+        s.write(payload)
+        s.flush()
+        end = time.time() + wait
+        buf = bytearray()
+        while time.time() < end:
+            c = s.read(4096)
+            if c:
+                buf += c
+                end = time.time() + 0.25
+        return buf.decode("utf-8", "replace")
+    finally:
+        s.close()
+
+
+def _do_threshold(mode, value):
+    """T + 2 bytes: 0=auto(CMD_REG_ADDR=0) / 1=manual(CMD_REG_ADDR=1 + DATA_REG_ADDR=value)"""
+    if mode not in (0, 1):
+        return {"ok": False, "log": "mode must be 0 or 1"}
+    v = int(value)
+    if not (0 <= v <= 255):
+        return {"ok": False, "log": "threshold must be 0..255"}
+    try:
+        return {"ok": True, "log": _board_talk(b"T" + bytes([mode, v]))}
+    except Exception as exc:
+        return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
+
+
+def _do_transfer(bin_bytes, index):
+    """source bin -> eMMC (emmc_add.ps1), then 'D' + 4-byte LE index (board sends ONE frame)"""
+    ps1 = _REPO / "scripts" / "pc" / "emmc_add.ps1"
+    if not ps1.is_file():
+        return {"ok": False, "log": "missing %s" % ps1}
+    tmp = _os.path.join(_tmp.gettempdir(), "dsh_fpga_upload.bin")
+    with open(tmp, "wb") as fh:
+        fh.write(bin_bytes)
+    cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(ps1),
+           "-File", tmp, "-Port", _SERIAL_PORT,
+           "-Width", "256", "-Height", "256", "-Bpp", "1"]
+    try:
+        p = _sp.run(cmd, capture_output=True, text=True, timeout=180, cwd=str(_REPO))
+        up = ((p.stdout or "") + (p.stderr or "")).strip()
+        if p.returncode != 0:
+            return {"ok": False, "log": "upload failed\n" + up}
+    except Exception as exc:
+        return {"ok": False, "log": "upload failed: %s: %s" % (type(exc).__name__, exc)}
+    try:
+        idx = int(index) & 0xFFFFFFFF
+        d = _board_talk(b"D" + idx.to_bytes(4, "little"), wait=10.0)
+    except Exception as exc:
+        return {"ok": False, "log": up + "\nD failed: %s: %s" % (type(exc).__name__, exc)}
+    return {"ok": True, "log": up + "\n----- load DDR / send one frame -----\n" + d}
+
 class NetworkHandler(web_common.Handler):
+
+    def do_POST(self):
+        if urlparse(self.path).path == '/api/serial/transfer':
+            try:
+                n = int(self.headers.get('Content-Length', '0'))
+                data = self.rfile.read(n) if n > 0 else b''
+                if not data:
+                    self.send_json({'ok': False, 'log': 'empty image body'})
+                    return
+                idx = parse_qs(urlparse(self.path).query).get('index', ['0'])[0]
+                self.send_json(_do_transfer(data, idx))
+            except Exception as exc:
+                self.send_json({'ok': False, 'log': '%s: %s' % (type(exc).__name__, exc)})
+            return
+        super().do_POST()
     image_sender = None
     control_worker = None
 
@@ -169,6 +284,14 @@ class NetworkHandler(web_common.Handler):
             except Exception as exc:
                 self.state.log(f'图像上传失败: {exc}')
                 self.send_json({'ok': False, 'error': str(exc)})
+            return
+        if parsed.path == '/api/serial/threshold':
+            try:
+                _q = parse_qs(parsed.query)
+                self.send_json(_do_threshold(int(_q.get('mode', ['0'])[0]),
+                                             int(_q.get('value', ['128'])[0])))
+            except Exception as exc:
+                self.send_json({'ok': False, 'log': '%s: %s' % (type(exc).__name__, exc)})
             return
         super().do_GET()
 
