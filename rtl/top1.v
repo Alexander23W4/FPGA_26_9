@@ -130,8 +130,15 @@ module top1 #(
         .px_ready(px_ready)
     );
 
-    // 阈值检测演示模块：AXI-Lite 直接接顶层 AXI-Lite，像素流直接接 axi2px 的输出
-    // 这里先保留输出口为空，等后续再接到下游或状态汇总模块。
+
+    wire [PIXEL_W-1:0] dn_data;    
+    wire               dn_valid;
+    wire               dn_eof;
+    wire               dn_ready;
+
+
+
+
     top_threshold_demo u_top_threshold_demo (
         .clk(clk),
         .rst_n(~rst),
@@ -154,10 +161,10 @@ module top1 #(
         .s_axi_rvalid(rvalid),
         .s_axi_rready(rready),
 
-        .s_axis_tdata(px_data[7:0]),
-        .s_axis_tvalid(px_valid),
-        .s_axis_tready(px_ready),
-        .s_axis_tlast(px_eof),
+        .s_axis_tdata(dn_data),
+        .s_axis_tvalid(dn_valid),
+        .s_axis_tready(dn_ready),
+        .s_axis_tlast(dn_eof),
 
         .m_axis_tdata(ts_data),
         .m_axis_tvalid(hdl_valid),
@@ -175,9 +182,7 @@ module top1 #(
     wire ts_contour;
 
     assign hdl_data = ts_data | {PIXEL_W{ts_contour}};  // 轮廓用白色突出
-    // wire [PIXEL_W-1:0] dn_data;    // wire               dn_valid;
-    // wire               dn_eof;
-    // wire               dn_ready;
+
 
     wire [PIXEL_W-1:0] hdl_data;
     wire hdl_valid;

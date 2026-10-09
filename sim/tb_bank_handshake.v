@@ -144,37 +144,42 @@ module tb_bank_handshake;
                          (hm_hcnt >= 192 && hm_hcnt <= 447);
     wire       frm_end = (hm_vcnt == 524 && hm_hcnt == 799);
 
-    reg  [7:0] win_val      = 8'h00;
-    reg        win_started  = 1'b0;
-    reg [16:0] win_pix      = 17'd0;
+    //  ★ 基准值取在【第二行第一个可见像素】(vcnt=113, hcnt=192):
+    //    完全避开 BRAM 1 拍读延迟和窗口起始边沿, 对时序免疫。
+    //    HDMI 每行 800 拍, 所以 113 行首像素距窗口起点正好 800 拍, 早就稳定。
+    wire ref_pt = (hm_vcnt == 10'd113 && hm_hcnt == 10'd192);
+
+    reg  [7:0] ref_val     = 8'h00;
+    reg        ref_valid   = 1'b0;
+    reg [16:0] win_pix     = 17'd0;
     integer    frame_mismatch = 0;
     integer    frame_checked  = 0;
 
     always @(posedge clk) begin
         if (rst) begin
-            win_started    <= 1'b0;
+            ref_valid      <= 1'b0;
             win_pix        <= 17'd0;
             frame_mismatch <= 0;
             frame_checked  <= 0;
         end else begin
-            if (in_win) begin
-                if (!win_started) begin
-                    win_val     <= vr;
-                    win_started <= 1'b1;
-                    win_pix     <= 17'd0;
-                end else if (vr !== win_val) begin
+            if (ref_pt) begin
+                ref_val   <= vr;
+                ref_valid <= 1'b1;
+                win_pix   <= 17'd0;
+            end else if (in_win && ref_valid) begin
+                if (vr !== ref_val) begin
                     frame_mismatch <= frame_mismatch + 1;
                     if (frame_mismatch < 3)
-                        $display("[TORN] t=%0t vcnt=%0d hcnt=%0d expect=%02x got=%02x rd_bank=%b",
-                                 $time, hm_vcnt, hm_hcnt, win_val, vr, hdmi_dbg[36]);
+                        $display("[TORN] t=%0t vcnt=%0d hcnt=%0d ref=%02x got=%02x rd_bank=%b",
+                                 $time, hm_vcnt, hm_hcnt, ref_val, vr, hdmi_dbg[36]);
                 end
                 win_pix <= win_pix + 17'd1;
             end
             if (frm_end) begin
-                if (win_started && win_pix == 17'd65535)
+                if (ref_valid && win_pix >= 17'd60000)
                     frame_checked <= frame_checked + 1;
-                win_started <= 1'b0;
-                win_pix     <= 17'd0;
+                ref_valid <= 1'b0;
+                win_pix   <= 17'd0;
             end
         end
     end
