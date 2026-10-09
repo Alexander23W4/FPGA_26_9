@@ -1,6 +1,9 @@
 `timescale 1 ns / 1 ps
-
-module denoise (
+// ============================================================================
+//  denoise_orig : 修复【前】的原始逻辑, 仅用于 A/B 对照实验
+//  与 rtl/denoise.v 的唯一差别: 帧边界只由 in_last 决定 (没有自计数)
+// ============================================================================
+module denoise_orig (
     input  wire       ap_clk,
     input  wire       ap_rst,
     input  wire [7:0] in_data,
@@ -55,19 +58,16 @@ module denoise (
         center_idx[7:0]  >= 8'd1 && center_idx[7:0]  <= 8'd254;
 
     wire [11:0] weighted_sum =
-          {4'd0, pixel_buf[r514]}              // 上左 权1
-        + ({4'd0, pixel_buf[r513]} << 1)       // 上中 权2
-        + {4'd0, pixel_buf[r512]}              // 上右 权1
-        + ({4'd0, pixel_buf[r258]} << 1)       // 中左 权2
-        + ({4'd0, pixel_buf[r257]} << 2)       // 中中 权4
-        + ({4'd0, pixel_buf[r256]} << 1)       // 中右 权2
-        + {4'd0, pixel_buf[r2]}                // 下左 权1  ← 原来错写成 <<1
-        + ({4'd0, pixel_buf[r1]} << 1)         // 下中 权2
-        + {4'd0, in_data};                     // 下右 权1
+          {4'd0, pixel_buf[r514]}
+        + ({4'd0, pixel_buf[r513]} << 1)
+        + {4'd0, pixel_buf[r512]}
+        + ({4'd0, pixel_buf[r258]} << 1)
+        + ({4'd0, pixel_buf[r257]} << 2)
+        + ({4'd0, pixel_buf[r256]} << 1)
+        + {4'd0, pixel_buf[r2]}
+        + ({4'd0, pixel_buf[r1]} << 1)
+        + {4'd0, in_data};
 
-    // ★ 帧边界 = in_last (eof)。流水线的流控就是 eof, 这里必须信任它。
-    //   (此前我一度改成"自计数 65536"来兜底, 那会绕开 eof 流控、让本层
-    //    的帧边界与上下游脱钩, 已撤销。)
     always @(posedge ap_clk) begin
         if (ap_rst) begin
             wr_ptr      <= 10'd0;
@@ -113,6 +113,7 @@ module denoise (
                 else
                     wr_ptr <= wr_ptr + 1'b1;
 
+                // ★ 原始逻辑: 只有 in_last 能复位
                 if (in_last) begin
                     pixel_idx <= 17'd0;
                     wr_ptr    <= 10'd0;

@@ -154,6 +154,16 @@ module top1 #(
 
 
 
+    // ★★★ 这些必须在例化【之前】声明 ★★★
+    //   原来它们写在例化之后, 于是例化时被当成隐式 1 位网络, 之后再显式声明
+    //   就构成重复声明: xvlog 报 VRFC 10-2938 并【忽略整个 top1 模块】。
+    wire [PIXEL_W-1:0] ts_data;
+    wire               ts_contour;
+    wire [PIXEL_W-1:0] hdl_data;
+    wire               hdl_valid;
+    wire               hdl_eof;
+    wire               hdl_ready;
+
     top_threshold_demo u_top_threshold_demo (
         .clk(clk),
         .rst_n(~rst),
@@ -193,16 +203,7 @@ module top1 #(
         .frame_done_out()
     );
 
-    wire [PIXEL_W-1:0] ts_data;
-    wire ts_contour;
-
     assign hdl_data = ts_data | {PIXEL_W{ts_contour}};  // 轮廓用白色突出
-
-
-    wire [PIXEL_W-1:0] hdl_data;
-    wire hdl_valid;
-    wire hdl_eof;
-    wire hdl_ready;
 
 
 

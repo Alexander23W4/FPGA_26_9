@@ -36,6 +36,7 @@ module axi2px #(
     reg [TDATA_W-1:0] beat_q;
     reg [KEEP_W-1:0]  keep_q;
     reg               beat_valid_q;
+    reg               beat_last_q;   // ★ 本拍是不是源端的帧尾(TLAST)
     reg [IDX_W-1:0]   idx_q;        // 本拍里当前检查的 byte lane
     reg [12:0]        col_q;        // 当前像素在行内的列号
     reg [12:0]        row_q;        // 当前行号
@@ -49,6 +50,10 @@ module axi2px #(
     // 无效 lane 不需要等待下游，可在本模块内直接跳过；有效 lane 则必须等
     // px_ready。到达物理最后一个 lane 后，才能接收下一条 AXI beat。
     wire advance_lane = beat_valid_q && (!keep_q[idx_q] || px_ready);
+    // ★ 本拍的所有 lane 都处理完了
+    wire beat_done = advance_lane && (idx_q == LAST_IDX);
+    // ★ 源端帧尾: 这一拍是 VDMA 一帧的最后一拍, 且已把它的像素全部发完
+    wire src_frame_end = beat_done && beat_last_q;
 
     assign s_axis_tready = aresetn &&
                            ((beat_valid_q == 1'b0) ||
@@ -72,6 +77,7 @@ module axi2px #(
             beat_q       <= {TDATA_W{1'b0}};
             keep_q       <= {KEEP_W{1'b0}};
             beat_valid_q <= 1'b0;
+            beat_last_q  <= 1'b0;
             idx_q        <= {IDX_W{1'b0}};
             col_q        <= 13'd0;
             row_q        <= 13'd0;
@@ -81,6 +87,7 @@ module axi2px #(
                 beat_q       <= s_axis_tdata;
                 keep_q       <= s_axis_tkeep;
                 beat_valid_q <= 1'b1;
+                beat_last_q  <= s_axis_tlast;   // ★ 记住本拍是不是源端帧尾
                 idx_q        <= {IDX_W{1'b0}};
             end else if (advance_lane) begin
                 // ---------------- 逐 lane 发送有效像素，跳过无效 lane ----------------
@@ -93,7 +100,7 @@ module axi2px #(
 
             // ---------------- 像素计数 / 行列边界 ----------------
             //  一行满 H_PIXELS 个像素就换行, 行满 V_PIXELS 就换帧。
-            //  边界完全由计数产生, 不依赖 s_axis_tlast/tuser。
+            //  正常流下边界由计数产生即可。
             if (px_taken) begin
                 if (last_col) begin
                     col_q <= 13'd0;
@@ -106,10 +113,24 @@ module axi2px #(
                     col_q <= col_q + 13'd1;
                 end
             end
+
+            // ★★★ 源端帧尾强制同步 (新增) ★★★
+            //   原来 s_axis_tlast 被当无用信号丢掉, 相位只靠计数。
+            //   VDMA 的 TLAST 才是【真实图像帧边界】。一旦上游在帧中间被掐断
+            //   (vdma_mm2s_stop), 计数的相位就永久停在掐断点
+            //   (实测: 掐在 30000 像素 => col=48, row=117), 之后新图从
+            //   (48,117) 开始写 => 每个显示帧横跨两张图 => 拼图/不轮动。
+            //   这里在源端帧尾把相位强制归零, 下一帧必从 (0,0) 开始。
+            if (src_frame_end) begin
+                col_q <= 13'd0;
+                row_q <= 13'd0;
+            end
         end
     end
 
-    wire _unused = s_axis_tuser ^ s_axis_tlast;
+    // tlast 现在已用于帧边界同步(见上面的 src_frame_end), 不再是"无用信号"。
+    // tuser 仍然未使用, 显式吃掉避免综合告警。
+    wire _unused = s_axis_tuser;
     // verilator lint_on UNUSED
 
 endmodule
