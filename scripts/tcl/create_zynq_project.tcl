@@ -401,7 +401,8 @@ if {$want_axi_infra} {
     #  hdl_out 的写 bank/地址、hdmi_out 的读 bank/地址及扫描计数器。
     #  2048 深度足够观察一帧切换附近的行为，同时控制 BRAM 占用。
     # =========================================================================
-    if {[get_bd_cells -quiet top1_0] ne ""} {
+    #  ★★ 调试件必须"尽力而为": 缺任何信号就整体跳过, 绝不用 error 中断建工程 ★★
+    if {[get_bd_cells -quiet top1_0] ne "" && [llength [get_bd_pins -quiet top1_0/debug_probe]] == 1} {
         if {[get_bd_cells -quiet u_ila_hdmi] eq ""} {
             create_bd_cell -type ip -vlnv xilinx.com:ip:ila:6.2 u_ila_hdmi
             set_property -dict [list \
@@ -413,6 +414,8 @@ if {$want_axi_infra} {
         connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins u_ila_hdmi/clk]
         connect_bd_net [get_bd_pins top1_0/debug_probe] [get_bd_pins u_ila_hdmi/probe0]
         puts "\[ACZ7015\] u_ila_hdmi: 128-bit probe on VDMA/frame-buffer/HDMI state"
+    } else {
+        puts "\[ACZ7015\] NOTE: u_ila_hdmi 跳过 (top1_0/debug_probe 不存在)"
     }
 
     # =========================================================================
@@ -447,13 +450,15 @@ if {$want_axi_infra} {
             ] [get_bd_cells u_ila_vdma_mm2s]
         }
 
-        # Explicitly attach every probe to the already-existing net.  Passing
-        # an AXI interface itself to an ILA would replace the connection;
-        # adding a scalar/vector sink to its net is passive observation.
-        set _clk_net [get_bd_nets -quiet -of_objects [get_bd_pins clk_wiz_0/clk_out1]]
-        if {[llength $_clk_net] != 1} { error "VDMA ILA: cannot find MM2S clock net" }
-        connect_bd_net $_clk_net [get_bd_pins u_ila_vdma_mm2s/clk]
-        foreach {src probe} {
+        # clk_wiz_0/clk_out1 is the existing 25.2-MHz clock source.  An
+        # output clock pin may drive multiple sinks, so attach the ILA to the
+        # same source directly.  Querying it with get_bd_nets is unreliable
+        # here because Vivado may represent the clock through a clocking
+        # interface rather than an ordinary BD net.
+        #  ★★ 先整体检查: 任一根网络找不到, 就把这个 ILA 整个删掉并跳过 ★★
+        #     调试件绝不能挡住建工程 / 出位流。若确实想要这个 ILA,
+        #     应把本段挪到 BD 全部连接完成之后再执行。
+        set _ila_taps {
             axi_vdma_0/m_axi_mm2s_rdata   probe0
             axi_vdma_0/m_axi_mm2s_araddr  probe1
             axi_vdma_0/m_axi_mm2s_arlen   probe2
@@ -464,12 +469,28 @@ if {$want_axi_infra} {
             axi_vdma_0/m_axi_mm2s_rvalid  probe7
             axi_vdma_0/m_axi_mm2s_rlast   probe8
             axi_vdma_0/m_axi_mm2s_rresp   probe9
-        } {
-            set _tap_net [get_bd_nets -quiet -of_objects [get_bd_pins $src]]
-            if {[llength $_tap_net] != 1} { error "VDMA ILA: cannot find net for $src" }
-            connect_bd_net $_tap_net [get_bd_pins u_ila_vdma_mm2s/$probe]
         }
-        puts "\[ACZ7015\] u_ila_vdma_mm2s: passive probes on VDMA MM2S memory reads"
+        set _ila_ok 1
+        set _ila_missing ""
+        foreach {src probe} $_ila_taps {
+            if {[llength [get_bd_pins -quiet $src]] != 1 || \
+                [llength [get_bd_nets -quiet -of_objects [get_bd_pins -quiet $src]]] != 1} {
+                set _ila_ok 0
+                set _ila_missing $src
+                break
+            }
+        }
+        if {$_ila_ok} {
+            connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins u_ila_vdma_mm2s/clk]
+            foreach {src probe} $_ila_taps {
+                connect_bd_net [get_bd_nets -quiet -of_objects [get_bd_pins $src]] \
+                               [get_bd_pins u_ila_vdma_mm2s/$probe]
+            }
+            puts "\[ACZ7015\] u_ila_vdma_mm2s: passive probes on VDMA MM2S memory reads"
+        } else {
+            delete_bd_objs [get_bd_cells u_ila_vdma_mm2s]
+            puts "\[ACZ7015\] NOTE: u_ila_vdma_mm2s 已跳过 (缺少网络: $_ila_missing)"
+        }
     }
 
     # =========================================================================
