@@ -59,6 +59,11 @@ const char *const imgs[IMG_COUNT] = { IMG1, IMG2, IMG3 };
 #define IMG_BPP     1u
 #define IMG_STRIDE  (IMG_W * IMG_BPP)
 
+/* Zynq-7000 AFI0 read-channel controls.  bit 0 selects 32-bit reads. */
+#define AFI0_RDCHAN_CTRL             0xF8008000u
+#define AFI0_RDCHAN_CFG              0xF8008004u
+#define AFI0_RDCHAN_CTRL_32BIT_EN    0x00000001u
+
 
 #define PL_WR(off, val)     do { Xil_Out32(PL_CTRL_BASE + (u32)(off), (u32)(val)); dsb(); } while (0)
 // e.g. PL_WR(MODE_ADDR, SINGLE_MODE);
@@ -204,12 +209,15 @@ static int load_img__emmc_ddr(const char *img)
 static int start_vdma(void)
 {
     u32 sr;
+    u32 afi0_ctrl;
 
-    Xil_Out32(0xF8000008u, 0x0000DF0Du);        /* SLCR unlock */
-    Xil_Out32(0xF8008000u, 0x00000003u);        /* AFI0: 读+写通道使能 */
-
+    afi0_ctrl = Xil_In32(AFI0_RDCHAN_CTRL);
     xil_printf("afi0 ctrl = 0x%08X  cfg = 0x%08X\r\n",
-               (s32)Xil_In32(0xF8008000u), (s32)Xil_In32(0xF8008004u));
+               (s32)afi0_ctrl, (s32)Xil_In32(AFI0_RDCHAN_CFG));
+    if ((afi0_ctrl & AFI0_RDCHAN_CTRL_32BIT_EN) != 0u) {
+        xil_printf("!!! AFI0 HP0 is in 32-bit mode; VDMA requires 64-bit mode\r\n");
+        return -1;
+    }
 
     if (vdma_mm2s_stop() != 0) {
         xil_printf("vdma: stop did not report HALTED; trying reset\r\n");
