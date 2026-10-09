@@ -24,10 +24,10 @@
 
 #define PL_CTRL_BASE        0x44000000
 
-// 这两个是伪地址, pl读到这个地址就知道是 写 模式寄存器/控制寄存器/数据寄存器
+
 #define MODE_ADDR     0x00
-#define CMD_REG_ADDR  0x10
-#define DATA_REG_ADDR 0x20
+#define CMD_REG_ADDR  0x04
+#define DATA_REG_ADDR 0x08
 
 // 模式指令 (单图模式/视频流模式)
 #define SINGLE_MODE 0x01
