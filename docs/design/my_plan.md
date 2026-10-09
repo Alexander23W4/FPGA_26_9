@@ -1,3 +1,27 @@
+## GUI 离线演示（Git Bash）
+
+在 Git Bash 中从仓库根目录运行这一条命令，即可启动 mock PS 服务并打开 GUI：
+
+```bash
+bash ./network/launch_gui.sh
+```
+
+脚本会检查端口；若控制端口 `127.0.0.1:5000` 和图像端口 `127.0.0.1:5001` 尚未启动，
+就自动启动 mock PS，再以 `--board-ip 127.0.0.1` 打开 GUI。若 mock 已经在这两个端口
+运行，则直接复用，不会重复启动。GUI 网页使用 <http://127.0.0.1:8765/>。这些端口仅在
+本机回环地址监听，不需要开放 Windows 防火墙端口；若 8765 已被占用，先关闭已有 GUI
+再运行启动命令。浏览器打开后，点击
+**“选择本地图像”** 即可通过文件资源管理器换图；点击 **“上传当前图像”** 会把当前图像
+发给 mock 服务。需要指定启动时预览的初始图片时，把路径作为第一个参数：
+
+```bash
+bash ./network/launch_gui.sh /e/camus/images/testing/patient0047/patient0047_4CH_ES.png
+```
+
+如果 Python 不在启动脚本默认位置，可通过 `PYTHON=/path/to/python.exe` 覆盖。退出时在
+Git Bash 终端按 `Ctrl+C`，脚本会同时停止 mock PS 服务。mock 返回演示用的模拟掩膜和
+状态，不代表 FPGA 的实际图像处理结果。
+
 ## 当前上板：三张图循环 HDMI 测试
 
 以下命令均在仓库根目录的 Git Bash 中执行。当前通过完整实现的位流是：
@@ -237,6 +261,3 @@ Vivado Block Design 中加入 PS7
 通过 OBUFDS 输出到 HDMI_2
 添加 HDMI 时钟和差分引脚约束
 用 ILA 观察 VDMA 输出和视频流 哪些是配置, 哪些是rtl实现
-
-
-
