@@ -71,8 +71,8 @@ module top_threshold_demo (
     output wire [31:0] video_mode_out
 );
     reg operating;
-    reg [15:0] lesion_pixels;
-    reg [15:0] lesion_pixels_save;   // 上一帧的mask值
+    reg [16:0] lesion_pixels;        // ★ 17 位: 一帧最多 256*256=65536, 16 位会溢出归零
+    reg [16:0] lesion_pixels_save;   // ★ 同步加宽 (上位机 0x14 读的是这个)   // 上一帧的mask值
     // Internal reset: active high
     wire rst = ~rst_n;
 
@@ -174,17 +174,17 @@ module top_threshold_demo (
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            lesion_pixels <= 16'b0;
+            lesion_pixels <= 17'd0;
             operating <= 1'b0;
-            lesion_pixels_save <= 16'b0;
+            lesion_pixels_save <= 17'd0;
         end else begin
             if(m_axis_tmask) begin  // 用最终输出的mask, 统一时序
-                lesion_pixels <= lesion_pixels + 16'b1;
+                lesion_pixels <= lesion_pixels + 17'd1;
             end
             if(!operating) begin  // 旧帧结束后的空挡期
                 lesion_pixels_save <= lesion_pixels;
                 if(mvl_d0) begin  // 新一帧开始了, 清0 lesion_pixels
-                    lesion_pixels <= 16'b0;
+                    lesion_pixels <= 17'd0;
                     operating <= 1'b1;                  
                 end
             end

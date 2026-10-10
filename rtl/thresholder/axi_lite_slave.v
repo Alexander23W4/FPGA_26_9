@@ -41,7 +41,7 @@ module axi_lite_slave (
     input  wire [31:0] status_in,
 
     output reg  [31:0] reg_video_mode,  // 0: 直通threshold, 只去噪  1: 去噪+轮廓  2: 去噪+二值掩膜
-    input wire  [15:0] lesion_pixels
+    input wire  [16:0] lesion_pixels      // ★ 17 位, 和 top_threshold_demo 对齐
 );
     localparam ADDR_MODE   = 8'h00;
     localparam ADDR_CMD    = 8'h04;
@@ -103,7 +103,7 @@ module axi_lite_slave (
                     ADDR_DATA:   s_axi_rdata <= {24'd0, reg_threshold};
                     ADDR_STATUS: s_axi_rdata <= status_in;
                     ADDR_VIDEO_MODE: s_axi_rdata <= reg_video_mode;
-                    ADDR_AREA_DATA : s_axi_rdata <= lesion_pixels;
+                    ADDR_AREA_DATA : s_axi_rdata <= {15'd0, lesion_pixels};   // ★ 显式补零到 32 位
                     default:     s_axi_rdata <= 32'd0;
                 endcase
             end else if (s_axi_rvalid && s_axi_rready) begin
