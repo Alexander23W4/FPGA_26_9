@@ -11,6 +11,16 @@
 axi_slave -> regs  (manual) --
                               --> threshold_sel  -> [threshold] ->  threshold_seg(mask){mask} -> contour{contour} 
           -> otsu  (auto)   --
+
+★: 现在的逻辑是: 每次回手动之后 (0x04 = 1之后), 默认不将threshold直接置成现有的threshold_reg值, 而是需要写入一次新值, 才能够更新
+但是 0x04 = 1的时候, 也不会听从otsu的值, 而是一直维持默认值, 直到重新写入手动值
+
+所以回自动:
+axi_wr(8'h04, 32'd0);
+
+设置手动:
+axi_wr(8'h04, 32'd1);
+axi_wr(8'h08, 32'd200);
 */
 `timescale 1ns / 1ps
 
