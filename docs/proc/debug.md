@@ -23,4 +23,5 @@ RTL 静态检查	            Verilator --lint-only	            Vivado RTL Analys
 形式验证	                你此前探索过的 BMC / SMT 流程	    需要另外配置适用的形式验证工具或流程，不是 XSim 波形仿真的替代品
 
 
+# 用xsim + wave 首次debug小结
 

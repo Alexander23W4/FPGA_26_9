@@ -20,7 +20,8 @@ axi_wr(8'h04, 32'd0);
 
 设置手动:
 axi_wr(8'h04, 32'd1);
-axi_wr(8'h08, 32'd200);
+axi_wr(8'h08, 32'd200);  // 必须重新写入一次手动值才能改变threshold, 不会默认跟随之前的手动值
+
 */
 `timescale 1ns / 1ps
 
