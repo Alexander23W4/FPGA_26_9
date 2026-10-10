@@ -6,6 +6,12 @@
 // - Otsu auto threshold + host manual override
 // - Threshold segmentation + contour extraction
 //============================================================
+
+/*
+axi_slave -> regs  (manual) --
+                              --> threshold_sel  -> [threshold] ->  threshold_seg(mask){mask} -> contour{contour} 
+          -> otsu  (auto)   --
+*/
 `timescale 1ns / 1ps
 
 module top_threshold_demo (
@@ -122,9 +128,12 @@ module top_threshold_demo (
         .rst        (rst),
         .otsu_th    (otsu_th),
         .otsu_done  (otsu_done),
+
         .host_wr_en (host_wr_en),
+
         .host_th    (reg_threshold),
         .host_mode  (reg_cmd[0]),     // ★ 0x04=0 自动 / 0x04=1 手动
+
         .threshold  (threshold),   // 这里选择是自动值还是手动值, 最终值用 "threshold" 这个变量输出, 内含reg 
         .auto_mode  (auto_mode)
     );
@@ -137,9 +146,11 @@ module top_threshold_demo (
         .clk       (clk),
         .rst       (rst),
         .pix_in    (pix_in),
+
         .valid_in  (pix_valid),
         .threshold (threshold),  // 这里输入最终的
-        .mask_out  (mask_bit),
+        
+        .mask_out  (mask_bit),   // 产出
         .valid_out (mask_vld)
     );
 
@@ -150,20 +161,24 @@ module top_threshold_demo (
     contour_extract u_cont (
         .clk        (clk),
         .rst        (rst),
+
         .mask_in    (mask_bit),
         .valid_in   (mask_vld),
-        .contour_out(contour_bit),
+
+        .contour_out(contour_bit),   // 产出
         .valid_out  (contour_vld)
     );
 
     // ---- AXI-Stream master outputs ----
+    // 原像素透传
     assign m_axis_tdata    = pix_in;                     // pass-through pixel
     assign m_axis_tvalid   = pix_valid;                  // pass-through valid
     assign m_axis_tlast    = frame_done;                 // pass-through frame end
+
     assign m_axis_tmask    = mask_bit    & mask_vld;     // mask gated by valid
     assign m_axis_tcontour = contour_bit & contour_vld;  // contour gated by valid
 
-    // ---- Status outputs ----
+    // ---- Status outputs ----    // ★: 上位机应该能够读取这些值, 作为回读状态 
     assign threshold_out = threshold;   // current threshold
     assign auto_mode_out = auto_mode;   // auto/manual mode
     assign frame_done_out= frame_done;  // frame done forwarded

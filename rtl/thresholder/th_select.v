@@ -3,9 +3,10 @@
 module th_select (
     input  wire        clk,         // system clock
     input  wire        rst,         // reset, active high
+
     input  wire [7:0]  otsu_th,     // Otsu threshold from otsu_core
     input  wire        otsu_done,   // one-cycle pulse when otsu_th is ready
-    
+
     input  wire        host_wr_en,  // one-cycle pulse when host writes DATA_REG
 
     input  wire [7:0]  host_th,     // threshold value written by host
@@ -25,9 +26,9 @@ module th_select (
         end else begin
             auto_mode <= ~host_mode;    // 主机说了算
 
-            if (host_mode) begin
+            if (host_mode) begin   
                 // 手动: 主机写 DATA_REG 时装载阈值
-                if (host_wr_en)
+                if (host_wr_en) // 只有 data_reg 被修改过后, 这个才有效.  也就是说, 若cmd_reg = 1, 不改reg值, 就不更新 threhold 值
                     threshold <= host_th;
             end else begin
                 // 自动: Otsu 每帧算完就更新
