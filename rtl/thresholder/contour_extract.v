@@ -1,20 +1,3 @@
-//============================================================
-// contour_extract.v  Four-neighbor contour extraction (with backpressure)
-//
-// 端口命名约定 (本工程约定, 注意和 AXI 习惯相反):
-//   cot_*_in  组 = 和【上游】握手:  data/valid/last 是【输入】, ready 是【输出】
-//                 => cot_ready_in 由本模块驱动: 我能收了就给 1, 要停就给 0
-//   cot_*_out 组 = 和【下游】握手:  data/valid/last 是【输出】, ready 是【输入】
-//                 => cot_ready_out 由下游驱动: 下游忙就给 0
-//
-// 功能: 3 行缓存, 输出【上一行】的 center pixel + mask + 4 邻域轮廓。
-//   轮廓规则: center & ~(left & right & upper & lower)  => 4 连通边界
-//   帧外像素当背景。
-//
-// ★ 反压关键: 行缓存流水线是"1 行延迟", 下游一停, 必须把
-//   【输出寄存器 + 行缓存写入 + column/row 计数】整条一起冻住,
-//   否则停顿期间进来的像素会覆盖掉还没吐出去的老像素 —— 数据就丢了。
-//============================================================
 `timescale 1ns / 1ps
 
 module contour_extract (

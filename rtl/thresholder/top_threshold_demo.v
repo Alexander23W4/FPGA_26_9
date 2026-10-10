@@ -80,6 +80,9 @@ module top_threshold_demo (
     wire [7:0] pix_in     = s_axis_tdata;   // pixel data
     wire       pix_valid  = s_axis_tvalid;  // pixel valid
     wire       frame_done = s_axis_tlast;   // frame end (last pixel)
+    // ★ 全局使能: 由 contour_extract 的 cot_ready_in 引出
+    //   它为 0 (下游忙 / flush 期) 时, 所有推动流水的寄存器全部冻结, 一个像素都不丢
+    wire pipe_en;
 
     // ---- AXI-Lite slave ----
     wire [31:0] reg_mode;         // mode register  0x00
@@ -129,6 +132,7 @@ module top_threshold_demo (
 
         .pix_in     (pix_in),
         .valid_in   (pix_valid),
+        .en         (pipe_en),        // ★ 同样门控
         .frame_done (frame_done),
 
         .otsu_th    (otsu_th),
@@ -163,6 +167,7 @@ module top_threshold_demo (
         .pix_in    (pix_in),
 
         .valid_in  (pix_valid),
+        .en        (pipe_en),        // ★ 同一使能, 停就一起停
         .threshold (threshold),  // 这里输入最终的
         
         .mask_out  (mask_bit),   // 产出
@@ -204,12 +209,13 @@ module top_threshold_demo (
     reg       pv_d0;
     reg       pl_d0;
 
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             px_d0 <= 8'd0;
             pv_d0 <= 1'b0;
             pl_d0 <= 1'b0;
-        end else begin
+        end else if (pipe_en) begin       // ★ 使能为 0 时保持不动
             px_d0 <= pix_in;
             pv_d0 <= pix_valid;
             pl_d0 <= frame_done;
@@ -225,7 +231,7 @@ module top_threshold_demo (
         .cot_data_in   (px_d0),
         .cot_valid_in  (pv_d0),
         .cot_last_in   (pl_d0),
-        .cot_ready_in  (s_axis_tready),
+        .cot_ready_in  (pipe_en),           // ★ 引出来当全局使能
 
         .cot_data_out  (m_axis_tdata),
         .cot_valid_out (m_axis_tvalid),
@@ -238,6 +244,9 @@ module top_threshold_demo (
         .contour_out(contour_bit),   // 产出
         .valid_out  (contour_vld)
     );
+
+    // ★ 上游 ready = contour 的 ready (整条流水线同一个使能)
+    assign s_axis_tready = pipe_en;
 
     assign m_axis_tmask    = cot_mask_out & cot_mask_valid;        
     assign m_axis_tcontour = contour_bit & contour_vld;  

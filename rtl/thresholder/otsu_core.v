@@ -10,10 +10,11 @@ module otsu_core (
     input  wire        clk,         // system clock, 50 MHz
     input  wire        rst,         // reset, active high
     input  wire [7:0]  pix_in,      // input pixel gray value (0~255)
-    input  wire        valid_in,    // pixel valid flag (1 = pix_in is valid)
+    input  wire        valid_in,
+    input  wire        en,          // ★ 全局使能 (0 = 本拍不推进)
     input  wire        frame_done,  // one-frame-done pulse, triggers Otsu
     output reg  [7:0]  otsu_th,     // computed threshold (0~255)
-    output reg         otsu_done    // one-cycle pulse when otsu_th is ready
+    output reg         otsu_done  // one-cycle pulse when otsu_th is ready
 );
     // Histogram: 256 bins, each bin counts pixels of that gray level
     reg [31:0] hist [0:255];
@@ -66,7 +67,7 @@ module otsu_core (
             otsu_done <= 1'b0;          // default: pulse low
 
             // Histogram accumulation
-            if (valid_in)
+            if (en && valid_in)      // ★ 使能为 0 时不计直方图
                 hist[pix_in] <= hist[pix_in] + 1'b1;
 
             // FSM
