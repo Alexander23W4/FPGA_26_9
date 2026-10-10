@@ -52,13 +52,13 @@ module top_threshold_demo (
     // ---- AXI-Stream slave (pixel input from PS) ----
     input  wire [7:0]  s_axis_tdata,      // input pixel gray value
     input  wire        s_axis_tvalid,     // input pixel valid
-    output wire        s_axis_tready,     // input ready (from downstream)
+    output wire        s_axis_tready,     // input ready 
     input  wire        s_axis_tlast,      // last pixel of input frame
 
     // ---- AXI-Stream master (output to downstream) ----
     output wire [7:0]  m_axis_tdata,      // output pixel (pass-through)
     output wire        m_axis_tvalid,     // output pixel valid
-    input  wire        m_axis_tready,     // output ready (from downstream)
+    input  wire        m_axis_tready,     // output ready 
     output wire        m_axis_tlast,      // last pixel of output frame
     output wire        m_axis_tmask,      // output binary mask
     output wire        m_axis_tcontour,   // output contour
@@ -203,19 +203,16 @@ module top_threshold_demo (
     reg [7:0] px_d0;
     reg       pv_d0;
     reg       pl_d0;
-    reg       pr_d0;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             px_d0 <= 8'd0;
             pv_d0 <= 1'b0;
             pl_d0 <= 1'b0;
-            pr_d0 <= 1'b0;
         end else begin
             px_d0 <= pix_in;
             pv_d0 <= pix_valid;
             pl_d0 <= frame_done;
-            pr_d0 <= s_axis_tready;
         end
     end
 
@@ -228,7 +225,7 @@ module top_threshold_demo (
         .cot_data_in   (px_d0),
         .cot_valid_in  (pv_d0),
         .cot_last_in   (pl_d0),
-        .cot_ready_in  (pr_d0),
+        .cot_ready_in  (s_axis_tready),
 
         .cot_data_out  (m_axis_tdata),
         .cot_valid_out (m_axis_tvalid),

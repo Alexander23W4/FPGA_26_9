@@ -1,21 +1,19 @@
 //============================================================
 // contour_extract.v  Four-neighbor contour extraction (with backpressure)
 //
-// - 输入: 256x256 的 binary-mask 流, 以及随路的 pixel 流 (mask/valid/last/ready 全带)
-// - 输出: 对齐好的 center pixel + mask + target-side contour
-// - 帧外像素当背景处理
+// 端口命名约定 (本工程约定, 注意和 AXI 习惯相反):
+//   cot_*_in  组 = 和【上游】握手:  data/valid/last 是【输入】, ready 是【输出】
+//                 => cot_ready_in 由本模块驱动: 我能收了就给 1, 要停就给 0
+//   cot_*_out 组 = 和【下游】握手:  data/valid/last 是【输出】, ready 是【输入】
+//                 => cot_ready_out 由下游驱动: 下游忙就给 0
 //
-// ★ 与上一版的区别: 加了 AXI-Stream 反压。
-//   行缓存流水线有一个天然延迟 (输出的是【上一行】), 所以一旦下游收不下,
-//   必须把【整条流水线】都停住: 输出寄存器、行缓存的写入、column/row 计数
-//   全部冻结。否则停顿期间进来的新像素会覆盖掉"还没吐出去"的老像素 —— 数据就丢了。
+// 功能: 3 行缓存, 输出【上一行】的 center pixel + mask + 4 邻域轮廓。
+//   轮廓规则: center & ~(left & right & upper & lower)  => 4 连通边界
+//   帧外像素当背景。
 //
-//   约定:
-//     cot_ready_in  = 下游能不能收 (top_threshold_demo 里接的是 pr_d0)
-//     cot_ready_out = 本模块给上游的 ready (和 cot_ready_in 同拍传递)
-//
-//   注意: 本模块内部没有 FIFO, 所以 cot_ready_out 必须和 cot_ready_in 一致;
-//         上游要真的按 cot_ready_out 做反压, 否则 flush 期间进来的像素仍会丢。
+// ★ 反压关键: 行缓存流水线是"1 行延迟", 下游一停, 必须把
+//   【输出寄存器 + 行缓存写入 + column/row 计数】整条一起冻住,
+//   否则停顿期间进来的像素会覆盖掉还没吐出去的老像素 —— 数据就丢了。
 //============================================================
 `timescale 1ns / 1ps
 
@@ -31,13 +29,13 @@ module contour_extract (
     input  wire [7:0] cot_data_in,
     input  wire       cot_valid_in,
     input  wire       cot_last_in,
-    input  wire       cot_ready_in,      // 下游 ready (来自 pr_d0)
+    output reg        cot_ready_in,     
 
-    // ---- 输出侧: pixel / mask / contour 三条一起走 ----
+    // ---- 输出侧 ----
     output reg  [7:0] cot_data_out,
     output reg        cot_valid_out,
     output reg        cot_last_out,
-    output reg        cot_ready_out,
+    input  wire       cot_ready_out,     
 
     output reg        cot_mask_out,
     output reg        cot_mask_valid,
@@ -55,19 +53,17 @@ module contour_extract (
     reg       mask_row_before   [0:255];   // 上上行 (upper 所在行)
     reg [7:0] pixel_previous_row[0:255];   // 上一行的 pixel
 
-    // ---- 四邻域取值 (非阻塞赋值让 right 读到上一行的值, 正好是对的) ----
+    // ---- 四邻域取值 (非阻塞赋值让 right 读到上一行的值, 正好是右邻居) ----
     wire center_mask = mask_previous_row[column];
     wire left_mask   = (column == 8'd0)        ? 1'b0 : mask_previous_row[column - 8'd1];
     wire right_mask  = (column == LAST_COLUMN) ? 1'b0 : mask_previous_row[column + 8'd1];
     wire upper_mask  = (row <= 8'd1)           ? 1'b0 : mask_row_before[column];
 
     // ---- 这一拍有没有内容要吐 ----
-    //   flush 阶段: 无条件吐 (把最后一行补齐)
-    //   正常阶段  : row==0 时没有上一行, 不吐; 否则按 valid
     wire outp = flushing_last_row ? 1'b1
                                   : (valid_in && cot_valid_in && (row != 8'd0));
 
-    // ---- 组合出这一拍要吐的值 (三条同源, 保证严格对齐) ----
+    // ---- 组合出这一拍要吐的值 (pixel / mask / contour 三者同源, 严格对齐) ----
     wire [7:0] v_data    = pixel_previous_row[column];
     wire       v_mask    = center_mask;
     wire       v_upper   = flushing_last_row ? mask_row_before[column] : upper_mask;
@@ -75,30 +71,34 @@ module contour_extract (
     wire       v_contour = v_mask & ~(left_mask & right_mask & v_upper & v_lower);
     wire       v_last    = flushing_last_row ? (column == LAST_COLUMN) : 1'b0;
 
-    // ---- ★ ready 对齐: 只有下游能收才推进整条流水线 ----
-    wire advance = cot_ready_in;
-    wire take_in = (valid_in && cot_valid_in);
+    // ---- ★ 握手 ----
+    //   下游能收 => 本拍可以推进流水线
+    wire dn_ready = cot_ready_out;
+    //   本模块能收: 下游能收, 且不在 flush 补行阶段 (flush 期间不收新数据)
+    wire up_ready = dn_ready & ~flushing_last_row;
+    //   输入这一拍有效
+    wire take_in  = (valid_in && cot_valid_in);
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             column            <= 8'd0;
             row               <= 8'd0;
             flushing_last_row <= 1'b0;
+            cot_ready_in      <= 1'b0;
             cot_data_out      <= 8'd0;
             cot_valid_out     <= 1'b0;
             cot_last_out      <= 1'b0;
-            cot_ready_out     <= 1'b0;
             cot_mask_out      <= 1'b0;
             cot_mask_valid    <= 1'b0;
             contour_out       <= 1'b0;
             valid_out         <= 1'b0;
         end else begin
-            // 本模块对上游的 ready: 内部没有 FIFO, 所以同拍传递
-            cot_ready_out <= cot_ready_in;
+            // 给上游的 ready (打一拍, 和输出级的节奏一致)
+            cot_ready_in <= up_ready;
 
-            if (advance) begin
+            if (dn_ready) begin
                 // ================= 输出级 =================
-                // valid 三相一起拉高/拉低, data/mask/contour/last 只有真要吐时才更新
+                // valid 三相一起拉高/拉低; data/mask/contour/last 只有真要吐时才更新
                 cot_valid_out  <= outp;
                 cot_mask_valid <= outp;
                 valid_out      <= outp;
@@ -114,7 +114,7 @@ module contour_extract (
 
                 // ================= 输入级 =================
                 if (flushing_last_row) begin
-                    // flush 期间只推进列, 不再接收新数据
+                    // flush: 只推进列, 不再写缓存
                     if (column == LAST_COLUMN) begin
                         column            <= 8'd0;
                         flushing_last_row <= 1'b0;
@@ -123,7 +123,7 @@ module contour_extract (
                     end
 
                 end else if (take_in) begin
-                    // ★ row==0 也要写缓存 (否则第二行读不到数据)
+                    // ★ row==0 也要写缓存, 否则第二行读不到上一行数据
                     mask_row_before[column]    <= mask_previous_row[column];
                     mask_previous_row[column]  <= mask_in;
                     pixel_previous_row[column] <= cot_data_in;
@@ -137,7 +137,7 @@ module contour_extract (
                             row <= row + 8'd1;
                         end
                     end else if (cot_last_in) begin
-                        // 帧在行中间就结束了 (异常/短帧), 也走 flush 把剩下的补齐
+                        // 帧在行中间结束 (异常/短帧), 也走 flush 补齐
                         column            <= 8'd0;
                         row               <= 8'd0;
                         flushing_last_row <= 1'b1;
@@ -146,9 +146,9 @@ module contour_extract (
                     end
                 end
             end
-            // advance == 0: 什么都不动
-            //   => 输出寄存器保持 (valid 保持高, AXI-Stream 要求)
-            //   => 行缓存不写, column/row 不推进 (不丢数据)
+            // dn_ready == 0: 什么都不动
+            //   => 输出寄存器保持 (valid 保持高, AXI-Stream 要求 valid 不许随便掉)
+            //   => 行缓存不写, column/row 不推进  => 不丢数据
         end
     end
 endmodule
