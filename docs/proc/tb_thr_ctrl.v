@@ -85,7 +85,7 @@ module tb_thr_ctrl;
     always @(posedge clk) if (mtcontour) contour_cnt <= contour_cnt + 1;
     always @(posedge clk) if (mtmask)    mask_cnt    <= mask_cnt + 1;
 
-    initial begin
+    initial begin: sequence
         rst = 1'b1;
         repeat (20) @(posedge clk);
         rst = 1'b0;
@@ -128,3 +128,5 @@ module tb_thr_ctrl;
     end
 
 endmodule
+
+

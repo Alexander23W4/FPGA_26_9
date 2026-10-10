@@ -20,8 +20,18 @@ C 参考模型	                NEMU REF	                            可以继续
 指令执行追踪	            PC、指令 trace、GDB/SDB 等	        XSim 波形、$display、$monitor、自定义 trace
 RTL 静态检查	            Verilator --lint-only	            Vivado RTL Analysis、语法检查及相关综合检查
 自动化测试	                Make target、测试程序、回归脚本	        Tcl/批处理 + Testbench + 自动检查
+
 形式验证	                你此前探索过的 BMC / SMT 流程	    需要另外配置适用的形式验证工具或流程，不是 XSim 波形仿真的替代品
 
 
 # 用xsim + wave 首次debug小结
+debug了threshold, 观察reg对axi_lite信号的响应和输出响应
+
+和verilator的c环境仿真做下对比: 环境搭建  tb供给  输出查看
+
+verilator基本上全方位碾压
+    tb供给用c语言好过用verilog的仿真语言  
+    输出查看xsim仅波形与verilog仿真display输出, verilator可用gdb+printf输出+gtwave波形
+
+
 
