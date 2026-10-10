@@ -76,9 +76,6 @@ module top_threshold_demo (
     // Internal reset: active high
     wire rst = ~rst_n;
 
-    // ---- AXI-Stream slave: tready comes from downstream ----  这个模块没加反压, 透传
-    assign s_axis_tready = m_axis_tready;
-
     // Map slave input signals to internal names
     wire [7:0] pix_in     = s_axis_tdata;   // pixel data
     wire       pix_valid  = s_axis_tvalid;  // pixel valid
@@ -206,16 +203,19 @@ module top_threshold_demo (
     reg [7:0] px_d0;
     reg       pv_d0;
     reg       pl_d0;
+    reg       pr_d0;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             px_d0 <= 8'd0;
             pv_d0 <= 1'b0;
             pl_d0 <= 1'b0;
+            pr_d0 <= 1'b0;
         end else begin
             px_d0 <= pix_in;
             pv_d0 <= pix_valid;
             pl_d0 <= frame_done;
+            pr_d0 <= s_axis_tready;
         end
     end
 
@@ -227,11 +227,13 @@ module top_threshold_demo (
         .valid_in   (mask_vld),
         .cot_data_in   (px_d0),
         .cot_valid_in  (pv_d0),
-        .cot_last      (pl_d0),
+        .cot_last_in   (pl_d0),
+        .cot_ready_in  (pr_d0),
 
         .cot_data_out  (m_axis_tdata),
         .cot_valid_out (m_axis_tvalid),
         .cot_last_out  (m_axis_tlast),
+        .cot_ready_out (m_axis_tready),
 
         .cot_mask_out  (cot_mask_out),
         .cot_mask_valid (cot_mask_valid),
