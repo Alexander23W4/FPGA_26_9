@@ -87,8 +87,23 @@ static int cmd_readback(void)
 {
     u32 cmd = Xil_In32(PL_CTRL_BASE + CMD_REG_ADDR);
     u32 dat = Xil_In32(PL_CTRL_BASE + DATA_REG_ADDR);
+    u32 vid = Xil_In32(PL_CTRL_BASE + VIDEO_MODE_ADDR);
     xil_printf("[PL rdbk] CMD_REG(0x%02X) = %u\r\n", (unsigned)CMD_REG_ADDR, (unsigned)(cmd & 0xFFu));
     xil_printf("[PL rdbk] DATA_REG(0x%02X) = %u\r\n", (unsigned)DATA_REG_ADDR, (unsigned)(dat & 0xFFu));
+    xil_printf("[PL rdbk] VIDEO_MODE(0x%02X) = %u\r\n", (unsigned)VIDEO_MODE_ADDR, (unsigned)(vid & 0xFFu));
+    return 0;
+}
+static int cmd_video_mode(void)
+{
+    u8 m;
+    uartln_get_bytes(&m, 1);
+    if (m > 2u) {
+        xil_printf("[PL reg] video mode %u invalid (0/1/2)\r\n", (unsigned)m);
+        return 0;
+    }
+    Xil_Out32(PL_CTRL_BASE + VIDEO_MODE_ADDR, (u32)m);
+    dsb();
+    xil_printf("[PL reg] VIDEO_MODE(0x%02X) = %u\r\n", (unsigned)VIDEO_MODE_ADDR, (unsigned)m);
     return 0;
 }
 static const app_cmd_t cmds[] = {
@@ -99,6 +114,7 @@ static const app_cmd_t cmds[] = {
     { CMD_EMMC_CLEAR,  "E clear","wipe every registered image on the eMMC and reset the catalog", feat_emmc_clear_run },
     { CMD_THRESHOLD,   "T thr",  "PL threshold: send 2 bytes (mode: 0 auto / 1 manual, value)", cmd_threshold_set },
     { CMD_READBACK,    "R rdbk", "read back PL regs 0x04 (mode) and 0x08 (threshold)", cmd_readback },
+    { CMD_VIDEO_MODE,  "V vmod", "PL 0x10 video mode: 0 only-denoise / 1 +contour / 2 +mask", cmd_video_mode },
 };
 #define APP_CMD_COUNT   (sizeof(cmds) / sizeof(cmds[0]))
 

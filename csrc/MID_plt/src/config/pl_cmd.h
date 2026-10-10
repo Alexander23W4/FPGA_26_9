@@ -28,6 +28,7 @@
 #define MODE_ADDR     0x00     
 #define CMD_REG_ADDR  0x04     // 0 自动阈值模式(默认)   1 手动阈值模式
 #define DATA_REG_ADDR 0x08     // 手动阈值
+#define VIDEO_MODE_ADDR 0x10  /* PL output mode: 0 only-denoise / 1 +contour / 2 +mask */
 
 // 模式指令 (单图模式/视频流模式)
 #define SINGLE_MODE 0x01

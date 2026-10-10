@@ -116,152 +116,6 @@ class TcpImageSender:
                 'Mbps': image.size * 8.0 / max(elapsed, 1e-9) / 1e6}
 
 
-TAIL_SCRIPT = ("<script>"
-    "function dshThrUpdate(){"
-    "  var sw=document.getElementById('thresholdMode');"
-    "  var manual=sw&&sw.getAttribute('aria-checked')==='true';"
-    "  var v=document.getElementById('threshold').value;"
-    "  fetch('/api/serial/threshold?mode='+(manual?1:0)+'&value='+v)"
-    "    .then(function(r){return r.json();})"
-    "    .then(function(j){alert(j.ok?('threshold OK\n\n'+j.log):('threshold FAIL\n\n'+j.log));})"
-    "    .catch(function(e){alert('threshold err: '+e);});"
-    "}"
-    "function dshTransfer(){"
-    "  var el=document.getElementById('imageFile');"
-    "  var ff=el&&el.files&&el.files[0];"
-    "  if(!ff){alert('please choose a local image first');return;}"
-    "  ff.arrayBuffer().then(function(buf){"
-    "    return fetch('/api/serial/transfer?index=0',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:buf});"
-    "  }).then(function(r){return r.json();})"
-    "    .then(function(j){alert(j.ok?('transfer OK\n\n'+j.log):('transfer FAIL\n\n'+j.log));})"
-    "    .catch(function(e){alert('transfer err: '+e);});"
-    "}"
-    "function dshReadback(){"
-    "  fetch('/api/serial/readback').then(function(r){return r.json();}).then(function(j){"
-    "    if(!j.ok){alert('readback FAIL\n\n'+j.log);return;}"
-    "    document.getElementById('dshRbMode').textContent=j.mode;"
-    "    document.getElementById('dshRbThr').textContent=j.threshold;"
-    "    var N=['基础处理','显示轮廓','显示二值掩膜处理'];"
-    "    var m=parseInt(j.video_mode,10);"
-    "    document.getElementById('dshRbVid').textContent=(m>=0&&m<=2)?N[m]:('未知('+j.video_mode+')');"
-    "  }).catch(function(e){alert('readback err: '+e);});"
-    "}"
-    "document.getElementById('request').addEventListener('click',dshReadback);"
-    "var _f=document.getElementById('fpgaOutputMode');"
-    "if(_f){_f.addEventListener('change',function(){"
-    "  fetch('/api/serial/video_mode?mode='+_f.value).then(function(r){return r.json();})"
-    "    .then(function(j){if(!j.ok){alert('video mode FAIL\n\n'+j.log);}})"
-    "    .catch(function(e){alert('video mode err: '+e);});"
-    "});}"
-    "</script>")
-
-
-import os as _os
-import subprocess as _sp
-import tempfile as _tmp
-from pathlib import Path as _Path
-
-_REPO = _Path(__file__).resolve().parents[2]
-_SERIAL_PORT = _os.environ.get("SERIAL_PORT", "COM7")
-EMMC_FIXED_ADDR = 2048
-
-
-def _board_talk(payload, wait=1.5):
-    """往板子串口发字节, 返回板子打印的内容"""
-    import serial
-    s = serial.Serial(_SERIAL_PORT, 115200, timeout=0.3)
-    try:
-        s.reset_input_buffer(); s.write(payload); s.flush()
-        end = time.time() + wait; buf = bytearray()
-        while time.time() < end:
-            c = s.read(4096)
-            if c:
-                buf += c; end = time.time() + 0.25
-        return buf.decode("utf-8", "replace")
-    finally:
-        s.close()
-
-
-def _do_threshold(mode, value):
-    if mode not in (0, 1):
-        return {"ok": False, "log": "mode must be 0 or 1"}
-    v = int(value)
-    if not (0 <= v <= 255):
-        return {"ok": False, "log": "threshold must be 0..255"}
-    try:
-        return {"ok": True, "log": _board_talk(b"T" + bytes([mode, v]))}
-    except Exception as exc:
-        return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
-
-
-def _readback_regs():
-    """'R' 只读回读 0x04/0x08/0x10"""
-    try:
-        txt = _board_talk(b"R", wait=2.0)
-    except Exception as exc:
-        return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
-    import re as _re
-    m = _re.search(r"CMD_REG\(0x04\)\s*=\s*(\d+).*?DATA_REG\(0x08\)\s*=\s*(\d+).*?VIDEO_MODE\(0x10\)\s*=\s*(\d+)", txt, _re.S)
-    if not m:
-        return {"ok": False, "log": "cannot parse readback:" + txt}
-    return {"ok": True, "mode": int(m.group(1)), "threshold": int(m.group(2)), "video_mode": int(m.group(3)), "log": txt}
-
-
-def _set_video_mode(mode):
-    try:
-        m = int(mode)
-    except (TypeError, ValueError):
-        return {"ok": False, "log": "bad mode"}
-    if m not in (0, 1, 2):
-        return {"ok": False, "log": "mode must be 0, 1 or 2"}
-    try:
-        return {"ok": True, "log": _board_talk(b"V" + bytes([m]))}
-    except Exception as exc:
-        return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
-
-
-def load_to_emmc(bin_bytes, emmc_addr):
-    ps1 = _REPO / "scripts" / "pc" / "emmc_add.ps1"
-    if not ps1.is_file():
-        return False, "missing ps1"
-    tmp = _os.path.join(_tmp.gettempdir(), "dsh_fpga_upload.bin")
-    with open(tmp, "wb") as fh:
-        fh.write(bin_bytes)
-    cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(ps1),
-           "-File", tmp, "-Port", _SERIAL_PORT, "-StartBlock", str(emmc_addr),
-           "-Width", "256", "-Height", "256", "-Bpp", "1"]
-    try:
-        p = _sp.run(cmd, capture_output=True, text=True, timeout=300, cwd=str(_REPO))
-        return (p.returncode == 0), ((p.stdout or "") + (p.stderr or "")).strip()
-    except Exception as exc:
-        return False, "%s: %s" % (type(exc).__name__, exc)
-
-
-def emmc_clear_catalog():
-    return _board_talk(b"E", wait=3.0)
-
-
-def emmc_to_ddr_play_once(index=0):
-    return _board_talk(b"D" + (int(index) & 0xFFFFFFFF).to_bytes(4, "little"), wait=10.0)
-
-
-def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR):
-    log = []
-    try:
-        log.append("--- 1) E clear ---" + emmc_clear_catalog())
-    except Exception as exc:
-        return {"ok": False, "log": "E clear failed: %s: %s" % (type(exc).__name__, exc)}
-    okc, up = load_to_emmc(bin_bytes, emmc_addr)
-    log.append("--- 2) load_to_emmc(bin, %d) ---" % emmc_addr + up)
-    if not okc:
-        return {"ok": False, "log": "\n".join(log)}
-    try:
-        log.append("--- 3) D 00000000 (send ONE frame) ---" + emmc_to_ddr_play_once(0))
-    except Exception as exc:
-        return {"ok": False, "log": "\n".join(log) + "\nD failed: %s: %s" % (type(exc).__name__, exc)}
-    return {"ok": True, "log": "\n".join(log)}
-
-
 def customize_page(page):
     page = page.replace('<button id="request">请求FPGA状态</button>',
                         '<button id="request">请求FPGA状态</button><button id="chooseImage">选择本地图像</button><input id="imageFile" type="file" accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.bin" hidden><div id="imageName"></div><button id="upload">上传当前图像</button>')
@@ -313,21 +167,52 @@ def customize_page(page):
     #   放在 <div id="metrics"> 之前 => 就在按钮和原有 metrics 之间。
     #   不能塞进 #metrics 里面: poll() 每 150ms 会整个重写它的 innerHTML。
     page = page.replace(
-        '<button id="thresholdUpdate" type="button">阈值更新</button>',
-        '<button id="thresholdUpdate" type="button" onclick="dshThrUpdate()">阈值更新</button>')
-    page = page.replace(
-        '<button id="transfer">传输给FPGA</button>',
-        '<button id="transfer" onclick="dshTransfer()">传输给FPGA</button>')
-    page = page.replace(
         '<div id="metrics">',
         '<div id="dshReadback">'
         '<div class="metric"><span>FPGA回读阈值模式</span><b id="dshRbMode">0</b></div>'
         '<div class="metric"><span>FPGA回读阈值</span><b id="dshRbThr">0</b></div>'
-        '<div class="metric"><span>FPGA回读输出显示模式</span><b id="dshRbVid">基础处理</b></div>'
         '</div><div id="metrics">')
-    page = page.replace('</body>', TAIL_SCRIPT)
     return page
 
+
+TAIL_SCRIPT = ("<script>"
+    "function dshThrUpdate(){"
+    "  var sw=document.getElementById('thresholdMode');"
+    "  var manual=sw&&sw.getAttribute('aria-checked')==='true';"
+    "  var v=document.getElementById('threshold').value;"
+    "  fetch('/api/serial/threshold?mode='+(manual?1:0)+'&value='+v)"
+    "    .then(function(r){return r.json();})"
+    "    .then(function(j){alert(j.ok?('threshold OK\\n\\n'+j.log):('threshold FAIL\\n\\n'+j.log));})"
+    "    .catch(function(e){alert('threshold err: '+e);});"
+    "}"
+    "function dshTransfer(){"
+    "  var el=document.getElementById('imageFile');"
+    "  var ff=el&&el.files&&el.files[0];"
+    "  if(!ff){alert('please choose a local image first');return;}"
+    "  ff.arrayBuffer().then(function(buf){"
+    "    return fetch('/api/serial/transfer?index=0',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:buf});"
+    "  }).then(function(r){return r.json();})"
+    "    .then(function(j){alert(j.ok?('transfer OK\\n\\n'+j.log):('transfer FAIL\\n\\n'+j.log));})"
+    "    .catch(function(e){alert('transfer err: '+e);});"
+    "}"
+    "function dshReadback(){"
+    "  fetch('/api/serial/readback').then(function(r){return r.json();}).then(function(j){"
+    "    if(!j.ok){alert('readback FAIL\\n\\n'+j.log);return;}"
+    "    document.getElementById('dshRbMode').textContent=j.mode;"
+    "    document.getElementById('dshRbThr').textContent=j.threshold;"
+    "    var N=['基础处理','显示轮廓','显示二值掩膜处理'];"
+    "    var m=parseInt(j.video_mode,10);"
+    "    document.getElementById('dshRbVid').textContent=(m>=0&&m<=2)?N[m]:('未知('+j.video_mode+')');"
+    "  }).catch(function(e){alert('readback err: '+e);});"
+    "}"
+    "document.getElementById('request').addEventListener('click',dshReadback);"
+    "var _f=document.getElementById('fpgaOutputMode');"
+    "if(_f){_f.addEventListener('change',function(){"
+    "  fetch('/api/serial/video_mode?mode='+_f.value).then(function(r){return r.json();})"
+    "    .then(function(j){if(!j.ok){alert('video mode FAIL\\n\\n'+j.log);}})"
+    "    .catch(function(e){alert('video mode err: '+e);});"
+    "});}"
+    "</script>")
 
 
 import os as _os
@@ -414,6 +299,20 @@ def emmc_to_ddr_play_once(index=0):
     return _board_talk(b"D" + idx.to_bytes(4, "little"), wait=10.0)
 
 
+def _set_video_mode(mode):
+    """'V' + 1 字节: 写 PL 0x10 (0 只去噪 / 1 去噪+轮廓 / 2 去噪+二值掩膜)"""
+    try:
+        m = int(mode)
+    except (TypeError, ValueError):
+        return {"ok": False, "log": "bad mode %r" % (mode,)}
+    if m not in (0, 1, 2):
+        return {"ok": False, "log": "mode must be 0, 1 or 2, got %s" % m}
+    try:
+        return {"ok": True, "log": _board_talk(b"V" + bytes([m]))}
+    except Exception as exc:
+        return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
+
+
 def _readback_regs():
     """发 'R' 只读回读 PL 的 0x04 (模式) / 0x08 (阈值)。不写任何寄存器。"""
     import re
@@ -453,22 +352,6 @@ def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR):
     return {"ok": True, "log": "\n".join(log)}
 
 class NetworkHandler(web_common.Handler):
-
-    def do_POST(self):
-        if urlparse(self.path).path == '/api/serial/transfer':
-            try:
-                n = int(self.headers.get('Content-Length', '0'))
-                data = self.rfile.read(n) if n > 0 else b''
-                if not data:
-                    self.send_json({'ok': False, 'log': 'empty image body'})
-                    return
-                idx = parse_qs(urlparse(self.path).query).get('index', ['0'])[0]
-                self.send_json(_do_transfer(data, idx))
-            except Exception as exc:
-                self.send_json({'ok': False, 'log': '%s: %s' % (type(exc).__name__, exc)})
-            return
-        super().do_POST()
-
 
     def do_POST(self):
         if urlparse(self.path).path == '/api/serial/transfer':
@@ -557,7 +440,6 @@ class NetworkHandler(web_common.Handler):
                 self.send_json({'ok': False, 'log': '%s: %s' % (type(exc).__name__, exc)})
             return
         super().do_GET()
-
 
 
 class NetworkServer(web_common.ThreadingHTTPServer):

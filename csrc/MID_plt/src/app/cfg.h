@@ -84,6 +84,7 @@
    MODE_ADDR 暂不使用。 */
 #define CMD_THRESHOLD       'T'
 #define CMD_READBACK        'R'      /* 只读: 回读 PL 的 0x04(模式) / 0x08(阈值) */
+#define CMD_VIDEO_MODE      'V'      /* write PL 0x10: 0 only-denoise / 1 +contour / 2 +mask */
 /* ---- 网口回传已废弃 ----
  * 原来 PL 把结果写回 DDR(VDMA S2MM), 再由 PS 经 ENET0 用 UDP 发给笔记本。
  * 现在结果直接走 HDMI, 这条路连同 feat_net_send.c / net_send.h / net_recv.ps1
