@@ -153,6 +153,15 @@ module top1 #(
     );
 
 
+    wire [PIXEL_W-1:0] ts_data;
+    wire               ts_contour;
+    wire               ts_mask;
+    wire [31:0]        video_mode;
+
+    reg  [PIXEL_W-1:0] hdl_data;      // ★ 在 always 里过程赋值, 必须是 reg (原来是 wire, 报 VRFC 10-1280)
+    wire               hdl_valid;
+    wire               hdl_eof;
+    wire               hdl_ready;
 
     top_threshold_demo u_top_threshold_demo (
         .clk(clk),
@@ -185,36 +194,35 @@ module top1 #(
         .m_axis_tvalid(hdl_valid),
         .m_axis_tready(hdl_ready),
         .m_axis_tlast(hdl_eof),
-        .m_axis_tmask(),
+
+        .m_axis_tmask(ts_mask),
         .m_axis_tcontour(ts_contour),
 
         .threshold_out(),
         .auto_mode_out(),
-        .frame_done_out()
+        .frame_done_out(),
+
+        .video_mode_out(video_mode)
     );
 
-    wire [PIXEL_W-1:0] ts_data;
-    wire ts_contour;
-
-    assign hdl_data = ts_data | {PIXEL_W{ts_contour}};  // 轮廓用白色突出
-
-
-    wire [PIXEL_W-1:0] hdl_data;
-    wire hdl_valid;
-    wire hdl_eof;
-    wire hdl_ready;
-
-
-
+    // ---- video_mode 决定显示什么 ----
+    //   0: 只去噪 (直通 threshold 之前的灰度)
+    //   1: 去噪 + 轮廓 (轮廓画白)
+    //   2: 去噪 + 二值掩膜
+    always @(*) begin
+        case (video_mode)
+            32'h1:   hdl_data = ts_data | {PIXEL_W{ts_contour}};
+            32'h2:   hdl_data = ts_mask ? {PIXEL_W{1'b1}} : {PIXEL_W{1'b0}};
+            32'h0:   hdl_data = ts_data;
+            default: hdl_data = ts_data;      // ★ 未定义的模式安全回退 (原来缺 default, 会推锁存器)
+        endcase
+    end
 
     // assign hdl_data = px_data;
     // assign hdl_valid = px_valid;
     // assign hdl_eof = px_eof;
     // assign px_ready = hdl_ready;
     // assign dn_ready = 1'b0;
-
-
-
 
     wire        fb_write_idx;
     wire        fb_read_idx;
@@ -296,11 +304,6 @@ module top1 #(
         .buf_data(fb_write_data),
         .en(fb_write_en),
 
-        // ★ 必须接【电平】, 不能接边沿脉冲!
-        //   hdl_out 在 IDLE 里是每一拍都查 if(state==IDLE && hdmi_1_done),
-        //   而且 hdmi_out 在 IDLE 期间会把 hdmi_1_done 恒置 1(启动引导)。
-        //   若接边沿脉冲, 那个 1 的边沿只在启动瞬间出现一次, 写端当时还在
-        //   BUF 里, 边沿被错过 => 写端进 IDLE 后永远等不到 => 死锁。
         .hdmi_0_done(hdmi_done_s0[2]),
         .hdmi_1_done(hdmi_done_s1[2]),
         .done_accept(done_accept),

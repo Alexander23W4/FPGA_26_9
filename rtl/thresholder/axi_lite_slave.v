@@ -38,12 +38,15 @@ module axi_lite_slave (
     output reg  [31:0] reg_cmd,
     output reg  [7:0]  reg_threshold,
     output reg         host_wr_en,
-    input  wire [31:0] status_in
+    input  wire [31:0] status_in,
+
+    output reg  [31:0] reg_video_mode  // 0: 直通threshold, 只去噪  1: 去噪+轮廓  2: 去噪+二值掩膜
 );
     localparam ADDR_MODE   = 8'h00;
     localparam ADDR_CMD    = 8'h04;
     localparam ADDR_DATA   = 8'h08;
     localparam ADDR_STATUS = 8'h0C;
+    localparam ADDR_VIDEO_MODE = 8'h10;   // new
 
     // Combinational ready: accept when no pending response
     assign s_axi_awready = s_axi_awvalid && s_axi_wvalid && !s_axi_bvalid;
@@ -59,6 +62,7 @@ module axi_lite_slave (
             reg_cmd       <= 32'd0;
             reg_threshold <= 8'd0;
             host_wr_en    <= 1'b0;   // 默认自动模式
+            reg_video_mode<= 32'd0;
         end else begin
             host_wr_en <= 1'b0;
 
@@ -72,6 +76,7 @@ module axi_lite_slave (
                         reg_threshold <= s_axi_wdata[7:0];
                         host_wr_en    <= 1'b1;
                     end
+                    ADDR_VIDEO_MODE: reg_video_mode <= s_axi_wdata;
                     default: ;
                 endcase
             end else if (s_axi_bvalid && s_axi_bready) begin
@@ -95,6 +100,7 @@ module axi_lite_slave (
                     ADDR_CMD:    s_axi_rdata <= reg_cmd;
                     ADDR_DATA:   s_axi_rdata <= {24'd0, reg_threshold};
                     ADDR_STATUS: s_axi_rdata <= status_in;
+                    ADDR_VIDEO_MODE: s_axi_rdata <= reg_video_mode;
                     default:     s_axi_rdata <= 32'd0;
                 endcase
             end else if (s_axi_rvalid && s_axi_rready) begin

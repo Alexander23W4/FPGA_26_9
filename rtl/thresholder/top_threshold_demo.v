@@ -66,7 +66,9 @@ module top_threshold_demo (
     // ---- Status outputs ----
     output wire [7:0]  threshold_out,     // current threshold
     output wire        auto_mode_out,     // 1 = auto, 0 = manual
-    output wire        frame_done_out     // frame done forwarded
+    output wire        frame_done_out,     // frame done forwarded
+
+    output wire [31:0] video_mode_out
 );
     // Internal reset: active high
     wire rst = ~rst_n;
@@ -112,7 +114,8 @@ module top_threshold_demo (
         .reg_cmd       (reg_cmd),
         .reg_threshold (reg_threshold),
         .host_wr_en    (host_wr_en),
-        .status_in     ({24'd0, threshold})
+        .status_in     ({24'd0, threshold}),
+        .reg_video_mode(video_mode_out)
     );
 
     // ---- Otsu core: auto threshold ----
