@@ -200,30 +200,73 @@ def _do_threshold(mode, value):
         return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
 
 
-def _do_transfer(bin_bytes, index):
-    """source bin -> eMMC (emmc_add.ps1), then 'D' + 4-byte LE index (board sends ONE frame)"""
+# ★ 固定槽位: 每次"传输给FPGA"都把图写到 eMMC 的同一个块, 新图覆盖旧图
+# ★ 固定槽位: 每次"传输给FPGA"都把图写到 eMMC 的【同一个块地址】, 新图覆盖旧图
+EMMC_FIXED_ADDR = 2048
+
+
+def load_to_emmc(bin_bytes, emmc_addr):
+    """把源 bin 写到 eMMC 的指定块地址 emmc_addr (同一地址重复写 = 覆盖旧图)。
+
+    走的是 PC 侧已验证的 emmc_add.ps1 (-StartBlock emmc_addr)。
+    返回 (ok, log)。
+    """
     ps1 = _REPO / "scripts" / "pc" / "emmc_add.ps1"
     if not ps1.is_file():
-        return {"ok": False, "log": "missing %s" % ps1}
+        return False, "missing %s" % ps1
+
     tmp = _os.path.join(_tmp.gettempdir(), "dsh_fpga_upload.bin")
     with open(tmp, "wb") as fh:
         fh.write(bin_bytes)
+
     cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(ps1),
            "-File", tmp, "-Port", _SERIAL_PORT,
+           "-StartBlock", str(emmc_addr),          # ★ 固定块地址
            "-Width", "256", "-Height", "256", "-Bpp", "1"]
     try:
-        p = _sp.run(cmd, capture_output=True, text=True, timeout=180, cwd=str(_REPO))
-        up = ((p.stdout or "") + (p.stderr or "")).strip()
-        if p.returncode != 0:
-            return {"ok": False, "log": "upload failed\n" + up}
+        p = _sp.run(cmd, capture_output=True, text=True, timeout=300, cwd=str(_REPO))
+        out = ((p.stdout or "") + (p.stderr or "")).strip()
+        return (p.returncode == 0), out
     except Exception as exc:
-        return {"ok": False, "log": "upload failed: %s: %s" % (type(exc).__name__, exc)}
+        return False, "%s: %s" % (type(exc).__name__, exc)
+
+
+def emmc_clear_catalog():
+    """发 'E': 清空 eMMC 目录 (PS 的 toc_add 是追加语义, 不清会越堆越多)。"""
+    return _board_talk(b"E", wait=3.0)
+
+
+def emmc_to_ddr_play_once(index=0):
+    """发 'D' + 4 字节小端索引: eMMC -> DDR, VDMA 发【一帧】就停在帧边界。"""
+    idx = int(index) & 0xFFFFFFFF
+    return _board_talk(b"D" + idx.to_bytes(4, "little"), wait=10.0)
+
+
+def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR):
+    """「传输给FPGA」按钮:
+         ① emmc_clear_catalog()               清空目录
+         ② load_to_emmc(bin, emmc_addr)       写到固定块 (覆盖旧图)
+         ③ emmc_to_ddr_play_once(0)           从该块载入 DDR, VDMA 只发一帧
+    """
+    log = []
+
     try:
-        idx = int(index) & 0xFFFFFFFF
-        d = _board_talk(b"D" + idx.to_bytes(4, "little"), wait=10.0)
+        log.append("----- ① E clear (wipe catalog) -----\n" + emmc_clear_catalog())
     except Exception as exc:
-        return {"ok": False, "log": up + "\nD failed: %s: %s" % (type(exc).__name__, exc)}
-    return {"ok": True, "log": up + "\n----- load DDR / send one frame -----\n" + d}
+        return {"ok": False, "log": "E clear failed: %s: %s" % (type(exc).__name__, exc)}
+
+    ok, up = load_to_emmc(bin_bytes, emmc_addr)
+    log.append("----- ② load_to_emmc(bin, %d) -----\n" % emmc_addr + up)
+    if not ok:
+        return {"ok": False, "log": "\n".join(log)}
+
+    try:
+        log.append("----- ③ D 00000000 (load DDR / send ONE frame) -----\n"
+                   + emmc_to_ddr_play_once(0))
+    except Exception as exc:
+        return {"ok": False, "log": "\n".join(log) + "\nD failed: %s: %s" % (type(exc).__name__, exc)}
+
+    return {"ok": True, "log": "\n".join(log)}
 
 class NetworkHandler(web_common.Handler):
 
