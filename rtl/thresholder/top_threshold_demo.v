@@ -183,7 +183,7 @@ module top_threshold_demo (
             end
             if(!operating) begin  // 旧帧结束后的空挡期
                 lesion_pixels_save <= lesion_pixels;
-                if(mvl_d0) begin  // 新一帧开始了, 清0 lesion_pixels
+                if(m_axis_tvalid) begin  // 新一帧开始了, 清0 lesion_pixels
                     lesion_pixels <= 17'd0;
                     operating <= 1'b1;                  
                 end
@@ -198,49 +198,55 @@ module top_threshold_demo (
     wire contour_bit;              // contour output
     wire contour_vld;              // contour valid
 
+
+    // ---- AXI-Stream master outputs ----
+    // 原像素透传
+    reg [7:0] px_d0;
+    reg       pv_d0;
+    reg       pl_d0;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            px_d0 <= 8'd0;
+            pv_d0 <= 1'b0;
+            pl_d0 <= 1'b0;
+        end else begin
+            px_d0 <= pix_in;
+            pv_d0 <= pix_valid;
+            pl_d0 <= frame_done;
+        end
+    end
+
     contour_extract u_cont (
         .clk        (clk),
         .rst        (rst),
 
         .mask_in    (mask_bit),
         .valid_in   (mask_vld),
+        .cot_data_in   (px_d0),
+        .cot_valid_in  (pv_d0),
+        .cot_last      (pl_d0),
+
+        .cot_data_out  (m_axis_tdata),
+        .cot_valid_out (m_axis_tvalid),
+        .cot_last_out  (m_axis_tlast),
+
+        .cot_mask_out  (cot_mask_out),
+        .cot_mask_valid (cot_mask_valid),
 
         .contour_out(contour_bit),   // 产出
         .valid_out  (contour_vld)
     );
 
-    // ---- AXI-Stream master outputs ----
-    // 原像素透传
-    reg [7:0] px_d0, px_d1;
-    reg       pv_d0, pv_d1;
-    reg       pl_d0, pl_d1;
-    reg       mask_d0, mvl_d0;
-
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            px_d0 <= 8'd0;    px_d1 <= 8'd0;
-            pv_d0 <= 1'b0;    pv_d1 <= 1'b0;
-            pl_d0 <= 1'b0;    pl_d1 <= 1'b0;
-            mask_d0 <= 1'b0;  mvl_d0 <= 1'b0;
-        end else begin
-            px_d0 <= pix_in;     px_d1 <= px_d0;
-            pv_d0 <= pix_valid;  pv_d1 <= pv_d0;
-            pl_d0 <= frame_done; pl_d1 <= pl_d0;
-            mask_d0 <= mask_bit; mvl_d0 <= mask_vld;
-        end
-    end
-
-    assign m_axis_tdata    = px_d1;                      // 延 2 拍, 与 contour 对齐
-    assign m_axis_tvalid   = pv_d1;                      // 延 2 拍
-    assign m_axis_tlast    = pl_d1;                      // 延 2 拍   这是真正的输出的最后一个pixel
-
-    assign m_axis_tmask    = mask_d0    & mvl_d0;        // 1 + 1 = 2 拍
-    assign m_axis_tcontour = contour_bit & contour_vld;  // 2 拍
+    wire cot_mask_out;
+    wire cot_mask_valid;
+    assign m_axis_tmask    = cot_mask_out & cot_mask_valid;        
+    assign m_axis_tcontour = contour_bit & contour_vld;  
 
     // ---- Status outputs ----    // ★: 上位机应该能够读取这些值, 作为回读状态 
     assign threshold_out = threshold;   // current threshold
     assign auto_mode_out = auto_mode;   // auto/manual mode
-    assign frame_done_out= pl_d1;       // frame done forwarded  给下一级的, 所以要用输出的eof
+    assign frame_done_out= m_axis_tlast;       // frame done forwarded  给下一级的, 所以要用输出的eof
 
     // ★ Prevent unused signal optimization
     // reg_cmd 现在用于选择阈值模式, 不能再丢进 _unused

@@ -1,51 +1,69 @@
 //============================================================
-// contour_extract.v  Contour extraction
-// - Input: binary mask (1 = target, 0 = background)
-// - Output: contour (1 = boundary pixel)
-// - A pixel is contour if mask=1 AND any 4-neighbor is 0
+// contour_extract.v  Four-neighbor contour extraction
+// - Input: 256x256 binary mask (1 = target, 0 = background)
+// - Output: target-side boundary, delayed by one row
+// - Image pixels outside the frame are treated as background
 //============================================================
 `timescale 1ns / 1ps
 
 module contour_extract (
-    input  wire        clk,             // system clock
-    input  wire        rst,             // reset, active high
-    input  wire        mask_in,         // input binary mask
-    input  wire        valid_in,        // input mask valid
-    output reg         contour_out,     // output contour (1 = boundary)
-    output reg         valid_out        // output valid
+    input  wire        clk,
+    input  wire        rst,
+    input  wire        mask_in,
+    input  wire        valid_in,
+    output reg         contour_out,
+    output reg         valid_out
 );
-    // 3x3 window registers for row buffering
-    reg [2:0] w0;                       // row 0 window
-    reg [2:0] w1;                       // row 1 window (middle)
-    reg [2:0] w2;                       // row 2 window
+    localparam integer IMAGE_WIDTH = 256;
+
+    reg [7:0] column;
+    reg [7:0] row;
+    reg frame_started;
+
+    reg line_previous [0:IMAGE_WIDTH-1];
+    reg line_before_previous [0:IMAGE_WIDTH-1];
+
+    wire center_pixel = line_previous[column];
+    wire left_pixel = (column == 0) ?
+                      1'b0 : line_previous[column - 1'b1];
+    wire right_pixel = (column == IMAGE_WIDTH - 1) ?
+                       1'b0 : line_previous[column + 1'b1];
+    wire upper_pixel = ((row == 0) && !frame_started) || (row == 1) ?
+                       1'b0 : line_before_previous[column];
+    wire lower_pixel = (row == 0) ? 1'b0 : mask_in;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            w0         <= 3'b0;         // clear row 0
-            w1         <= 3'b0;         // clear row 1
-            w2         <= 3'b0;         // clear row 2
-            contour_out<= 1'b0;         // clear output
-            valid_out  <= 1'b0;         // clear valid
+            column      <= 8'd0;
+            row         <= 8'd0;
+            frame_started <= 1'b0;
+            contour_out <= 1'b0;
+            valid_out   <= 1'b0;
         end else begin
-            valid_out <= valid_in;      // valid follows input
+            valid_out <= 1'b0;
+            contour_out <= 1'b0;
 
             if (valid_in) begin
-                // Shift 3x3 window left and insert new pixel
-                w0 <= {w0[1:0], mask_in};   // row 0 shift
-                w1 <= {w1[1:0], w0[2]};     // row 1 shift
-                w2 <= {w2[1:0], w1[2]};     // row 2 shift
+                // The center pixel is from the previous row; row zero flushes
+                // the previous frame's last row once the first frame is complete.
+                if (frame_started) begin
+                    valid_out <= 1'b1;
+                    contour_out <= center_pixel &
+                                   ~(left_pixel & right_pixel &
+                                     upper_pixel & lower_pixel);
+                end
 
-                // Check: center pixel = w1[1]
-                // 4 neighbors: left=w1[0], right=w1[2],
-                //              up=w0[1], down=w2[1]
-                if (w1[1] == 1'b1) begin
-                    if (w0[1]==1'b0 || w1[0]==1'b0 ||
-                        w1[2]==1'b0 || w2[1]==1'b0)
-                        contour_out <= 1'b1;    // boundary pixel
-                    else
-                        contour_out <= 1'b0;    // interior pixel
-                end else
-                    contour_out <= 1'b0;        // background
+                line_before_previous[column] <= line_previous[column];
+                line_previous[column] <= mask_in;
+
+                if (column == IMAGE_WIDTH - 1) begin
+                    column <= 8'd0;
+                    row <= (row == IMAGE_WIDTH - 1) ? 8'd0 : row + 1'b1;
+                    if (row == IMAGE_WIDTH - 1)
+                        frame_started <= 1'b1;
+                end else begin
+                    column <= column + 1'b1;
+                end
             end
         end
     end
