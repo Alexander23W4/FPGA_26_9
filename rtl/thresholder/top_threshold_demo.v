@@ -197,6 +197,8 @@ module top_threshold_demo (
     // ---- Contour extraction ----
     wire contour_bit;              // contour output
     wire contour_vld;              // contour valid
+    wire cot_mask_out;
+    wire cot_mask_valid;
 
 
     // ---- AXI-Stream master outputs ----
@@ -238,8 +240,6 @@ module top_threshold_demo (
         .valid_out  (contour_vld)
     );
 
-    wire cot_mask_out;
-    wire cot_mask_valid;
     assign m_axis_tmask    = cot_mask_out & cot_mask_valid;        
     assign m_axis_tcontour = contour_bit & contour_vld;  
 
