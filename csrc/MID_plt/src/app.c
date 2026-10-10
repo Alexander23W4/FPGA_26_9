@@ -22,6 +22,15 @@
 /* -------------------------------------------------------------------------
  *  一个命令 = 一个 feature
  * ---------------------------------------------------------------------- */
+
+ /*
+ ★★:
+ 这里采取和sdb一样的monitor构建模式: 即command 模式, 这样控制可以达到最简, 上层只需要传递简单的指令即可
+ 
+ -> 这里是web用户通过串口传递指令-> ps
+ -> sdb是用户通过cml传递指令-> verilator-C-sdb_monitor
+ */
+
 typedef struct {
     char        cmd;
     const char *title;
@@ -55,11 +64,11 @@ static int cmd_threshold_set(void)
 {
     u8 p[2];
 
-    uartln_get_bytes(p, 2);
+    uartln_get_bytes(p, 2);    // 发p[0]mode & p[1]value
 
-    Xil_Out32(PL_CTRL_BASE + CMD_REG_ADDR, (u32)p[0]);
+    Xil_Out32(PL_CTRL_BASE + CMD_REG_ADDR, (u32)p[0]);   // 更新 cmd_reg
     if (p[0] != 0u) {
-        Xil_Out32(PL_CTRL_BASE + DATA_REG_ADDR, (u32)p[1]);
+        Xil_Out32(PL_CTRL_BASE + DATA_REG_ADDR, (u32)p[1]);   // 如果是手动模式, 附带立即更新一次 data_reg, 符合threshold(pl)的协议要求
     }
     dsb();
 
