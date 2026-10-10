@@ -144,6 +144,7 @@ TAIL_SCRIPT = ("<script>"
     "    var N=['基础处理','显示轮廓','显示二值掩膜处理'];"
     "    var m=parseInt(j.video_mode,10);"
     "    document.getElementById('dshRbVid').textContent=(m>=0&&m<=2)?N[m]:('未知('+j.video_mode+')');"
+    "    document.getElementById('dshRbLes').textContent=j.lesion_mm2+' mm\u00B2';"
     "  }).catch(function(e){alert('readback err: '+e);});"
     "}"
     "document.getElementById('request').addEventListener('click',dshReadback);"
@@ -164,6 +165,8 @@ from pathlib import Path as _Path
 _REPO = _Path(__file__).resolve().parents[2]
 _SERIAL_PORT = _os.environ.get("SERIAL_PORT", "COM7")
 EMMC_FIXED_ADDR = 2048
+# CAMUS 数据集 letterbox 之后每个像素代表的面积 (source: camus_pipeline/convert_camus.py:64)
+PIXEL_AREA_MM2 = 0.436280886141
 
 
 def _board_talk(payload, wait=1.5):
@@ -201,10 +204,13 @@ def _readback_regs():
     except Exception as exc:
         return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
     import re as _re
-    m = _re.search(r"CMD_REG\(0x04\)\s*=\s*(\d+).*?DATA_REG\(0x08\)\s*=\s*(\d+).*?VIDEO_MODE\(0x10\)\s*=\s*(\d+)", txt, _re.S)
+    m = _re.search(r"CMD_REG\(0x04\)\s*=\s*(\d+).*?DATA_REG\(0x08\)\s*=\s*(\d+).*?VIDEO_MODE\(0x10\)\s*=\s*(\d+).*?LESION\(0x14\)\s*=\s*(\d+)", txt, _re.S)
     if not m:
         return {"ok": False, "log": "cannot parse readback:" + txt}
-    return {"ok": True, "mode": int(m.group(1)), "threshold": int(m.group(2)), "video_mode": int(m.group(3)), "log": txt}
+    les = int(m.group(4))
+    return {"ok": True, "mode": int(m.group(1)), "threshold": int(m.group(2)),
+            "video_mode": int(m.group(3)), "lesion_pixels": les,
+            "lesion_mm2": "%.3f" % (les * PIXEL_AREA_MM2), "log": txt}
 
 
 def _set_video_mode(mode):
@@ -324,6 +330,7 @@ def customize_page(page):
         '<div class="metric"><span>FPGA回读阈值模式</span><b id="dshRbMode">0</b></div>'
         '<div class="metric"><span>FPGA回读阈值</span><b id="dshRbThr">0</b></div>'
         '<div class="metric"><span>FPGA回读输出显示模式</span><b id="dshRbVid">基础处理</b></div>'
+        '<div class="metric"><span>FPGA回读病灶面积</span><b id="dshRbLes">0.000 mm²</b></div>'
         '</div><div id="metrics">')
     page = page.replace('</body>', TAIL_SCRIPT)
     return page

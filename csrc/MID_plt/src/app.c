@@ -88,9 +88,11 @@ static int cmd_readback(void)
     u32 cmd = Xil_In32(PL_CTRL_BASE + CMD_REG_ADDR);
     u32 dat = Xil_In32(PL_CTRL_BASE + DATA_REG_ADDR);
     u32 vid = Xil_In32(PL_CTRL_BASE + VIDEO_MODE_ADDR);
+    u32 les = Xil_In32(PL_CTRL_BASE + LESION_ADDR);
     xil_printf("[PL rdbk] CMD_REG(0x%02X) = %u\r\n", (unsigned)CMD_REG_ADDR, (unsigned)(cmd & 0xFFu));
     xil_printf("[PL rdbk] DATA_REG(0x%02X) = %u\r\n", (unsigned)DATA_REG_ADDR, (unsigned)(dat & 0xFFu));
     xil_printf("[PL rdbk] VIDEO_MODE(0x%02X) = %u\r\n", (unsigned)VIDEO_MODE_ADDR, (unsigned)(vid & 0xFFu));
+    xil_printf("[PL rdbk] LESION(0x%02X) = %u\r\n", (unsigned)LESION_ADDR, (unsigned)(les & 0x1FFFFu));
     return 0;
 }
 static int cmd_video_mode(void)
