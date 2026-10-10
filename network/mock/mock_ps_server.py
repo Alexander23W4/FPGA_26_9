@@ -125,7 +125,23 @@ def main():
     parser.add_argument('--control-port', type=int, default=5000)
     parser.add_argument('--image-port', type=int, default=5001)
     args = parser.parse_args()
-    MockPS(args.host, args.control_port, args.image_port).run()
+    # ---- 干净退出: Ctrl+C(SIGINT) 和 launcher 发的 SIGTERM 都不再打 traceback ----
+    def _bye(signum=None, frame=None):
+        print('', flush=True)
+        print('Mock PS stopped.', flush=True)
+        sys.exit(0)
+
+    try:
+        import signal
+        signal.signal(signal.SIGTERM, _bye)     # launch_gui.sh 的 cleanup 用的是这个
+        signal.signal(signal.SIGINT, _bye)      # 你按 Ctrl+C 用的是这个
+    except (ImportError, ValueError, OSError):
+        pass
+
+    try:
+        MockPS(args.host, args.control_port, args.image_port).run()
+    except KeyboardInterrupt:
+        _bye()
 
 if __name__ == '__main__':
     main()

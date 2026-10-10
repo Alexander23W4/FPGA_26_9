@@ -81,6 +81,16 @@ static int cmd_threshold_set(void)
     return 0;
 }
 
+/* ★ 只读回读: 不写任何寄存器, 只读 PL 的 0x04(模式) 和 0x08(阈值)。
+   这是 "AXI-Lite 读事务到底通不通 / 写进去的值有没有留住" 的直接探针。 */
+static int cmd_readback(void)
+{
+    u32 cmd = Xil_In32(PL_CTRL_BASE + CMD_REG_ADDR);
+    u32 dat = Xil_In32(PL_CTRL_BASE + DATA_REG_ADDR);
+    xil_printf("[PL rdbk] CMD_REG(0x%02X) = %u\r\n", (unsigned)CMD_REG_ADDR, (unsigned)(cmd & 0xFFu));
+    xil_printf("[PL rdbk] DATA_REG(0x%02X) = %u\r\n", (unsigned)DATA_REG_ADDR, (unsigned)(dat & 0xFFu));
+    return 0;
+}
 static const app_cmd_t cmds[] = {
     { CMD_HELP,        "? help", "list these commands", cmd_help },
     { CMD_LIST_IMAGES, "I list", "list the images registered in the eMMC catalog", cmd_list_images },
@@ -88,6 +98,7 @@ static const app_cmd_t cmds[] = {
     { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR : load an image, VDMA sends exactly ONE frame", feat_img2ddr_run },
     { CMD_EMMC_CLEAR,  "E clear","wipe every registered image on the eMMC and reset the catalog", feat_emmc_clear_run },
     { CMD_THRESHOLD,   "T thr",  "PL threshold: send 2 bytes (mode: 0 auto / 1 manual, value)", cmd_threshold_set },
+    { CMD_READBACK,    "R rdbk", "read back PL regs 0x04 (mode) and 0x08 (threshold)", cmd_readback },
 };
 #define APP_CMD_COUNT   (sizeof(cmds) / sizeof(cmds[0]))
 

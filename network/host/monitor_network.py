@@ -154,7 +154,24 @@ def customize_page(page):
         '    .then(function(j){alert(j.ok?("transfer OK\\n\\n"+j.log):("transfer FAIL\\n\\n"+j.log));})'
         '    .catch(function(e){alert("transfer err: "+e);});'
         '}'
+        'function dshReadback(){'
+        '  fetch("/api/serial/readback").then(function(r){return r.json();}).then(function(j){'
+        '    if(!j.ok){alert("readback FAIL\n\n"+j.log);return;}'
+        '    document.getElementById("dshRbMode").textContent=j.mode;'
+        '    document.getElementById("dshRbThr").textContent=j.threshold;'
+        '  }).catch(function(e){alert("readback err: "+e);});'
+        '}'
+        'document.getElementById("request").addEventListener("click",dshReadback);'
         '</script></body>')
+    # ★ 紧贴在按钮行下面（"请求FPGA状态"按钮的正下方）插两行, 默认值 0。
+    #   放在 <div id="metrics"> 之前 => 就在按钮和原有 metrics 之间。
+    #   不能塞进 #metrics 里面: poll() 每 150ms 会整个重写它的 innerHTML。
+    page = page.replace(
+        '<div id="metrics">',
+        '<div id="dshReadback">'
+        '<div class="metric"><span>FPGA回读阈值模式</span><b id="dshRbMode">0</b></div>'
+        '<div class="metric"><span>FPGA回读阈值</span><b id="dshRbThr">0</b></div>'
+        '</div><div id="metrics">')
     return page
 
 
@@ -242,6 +259,18 @@ def emmc_to_ddr_play_once(index=0):
     return _board_talk(b"D" + idx.to_bytes(4, "little"), wait=10.0)
 
 
+def _readback_regs():
+    """发 'R' 只读回读 PL 的 0x04 (模式) / 0x08 (阈值)。不写任何寄存器。"""
+    import re
+    try:
+        txt = _board_talk(b"R", wait=2.0)
+    except Exception as exc:
+        return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
+    m = re.search(r"CMD_REG\(0x04\)\s*=\s*(\d+).*?DATA_REG\(0x08\)\s*=\s*(\d+)", txt, re.S)
+    if not m:
+        return {"ok": False, "log": "cannot parse readback:\n" + txt}
+    return {"ok": True, "mode": int(m.group(1)), "threshold": int(m.group(2)), "log": txt}
+
 def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR):
     """「传输给FPGA」按钮:
          ① emmc_clear_catalog()               清空目录
@@ -327,6 +356,9 @@ class NetworkHandler(web_common.Handler):
             except Exception as exc:
                 self.state.log(f'图像上传失败: {exc}')
                 self.send_json({'ok': False, 'error': str(exc)})
+            return
+        if parsed.path == '/api/serial/readback':
+            self.send_json(_readback_regs())
             return
         if parsed.path == '/api/serial/threshold':
             try:
