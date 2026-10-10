@@ -5,9 +5,12 @@ module th_select (
     input  wire        rst,         // reset, active high
     input  wire [7:0]  otsu_th,     // Otsu threshold from otsu_core
     input  wire        otsu_done,   // one-cycle pulse when otsu_th is ready
+    
     input  wire        host_wr_en,  // one-cycle pulse when host writes DATA_REG
+
     input  wire [7:0]  host_th,     // threshold value written by host
     input  wire        host_mode,   // ★ reg_cmd[0]: 0 = auto(Otsu), 1 = manual(host_th)
+
     output reg  [7:0]  threshold,   // final threshold used by segmenter
     output reg         auto_mode    // 1 = auto (Otsu), 0 = manual (host)
 );

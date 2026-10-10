@@ -58,17 +58,17 @@ module axi_lite_slave (
             reg_mode      <= 32'd0;
             reg_cmd       <= 32'd0;
             reg_threshold <= 8'd0;
-            host_wr_en    <= 1'b0;
+            host_wr_en    <= 1'b0;   // 默认自动模式
         end else begin
             host_wr_en <= 1'b0;
 
             if (s_axi_awready && s_axi_wready && !s_axi_bvalid) begin
                 s_axi_bvalid <= 1'b1;
                 s_axi_bresp  <= 2'b00;
-                case (s_axi_awaddr[7:0])
+                case (s_axi_awaddr[7:0])   // 这里写入reg
                     ADDR_MODE: reg_mode      <= s_axi_wdata;
                     ADDR_CMD:  reg_cmd       <= s_axi_wdata;
-                    ADDR_DATA: begin
+                    ADDR_DATA: begin   // 这里写入 data, 不判断 cmd, 任何情况下写0x08寄存器都能够写入 threshold
                         reg_threshold <= s_axi_wdata[7:0];
                         host_wr_en    <= 1'b1;
                     end

@@ -54,7 +54,7 @@ module top_threshold_demo (
     // Internal reset: active high
     wire rst = ~rst_n;
 
-    // ---- AXI-Stream slave: tready comes from downstream ----
+    // ---- AXI-Stream slave: tready comes from downstream ----  这个模块没加反压, 透传
     assign s_axis_tready = m_axis_tready;
 
     // Map slave input signals to internal names
@@ -67,6 +67,7 @@ module top_threshold_demo (
     wire [31:0] reg_cmd;          // command register   0x04
     wire [7:0]  reg_threshold;    // threshold register from host   0x08
     wire        host_wr_en;       // pulse when host writes threshold
+
     wire [7:0]  threshold;        // final threshold
 
     axi_lite_slave u_axi_slv (
@@ -89,6 +90,7 @@ module top_threshold_demo (
         .s_axi_rresp   (s_axi_rresp),
         .s_axi_rvalid  (s_axi_rvalid),
         .s_axi_rready  (s_axi_rready),
+
         .reg_mode      (reg_mode),
         .reg_cmd       (reg_cmd),
         .reg_threshold (reg_threshold),
@@ -103,14 +105,16 @@ module top_threshold_demo (
     otsu_core u_otsu (
         .clk        (clk),
         .rst        (rst),
+
         .pix_in     (pix_in),
         .valid_in   (pix_valid),
         .frame_done (frame_done),
+
         .otsu_th    (otsu_th),
         .otsu_done  (otsu_done)
     );
 
-    // ---- Threshold selector: Otsu auto + host manual ----
+    // ---- Threshold selector: Otsu auto + host manual ----  ★ 验证重点
     wire       auto_mode;          // 1 = auto, 0 = manual
 
     th_select u_thsel (
@@ -121,7 +125,7 @@ module top_threshold_demo (
         .host_wr_en (host_wr_en),
         .host_th    (reg_threshold),
         .host_mode  (reg_cmd[0]),     // ★ 0x04=0 自动 / 0x04=1 手动
-        .threshold  (threshold),
+        .threshold  (threshold),   // 这里选择是自动值还是手动值, 最终值用 "threshold" 这个变量输出, 内含reg 
         .auto_mode  (auto_mode)
     );
 
@@ -134,7 +138,7 @@ module top_threshold_demo (
         .rst       (rst),
         .pix_in    (pix_in),
         .valid_in  (pix_valid),
-        .threshold (threshold),
+        .threshold (threshold),  // 这里输入最终的
         .mask_out  (mask_bit),
         .valid_out (mask_vld)
     );
