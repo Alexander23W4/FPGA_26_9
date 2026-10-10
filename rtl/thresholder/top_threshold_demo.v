@@ -70,6 +70,9 @@ module top_threshold_demo (
 
     output wire [31:0] video_mode_out
 );
+    reg operating;
+    reg [15:0] lesion_pixels;
+    reg [15:0] lesion_pixels_save;   // 上一帧的mask值
     // Internal reset: active high
     wire rst = ~rst_n;
 
@@ -115,7 +118,8 @@ module top_threshold_demo (
         .reg_threshold (reg_threshold),
         .host_wr_en    (host_wr_en),
         .status_in     ({24'd0, threshold}),
-        .reg_video_mode(video_mode_out)
+        .reg_video_mode(video_mode_out),
+        .lesion_pixels (lesion_pixels_save)
     );
 
     // ---- Otsu core: auto threshold ----
@@ -168,6 +172,28 @@ module top_threshold_demo (
         .valid_out (mask_vld)
     );
 
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            lesion_pixels <= 16'b0;
+            operating <= 1'b0;
+            lesion_pixels_save <= 16'b0;
+        end else begin
+            if(m_axis_tmask) begin  // 用最终输出的mask, 统一时序
+                lesion_pixels <= lesion_pixels + 16'b1;
+            end
+            if(!operating) begin  // 旧帧结束后的空挡期
+                lesion_pixels_save <= lesion_pixels;
+                if(mvl_d0) begin  // 新一帧开始了, 清0 lesion_pixels
+                    lesion_pixels <= 16'b0;
+                    operating <= 1'b1;                  
+                end
+            end
+            if(m_axis_tlast) begin
+                operating <= 1'b0;
+            end
+        end
+    end
+
     // ---- Contour extraction ----
     wire contour_bit;              // contour output
     wire contour_vld;              // contour valid
@@ -185,17 +211,36 @@ module top_threshold_demo (
 
     // ---- AXI-Stream master outputs ----
     // 原像素透传
-    assign m_axis_tdata    = pix_in;                     // pass-through pixel
-    assign m_axis_tvalid   = pix_valid;                  // pass-through valid
-    assign m_axis_tlast    = frame_done;                 // pass-through frame end
+    reg [7:0] px_d0, px_d1;
+    reg       pv_d0, pv_d1;
+    reg       pl_d0, pl_d1;
+    reg       mask_d0, mvl_d0;
 
-    assign m_axis_tmask    = mask_bit    & mask_vld;     // mask gated by valid
-    assign m_axis_tcontour = contour_bit & contour_vld;  // contour gated by valid
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            px_d0 <= 8'd0;    px_d1 <= 8'd0;
+            pv_d0 <= 1'b0;    pv_d1 <= 1'b0;
+            pl_d0 <= 1'b0;    pl_d1 <= 1'b0;
+            mask_d0 <= 1'b0;  mvl_d0 <= 1'b0;
+        end else begin
+            px_d0 <= pix_in;     px_d1 <= px_d0;
+            pv_d0 <= pix_valid;  pv_d1 <= pv_d0;
+            pl_d0 <= frame_done; pl_d1 <= pl_d0;
+            mask_d0 <= mask_bit; mvl_d0 <= mask_vld;
+        end
+    end
+
+    assign m_axis_tdata    = px_d1;                      // 延 2 拍, 与 contour 对齐
+    assign m_axis_tvalid   = pv_d1;                      // 延 2 拍
+    assign m_axis_tlast    = pl_d1;                      // 延 2 拍   这是真正的输出的最后一个pixel
+
+    assign m_axis_tmask    = mask_d0    & mvl_d0;        // 1 + 1 = 2 拍
+    assign m_axis_tcontour = contour_bit & contour_vld;  // 2 拍
 
     // ---- Status outputs ----    // ★: 上位机应该能够读取这些值, 作为回读状态 
     assign threshold_out = threshold;   // current threshold
     assign auto_mode_out = auto_mode;   // auto/manual mode
-    assign frame_done_out= frame_done;  // frame done forwarded
+    assign frame_done_out= pl_d1;       // frame done forwarded  给下一级的, 所以要用输出的eof
 
     // ★ Prevent unused signal optimization
     // reg_cmd 现在用于选择阈值模式, 不能再丢进 _unused
