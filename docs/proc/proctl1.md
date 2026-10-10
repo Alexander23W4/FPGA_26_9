@@ -8,5 +8,5 @@ bug: 怀疑 threshold 代码修正过后, 并不能实现register ctrl的逻辑
 发0x04 = 0, ts 应该恢复自动产生threshold
 
 
-首先验证reg有没有变化
-其次验证功能有没有实现
+1. 首先验证reg有没有变化
+2. 其次验证功能有没有实现
