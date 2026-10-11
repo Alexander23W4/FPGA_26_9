@@ -111,23 +111,8 @@ module hdl_out(
             end
             IDLE: begin
                 hdl_ready = 1'b0;
-                // ★★ 关键: 一进 IDLE 就主动发出换 bank 请求。
-                //   原来的写法只在【离开 IDLE 时】才置 done_accept=1,
-                //   于是: hdl_out 等 hdmi_X_done, 而 hdmi_out 要看到 done_accept 翻转
-                //   才会切换并发出那个 done => 双方互等 => 第 3 帧起死锁。
                 done_accept = 1'b1;
-                // ★★ 改成直接看"读端现在在哪一块":
-                //   只要写 bank != 读 bank, 就可以放心写, 绝不会和 HDMI 撞同一块。
-                //   原来靠 hdmi_0_done/hdmi_1_done 脉冲判断, 而那是两个模块各自
-                //   维护的 buf_idx_save, 会错开 => 等一个永远不来的 done => 卡死,
-                //   而且卡死点前后 data/contour 被截断的位置不同 => 轮廓右偏。
-                if(!buf_idx_save && hdmi_1_done) begin
-                    next = BUF;
-                    done_accept = 1'b1;
-                end else if(buf_idx_save && hdmi_0_done) begin
-                    next = BUF;
-                    done_accept = 1'b1;
-                end
+                next        = BUF;
             end
             
         endcase

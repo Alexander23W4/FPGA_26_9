@@ -181,18 +181,17 @@ int feat_img2ddr_run(void)
         xil_printf("\r\nRESULT: OK -- eMMC -> DDR -> VDMA 已启动（整帧是否吐完由 [6.7] 的延时保证）\r\n");
     }
 
-    /* ---------- 6.7 让 VDMA 继续跑（不再 stop）★ ----------
-   ★★ 为什么不再 stop:
-      vdma_mm2s_stop() 只清 CR.RUNSTOP, VDMA 会停在【当前所在位置】。
-      如果它正好停在帧中间, 那一帧就没有 tlast 送出去, PL 里 hdl_out 的
-      写地址会停在半路, 于是【下一帧从错位的地址开始写】——
-      现象就是: "第一张能出图, 之后要好几次才碰巧出一次"。
-      PL 侧有 double_buf 保护, 而且仿真已验证: 连续两帧各 65536 个像素、
-      mask 全对、s_axis_tready 最长只低 3 拍 => PL 完全可以连续吃帧。
-      所以这里让 VDMA 在 circular 模式下一直跑, 屏幕自然持续刷新。 */
+    /* ---------- 6.7 只发一帧: 停在帧尾之后 ----------
+   ★ 恢复"一次 D 只发一帧"的行为。
+   一帧 = 256x256 = 65536 字节 = 16384 个 32bit beat, VDMA 吐完只要几十 us。
+   这里固定等 5 ms 再 stop, 时间余量充足 => stop 必定落在帧尾之后,
+   不会把帧从中间截断。下次 D 开头的 stop 作用在已停的通道上, 无害。
+   (不要依赖 wait_running: CR.FRMCNT_EN 没开, PARKPTR.READSTR 恒 0,
+    它只会空转超时。) */
     {
-        usleep(3000u);          /* 给 3ms, 保证至少一整帧已经吐出去并显示 */
-        xil_printf("  [6.7] VDMA 保持运行 (circular), 不 stop\r\n");
+        usleep(5000u);
+        (void)vdma_mm2s_stop();
+        xil_printf("  [6.7] 已等 5ms(整帧吐完), 然后 stop => 一次 D 只发一帧\r\n");
     }
 
 /* step 7 (VDMA S2MM 回写) 已删除: 结果由 PL 直接走 HDMI 输出, 不再回 DDR。 */

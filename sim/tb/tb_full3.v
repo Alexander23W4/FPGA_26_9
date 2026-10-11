@@ -234,19 +234,14 @@ module tb_full3;
         axi_wr(32'h08, 32'h0000_0080);
         repeat (10) @(posedge clk);
 
-        $display("===== mode switch test: MANUAL x2 -> AUTO x4 =====");
-        for (f = 0; f < 6; f = f + 1) begin
-            if (f == 2) begin
-                $display("      >>> SWITCH TO AUTO: write CMD_REG(0x04) = 0 <<<");
-                axi_wr(32'h04, 32'h0);
-                $display("      >>> after write: auto_mode_out=%b video_mode=%b", auto_mode_out, video_mode_out);
-            end
+        $display("===== 10 frames, manual threshold changed between each =====");
+        for (f = 0; f < 10; f = f + 1) begin
+            // 帧之前写一次手动阈值 (对应 PS 的 T 1 <thr>)
+            axi_wr(32'h04, 32'h1);
+            axi_wr(32'h08, 32'd30 + f*20);
+            $display("      >>> frame %0d : wrote thr = %0d <<<", f, 30 + f*20);
             send_frame;
             repeat (500000) @(posedge clk);
-            if (f == 1) begin
-                shape_dump;
-                $display("      after frame1: fb_widx=%b fb_ridx=%b", fb_widx, fb_ridx);
-            end
         end
         $display("");
         if (err == 0) $display("===== ALL PASS: every frame 65536, addr0, no contour on background =====");
