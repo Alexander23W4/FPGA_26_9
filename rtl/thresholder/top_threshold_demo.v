@@ -180,17 +180,17 @@ module top_threshold_demo (
             operating <= 1'b0;
             lesion_pixels_save <= 17'd0;
         end else begin
-            if(m_axis_tmask) begin  // 用最终输出的mask, 统一时序
+            if(m_axis_tmask && m_axis_tready) begin  // ★ 只在握手成功那一拍计数  // 用最终输出的mask, 统一时序
                 lesion_pixels <= lesion_pixels + 17'd1;
             end
             if(!operating) begin  // 旧帧结束后的空挡期
                 lesion_pixels_save <= lesion_pixels;
-                if(m_axis_tvalid) begin  // 新一帧开始了, 清0 lesion_pixels
+                if(m_axis_tvalid && m_axis_tready) begin  // 新一帧开始了, 清0 lesion_pixels
                     lesion_pixels <= 17'd0;
                     operating <= 1'b1;                  
                 end
             end
-            if(m_axis_tlast) begin
+            if(m_axis_tlast && m_axis_tready) begin
                 operating <= 1'b0;
             end
         end

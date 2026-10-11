@@ -12,7 +12,7 @@ module contour_extract (
     input  wire [7:0] cot_data_in,
     input  wire       cot_valid_in,
     input  wire       cot_last_in,
-    output reg        cot_ready_in,     
+    output wire       cot_ready_in,     
 
     // ---- 输出侧 ----
     output reg  [7:0] cot_data_out,
@@ -59,6 +59,10 @@ module contour_extract (
     wire dn_ready = cot_ready_out;
     //   本模块能收: 下游能收, 且不在 flush 补行阶段 (flush 期间不收新数据)
     wire up_ready = dn_ready & ~flushing_last_row;
+
+    // ★★ ready 必须【组合】输出, 不能打拍!
+    //    打拍的话上游要晚一拍才知道你忙, 会多发一个 pixel, 而模块不收 => 丢数据
+    assign cot_ready_in = up_ready;
     //   输入这一拍有效
     wire take_in  = (valid_in && cot_valid_in);
 
@@ -67,7 +71,6 @@ module contour_extract (
             column            <= 8'd0;
             row               <= 8'd0;
             flushing_last_row <= 1'b0;
-            cot_ready_in      <= 1'b0;
             cot_data_out      <= 8'd0;
             cot_valid_out     <= 1'b0;
             cot_last_out      <= 1'b0;
@@ -77,7 +80,6 @@ module contour_extract (
             valid_out         <= 1'b0;
         end else begin
             // 给上游的 ready (打一拍, 和输出级的节奏一致)
-            cot_ready_in <= up_ready;
 
             if (dn_ready) begin
                 // ================= 输出级 =================

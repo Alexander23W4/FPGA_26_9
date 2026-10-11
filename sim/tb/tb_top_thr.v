@@ -63,6 +63,8 @@ module tb_top_thr;
     );
 
     integer errors = 0;
+    integer err_align = 0;      // ★ data 和 mask 不对应的次数
+    integer err_badcon = 0;     // ★ contour=1 但 mask=0 的次数
 
     task axi_wr(input [31:0] addr, input [31:0] data);
         begin
@@ -106,7 +108,11 @@ module tb_top_thr;
     always @(posedge clk) begin
         if (rst_n) begin
             if (!s_tready) begin n_low_ready = n_low_ready + 1; seen_low_ready = 1; end
-            if (m_tvalid) begin
+            if (m_tvalid && m_tready) begin   // ★ 只在握手成功那一拍数
+                // ★★★ 三路对齐检查 (每一次握手都要对)
+                if (m_tmask && m_tdata !== PIX_ON)  err_align = err_align + 1;
+                if (!m_tmask && m_tdata !== PIX_OFF) err_align = err_align + 1;
+                if (m_tcontour && !m_tmask)          err_badcon = err_badcon + 1;
                 n_out = n_out + 1;
                 if (m_tmask) begin n_mask = n_mask + 1; frame_mask = frame_mask + 1; end
                 if (m_tcontour) n_cont = n_cont + 1;
@@ -203,7 +209,7 @@ module tb_top_thr;
 
         // 先跑一轮无反压
         do_stall = 0;
-        n_out = 0; n_mask = 0; n_cont = 0; n_low_ready = 0; seen_low_ready = 0;
+        n_out = 0; n_mask = 0; n_cont = 0; n_low_ready = 0; seen_low_ready = 0;  err_align = 0; err_badcon = 0;
         frame_mask = 0; frame_done_cnt = 0;
         send_frame(11);
         wait_frame_done;
@@ -218,7 +224,7 @@ module tb_top_thr;
         axi_wr(32'h08, 32'h0000_0080);
         repeat (5) @(posedge clk);
         do_stall = 1;
-        n_out = 0; n_mask = 0; n_cont = 0; n_low_ready = 0; seen_low_ready = 0;
+        n_out = 0; n_mask = 0; n_cont = 0; n_low_ready = 0; seen_low_ready = 0;  err_align = 0; err_badcon = 0;
         frame_mask = 0; frame_done_cnt = 0;
         send_frame(11);
         wait_frame_done;
@@ -229,6 +235,9 @@ module tb_top_thr;
         if (n_out != 768 || n_mask != 11 || n_cont != 11) begin
             errors = errors + 1; $display("    FAIL 反压下结果变了, 丢数据了!");
         end else $display("    PASS 反压下结果不变 (768/11/11)");
+        $display("      反压下 err_align=%0d (期望 0)  err_badcon=%0d (期望 0)", err_align, err_badcon);
+        if (err_align != 0 || err_badcon != 0) begin errors = errors + 1; $display("      FAIL 反压下三路没对齐!"); end
+        else $display("      PASS 反压下三路严格对齐");
         if (!seen_low_ready) begin
             errors = errors + 1; $display("    FAIL s_axis_tready 从没拉低过");
         end else $display("    PASS 反压传到了上游");
