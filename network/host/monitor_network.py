@@ -144,14 +144,14 @@ TAIL_SCRIPT = ("<script>"
     "    var N=['基础处理','显示轮廓','显示二值掩膜处理'];"
     "    var m=parseInt(j.video_mode,10);"
     "    document.getElementById('dshRbVid').textContent=(m>=0&&m<=2)?N[m]:('未知('+j.video_mode+')');"
-    "    document.getElementById('dshRbLes').textContent=j.lesion_mm2+' mm\u00B2';"
+    "    document.getElementById('dshRbLes').textContent=j.lesion_mm2+' mm\u00B2 ('+j.lesion_pixels+' px)';"
     "  }).catch(function(e){alert('readback err: '+e);});"
     "}"
     "document.getElementById('request').addEventListener('click',dshReadback);"
     "var _f=document.getElementById('fpgaOutputMode');"
     "if(_f){_f.addEventListener('change',function(){"
     "  fetch('/api/serial/video_mode?mode='+_f.value).then(function(r){return r.json();})"
-    "    .then(function(j){if(!j.ok){alert('video mode FAIL\\n\\n'+j.log);}})"
+    "    .then(function(j){if(!j.ok){alert('video mode FAIL\\n\\n'+j.log);return;}dshReadback();})"
     "    .catch(function(e){alert('video mode err: '+e);});"
     "});}"
     "</script>")
@@ -241,9 +241,20 @@ def _set_video_mode(mode):
     if m not in (0, 1, 2):
         return {"ok": False, "log": "mode must be 0, 1 or 2"}
     try:
-        return {"ok": True, "log": _board_talk(b"V" + bytes([m]))}
+        txt = _board_talk(b"V" + bytes([m]))
     except Exception as exc:
         return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
+    import re as _re
+    match = _re.search(
+        r"^\[PL rdbk\] VIDEO_MODE\(0x10\)\s*=\s*(\d+)\s*$",
+        txt, _re.M)
+    if not match:
+        return {"ok": False, "log": "video mode write was not confirmed:\n" + txt}
+    actual = int(match.group(1))
+    if actual != m:
+        return {"ok": False, "log": "video mode readback mismatch: "
+                "requested %d, got %d\n%s" % (m, actual, txt)}
+    return {"ok": True, "mode": m, "video_mode": actual, "log": txt}
 
 
 def load_to_emmc(bin_bytes, emmc_addr):

@@ -81,7 +81,7 @@ static int cmd_threshold_set(void)
     return 0;
 }
 
-/* ★ 只读回读: 不写任何寄存器, 只读 PL 的 0x04(模式) 和 0x08(阈值)。
+/* ★ 只读回读: 不写寄存器, 读取 PL 的阈值、显示模式和上一帧病灶面积。
    这是 "AXI-Lite 读事务到底通不通 / 写进去的值有没有留住" 的直接探针。 */
 static int cmd_readback(void)
 {
@@ -98,6 +98,8 @@ static int cmd_readback(void)
 static int cmd_video_mode(void)
 {
     u8 m;
+    u32 actual;
+
     uartln_get_bytes(&m, 1);
     if (m > 2u) {
         xil_printf("[PL reg] video mode %u invalid (0/1/2)\r\n", (unsigned)m);
@@ -105,7 +107,14 @@ static int cmd_video_mode(void)
     }
     Xil_Out32(PL_CTRL_BASE + VIDEO_MODE_ADDR, (u32)m);
     dsb();
-    xil_printf("[PL reg] VIDEO_MODE(0x%02X) = %u\r\n", (unsigned)VIDEO_MODE_ADDR, (unsigned)m);
+    actual = Xil_In32(PL_CTRL_BASE + VIDEO_MODE_ADDR) & 0xFFu;
+    xil_printf("[PL reg] VIDEO_MODE requested = %u\r\n", (unsigned)m);
+    xil_printf("[PL rdbk] VIDEO_MODE(0x%02X) = %u\r\n",
+               (unsigned)VIDEO_MODE_ADDR, (unsigned)actual);
+    if (actual != (u32)m) {
+        xil_printf("[PL reg] ERROR: video mode write did not stick\r\n");
+        return -1;
+    }
     return 0;
 }
 static const app_cmd_t cmds[] = {
@@ -115,7 +124,7 @@ static const app_cmd_t cmds[] = {
     { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR : load an image, VDMA sends exactly ONE frame", feat_img2ddr_run },
     { CMD_EMMC_CLEAR,  "E clear","wipe every registered image on the eMMC and reset the catalog", feat_emmc_clear_run },
     { CMD_THRESHOLD,   "T thr",  "PL threshold: send 2 bytes (mode: 0 auto / 1 manual, value)", cmd_threshold_set },
-    { CMD_READBACK,    "R rdbk", "read back PL regs 0x04 (mode) and 0x08 (threshold)", cmd_readback },
+    { CMD_READBACK,    "R rdbk", "read back PL regs 0x04/0x08/0x10/0x14", cmd_readback },
     { CMD_VIDEO_MODE,  "V vmod", "PL 0x10 video mode: 0 only-denoise / 1 +contour / 2 +mask", cmd_video_mode },
 };
 #define APP_CMD_COUNT   (sizeof(cmds) / sizeof(cmds[0]))

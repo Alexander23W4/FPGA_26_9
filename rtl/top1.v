@@ -388,7 +388,24 @@ module top1 #(
         s_axis_tvalid, s_axis_tready, s_axis_tlast,
         px_eof, hdl_eof, fb_write_en, done_accept, 16'd0
     };
-    assign debug_probe = hdmi_ila_probe;
+// -------- ★ 128 位观测包 (端口宽度保持 128, 因此不需要同步 mref) --------
+    //  动端口宽度会让 BD 里的 top1_0 失效 (mref 接口是缓存的), 所以只塞进现有 128 位。
+    (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] dbg_pack;
+    assign dbg_pack = {
+        rdata[7:0],                 // [127:120] 回读数据低8位 (看 0x10 读回 0 还是 2)
+        awaddr[8:0],                // [119:111] ★ 写地址 (PS 送来的是不是 0x10)
+        wdata[7:0],                 // [110:103] 写数据低8位
+        awvalid, awready,           // [102][101] ★ 写地址握手
+        wvalid,  wready,            // [100][ 99] ★ 写数据握手
+        bvalid,  bready,            // [ 98][ 97] 写响应
+        rvalid,  rready,            // [ 96][ 95] 读响应
+        arvalid, arready,           // [ 94][ 93] 读地址握手
+        bresp[0], rresp[0],         // [ 92][ 91]
+        fb_write_addr,              // [ 90: 75] ★ 帧缓存写地址
+        hdl_dbg_status,             // [ 74: 56] ★ {eof_mismatch,state,buf_idx_save,counter}
+        56'd0
+    };
+    assign debug_probe = dbg_pack;
 
     // TMDS 串行位: 来自 hdmi_tx, 在这里紧贴端口做 OBUFDS
     wire tmds_ser_r;

@@ -424,15 +424,20 @@ if {$want_axi_infra} {
     if {[get_bd_cells -quiet top1_0] ne "" && [llength [get_bd_pins -quiet top1_0/debug_probe]] == 1} {
         if {[get_bd_cells -quiet u_ila_hdmi] eq ""} {
             create_bd_cell -type ip -vlnv xilinx.com:ip:ila:6.2 u_ila_hdmi
-            set_property -dict [list \
-                CONFIG.C_DATA_DEPTH     {2048} \
-                CONFIG.C_NUM_OF_PROBES  {1} \
-                CONFIG.C_PROBE0_WIDTH   {128} \
-            ] [get_bd_cells u_ila_hdmi]
         }
+        # ★★ 必须 Native + 关闭 AXI 监控:
+        #    之前是 AXI 监控模式, 接口在 BD 层没有连通 => 探针全被优化成常量 0
+        #    (板上表现为探针名全是 system_i/<const0>_N, 抓不到任何真实信号)
+        set_property -dict [list \
+            CONFIG.C_MONITOR_TYPE        {Native} \
+            CONFIG.C_ENABLE_ILA_AXI_MON  {false} \
+            CONFIG.C_DATA_DEPTH          {4096} \
+            CONFIG.C_NUM_OF_PROBES       {1} \
+            CONFIG.C_PROBE0_WIDTH        {256} \
+        ] [get_bd_cells u_ila_hdmi]
         connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins u_ila_hdmi/clk]
         connect_bd_net [get_bd_pins top1_0/debug_probe] [get_bd_pins u_ila_hdmi/probe0]
-        puts "\[ACZ7015\] u_ila_hdmi: 128-bit probe on VDMA/frame-buffer/HDMI state"
+        puts "\[ACZ7015\] u_ila_hdmi: 256-bit NATIVE probe ([255:128]=AXI, [127:0]=frame/HDMI)"
     } else {
         puts "\[ACZ7015\] NOTE: u_ila_hdmi 跳过 (top1_0/debug_probe 不存在)"
     }

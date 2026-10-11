@@ -15,6 +15,7 @@ scripts/
 ├── tcl/                  执行层：在 Vivado 内跑
 │   ├── create_pl_project.tcl     只建纯 PL 工程（不开综合，给 GUI 用）
 │   ├── create_zynq_project.tcl   只建 Zynq 工程 + BD
+│   ├── connect_ila.tcl           给现有 Zynq BD 补接 AXI-Lite / HDMI ILA
 │   ├── build_pl.tcl              建/开工程 → 综合 → 实现 → 位流
 │   ├── build_zynq.tcl            建/开工程 → 位流 → 导出 .xsa
 │   ├── run_sim.tcl               xsim 仿真
@@ -77,6 +78,23 @@ build/                      ← 全部 gitignore
 ./scripts/build.sh export -n zynq_led             # GUI 改动导回 Tcl
 ./scripts/build.sh clean                          # 清理 build/
 ```
+
+### 给现有 Zynq 工程补接 ILA
+
+当现有 `fpga_26` 工程需要在不重建 BD 的情况下观察 `top1_0/S_AXI` 时，在 Git Bash
+仓库根目录运行：
+
+```bash
+/e/Xilinx/Vivado/2023.2/bin/vivado.bat -mode batch \
+  -source scripts/tcl/connect_ila.tcl \
+  -tclargs build/vivado/fpga_26/fpga_26.xpr
+./scripts/build.sh zynq -n fpga_26 -H -j 4
+```
+
+脚本会把 System ILA 以 monitor slot 接到现有 AXI-Lite 总线，并保留 HDMI 调试 ILA。
+只有 `validate_bd_design` 通过后才保存 BD；之后仍需重新生成 bitstream 并下载到板上，
+ILA 才会出现在 Hardware Manager 中。该调试 ILA 的用途是观察 AXI 事务，不代表寄存器
+故障已被修复。
 
 ### 选项
 
