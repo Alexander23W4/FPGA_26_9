@@ -162,6 +162,7 @@ do_pl() {
   info "Archive dir: ${out#${REPO_ROOT}/}"
 
   run_vivado "${SCRIPTS_DIR}/tcl/build_pl.tcl" \
+      mkdir -p "${out}" || { echo "[FAIL] cannot create ${out}"; exit 1; }
       "$NAME" "$(winpath "${VIVADO_PROJ_DIR}")" "$TOP" "$JOBS" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
   [ "$rc" -eq 0 ] || die "Vivado build failed (rc=$rc). Log: ${out}/build.log"
@@ -205,6 +206,7 @@ do_zynq() {
   [ -n "$FCLK0" ]  && vargs+=("-fclk0" "$FCLK0")
   vargs+=("$JOBS")
 
+  mkdir -p "${out}" || { echo "[FAIL] cannot create ${out}"; exit 1; }
   run_vivado "${SCRIPTS_DIR}/tcl/build_zynq.tcl" "${vargs[@]}" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
   [ "$rc" -eq 0 ] || die "Vivado build failed (rc=$rc). Log: ${out}/build.log"
@@ -250,6 +252,7 @@ do_app() {
   [ "$FORCE_PLATFORM" -eq 1 ] && vargs+=("--force-platform")
   [ "$NO_FS" -eq 1 ] && vargs+=("--no-fs")
 
+  mkdir -p "${out}" || { echo "[FAIL] cannot create ${out}"; exit 1; }
   run_vitis "${SCRIPTS_DIR}/vitis/build_ps.py" "${vargs[@]}" 2>&1 | tee "${out}/build.log"
   local rc="${PIPESTATUS[0]}"
 
@@ -293,6 +296,7 @@ do_sim() {
 
   local out; out="$(new_out_dir)"
   run_vivado "${SCRIPTS_DIR}/tcl/run_sim.tcl" \
+      mkdir -p "${out}" || { echo "[FAIL] cannot create ${out}"; exit 1; }
       "$NAME" "$(winpath "${VIVADO_PROJ_DIR}")" "$TB" 2>&1 | tee "${out}/sim.log"
   local rc="${PIPESTATUS[0]}"
   [ "$rc" -eq 0 ] || die "Simulation failed (rc=$rc). Log: ${out}/sim.log"

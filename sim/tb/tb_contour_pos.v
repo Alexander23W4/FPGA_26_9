@@ -120,6 +120,25 @@ module tb_contour_pos;
         end
     end
 
+
+    // ---------------- ★★ 决定性检查: m_tready 低的时候, s_tready 有没有跟着低 ----------------
+    //   如果 m_tready=0 (下游不收) 而 s_tready=1 (还告诉上游"我能收"),
+    //   上游就会推一个像素进来而被吞掉 => 就是丢像素的根源。
+    integer STALL_MISMATCH = 0;
+    integer STALL_CYCLES   = 0;
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (!m_tready) begin
+                STALL_CYCLES = STALL_CYCLES + 1;
+                if (s_tready) begin
+                    STALL_MISMATCH = STALL_MISMATCH + 1;
+                    if (STALL_MISMATCH <= 5)
+                        $display("   ★★ m_tready=0 但 s_tready=1  (第 %0d 次) => 上游会推一个被吞掉的像素", STALL_MISMATCH);
+                end
+            end
+        end
+    end
+
     task axi_wr(input [31:0] a, input [31:0] d);
         begin
             @(posedge clk); awaddr <= a; awvalid <= 1; wdata <= d; wvalid <= 1;
@@ -220,6 +239,7 @@ module tb_contour_pos;
             errors = errors + 1;
             $display("   >>> FAIL 反压下位置/个数变了");
         end else $display("   PASS 反压下位置完全一致");
+        $display("   m_tready 低的拍数=%0d, 其中 s_tready 仍为高的拍数=%0d  <== 这个数 !=0 就是丢像素的源头", STALL_CYCLES, STALL_MISMATCH);
 
         $display("");
         if (errors == 0) $display("===== 全部 PASS, errors=0 =====");

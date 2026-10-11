@@ -14,6 +14,7 @@ module hdl_out(
     output reg [7:0]  buf_data,  // 写入的灰度值
     output reg en,         // 写入enable
 
+    input  wire       read_buf_idx,   // read side's current bank
     input hdmi_0_done,
     input hdmi_1_done,
     output reg done_accept,
@@ -26,7 +27,9 @@ module hdl_out(
     reg state, next;
 
     reg buf_idx_save;
-    assign buf_idx = buf_idx_save;
+    // *** write bank = the bank the reader is NOT reading ***
+    //     any moment read bank != write bank  =>  never tear
+    assign buf_idx = ~read_buf_idx;
 
     reg [15:0] counter;
     reg        eof_mismatch;
@@ -37,8 +40,13 @@ module hdl_out(
     // 两者与 counter 一样使用同步复位，避免复位断言时异步改变 BRAM 控制输入。
     always @(posedge clk) begin
         if(rst) begin
-            state <= BUF;
-            buf_idx_save <= 1'b0;
+            // ★★★ 复位后必须和 hdmi_out 的读 bank 相反:
+            //     hdmi_out 复位时 buf_idx_save = 0 (读 bank 0)
+            //     所以这里写 bank 1, 而且先进 IDLE 不立刻写。
+            //   原来写的是 state=BUF / buf_idx_save=0 => 一上电就读写同一块,
+            //   而且 done_accept 的翻转握手会两边同步 => 第 3 帧起彻底死锁。
+            state        <= IDLE;
+            buf_idx_save <= 1'b1;
             eof_mismatch <= 1'b0;
         end else begin
             state <= next;
@@ -103,8 +111,16 @@ module hdl_out(
             end
             IDLE: begin
                 hdl_ready = 1'b0;
-                // 只接受 HDMI 刚刚完整输出的"另一个" bank。这样写端永远
-                // 不会与 HDMI 读端落在同一块 BRAM 上。
+                // ★★ 关键: 一进 IDLE 就主动发出换 bank 请求。
+                //   原来的写法只在【离开 IDLE 时】才置 done_accept=1,
+                //   于是: hdl_out 等 hdmi_X_done, 而 hdmi_out 要看到 done_accept 翻转
+                //   才会切换并发出那个 done => 双方互等 => 第 3 帧起死锁。
+                done_accept = 1'b1;
+                // ★★ 改成直接看"读端现在在哪一块":
+                //   只要写 bank != 读 bank, 就可以放心写, 绝不会和 HDMI 撞同一块。
+                //   原来靠 hdmi_0_done/hdmi_1_done 脉冲判断, 而那是两个模块各自
+                //   维护的 buf_idx_save, 会错开 => 等一个永远不来的 done => 卡死,
+                //   而且卡死点前后 data/contour 被截断的位置不同 => 轮廓右偏。
                 if(!buf_idx_save && hdmi_1_done) begin
                     next = BUF;
                     done_accept = 1'b1;

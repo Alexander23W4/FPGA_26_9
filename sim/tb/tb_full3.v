@@ -1,23 +1,20 @@
 //============================================================
-// tb_full2.v —— 全链 + 【真实的 hdmi_out / double_buf】(不用桩)
+// tb_full3.v (clean, ASCII only) -- supersedes tb_full2.v
 //
-// 目的: 复现硬件上的"拼图"(图最左边跑到最右边) 和 "第四次没反应"
+// Chain: VDMA beat -> axi2px -> denoise -> top_threshold_demo -> hdl_out
+//        -> double_buf <- hdmi_out (real modules, no stubs)
 //
-// tb_full 用周期 done 桩时, 5 帧全对 => 说明问题在真实 hdmi_out 的握手
-// 这里把真货接上: hdmi_out 产生 hdmi_0_done/hdmi_1_done, 直接给 hdl_out;
-// double_buf 接 hdl_out 的写端 + hdmi_out 的读端。
+// Per frame we check:
+//   1) how many pixels hdl_out accepted   (must be exactly 65536)
+//   2) the write address of the first one (must be 0)
+//   3) where hd_mask / hd_cont land (row/col) for a known input pattern
+//   4) dump the BRAM shape so a contour offset is visible directly
 //
-// 连接方式照抄 top1.v:
-//   write_idx_sync <= fb_write_idx (在 pclk 上打一拍)
-//   hdmi_out.buf_idx -> double_buf.read_buf_idx
-//   hdmi_out.buf_addr -> double_buf.read_addr
-//   double_buf.read_data -> hdmi_out.buf_data
-//
-// 逐帧测: hdl_out 收到的像素数 / 首个写地址 / hdl_ready 连续低了多少拍
+// Pattern: rows 0..4, cols 100..200 = 0xFF, else 0x00
 //============================================================
 `timescale 1ns / 1ps
 
-module tb_full2;
+module tb_full3;
 
     localparam BEATS = 256*256/4;
 
@@ -26,12 +23,11 @@ module tb_full2;
     always #20 pclk = ~pclk;
     reg rst = 1;
 
-    // ---------------- VDMA beat ----------------
-    reg  [31:0] s_tdata = 0;
+    reg  [31:0] s_tdata  = 0;
     reg         s_tvalid = 0;
     wire        s_tready;
-    reg  [3:0]  s_tkeep = 4'hF;
-    reg         s_tlast = 0;
+    reg  [3:0]  s_tkeep  = 4'hF;
+    reg         s_tlast  = 0;
 
     wire [7:0]  px_data; wire px_valid, px_eof, px_sof, px_eol; wire px_ready;
     axi2px #(.TDATA_W(32), .PIXEL_W(8), .H_PIXELS(256), .V_PIXELS(256)) u_axi2px (
@@ -71,21 +67,22 @@ module tb_full2;
         .frame_done_out(frame_done_out), .video_mode_out(video_mode_out)
     );
 
-    // ---------------- hdl_out ----------------
     wire        fb_widx; wire [15:0] fb_waddr; wire [7:0] fb_wdata; wire fb_wen;
     wire        hdmi_0_done, hdmi_1_done, done_accept;
     wire [18:0] hdl_dbg;
+
+    // read-side bank (needed by hdl_out before it is declared below)
+    wire        fb_ridx; wire [15:0] fb_raddr; wire [7:0] fb_rdata;
 
     hdl_out u_hdl_out (
         .clk(clk), .rst(rst),
         .hdl_data(hd_data), .hdl_valid(hd_valid), .hdl_eof(hd_last), .hdl_ready(hd_ready),
         .buf_idx(fb_widx), .buf_addr(fb_waddr), .buf_data(fb_wdata), .en(fb_wen),
+        .read_buf_idx(fb_ridx),
         .hdmi_0_done(hdmi_0_done), .hdmi_1_done(hdmi_1_done), .done_accept(done_accept),
         .dbg_status(hdl_dbg)
     );
 
-    // ---------------- double_buf ----------------
-    wire        fb_ridx; wire [15:0] fb_raddr; wire [7:0] fb_rdata;
 
     double_buf u_dbuf (
         .clk(clk), .pclk(pclk),
@@ -95,7 +92,6 @@ module tb_full2;
         .read_data(fb_rdata), .write_data(fb_wdata)
     );
 
-    // ---------------- 真实 hdmi_out ----------------
     reg write_idx_sync;
     always @(posedge pclk) begin
         if (rst) write_idx_sync <= 1'b0;
@@ -119,14 +115,24 @@ module tb_full2;
         .dbg_status(hdmi_dbg)
     );
 
-    // ---------------- 逐帧测量 ----------------
     integer acc = 0, frame_no = 0, err = 0;
     integer first_addr = -1;
     integer ready_low = 0, ready_low_max = 0;
 
+    integer ocol = 0, orow = 0;
+    integer mask_n = 0, cont_n = 0;
+    integer mask_minc = 999, mask_maxc = -1, mask_row = -1;
+    integer cont_minc = 999, cont_maxc = -1, cont_row = -1;
+    integer cont_on_bg = 0;
+
     always @(posedge clk) begin
         if (rst) begin
             acc <= 0; frame_no <= 0; first_addr <= -1; ready_low <= 0; ready_low_max <= 0;
+            ocol <= 0; orow <= 0;
+            mask_n <= 0; cont_n <= 0;
+            mask_minc <= 999; mask_maxc <= -1; mask_row <= -1;
+            cont_minc <= 999; cont_maxc <= -1; cont_row <= -1;
+            cont_on_bg <= 0;
         end else begin
             if (!hd_ready) begin
                 ready_low <= ready_low + 1;
@@ -136,25 +142,51 @@ module tb_full2;
             if (hd_valid && hd_ready) begin
                 if (acc == 0) first_addr <= fb_waddr;
                 acc <= acc + 1;
+
+                if (hd_cont && !hd_mask) cont_on_bg <= cont_on_bg + 1;
+
+                if (hd_mask) begin
+                    mask_n <= mask_n + 1;
+                    if (ocol < mask_minc) mask_minc <= ocol;
+                    if (ocol > mask_maxc) mask_maxc <= ocol;
+                    if (mask_row < 0) mask_row <= orow;
+                end
+                if (hd_cont) begin
+                    cont_n <= cont_n + 1;
+                    if (ocol < cont_minc) cont_minc <= ocol;
+                    if (ocol > cont_maxc) cont_maxc <= ocol;
+                    if (cont_row < 0) cont_row <= orow;
+                end
+
+                if (ocol == 255) begin ocol <= 0; orow <= orow + 1; end
+                else ocol <= ocol + 1;
             end
 
             if (acc > 0 && !hd_ready) begin
-                $display("    帧%0d: 收 %0d 个 (期望 65536)  首地址=%0d (期望 0)  hdl_ready 最长低=%0d 拍",
-                         frame_no, acc, first_addr, ready_low_max);
-                if (acc != 65536) begin err = err + 1; $display("       ★★ FAIL 像素数差 %0d", 65536-acc); end
-                if (first_addr != 0) begin err = err + 1; $display("       ★★ FAIL 起始地址非 0 => 拼图/错位!"); end
+                $display("    frame%0d: mode=%s got %0d (want 65536)  first_addr=%0d  ready_low_max=%0d  cont_on_bg=%0d",
+                         frame_no, auto_mode_out ? "AUTO" : "MANU", acc, first_addr, ready_low_max, cont_on_bg);
+                $display("             mask: row=%0d col=%0d..%0d n=%0d | contour: row=%0d col=%0d..%0d n=%0d",
+                         mask_row, mask_minc, mask_maxc, mask_n, cont_row, cont_minc, cont_maxc, cont_n);
+                if (acc != 65536) begin err = err + 1; $display("             FAIL pixel count"); end
+                if (first_addr != 0) begin err = err + 1; $display("             FAIL first addr != 0 (tearing!)"); end
+                if (cont_on_bg != 0) begin err = err + 1; $display("             FAIL contour on background"); end
                 frame_no = frame_no + 1;
-                acc = 0; first_addr = -1; ready_low_max = 0;
+                acc = 0; first_addr = -1; ready_low_max = 0; cont_on_bg = 0;
+                mask_n = 0; cont_n = 0;
+                mask_minc = 999; mask_maxc = -1; mask_row = -1;
+                cont_minc = 999; cont_maxc = -1; cont_row = -1;
             end
         end
     end
 
-    // ---------------- 送 beat ----------------
     integer b;
     task send_frame;
         begin
             for (b = 0; b < BEATS; b = b + 1) begin
-                s_tdata  <= {8'hFF, 8'hFF, 8'hFF, 8'hFF};
+                if ( ((b*4)/256) <= 4 && (((b*4)%256) >= 100) && (((b*4)%256) <= 200) )
+                    s_tdata <= 32'hFFFFFFFF;
+                else
+                    s_tdata <= 32'h00000000;
                 s_tkeep  <= 4'hF;
                 s_tvalid <= 1'b1;
                 s_tlast  <= (b == BEATS-1) ? 1'b1 : 1'b0;
@@ -175,6 +207,23 @@ module tb_full2;
         end
     endtask
 
+    integer dr, dc;
+    task shape_dump;
+        begin
+            $display("      --- BRAM shape rows 0..8, cols 95..205: '#'=nonzero '.'=zero ---");
+            for (dr = 0; dr <= 8; dr = dr + 1) begin
+                $write("      row%0d: ", dr);
+                for (dc = 95; dc <= 205; dc = dc + 1) begin
+                    if (fb_widx)
+                        $write("%s", (u_dbuf.mem1[dr*256+dc] !== 8'h00) ? "#" : ".");
+                    else
+                        $write("%s", (u_dbuf.mem0[dr*256+dc] !== 8'h00) ? "#" : ".");
+                end
+                $write("\n");
+            end
+        end
+    endtask
+
     integer f;
     initial begin
         rst = 1;
@@ -185,20 +234,29 @@ module tb_full2;
         axi_wr(32'h08, 32'h0000_0080);
         repeat (10) @(posedge clk);
 
-        $display("===== 全链(真实 hdmi_out) 5 帧 =====");
-        for (f = 0; f < 5; f = f + 1) begin
+        $display("===== mode switch test: MANUAL x2 -> AUTO x4 =====");
+        for (f = 0; f < 6; f = f + 1) begin
+            if (f == 2) begin
+                $display("      >>> SWITCH TO AUTO: write CMD_REG(0x04) = 0 <<<");
+                axi_wr(32'h04, 32'h0);
+                $display("      >>> after write: auto_mode_out=%b video_mode=%b", auto_mode_out, video_mode_out);
+            end
             send_frame;
-            repeat (500000) @(posedge clk);   // ★ 一轮 640x480 帧 ≈ 420000 拍, 所以等久一点
+            repeat (500000) @(posedge clk);
+            if (f == 1) begin
+                shape_dump;
+                $display("      after frame1: fb_widx=%b fb_ridx=%b", fb_widx, fb_ridx);
+            end
         end
         $display("");
-        if (err == 0) $display("===== 5 帧全对, 没复现拼图 =====");
-        else          $display("===== 有 %0d 项 FAIL => 复现了拼图 =====", err);
+        if (err == 0) $display("===== ALL PASS: every frame 65536, addr0, no contour on background =====");
+        else          $display("===== %0d FAIL =====", err);
         $finish;
     end
 
     initial begin
-        #120000000;
-        $display("  ★ 全局超时");
+        #400000000;
+        $display("  *** global timeout ***");
         $finish;
     end
 

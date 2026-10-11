@@ -305,6 +305,7 @@ module top1 #(
         .buf_data(fb_write_data),
         .en(fb_write_en),
 
+        .read_buf_idx(fb_read_idx),
         .hdmi_0_done(hdmi_done_s0[2]),
         .hdmi_1_done(hdmi_done_s1[2]),
         .done_accept(done_accept),
@@ -315,7 +316,6 @@ module top1 #(
         .clk(clk),
         .pclk(pclk),
         .write_en(fb_write_en),
-        .read_buf_idx(fb_read_idx),
         .write_buf_idx(fb_write_idx),
         .read_addr(fb_read_addr),
         .write_addr(fb_write_addr),
