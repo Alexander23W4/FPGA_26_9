@@ -123,7 +123,7 @@ TAIL_SCRIPT = ("<script>"
     "  var v=document.getElementById('threshold').value;"
     "  fetch('/api/serial/threshold?mode='+(manual?1:0)+'&value='+v)"
     "    .then(function(r){return r.json();})"
-    "    .then(function(j){alert(j.ok?('threshold OK\n\n'+j.log):('threshold FAIL\n\n'+j.log));})"
+    "    .then(function(j){alert(j.ok?('threshold OK\\n\\n'+j.log):('threshold FAIL\\n\\n'+j.log));})"
     "    .catch(function(e){alert('threshold err: '+e);});"
     "}"
     "function dshTransfer(){"
@@ -133,12 +133,12 @@ TAIL_SCRIPT = ("<script>"
     "  ff.arrayBuffer().then(function(buf){"
     "    return fetch('/api/serial/transfer?index=0',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:buf});"
     "  }).then(function(r){return r.json();})"
-    "    .then(function(j){alert(j.ok?('transfer OK\n\n'+j.log):('transfer FAIL\n\n'+j.log));})"
+    "    .then(function(j){alert(j.ok?('transfer OK\\n\\n'+j.log):('transfer FAIL\\n\\n'+j.log));})"
     "    .catch(function(e){alert('transfer err: '+e);});"
     "}"
     "function dshReadback(){"
     "  fetch('/api/serial/readback').then(function(r){return r.json();}).then(function(j){"
-    "    if(!j.ok){alert('readback FAIL\n\n'+j.log);return;}"
+    "    if(!j.ok){alert('readback FAIL\\n\\n'+j.log);return;}"
     "    document.getElementById('dshRbMode').textContent=j.mode;"
     "    document.getElementById('dshRbThr').textContent=j.threshold;"
     "    var N=['基础处理','显示轮廓','显示二值掩膜处理'];"
@@ -151,7 +151,7 @@ TAIL_SCRIPT = ("<script>"
     "var _f=document.getElementById('fpgaOutputMode');"
     "if(_f){_f.addEventListener('change',function(){"
     "  fetch('/api/serial/video_mode?mode='+_f.value).then(function(r){return r.json();})"
-    "    .then(function(j){if(!j.ok){alert('video mode FAIL\n\n'+j.log);}})"
+    "    .then(function(j){if(!j.ok){alert('video mode FAIL\\n\\n'+j.log);}})"
     "    .catch(function(e){alert('video mode err: '+e);});"
     "});}"
     "</script>")
@@ -165,12 +165,32 @@ from pathlib import Path as _Path
 _REPO = _Path(__file__).resolve().parents[2]
 _SERIAL_PORT = _os.environ.get("SERIAL_PORT", "COM7")
 EMMC_FIXED_ADDR = 2048
+# ★ 串口互斥锁: 同一个 COM 口不能被两个调用同时开
+#   (_board_talk 开一次, emmc_add.ps1 子进程又开一次 => 会 PermissionError 13)
+_SERIAL_LOCK = None
+
+
+def _serial_lock():
+    global _SERIAL_LOCK
+    if _SERIAL_LOCK is None:
+        import threading
+        _SERIAL_LOCK = threading.Lock()
+    return _SERIAL_LOCK
 # CAMUS 数据集 letterbox 之后每个像素代表的面积 (source: camus_pipeline/convert_camus.py:64)
 PIXEL_AREA_MM2 = 0.436280886141
 
 
 def _board_talk(payload, wait=1.5):
     """往板子串口发字节, 返回板子打印的内容"""
+    import serial
+    _lk = _serial_lock(); _lk.acquire()
+    try:
+        return _board_talk_locked(payload, wait)
+    finally:
+        _lk.release()
+
+
+def _board_talk_locked(payload, wait=1.5):
     import serial
     s = serial.Serial(_SERIAL_PORT, 115200, timeout=0.3)
     try:
@@ -230,6 +250,15 @@ def load_to_emmc(bin_bytes, emmc_addr):
     ps1 = _REPO / "scripts" / "pc" / "emmc_add.ps1"
     if not ps1.is_file():
         return False, "missing ps1"
+    _lk = _serial_lock(); _lk.acquire()
+    try:
+        return _load_to_emmc_locked(bin_bytes, emmc_addr)
+    finally:
+        _lk.release()
+
+
+def _load_to_emmc_locked(bin_bytes, emmc_addr):
+    ps1 = _REPO / "scripts" / "pc" / "emmc_add.ps1"
     tmp = _os.path.join(_tmp.gettempdir(), "dsh_fpga_upload.bin")
     with open(tmp, "wb") as fh:
         fh.write(bin_bytes)
@@ -237,7 +266,7 @@ def load_to_emmc(bin_bytes, emmc_addr):
            "-File", tmp, "-Port", _SERIAL_PORT, "-StartBlock", str(emmc_addr),
            "-Width", "256", "-Height", "256", "-Bpp", "1"]
     try:
-        p = _sp.run(cmd, capture_output=True, text=True, timeout=300, cwd=str(_REPO))
+        p = _sp.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, cwd=str(_REPO))
         return (p.returncode == 0), ((p.stdout or "") + (p.stderr or "")).strip()
     except Exception as exc:
         return False, "%s: %s" % (type(exc).__name__, exc)
@@ -254,10 +283,18 @@ def emmc_to_ddr_play_once(index=0):
 def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR):
     log = []
     try:
-        log.append("--- 1) E clear ---" + emmc_clear_catalog())
+        clr = emmc_clear_catalog()
+        log.append("--- 1) E clear ---" + clr)
+        # ★ E 必须真的成功, 否则目录会堆满(上限 8 张), 后面的 A 全失败
+        if "CLEARED" not in clr:
+            return {"ok": False, "log": "\n".join(log) + "\n*** E clear 失败 => 中止 ***"}
     except Exception as exc:
         return {"ok": False, "log": "E clear failed: %s: %s" % (type(exc).__name__, exc)}
     okc, up = load_to_emmc(bin_bytes, emmc_addr)
+    # ★ 检查 A 是否真的成功 (emmc_add.ps1 会打印 SUCCESSFUL / VERIFY OK)
+    if okc and ("SUCCESSFUL" not in up and "VERIFY OK" not in up):
+        okc = False
+        up = up + "\n*** A 上传没有报告成功 ***"
     log.append("--- 2) load_to_emmc(bin, %d) ---" % emmc_addr + up)
     if not okc:
         return {"ok": False, "log": "\n".join(log)}
@@ -308,7 +345,7 @@ def customize_page(page):
         '}'
         'function dshReadback(){'
         '  fetch("/api/serial/readback").then(function(r){return r.json();}).then(function(j){'
-        '    if(!j.ok){alert("readback FAIL\n\n"+j.log);return;}'
+        '    if(!j.ok){alert("readback FAIL\\n\\n"+j.log);return;}'
         '    document.getElementById("dshRbMode").textContent=j.mode;'
         '    document.getElementById("dshRbThr").textContent=j.threshold;'
         '  }).catch(function(e){alert("readback err: "+e);});'
@@ -403,7 +440,7 @@ def load_to_emmc(bin_bytes, emmc_addr):
            "-StartBlock", str(emmc_addr),          # ★ 固定块地址
            "-Width", "256", "-Height", "256", "-Bpp", "1"]
     try:
-        p = _sp.run(cmd, capture_output=True, text=True, timeout=300, cwd=str(_REPO))
+        p = _sp.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, cwd=str(_REPO))
         out = ((p.stdout or "") + (p.stderr or "")).strip()
         return (p.returncode == 0), out
     except Exception as exc:

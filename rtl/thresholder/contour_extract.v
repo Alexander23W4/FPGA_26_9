@@ -56,9 +56,12 @@ module contour_extract (
 
     // ---- ★ 握手 ----
     //   下游能收 => 本拍可以推进流水线
-    wire dn_ready = cot_ready_out;
+    wire dn_ready = cot_ready_out;                  // 下游能收 (只用于报告, 不再门控流水线)
     //   本模块能收: 下游能收, 且不在 flush 补行阶段 (flush 期间不收新数据)
-    wire up_ready = dn_ready & ~flushing_last_row;
+    // ★ up_ready 只跟下游 ready 走, 【不要】再 & ~flushing_last_row:
+    //   那个写法会让 flushing 清 0 依赖 ready, 形成互相等待 => 上板死锁。
+    //   现在 flushing 的清 0 只依赖 dn_ready, 不会锁死。
+    wire up_ready = dn_ready;
 
     // ★★ ready 必须【组合】输出, 不能打拍!
     //    打拍的话上游要晚一拍才知道你忙, 会多发一个 pixel, 而模块不收 => 丢数据
@@ -81,7 +84,9 @@ module contour_extract (
         end else begin
             // 给上游的 ready (打一拍, 和输出级的节奏一致)
 
-            if (dn_ready) begin
+            // ★ 方案A: 不再用 dn_ready 门控整条流水线 (那会丢像素/死锁)
+            //   固定 1 行延迟, 输出寄存器永远跟着输入走
+            if (dn_ready) begin      // ★ 恢复门控: 下游不收就整条冻结 (不丢像素 => 三路永远对齐)
                 // ================= 输出级 =================
                 // valid 三相一起拉高/拉低; data/mask/contour/last 只有真要吐时才更新
                 cot_valid_out  <= outp;

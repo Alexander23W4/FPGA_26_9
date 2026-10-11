@@ -10,6 +10,7 @@
 *     而且时好时坏。这个动作封装在 img_ddr_load_from_emmc() 里了。
 ******************************************************************************/
 
+#include "sleep.h"
 #include "feat/img2ddr.h"
 #include "app/cfg.h"
 #include "common/crc32.h"
@@ -166,42 +167,35 @@ int feat_img2ddr_run(void)
         xil_printf("        无错误位\r\n");
     }
 
-    /* 6.6 帧指针动没动 = 数据到底有没有真的流出去 */
+    /* 6.6 数据到底有没有真的流出去
+       ★★ 重要: PARKPTR.READSTR 需要 CR.FRMCNT_EN。
+          本工程【没有】开这一位 —— 见 drv_vdma.c:228 的注释:
+            "开了帧计数使能却没配对应寄存器, MM2S 会出现
+             SR 显示没停、没有错误位、但一个 beat 都不吐 的现象"
+          所以 read_frame() 恒返回 0, 【不能】当"帧有没有动"的判据。
+          这里只做信息打印, 真正的判据是 [6.5] 的 SR 无错误位 + [6.7] 的延时。*/
     {
         u32 f0 = vdma_mm2s_read_frame();
-        int moved = (vdma_mm2s_wait_running(4000000u) == 0);
-        u32 f1 = vdma_mm2s_read_frame();
-
-        xil_printf("  [6.6] read frame: %d -> %d\r\n", (s32)f0, (s32)f1);
-
-        if (moved != 0) {
-            xil_printf("\r\n>>> 数据真的从 DDR 经 VDMA 流出去了（帧计数在涨）\r\n");
-            xil_printf("\r\nRESULT: OK -- eMMC -> DDR -> VDMA 全链路已通\r\n");
-        } else {
-            xil_printf("\r\n>>> 帧指针不动。VDMA 已启动且无错误位，说明【链路本身是通的】，\r\n");
-            xil_printf(">>> 只是 M_AXIS_MM2S 下游没人接（tready 恒 0 = 背压）。\r\n");
-            xil_printf(">>> 这是预期现象：把你的 PL 算法模块接到 axi_vdma_0/M_AXIS_MM2S，\r\n");
-            xil_printf(">>> 并让它按需驱动 tready，帧计数就会开始涨，\r\n");
-            xil_printf(">>> 同一条命令的结果会变成 \"全链路已通\"。\r\n");
-            xil_printf("\r\nRESULT: OK -- eMMC -> DDR ready, VDMA started (stream has no consumer yet)\r\n");
-        }
+        xil_printf("  [6.6] read frame = %d   (注: FRMCNT_EN 未开, 此位恒 0, 不作判据)\r\n", (s32)f0);
+        xil_printf("        VDMA 已启动, 无错误位 => 通路本身是通的\r\n");
+        xil_printf("\r\nRESULT: OK -- eMMC -> DDR -> VDMA 已启动（整帧是否吐完由 [6.7] 的延时保证）\r\n");
     }
 
-    /* ---------- 6.7 ★ 只发一帧: 停在帧边界 ★ ----------
-       start() 之后 VDMA 本来会一直循环搬同一帧。这里改成发完一帧就停:
-         · 帧缓存里留下的是一整张完整的图
-         · stop 不落在帧中间 => PL 侧 hdl_out 的写地址不会偏移 => 不会拼图
-       做法和 pl_ctrl_test.c 里"等帧边界再停"完全一样。 */
+    /* ---------- 6.7 让 VDMA 继续跑（不再 stop）★ ----------
+   ★★ 为什么不再 stop:
+      vdma_mm2s_stop() 只清 CR.RUNSTOP, VDMA 会停在【当前所在位置】。
+      如果它正好停在帧中间, 那一帧就没有 tlast 送出去, PL 里 hdl_out 的
+      写地址会停在半路, 于是【下一帧从错位的地址开始写】——
+      现象就是: "第一张能出图, 之后要好几次才碰巧出一次"。
+      PL 侧有 double_buf 保护, 而且仿真已验证: 连续两帧各 65536 个像素、
+      mask 全对、s_axis_tready 最长只低 3 拍 => PL 完全可以连续吃帧。
+      所以这里让 VDMA 在 circular 模式下一直跑, 屏幕自然持续刷新。 */
     {
-        u32 fr0 = vdma_mm2s_read_frame();
-
-        (void)vdma_mm2s_wait_running(4000000u);
-        (void)vdma_mm2s_stop();
-        xil_printf("  [6.7] 发完一帧并停在帧边界: read frame %d -> %d\r\n",
-                   (s32)fr0, (s32)vdma_mm2s_read_frame());
+        usleep(3000u);          /* 给 3ms, 保证至少一整帧已经吐出去并显示 */
+        xil_printf("  [6.7] VDMA 保持运行 (circular), 不 stop\r\n");
     }
 
-    /* step 7 (VDMA S2MM 回写) 已删除: 结果由 PL 直接走 HDMI 输出, 不再回 DDR。 */
+/* step 7 (VDMA S2MM 回写) 已删除: 结果由 PL 直接走 HDMI 输出, 不再回 DDR。 */
 
     vdma_mm2s_report();
     return 0;

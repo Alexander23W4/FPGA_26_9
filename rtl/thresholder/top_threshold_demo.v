@@ -245,7 +245,10 @@ module top_threshold_demo (
         .valid_out  (contour_vld)
     );
 
-    // ★ 上游 ready = contour 的 ready (整条流水线同一个使能)
+
+    // ★ 接回模块自己的 cot_ready_in (= pipe_en)。
+    //   因为它内部已经改成 up_ready = dn_ready (不含 flushing), 不会再死锁。
+    //   这样下游不收时整条链都会停住 => 三路不会相对错位 => 轮廓不会偏。
     assign s_axis_tready = pipe_en;
 
     assign m_axis_tmask    = cot_mask_out & cot_mask_valid;        
