@@ -1,4 +1,7 @@
 
+/*
+
+*/
 `timescale 1ps/1ps
 
 interface axi_lite(
@@ -132,6 +135,9 @@ module tb_full;
 
 // @(posedge clk);  代表驱动时钟, 类比verilator中的 top tick
 
+
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+
 // ★★: [Learn] 仿真协议输入的sv-tb实现
     task automatic set_mode(
         input [7:0] mode,
@@ -143,7 +149,6 @@ module tb_full;
 
         aw_done = 0;
         w_done = 0;
-        al.bready = 0;
 
         @(negedge clk);    // [Learn] tb的常用激励写法, 下降沿给激励, 上升沿读DUT反馈
         al.awaddr = mode;
@@ -151,6 +156,7 @@ module tb_full;
         al.wdata = value;
         al.wstrb = 4'hF;
         al.wvalid = 1;
+        al.bready = 0;
 
 /*
 @(posedge clk) 和 @(negedge clk) 是过程的执行控制点：执行到它们时，
@@ -167,6 +173,7 @@ module tb_full;
             if (w_done) al.wvalid = 0;
         end
 
+        @(negedge clk);
         al.bready = 1;
 
 /*
@@ -183,6 +190,9 @@ module tb_full;
         al.bready = 0;   // [Learn] task里面的赋值是持续存在, 信号会保留最后一次赋值的值
 
     endtask
+
+
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
     task automatic read_mode(
         input [7:0] mode,
@@ -216,23 +226,40 @@ module tb_full;
 
     endtask
 
-// araddr arvalid arready     rdata rvalid  rready   
-
-    task automatic set_pixel(
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+// 发送一个像素
+    task automatic send_pixel(
         input int data
     );
+        @(negedge clk);
+        as.tkeep = 1;
+        as.tdata = data;
+        as.tvalid = 1;
+
+        while (!(as.tvalid && as.tready)) begin
+            @(posedge clk);
+        end
+
+        @(negedge clk);
+        as.tvalid = 0;
+        as.tkeep = 0;
 
     endtask
 
+
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
     /*
     通过axi-stream发送一帧 256*256的图像数据, 图像采用固定图像
-    固定图像: 每一行灰度值为 0, 1, 2,... 255 (第一行) 0, 2, 4, ...254, 0, 2...(第二行) 0, 3, 6...(第三行)
+    每一行的灰度值都是 0-255
     
     */
-    task automatic send_frame(
-        input int frame_num
-    );
-    
+    task automatic send_frame;
+    for (int i = 0; i < 256; i++) begin
+        for (int j = 0; j < 256; j++) begin
+            send_pixel(j);
+        end
+    end
+
     endtask
 
 
