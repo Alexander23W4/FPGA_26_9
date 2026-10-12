@@ -350,9 +350,21 @@ initial begin: test_sequence
 
 //  ######################################################
 
+// 用always 块控制流输出比monitor更可控
+    always @(posedge clk) begin
+        if (!rst && u_top.fb_write_en)
+            $display("[%0t] WRITE addr=%0d col=%0d pixel=%0d",
+                    $time,
+                    u_top.fb_write_addr,
+                    u_top.fb_write_addr % 256,
+                    u_top.fb_write_data);
+    end
+
     send_frame();
     // wait_output_frame();
+    $display("[%0t] before delay", $time);
     #100000;
+    $display("[%0t] after delay", $time);
 
     for (int i = 0; i < 10; i++) begin
         $display("[RUN] %0d", i);
@@ -362,7 +374,9 @@ initial begin: test_sequence
 
         send_frame();
         // wait_output_frame();
+        $display("[%0t] before delay", $time);
         #100000;
+        $display("[%0t] after delay", $time);
         read_mode(8'h04, threshold_set_mode);
         read_mode(8'h08, threshold);
         read_mode(8'h10, video_mode);
