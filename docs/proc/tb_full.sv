@@ -181,6 +181,31 @@ module tb_full;
 
     endtask
 
+    task automatic read_mode(
+        input [7:0] mode,
+        output int value
+    );
+        @(negedge clk);
+        al.araddr = mode;
+        al.arvalid = 1;
+        al.rready = 0;
+
+        do @(posedge clk); while (!al.arready);
+
+        @(negedge clk);
+        al.arvalid = 0;
+        al.rready = 1;
+
+        do @(posedge clk); while (!al.rvalid);
+        value = al.rdata;   // 这里没有时钟约束, 所以是在posedge的一瞬间进行采样, 还是能够采到握手那一刻的有效rdata值
+
+        @(negedge clk);
+        al.rready = 0;
+
+    endtask
+
+// araddr arvalid arready     rdata rvalid  rready   
+
     task automatic set_pixel(
         input int data
     );
@@ -197,11 +222,6 @@ module tb_full;
     
     endtask
 
-    task automatic read_mode(
-        output int mode
-    );
-
-    endtask
 
 
 endmodule
