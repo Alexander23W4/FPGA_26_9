@@ -380,7 +380,7 @@ initial begin: test_sequence
     send_frame();
     // wait_output_frame();
     $display("[%0t] before delay", $time);
-    #2000000;
+    // #2000000;
     $display("[%0t] after delay", $time);
 
     for (int i = 0; i < 10; i++) begin
@@ -392,7 +392,7 @@ initial begin: test_sequence
         send_frame();
         // wait_output_frame();
         $display("[%0t] before delay, frame %0d", $time, i);
-        #2000000;
+        // #2000000;
         $display("[%0t] after delay, frame %0d", $time, i);
         read_mode(8'h04, threshold_set_mode);
         read_mode(8'h08, threshold);

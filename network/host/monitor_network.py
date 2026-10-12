@@ -116,45 +116,80 @@ class TcpImageSender:
                 'Mbps': image.size * 8.0 / max(elapsed, 1e-9) / 1e6}
 
 
-TAIL_SCRIPT = ("<script>"
-    "function dshThrUpdate(){"
-    "  var sw=document.getElementById('thresholdMode');"
-    "  var manual=sw&&sw.getAttribute('aria-checked')==='true';"
-    "  var v=document.getElementById('threshold').value;"
-    "  fetch('/api/serial/threshold?mode='+(manual?1:0)+'&value='+v)"
-    "    .then(function(r){return r.json();})"
-    "    .then(function(j){alert(j.ok?('threshold OK\\n\\n'+j.log):('threshold FAIL\\n\\n'+j.log));})"
-    "    .catch(function(e){alert('threshold err: '+e);});"
-    "}"
-    "function dshTransfer(){"
-    "  var el=document.getElementById('imageFile');"
-    "  var ff=el&&el.files&&el.files[0];"
-    "  if(!ff){alert('please choose a local image first');return;}"
-    "  ff.arrayBuffer().then(function(buf){"
-    "    return fetch('/api/serial/transfer?index=0',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:buf});"
-    "  }).then(function(r){return r.json();})"
-    "    .then(function(j){alert(j.ok?('transfer OK\\n\\n'+j.log):('transfer FAIL\\n\\n'+j.log));})"
-    "    .catch(function(e){alert('transfer err: '+e);});"
-    "}"
-    "function dshReadback(){"
-    "  fetch('/api/serial/readback').then(function(r){return r.json();}).then(function(j){"
-    "    if(!j.ok){alert('readback FAIL\\n\\n'+j.log);return;}"
-    "    document.getElementById('dshRbMode').textContent=j.mode;"
-    "    document.getElementById('dshRbThr').textContent=j.threshold;"
-    "    var N=['基础处理','显示轮廓','显示二值掩膜处理'];"
-    "    var m=parseInt(j.video_mode,10);"
-    "    document.getElementById('dshRbVid').textContent=(m>=0&&m<=2)?N[m]:('未知('+j.video_mode+')');"
-    "    document.getElementById('dshRbLes').textContent=j.lesion_mm2+' mm\u00B2 ('+j.lesion_pixels+' px)';"
-    "  }).catch(function(e){alert('readback err: '+e);});"
-    "}"
-    "document.getElementById('request').addEventListener('click',dshReadback);"
-    "var _f=document.getElementById('fpgaOutputMode');"
-    "if(_f){_f.addEventListener('change',function(){"
-    "  fetch('/api/serial/video_mode?mode='+_f.value).then(function(r){return r.json();})"
-    "    .then(function(j){if(!j.ok){alert('video mode FAIL\\n\\n'+j.log);return;}dshReadback();})"
-    "    .catch(function(e){alert('video mode err: '+e);});"
-    "});}"
-    "</script>")
+TAIL_SCRIPT = r"""<script>
+let dshTransferBusy = false;
+function dshValidateBin(file) {
+  if (!file || !file.name.toLowerCase().endsWith('.bin') || file.size !== 65536)
+    throw new Error('请选择 256x256x8-bit 的 BIN 文件，大小必须恰好为 65536 字节');
+}
+function dshThrUpdate() {
+  const sw = document.getElementById('thresholdMode');
+  const manual = sw.getAttribute('aria-checked') === 'true';
+  const v = document.getElementById('threshold').value;
+  fetch('/api/serial/threshold?mode=' + (manual ? 1 : 0) + '&value=' + v)
+    .then(r => r.json()).then(j => alert((j.ok ? 'threshold OK\n' : 'threshold FAIL\n') + j.log))
+    .catch(e => alert('threshold err: ' + e));
+}
+async function dshTransfer() {
+  if (dshTransferBusy) return;
+  const file = document.getElementById('imageFile').files[0];
+  try { dshValidateBin(file); } catch (e) { alert(e.message); return; }
+  const button = document.getElementById('transfer');
+  const picker = document.getElementById('imageFile');
+  const choose = document.getElementById('chooseImage');
+  const caption = button.textContent;
+  dshTransferBusy = true;
+  button.disabled = picker.disabled = choose.disabled = true;
+  button.textContent = '发送中，等待一帧完成…';
+  try {
+    const response = await fetch('/api/serial/transfer?index=0&name=' + encodeURIComponent(file.name),
+      {method: 'POST', headers: {'Content-Type': 'application/octet-stream'},
+       body: await file.arrayBuffer()});
+    const result = await response.json();
+    alert((response.ok && result.ok ? '一帧发送完成，VDMA 已停机\n\n' : '发送失败\n\n') + result.log);
+  } catch (e) {
+    alert('发送失败: ' + e);
+  } finally {
+    dshTransferBusy = false;
+    button.disabled = picker.disabled = choose.disabled = false;
+    button.textContent = caption;
+  }
+}
+async function dshReadback() {
+  try {
+    const j = await (await fetch('/api/serial/readback')).json();
+    if (!j.ok) { alert('readback FAIL\n' + j.log); return; }
+    document.getElementById('dshRbMode').textContent = j.mode;
+    document.getElementById('dshRbThr').textContent = j.threshold;
+    const names = ['基础处理', '显示轮廓', '显示二值掩膜处理'];
+    document.getElementById('dshRbVid').textContent = names[j.video_mode] || ('未知(' + j.video_mode + ')');
+    document.getElementById('dshRbLes').textContent = j.lesion_mm2 + ' mm² (' + j.lesion_pixels + ' px)';
+  } catch (e) { alert('readback err: ' + e); }
+}
+document.getElementById('request').addEventListener('click', dshReadback);
+document.getElementById('chooseImage').addEventListener('click', () => document.getElementById('imageFile').click());
+document.getElementById('imageFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    dshValidateBin(file);
+    const response = await fetch('/api/image?name=' + encodeURIComponent(file.name),
+      {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: file});
+    const j = await response.json();
+    if (!response.ok || !j.ok) throw new Error(j.error || j.log);
+    document.getElementById('imageName').textContent = '当前图像: ' + j.name;
+    poll();
+  } catch (e) { alert('图像加载失败: ' + e.message); }
+});
+document.getElementById('upload').addEventListener('click', () => fetch('/api/upload').then(poll));
+document.getElementById('fpgaOutputMode').addEventListener('change', async e => {
+  try {
+    const j = await (await fetch('/api/serial/video_mode?mode=' + e.target.value)).json();
+    if (!j.ok) { alert('video mode FAIL\n' + j.log); return; }
+    dshReadback();
+  } catch (e) { alert('video mode err: ' + e); }
+});
+</script>"""
 
 
 import os as _os
@@ -165,16 +200,13 @@ from pathlib import Path as _Path
 _REPO = _Path(__file__).resolve().parents[2]
 _SERIAL_PORT = _os.environ.get("SERIAL_PORT", "COM7")
 EMMC_FIXED_ADDR = 2048
-# ★ 串口互斥锁: 同一个 COM 口不能被两个调用同时开
-#   (_board_talk 开一次, emmc_add.ps1 子进程又开一次 => 会 PermissionError 13)
-_SERIAL_LOCK = None
+FRAME_BYTES = 256 * 256
+FRAME_DONE_LINE = "RESULT: FRAME_DONE frames=1 bytes=65536"
+_SERIAL_LOCK = threading.Lock()
+_TRANSFER_LOCK = threading.Lock()
 
 
 def _serial_lock():
-    global _SERIAL_LOCK
-    if _SERIAL_LOCK is None:
-        import threading
-        _SERIAL_LOCK = threading.Lock()
     return _SERIAL_LOCK
 # CAMUS 数据集 letterbox 之后每个像素代表的面积 (source: camus_pipeline/convert_camus.py:64)
 PIXEL_AREA_MM2 = 0.436280886141
@@ -191,18 +223,30 @@ def _board_talk(payload, wait=1.5):
 
 
 def _board_talk_locked(payload, wait=1.5):
+    """Read through END. wait=None lets a D command wait through backpressure."""
     import serial
     s = serial.Serial(_SERIAL_PORT, 115200, timeout=0.3)
     try:
         s.reset_input_buffer(); s.write(payload); s.flush()
-        end = time.time() + wait; buf = bytearray()
-        while time.time() < end:
+        deadline = None if wait is None else time.monotonic() + wait
+        buf = bytearray()
+        while deadline is None or time.monotonic() < deadline:
             c = s.read(4096)
             if c:
-                buf += c; end = time.time() + 0.25
-        return buf.decode("utf-8", "replace")
+                buf += c
+                if b"===== END =====" in buf:
+                    return buf.decode("utf-8", "replace")
+        raise TimeoutError("board command did not reach END:\n" +
+                           buf.decode("utf-8", "replace"))
     finally:
         s.close()
+
+
+def _validate_bin_frame(data, filename):
+    if Path(filename).suffix.lower() != ".bin":
+        raise ValueError("仅支持 256x256x8-bit 的 .bin 文件")
+    if len(data) != FRAME_BYTES:
+        raise ValueError("BIN 必须恰好为 65536 字节，实际为 %d 字节" % len(data))
 
 
 def _do_threshold(mode, value):
@@ -269,6 +313,7 @@ def load_to_emmc(bin_bytes, emmc_addr):
 
 
 def _load_to_emmc_locked(bin_bytes, emmc_addr):
+    _validate_bin_frame(bin_bytes, "image.bin")
     ps1 = _REPO / "scripts" / "pc" / "emmc_add.ps1"
     tmp = _os.path.join(_tmp.gettempdir(), "dsh_fpga_upload.bin")
     with open(tmp, "wb") as fh:
@@ -284,88 +329,67 @@ def _load_to_emmc_locked(bin_bytes, emmc_addr):
 
 
 def emmc_clear_catalog():
-    return _board_talk(b"E", wait=3.0)
+    return _board_talk(b"E", wait=300.0)
 
 
 def emmc_to_ddr_play_once(index=0):
-    return _board_talk(b"D" + (int(index) & 0xFFFFFFFF).to_bytes(4, "little"), wait=10.0)
+    return _board_talk(b"D" + (int(index) & 0xFFFFFFFF).to_bytes(4, "little"), wait=None)
 
 
-def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR):
+def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR, filename="image.bin"):
+    try:
+        _validate_bin_frame(bin_bytes, filename)
+        if int(index) != 0:
+            raise ValueError("GUI 单图传输的目录索引必须为 0")
+    except Exception as exc:
+        return {"ok": False, "log": str(exc)}
+    if not _TRANSFER_LOCK.acquire(blocking=False):
+        return {"ok": False, "log": "已有一帧正在传输，请等待完成"}
+
     log = []
     try:
-        clr = emmc_clear_catalog()
-        log.append("--- 1) E clear ---" + clr)
-        # ★ E 必须真的成功, 否则目录会堆满(上限 8 张), 后面的 A 全失败
-        if ("CLEARED" not in clr) and ("已经是空的" not in clr) and ("空" not in clr):
-            return {"ok": False, "log": "\n".join(log) + "\n*** E clear 失败 => 中止 ***"}
+        # One lock covers E -> A -> D, including the upload subprocess's UART.
+        # Other UART commands cannot interrupt this transaction.
+        with _serial_lock():
+            clr = _board_talk_locked(b"E", wait=300.0)
+            log.append("--- 1) E clear ---\n" + clr)
+            if not any(line.strip() in ("RESULT: eMMC CLEARED",
+                                        "RESULT: eMMC 已经是空的")
+                       for line in clr.splitlines()):
+                return {"ok": False, "log": "\n".join(log) + "\nE clear failed"}
+
+            okc, up = _load_to_emmc_locked(bin_bytes, emmc_addr)
+            log.append("--- 2) A upload ---\n" + up)
+            if not (okc and "SUCCESSFUL" in up and
+                    "===== END =====" in up and
+                    "RESULT: VERIFY OK" in up.splitlines()):
+                return {"ok": False, "log": "\n".join(log) + "\nA upload failed"}
+
+            done = _board_talk_locked(b"D\x00\x00\x00\x00", wait=None)
+            log.append("--- 3) D single frame ---\n" + done)
+            if FRAME_DONE_LINE not in (line.strip() for line in done.splitlines()):
+                return {"ok": False, "log": "\n".join(log) +
+                        "\nD did not confirm complete single-frame transfer"}
+        return {"ok": True, "frames": 1, "bytes": FRAME_BYTES, "log": "\n".join(log)}
     except Exception as exc:
-        return {"ok": False, "log": "E clear failed: %s: %s" % (type(exc).__name__, exc)}
-    okc, up = load_to_emmc(bin_bytes, emmc_addr)
-    # ★ 检查 A 是否真的成功 (emmc_add.ps1 会打印 SUCCESSFUL / VERIFY OK)
-    if okc and ("SUCCESSFUL" not in up and "VERIFY OK" not in up):
-        okc = False
-        up = up + "\n*** A 上传没有报告成功 ***"
-    log.append("--- 2) load_to_emmc(bin, %d) ---" % emmc_addr + up)
-    if not okc:
-        return {"ok": False, "log": "\n".join(log)}
-    try:
-        log.append("--- 3) D 00000000 (send ONE frame) ---" + emmc_to_ddr_play_once(0))
-    except Exception as exc:
-        return {"ok": False, "log": "\n".join(log) + "\nD failed: %s: %s" % (type(exc).__name__, exc)}
-    return {"ok": True, "log": "\n".join(log)}
+        return {"ok": False, "log": "\n".join(log) +
+                "\n%s: %s" % (type(exc).__name__, exc)}
+    finally:
+        _TRANSFER_LOCK.release()
 
 
 def customize_page(page):
-    page = page.replace('<button id="request">请求FPGA状态</button>',
-                        '<button id="request">请求FPGA状态</button><button id="chooseImage">选择本地图像</button><input id="imageFile" type="file" accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.bin" hidden><div id="imageName"></div><button id="upload">上传当前图像</button>')
-    page = page.replace("document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));",
-                        "document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));document.getElementById('chooseImage').addEventListener('click',()=>document.getElementById('imageFile').click());document.getElementById('imageFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const r=await fetch('/api/image?name='+encodeURIComponent(f.name),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:f});const j=await r.json();if(!r.ok){alert('图像加载失败: '+j.error);return;}document.getElementById('imageName').textContent='当前图像: '+j.name;poll();});document.getElementById('upload').addEventListener('click',()=>fetch('/api/upload').then(poll));")
+    page = page.replace(
+        '<button id="request">请求FPGA状态</button>',
+        '<button id="request">请求FPGA状态</button>'
+        '<button id="chooseImage">选择 BIN 图像</button>'
+        '<input id="imageFile" type="file" accept=".bin" hidden>'
+        '<div>256×256，8-bit 灰度，65,536 字节</div>'
+        '<div id="imageName"></div><button id="upload">上传当前图像</button>')
+    # The UART readback handler is installed once in TAIL_SCRIPT.
+    page = page.replace(
+        "document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));", "")
     page = page.replace('serial:j.serial_connected?', 'network:j.serial_connected?')
-    # ★★★ 只做两件事, 完全不碰原有脚本块 ★★★
-    #   ① 给两个按钮加 onclick 属性
-    #   ② 在 </body> 前追加一个独立的 <script>, 里面是我们自己的函数
-    #   (追加在最后 => 即使写错也影响不到上面的 poll(), 前面的脚本已经执行完了)
-    page = page.replace(
-        '<button id="thresholdUpdate" type="button">阈值更新</button>',
-        '<button id="thresholdUpdate" type="button" onclick="dshThrUpdate()">阈值更新</button>')
-    page = page.replace(
-        '<button id="transfer">传输给FPGA</button>',
-        '<button id="transfer" onclick="dshTransfer()">传输给FPGA</button>')
-    page = page.replace(
-        '</body>',
-        '<script>'
-        'function dshThrUpdate(){'
-        '  var sw=document.getElementById("thresholdMode");'
-        '  var manual=sw&&sw.getAttribute("aria-checked")==="true";'
-        '  var v=document.getElementById("threshold").value;'
-        '  fetch("/api/serial/threshold?mode="+(manual?1:0)+"&value="+v)'
-        '    .then(function(r){return r.json();})'
-        '    .then(function(j){alert(j.ok?("threshold OK\\n\\n"+j.log):("threshold FAIL\\n\\n"+j.log));})'
-        '    .catch(function(e){alert("threshold err: "+e);});'
-        '}'
-        'function dshTransfer(){'
-        '  var el=document.getElementById("imageFile");'
-        '  var ff=el&&el.files&&el.files[0];'
-        '  if(!ff){alert("please choose a local image first");return;}'
-        '  ff.arrayBuffer().then(function(buf){'
-        '    return fetch("/api/serial/transfer?index=0",{method:"POST",headers:{"Content-Type":"application/octet-stream"},body:buf});'
-        '  }).then(function(r){return r.json();})'
-        '    .then(function(j){alert(j.ok?("transfer OK\\n\\n"+j.log):("transfer FAIL\\n\\n"+j.log));})'
-        '    .catch(function(e){alert("transfer err: "+e);});'
-        '}'
-        'function dshReadback(){'
-        '  fetch("/api/serial/readback").then(function(r){return r.json();}).then(function(j){'
-        '    if(!j.ok){alert("readback FAIL\\n\\n"+j.log);return;}'
-        '    document.getElementById("dshRbMode").textContent=j.mode;'
-        '    document.getElementById("dshRbThr").textContent=j.threshold;'
-        '  }).catch(function(e){alert("readback err: "+e);});'
-        '}'
-        'document.getElementById("request").addEventListener("click",dshReadback);'
-        '</script></body>')
-    # ★ 紧贴在按钮行下面（"请求FPGA状态"按钮的正下方）插两行, 默认值 0。
-    #   放在 <div id="metrics"> 之前 => 就在按钮和原有 metrics 之间。
-    #   不能塞进 #metrics 里面: poll() 每 150ms 会整个重写它的 innerHTML。
     page = page.replace(
         '<button id="thresholdUpdate" type="button">阈值更新</button>',
         '<button id="thresholdUpdate" type="button" onclick="dshThrUpdate()">阈值更新</button>')
@@ -380,48 +404,36 @@ def customize_page(page):
         '<div class="metric"><span>FPGA回读输出显示模式</span><b id="dshRbVid">基础处理</b></div>'
         '<div class="metric"><span>FPGA回读病灶面积</span><b id="dshRbLes">0.000 mm²</b></div>'
         '</div><div id="metrics">')
-    page = page.replace('</body>', TAIL_SCRIPT)
-    return page
+    return page.replace('</body>', TAIL_SCRIPT + '</body>')
 
-
-
-import os as _os
-import subprocess as _sp
-import tempfile as _tmp
-from pathlib import Path as _Path
 
 class NetworkHandler(web_common.Handler):
 
     def do_POST(self):
-        if urlparse(self.path).path == '/api/serial/transfer':
-            try:
-                n = int(self.headers.get('Content-Length', '0'))
-                data = self.rfile.read(n) if n > 0 else b''
-                if not data:
-                    self.send_json({'ok': False, 'log': 'empty image body'})
-                    return
-                idx = parse_qs(urlparse(self.path).query).get('index', ['0'])[0]
-                self.send_json(_do_transfer(data, idx))
-            except Exception as exc:
-                self.send_json({'ok': False, 'log': '%s: %s' % (type(exc).__name__, exc)})
+        parsed = urlparse(self.path)
+        if parsed.path not in ('/api/serial/transfer', '/api/image'):
+            super().do_POST()
             return
-        super().do_POST()
+        try:
+            query = parse_qs(parsed.query)
+            filename = query.get('name', [''])[0]
+            if Path(filename).suffix.lower() != '.bin':
+                raise ValueError('仅支持 256x256x8-bit 的 .bin 文件')
+            n = int(self.headers.get('Content-Length', '0'))
+            if n != FRAME_BYTES:
+                raise ValueError('BIN 必须恰好为 65536 字节')
+            data = self.rfile.read(n)
+            _validate_bin_frame(data, filename)
+            if parsed.path == '/api/image':
+                self.state.replace_image(data, filename)
+                self.send_json({'ok': True, 'name': self.state.image_name})
+            else:
+                index = query.get('index', ['0'])[0]
+                self.send_json(_do_transfer(data, index, filename=filename))
+        except Exception as exc:
+            message = '%s: %s' % (type(exc).__name__, exc)
+            self.send_json({'ok': False, 'log': message, 'error': message}, status=400)
 
-
-    def do_POST(self):
-        if urlparse(self.path).path == '/api/serial/transfer':
-            try:
-                n = int(self.headers.get('Content-Length', '0'))
-                data = self.rfile.read(n) if n > 0 else b''
-                if not data:
-                    self.send_json({'ok': False, 'log': 'empty image body'})
-                    return
-                idx = parse_qs(urlparse(self.path).query).get('index', ['0'])[0]
-                self.send_json(_do_transfer(data, idx))
-            except Exception as exc:
-                self.send_json({'ok': False, 'log': '%s: %s' % (type(exc).__name__, exc)})
-            return
-        super().do_POST()
     image_sender = None
     control_worker = None
 

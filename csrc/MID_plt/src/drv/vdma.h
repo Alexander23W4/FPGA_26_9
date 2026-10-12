@@ -58,8 +58,11 @@ int  vdma_mm2s_reset(void);
 int  vdma_mm2s_config(u32 ddr_addr, u32 hsize_bytes,
                       u32 vsize_lines, u32 stride_bytes);
 
-/* 启动 MM2S（循环读同一帧） */
+/* 启动 MM2S：硬件只传一帧，完成后自动清 RS 并置 HALTED。 */
 int  vdma_mm2s_start(void);
+
+/* 等本次帧完成标志及自动停机；反压期间继续等待，硬件错误返回 -1。 */
+int  vdma_mm2s_wait_frame_done(void);
 
 /* 读当前状态寄存器（SR）。没接 VDMA 时返回 0 */
 u32  vdma_mm2s_status(void);

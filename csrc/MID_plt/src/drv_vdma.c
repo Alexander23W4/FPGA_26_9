@@ -27,6 +27,7 @@
 #include "xil_printf.h"
 #include "xil_io.h"
 #include "xil_types.h"
+#include "sleep.h"
 
 /* ---------------- 寄存器偏移（见文件头注释） ---------------- */
 #define VDMA_CR_OFFSET          0x00u    /* MM2S_VDMACR */
@@ -47,11 +48,16 @@
 #define CR_RESET        0x00000004u
 #define CR_SYNC_EN      0x00000008u
 #define CR_FRMCNT_EN    0x00000010u
+#define CR_FRMCNT_IRQ_EN 0x00001000u
+#define CR_FRAME_COUNT_MASK 0x00FF0000u
+#define CR_ONE_FRAME     0x00010000u
 
 /* 状态位 */
 #define SR_HALTED       0x00000001u
 #define SR_IDLE         0x00000002u
 #define SR_ERR_ALL      0x00000FF0u
+#define SR_FRMCNT_IRQ   0x00001000u
+#define SR_IRQ_ALL      0x00007000u
 
 /* PARK_PTR[20:16] = 当前读帧号 */
 #define PARKPTR_READSTR_MASK   0x001F0000u
@@ -211,24 +217,23 @@ int vdma_mm2s_start(void)
 {
     u32 v;
 
+    if (g_mm2s_vsize == 0u ||
+        (vdma_rd(VDMA_SR_OFFSET) & SR_HALTED) == 0u ||
+        (vdma_rd(VDMA_CR_OFFSET) & CR_RESET) != 0u) {
+        xil_printf("vdma: channel is not ready for a single frame\r\n");
+        return -1;
+    }
+
+    /* W1C: remove the previous transfer's completion/interrupt flags. */
+    vdma_wr(VDMA_SR_OFFSET, SR_IRQ_ALL);
     v = vdma_rd(VDMA_CR_OFFSET);
-    v |= CR_RUNSTOP;
-    /* ★★ CR_TAIL_EN(bit1) = 1 才是【Circular 循环模式】; = 0 是【Park 模式】。
-     *   依据 (官方驱动源码, 不是猜的):
-     *     xaxivdma_channel.c: XAxiVdma_ChannelStopParking() 头注释
-     *       "Set the channel to run in circular mode, exiting parking mode"
-     *     函数体: CrBits = ReadReg(CR) | XAXIVDMA_CR_TAIL_EN_MASK;
-     *     而 XAxiVdma_ChannelStartParking() 是把这一位清 0。
-     *   之前这里写成 v &= ~CR_TAIL_EN 并且注释成"循环模式", 位和注释都反了,
-     *   结果 MM2S 处于 Park 模式: 通道停在 PARK_PTR 指定的帧上, 而我们把
-     *   park 帧写成了 0(= 当前读指针), 于是【一个 AXI 读都不发】——
-     *   现象就是 SR 没停、没错误位、但一个 beat 都不吐。 */
-    v |= CR_TAIL_EN;
-    v &= ~CR_SYNC_EN;      /* 不用 genlock */
-    /* ★ 这里原来还有一句 v |= CR_FRMCNT_EN; —— 去掉了。
-     *   开了帧计数使能却没配对应寄存器，MM2S 会出现
-     *   "SR 显示没停、没有错误位，但一个 beat 都不吐" 的现象。
-     *   S2MM 那边本来就没设这一位，两个通道行为应当一致。 */
+    /* PG020: FrameCntEn limits transfers to IRQFrameCount, then the hardware
+     * clears RS and asserts HALTED. Circular/Park selects buffer addressing;
+     * the frame count of one prevents a second frame in either addressing mode.
+     * Enable the completion flag for polling; no CPU interrupt handler is used. */
+    v &= ~(CR_FRAME_COUNT_MASK | CR_SYNC_EN);
+    v |= CR_ONE_FRAME | CR_FRMCNT_EN | CR_FRMCNT_IRQ_EN |
+         CR_TAIL_EN | CR_RUNSTOP;
     vdma_wr(VDMA_CR_OFFSET, v);
 
     /* ★★ 只置 RS 不够。直接寄存器(Direct Register)模式下, 官方驱动在置 RS 之后
@@ -244,6 +249,43 @@ int vdma_mm2s_start(void)
     vdma_wr(VDMA_MM2S_REG_OFF + VDMA_MM2S_VSIZE_OFF, g_mm2s_vsize);
 
     return 0;
+}
+
+int vdma_mm2s_wait_frame_done(void)
+{
+    u32 polls = 0u;
+
+    for (;;) {
+        u32 sr = vdma_rd(VDMA_SR_OFFSET);
+        u32 cr = vdma_rd(VDMA_CR_OFFSET);
+
+        if ((sr & SR_ERR_ALL) != 0u) {
+            xil_printf("vdma: frame failed, CR=0x%08X SR=0x%08X\r\n",
+                       (s32)cr, (s32)sr);
+            return -1;
+        }
+        /* HALTED alone can also mean 'not started'. Require the fresh frame
+         * completion flag as well as the hardware's automatic stop. */
+        if ((sr & (SR_FRMCNT_IRQ | SR_HALTED)) ==
+                  (SR_FRMCNT_IRQ | SR_HALTED) &&
+            (cr & CR_RUNSTOP) == 0u) {
+            return 0;
+        }
+        if ((sr & SR_HALTED) != 0u && (cr & CR_RUNSTOP) == 0u) {
+            xil_printf("vdma: halted without frame completion, SR=0x%08X\r\n",
+                       (s32)sr);
+            return -1;
+        }
+
+        /* Backpressure may pause a frame for any duration. Do not stop or
+         * reset an in-progress frame on a software timer. */
+        usleep(1000u);
+        if (++polls == 1000u) {
+            xil_printf("vdma: waiting for single-frame completion, SR=0x%08X\r\n",
+                       (s32)sr);
+            polls = 0u;
+        }
+    }
 }
 
 u32 vdma_mm2s_status(void)
