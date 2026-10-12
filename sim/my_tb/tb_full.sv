@@ -210,6 +210,14 @@ module tb_full;
     endtask
 
 
+    task automatic wait_output_frame;
+        do @(posedge clk);
+        while (!(u_top.hdl_eof && u_top.hdl_ready));
+
+        @(posedge clk);
+    endtask
+
+
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
     task automatic read_mode(
@@ -343,6 +351,8 @@ initial begin: test_sequence
 //  ######################################################
 
     send_frame();
+    // wait_output_frame();
+    #100000;
 
     for (int i = 0; i < 10; i++) begin
         $display("[RUN] %0d", i);
@@ -351,7 +361,8 @@ initial begin: test_sequence
         set_mode(8'h10, i % 3);
 
         send_frame();
-
+        // wait_output_frame();
+        #100000;
         read_mode(8'h04, threshold_set_mode);
         read_mode(8'h08, threshold);
         read_mode(8'h10, video_mode);
