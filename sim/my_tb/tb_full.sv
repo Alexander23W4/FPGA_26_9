@@ -360,6 +360,9 @@ initial begin: test_sequence
         print_pl_status(threshold_set_mode, threshold, video_mode, area_data);
     end
 
+    $display("[TEST] All tests completed");
+    $finish;
+
 end
 
 endmodule
