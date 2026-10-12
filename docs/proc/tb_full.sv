@@ -14,6 +14,13 @@
             (由于没有cml, 所以没有sdb, gdb可以用)
 
 -> 看波形和trace, difftest 进行debug
+
+
+想display DUT内部的信号来完善trace, 怎么弄
+
+首先要lint, 检查语法问题
+然后运行仿真, 观察trace和波形
+
 */
 `timescale 1ps/1ps
 
@@ -328,7 +335,7 @@ initial begin: test_sequence
     as.tuser = 0;
 
     repeat (5) @(posedge clk);
-    
+
     @(negedge clk);
     rst = 0;
 
