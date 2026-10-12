@@ -132,44 +132,31 @@ module tb_full;
 
 // ★★: [Learn] 仿真协议输入的sv-tb实现
     task automatic set_mode(
-        input logic [7:0]  mode,
-        input logic [31:0] value
+        input [7:0] mode,
+        input [31:0] value
     );
         bit aw_done;
         bit w_done;
 
-        aw_done = 1'b0;
-        w_done  = 1'b0;
+        @(posedge clk) begin
+            al.awaddr = mode;
+            al.awvalid = 1;
+            al.wvalid = 1;
+            al.wdata = value;
 
-        @(negedge clk);
-        al.awaddr  = {24'b0, mode};
-        al.awvalid = 1'b1;
-        al.wdata   = value;
-        al.wstrb   = 4'hF;
-        al.wvalid  = 1'b1;
-
-        while (!aw_done || !w_done) begin
-            @(posedge clk);
-
-            if (!aw_done && al.awvalid && al.awready)
-                aw_done = 1'b1;
-
-            if (!w_done && al.wvalid && al.wready)
-                w_done = 1'b1;
-
-            @(negedge clk);
-            if (aw_done)
-                al.awvalid = 1'b0;
-
-            if (w_done)
-                al.wvalid = 1'b0;
+            while(!aw_done || !w_done) begin
+                if(al.awready) aw_done = 1; al.awvalid = 0;
+                if(al_wready) w_done = 1; al.wvalid = 0;
+            end
         end
 
-        al.bready = 1'b1;
-        do @(posedge clk); while (!al.bvalid);
+        @(posedge clk) begin
+            while(!al.bvalid);
 
-        @(negedge clk);
-        al.bready = 1'b0;
+            al.bready = 1;
+            #10;
+            al.bready = 0;
+        end
 
     endtask
 
@@ -197,5 +184,4 @@ module tb_full;
 
 
 endmodule
-
 
