@@ -232,56 +232,29 @@ module top1 #(
     wire [7:0]  fb_read_data;
     wire        fb_write_en;
 
-    wire        hdmi_0_done;
-    wire        hdmi_1_done;
-    wire        done_accept;
+    wire        frame_ready_toggle;
 
-    // =========================================================================
-    //  ★★★ bank 切换握手修复 (必须!!) ★★★
-    //
-    //   注: clk 和 pclk 在 BD 里接的是【同一个 clk_wiz_0/clk_out1 = 25.2MHz】,
-    //       所以这不是跨时钟域问题, 而是【脉冲宽度 vs 采样频率】问题:
-    //
-    //   hdl_out 的 done_accept 只保持 1 个时钟周期(它由 always @(*) 产生,
-    //   state 一进 BUF 就消失)。而 hdmi_out 只在【帧边界】
-    //   (vcnt==524 && hcnt==799) 采样它 —— 一帧 800x525 = 420000 个时钟
-    //   才看 1 次。=> 这个 1 周期脉冲几乎必然被丢掉。
-    //
-    //   后果: 读端不切 bank, 写端却按 hdmi_X_done 切了
-    //         => 写端把像素写进读端正显示的 bank
-    //         => 图像撕裂 / 拼图状, 且两端帧节拍错位时好时坏。
-    //
-    //   修法: 把 done_accept 变成【翻转电平】(请求一直保持到被消费),
-    //         hdmi_out 用 accept_seen 记住上次消费值, 在帧边界比较后再消费。
-    //         这样无论两端节拍如何错位, 请求都不会丢。
-    //   (下面的两级寄存对同频只是延时, 但保持了对称性, 也不影响正确性。)
-    // =========================================================================
-    
-    reg [2:0] hdmi_done_s0, hdmi_done_s1;
+    // 帧完成标志从写时钟域同步到像素时钟域；bank 选择也分别同步。
+    reg [2:0] frame_ready_sync;
+    reg [1:0] write_idx_sync;
+    reg [1:0] read_idx_sync;
+
     always @(posedge clk) begin
+        if (rst)
+            read_idx_sync <= 2'b00;
+        else
+            read_idx_sync <= {read_idx_sync[0], fb_read_idx};
+    end
+
+    always @(posedge pclk) begin
         if (rst) begin
-            hdmi_done_s0 <= 3'd0;
-            hdmi_done_s1 <= 3'd0;
+            frame_ready_sync <= 3'b000;
+            write_idx_sync   <= 2'b00;
         end else begin
-            hdmi_done_s0 <= {hdmi_done_s0[1:0], hdmi_0_done};
-            hdmi_done_s1 <= {hdmi_done_s1[1:0], hdmi_1_done};
+            frame_ready_sync <= {frame_ready_sync[1:0], frame_ready_toggle};
+            write_idx_sync   <= {write_idx_sync[0], fb_write_idx};
         end
     end
-    wire hdmi_0_done_c = hdmi_done_s0[2] & ~hdmi_done_s0[1];   // 单拍
-    wire hdmi_1_done_c = hdmi_done_s1[2] & ~hdmi_done_s1[1];   // 单拍
-
-    reg accept_tgl;
-    always @(posedge clk) begin
-        if (rst)              accept_tgl <= 1'b0;
-        else if (done_accept) accept_tgl <= ~accept_tgl;        // ★ 每次 accept 翻转
-    end
-    reg [2:0] accept_tgl_s;
-    always @(posedge pclk) begin
-        if (rst) accept_tgl_s <= 3'd0;
-        else     accept_tgl_s <= {accept_tgl_s[1:0], accept_tgl};
-    end
-    wire done_accept_c = accept_tgl_s[2] ^ accept_tgl_s[1];     // 单拍(未用, 保留)
-
     wire [18:0] hdl_dbg_status;
     wire [37:0] hdmi_dbg_status;
     wire [7:0]  hdmi_vid_r;
@@ -305,10 +278,8 @@ module top1 #(
         .buf_data(fb_write_data),
         .en(fb_write_en),
 
-        .read_buf_idx(fb_read_idx),
-        .hdmi_0_done(hdmi_done_s0[2]),
-        .hdmi_1_done(hdmi_done_s1[2]),
-        .done_accept(done_accept),
+        .read_buf_idx(read_idx_sync[1]),
+        .frame_ready_toggle(frame_ready_toggle),
         .dbg_status(hdl_dbg_status)
     );
 
@@ -317,19 +288,13 @@ module top1 #(
         .pclk(pclk),
         .write_en(fb_write_en),
         .write_buf_idx(fb_write_idx),
+        .read_buf_idx(fb_read_idx),
         .read_addr(fb_read_addr),
         .write_addr(fb_write_addr),
         .read_data(fb_read_data),
         .write_data(fb_write_data)
     );
 
-
-    // 写端 bank 打一拍送进读端 (同频, 只为一拍对齐; 读端取反使用)
-    reg write_idx_sync;
-    always @(posedge pclk) begin
-        if (rst) write_idx_sync <= 1'b0;
-        else     write_idx_sync <= fb_write_idx;
-    end
 
     hdmi_out u_hdmi_out (
         .pclk(pclk),
@@ -343,10 +308,8 @@ module top1 #(
         .vid_hs(hdmi_vid_hs),
         .vid_vs(hdmi_vid_vs),
         .vid_de(hdmi_vid_de),
-        .hdmi_0_done(hdmi_0_done),
-        .hdmi_1_done(hdmi_1_done),
-        .done_accept(accept_tgl_s[2]),   // ★ clk 域翻转电平(已两级同步), 非脉冲
-        .write_idx_sync(write_idx_sync), // ★ 读端永远读写端的另一块
+        .frame_ready_toggle(frame_ready_sync[2]),
+        .write_idx_sync(write_idx_sync[1]),
         .dbg_status(hdmi_dbg_status)
     );
 
@@ -373,7 +336,7 @@ module top1 #(
     assign dbg_stat   = {13'd0, hdl_dbg_status};
     assign dbg_stream = {22'd0, s_axis_tvalid, s_axis_tready, s_axis_tlast,
                          s_axis_tuser, px_eof, hdl_eof, fb_write_en,
-                         fb_write_idx, fb_read_idx, done_accept};
+                         fb_write_idx, fb_read_idx, frame_ready_toggle};
 
     // 128-bit 单 probe。当前优先观察 VDMA 的完整 64-bit 流拍、TKEEP 和实际
     // 写入帧缓存的单字节数据；用来区分上游高 32bit 为 0、TKEEP 填充和 axi2px
@@ -386,7 +349,7 @@ module top1 #(
     assign hdmi_ila_probe = {
         hdl_dbg_status[8:0], fb_write_addr, fb_write_data, s_axis_tkeep, s_axis_tdata,
         s_axis_tvalid, s_axis_tready, s_axis_tlast,
-        px_eof, hdl_eof, fb_write_en, done_accept, 16'd0
+        px_eof, hdl_eof, fb_write_en, frame_ready_toggle, 16'd0
     };
 // -------- ★ 128 位观测包 (端口宽度保持 128, 因此不需要同步 mref) --------
     //  动端口宽度会让 BD 里的 top1_0 失效 (mref 接口是缓存的), 所以只塞进现有 128 位。

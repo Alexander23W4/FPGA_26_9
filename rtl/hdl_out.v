@@ -9,114 +9,74 @@ module hdl_out(
     input hdl_eof,
     output reg hdl_ready,
 
-    output buf_idx,   // 双帧缓存, 选择哪一帧
-    output reg [15:0] buf_addr,  // 写入像素地址, 0-65535
-    output reg [7:0]  buf_data,  // 写入的灰度值
-    output reg en,         // 写入enable
+    output reg buf_idx,   // 当前整帧的写 bank
+    output reg [15:0] buf_addr,
+    output reg [7:0]  buf_data,
+    output reg en,
 
-    input  wire       read_buf_idx,   // read side's current bank
-    input hdmi_0_done,
-    input hdmi_1_done,
-    output reg done_accept,
+    input  wire read_buf_idx,          // HDMI 当前读 bank
+    output reg  frame_ready_toggle,    // 每完成一帧翻转，保持到下一帧完成
 
     // ILA / AXI-Lite 调试状态：{eof_mismatch, state, write_bank, write_addr}
     output wire [18:0] dbg_status
 );
 
-    localparam IDLE = 0, BUF = 1;
-    reg state, next;
+    localparam WRITE_FRAME = 1'b0;
+    localparam WAIT_FOR_DISPLAY = 1'b1;
 
-    reg buf_idx_save;
-    // *** write bank = the bank the reader is NOT reading ***
-    //     any moment read bank != write bank  =>  never tear
-    assign buf_idx = ~read_buf_idx;
-
+    reg state;
     reg [15:0] counter;
-    reg        eof_mismatch;
+    reg eof_mismatch;
 
-    assign dbg_status = {eof_mismatch, state, buf_idx_save, counter};
+    // read_buf_idx 来自 HDMI 像素时钟域。同步后再判断显示端是否已经
+    // 接管刚写完的 bank，避免跨时钟域直接采样。
+    reg read_idx_meta;
+    reg read_idx_sync;
 
-    // state 和 buf_idx_save 会参与生成 BRAM 的 write_en / write_buf_idx。
-    // 两者与 counter 一样使用同步复位，避免复位断言时异步改变 BRAM 控制输入。
+    assign dbg_status = {eof_mismatch, state, buf_idx, counter};
+
     always @(posedge clk) begin
-        if(rst) begin
-            // ★★★ 复位后必须和 hdmi_out 的读 bank 相反:
-            //     hdmi_out 复位时 buf_idx_save = 0 (读 bank 0)
-            //     所以这里写 bank 1, 而且先进 IDLE 不立刻写。
-            //   原来写的是 state=BUF / buf_idx_save=0 => 一上电就读写同一块,
-            //   而且 done_accept 的翻转握手会两边同步 => 第 3 帧起彻底死锁。
-            state        <= IDLE;
-            buf_idx_save <= 1'b1;
-            eof_mismatch <= 1'b0;
+        if (rst) begin
+            state              <= WRITE_FRAME;
+            buf_idx            <= 1'b1; // HDMI 复位读 bank0，首帧写 bank1
+            counter            <= 16'd0;
+            frame_ready_toggle <= 1'b0;
+            eof_mismatch       <= 1'b0;
+            read_idx_meta      <= 1'b0;
+            read_idx_sync      <= 1'b0;
         end else begin
-            state <= next;
-            
-            // 切换buf: 输出此帧已完成且另一个buf 已经被 HDMI完整输出
-            if(state == IDLE) begin
-                if(buf_idx_save == 1'b0 && hdmi_1_done) begin
-                    buf_idx_save <= 1'b1;
-                end
-                else if(buf_idx_save == 1'b1 && hdmi_0_done) begin
-                    buf_idx_save <= 1'b0;
-                end
-            end
+            read_idx_meta <= read_buf_idx;
+            read_idx_sync <= read_idx_meta;
 
-            // hdl_eof 只作为协议一致性检查。帧缓存的容量固定为 256x256，
-            // 实际 bank 切换必须由精确的写入计数决定，不能被上游错误的
-            // last 标记截断，否则 HDMI 会读到一张只写了一部分的图。
-            if (state == BUF && hdl_valid &&
-                (hdl_eof != (counter == 16'hFFFF))) begin
-                eof_mismatch <= 1'b1;
-            end
-            //
-        end
-    end
+            if (state == WRITE_FRAME) begin
+                if (hdl_valid && hdl_ready) begin
+                    if (hdl_eof != (counter == 16'hFFFF))
+                        eof_mismatch <= 1'b1;
 
-    // counter 直接驱动 Block RAM 的写地址。使用同步复位，避免异步复位
-    // 在 BRAM 地址线上产生未被时序分析覆盖的变化。
-    always @(posedge clk) begin
-        if(rst) begin
-            counter <= 16'd0;
-        end else begin
-            if(state == BUF && hdl_valid) begin
-                counter <= counter + 1'b1;
-            end
-            if(state == IDLE) begin
+                    if (counter == 16'hFFFF) begin
+                        // 只在完整的 65536 个像素写入后发布新帧。
+                        // 写 bank 在 HDMI 接管前保持不变，期间 ready 拉低。
+                        frame_ready_toggle <= ~frame_ready_toggle;
+                        state <= WAIT_FOR_DISPLAY;
+                    end else begin
+                        counter <= counter + 1'b1;
+                    end
+                end
+            end else if (read_idx_sync == buf_idx) begin
+                // HDMI 已在帧边界切到刚完成的 bank。另一 bank 此时空闲，
+                // 可以开始接收下一帧。
+                buf_idx <= ~buf_idx;
                 counter <= 16'd0;
+                state <= WRITE_FRAME;
             end
         end
     end
 
     always @(*) begin
-        next = state;
-
-        hdl_ready = 1'b1;
-        buf_addr = counter;
-        en = 1'b0;
-        done_accept = 1'b0;
-        buf_data = 0;
-        //
-        case (state)
-            BUF: begin
-                if(hdl_valid) begin
-                    en = 1'b1;
-                    buf_data = hdl_data;
-                    // 一帧固定为 65536 个像素。不要让 hdl_eof 单独决定帧尾：
-                    // 它来自可替换的 HLS 核，而错误/缺失的 last 会让正在显示
-                    // 的 bank 被下一帧覆盖。
-                    if(counter == 16'hFFFF) begin
-                        next = IDLE;
-                    end
-                end
-            end
-            IDLE: begin
-                hdl_ready = 1'b0;
-                done_accept = 1'b1;
-                next        = BUF;
-            end
-            
-        endcase
+        hdl_ready = (state == WRITE_FRAME);
+        buf_addr  = counter;
+        buf_data  = hdl_data;
+        en        = hdl_valid && hdl_ready;
     end
 
 endmodule
-

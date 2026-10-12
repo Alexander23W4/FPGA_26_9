@@ -314,14 +314,31 @@ endtask
 发10张图, 每发1张图就改一下手动阈值, 并且回读PL所有状态
 */
 // 用always 块控制流输出比monitor更可控
-    always @(posedge clk) begin
-        if (!rst && u_top.fb_write_en)
-            $display("[%0t] WRITE addr=%0d col=%0d pixel=%0d",
+    reg [15:0] fb_read_addr_sample;
+    always @(posedge pclk) begin
+        fb_read_addr_sample = u_top.fb_read_addr;
+        #1; // 等待同步 BRAM 的非阻塞读数据更新
+        // vid_de 包含整个 640x480 可见区；这里只打印 256x256 图像像素。
+        if (!rst &&
+            u_top.u_hdmi_out.vcnt >= 10'd112 && u_top.u_hdmi_out.vcnt <= 10'd367 &&
+            u_top.u_hdmi_out.hcnt >= 10'd192 && u_top.u_hdmi_out.hcnt <= 10'd447)
+            $display("[%0t] READ  bank=%0d addr=%0d col=%0d pixel=%0d",
                     $time,
-                    u_top.fb_write_addr,
-                    u_top.fb_write_addr % 256,
-                    u_top.fb_write_data);
+                    u_top.fb_read_idx,
+                    fb_read_addr_sample,
+                    fb_read_addr_sample % 256,
+                    u_top.fb_read_data);
     end
+
+    // always @(posedge clk) begin
+    //     if (!rst && u_top.fb_write_en && u_top.fb_write_addr < 16'd512)
+    //         $display("[%0t] WRITE bank=%0d addr=%0d col=%0d pixel=%0d",
+    //                 $time,
+    //                 u_top.fb_write_idx,
+    //                 u_top.fb_write_addr,
+    //                 u_top.fb_write_addr % 256,
+    //                 u_top.fb_write_data);
+    // end
 
 initial begin: test_sequence
 
