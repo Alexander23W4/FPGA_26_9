@@ -130,6 +130,8 @@ module tb_full;
 
     )
 
+// @(posedge clk);  代表驱动时钟
+
 // ★★: [Learn] 仿真协议输入的sv-tb实现
     task automatic set_mode(
         input [7:0] mode,
@@ -154,9 +156,10 @@ module tb_full;
 @(posedge clk) 和 @(negedge clk) 是过程的执行控制点：执行到它们时，
     当前 begin-end 过程会暂停，直到对应的时钟沿到来，然后继续执行后面的语句。
 */
-        while (!aw_done || !w_done) begin
+
+        while (!aw_done || !w_done) begin  
             @(posedge clk);
-            if (al.awvalid && al.awready) aw_done = 1;
+            if (al.awvalid && al.awready) aw_done = 1;   // 某个上升沿同时采到 awvalid和awready才行
             if (al.wvalid && al.wready) w_done = 1;
 
             @(negedge clk);
@@ -190,13 +193,22 @@ module tb_full;
         al.arvalid = 1;
         al.rready = 0;
 
-        do @(posedge clk); while (!al.arready);
+        // DUT更新ready的那个上升沿, 这里的while其实读到的还是ready的旧知, 所以需要再仿真一个上升沿, while才能退出
+        do @(posedge clk); while (!(al.arvalid && al.arready));    // 先等待时钟沿，再检查。
+
+// 假设 arready 还没拉高，那么仿真就会一直执行这个 while，时间无法向前推进，时钟也就无法产生下一个上升沿。这会导致仿真卡死。
+        // while(!(al.arvalid && al.arready));
+
+    // 这样写也可以
+        // while(!(al.arvalid && al.arready)) begin  // 先检查，再决定是否等待时钟沿。
+        //     @(posedge clk);
+        // end
 
         @(negedge clk);
         al.arvalid = 0;
         al.rready = 1;
 
-        do @(posedge clk); while (!al.rvalid);
+        do @(posedge clk); while (!(al.rvalid && al.rready));
         value = al.rdata;   // 这里没有时钟约束, 所以是在posedge的一瞬间进行采样, 还是能够采到握手那一刻的有效rdata值
 
         @(negedge clk);
@@ -211,6 +223,7 @@ module tb_full;
     );
 
     endtask
+
     /*
     通过axi-stream发送一帧 256*256的图像数据, 图像采用固定图像
     固定图像: 每一行灰度值为 0, 1, 2,... 255 (第一行) 0, 2, 4, ...254, 0, 2...(第二行) 0, 3, 6...(第三行)
