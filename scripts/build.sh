@@ -271,7 +271,7 @@ do_app() {
   local out; out="$(new_out_dir)"
   info "Using hardware platform: ${xsa#${REPO_ROOT}/}"
   info "Checking PS source files ..."
-  ps_input_hashes "$NAME" > "$out/PS_INPUTS.sha256" || die "Cannot snapshot PS sources"
+  ps_input_hashes "$NAME" user > "$out/PS_USER_INPUTS.sha256" || die "Cannot snapshot PS sources"
   info "PS source check done. Starting Vitis; log: ${out#${REPO_ROOT}/}/build.log"
 
   mkdir -p "${VITIS_WS_DIR}"
@@ -296,12 +296,13 @@ do_app() {
   local elf
   elf="${VITIS_WS_DIR}/${NAME}/build/${NAME}.elf"
   [ -s "$elf" ] || die "No ELF produced for this application: $elf"
-  if [ -s "$out/PS_INPUTS.sha256" ]; then
-    (cd "$REPO_ROOT" && sha256sum -c "$out/PS_INPUTS.sha256" >/dev/null) \
-      || die "PS sources changed during the build"
-  else
-    ps_input_hashes "$NAME" > "$out/PS_INPUTS.sha256" || die "Cannot snapshot newly created application"
+  if [ -s "$out/PS_USER_INPUTS.sha256" ]; then
+    (cd "$REPO_ROOT" && sha256sum -c "$out/PS_USER_INPUTS.sha256") \
+      || die "PS user sources changed during the build; see FAILED file above"
   fi
+  # Record the final generated build configuration as well. A later manual
+  # change to CMakeLists.txt still prevents downloading this ELF.
+  ps_input_hashes "$NAME" > "$out/PS_INPUTS.sha256" || die "Cannot snapshot final PS inputs"
   local init="${VITIS_WS_DIR}/${PLATFORM}/hw/sdt/ps7_init.tcl"
   [ -s "$init" ] || die "No PS initialization script in the selected platform: $init"
   cp -f "$elf" "$init" "$out/" || die "Cannot archive PS outputs"

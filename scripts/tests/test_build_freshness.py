@@ -38,6 +38,8 @@ printf 'BD_REFRESH_OK\r\nPL_REGISTERS_OK video_bits=32 area_bits=17\r\nBUILD_ZYN
 ''')
         self.tool('Vitis', 'vitis.bat', '''
 if [[ ${FAIL_PS:-0} == 1 ]]; then printf '!!!APP_BUILD_FAILED!!!\r\n'; exit 0; fi
+if [[ ${REWRITE_CMAKE:-0} == 1 ]]; then printf 'generated build configuration' > csrc/MID_plt/src/CMakeLists.txt; fi
+if [[ ${CHANGE_USER_SOURCE:-0} == 1 ]]; then printf 'changed while compiling' > csrc/MID_plt/src/main.c; fi
 mkdir -p csrc/MID_plt/build csrc/fpga_26/hw/sdt
 printf elf > csrc/MID_plt/build/MID_plt.elf
 printf init > csrc/fpga_26/hw/sdt/ps7_init.tcl
@@ -142,6 +144,27 @@ done
         result = self.run_bash('bash scripts/flash_current.sh init')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('PS sources changed', result.stdout + result.stderr)
+
+    def test_vitis_cmake_rewrite_is_accepted_and_final_config_is_protected(self):
+        config = self.root / 'csrc/MID_plt/src/CMakeLists.txt'
+        config.write_text('previous generated configuration')
+        result = self.run_bash('bash scripts/build.sh zynq -n fpga_26 -H && '
+                              'bash scripts/build.sh app -n MID_plt -p fpga_26 -f', REWRITE_CMAKE='1')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        result = self.run_bash('bash scripts/flash_current.sh init')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        config.write_text('changed after compilation')
+        result = self.run_bash('bash scripts/flash_current.sh init')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('PS sources changed', result.stdout + result.stderr)
+
+    def test_real_c_change_during_build_is_still_rejected(self):
+        self.build()
+        result = self.run_bash('bash scripts/build.sh app -n MID_plt -p fpga_26 -f',
+                              CHANGE_USER_SOURCE='1')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('PS user sources changed during the build', result.stdout + result.stderr)
+        self.assertFalse((self.root / 'build/out/latest-MID_plt-app.path').exists())
 
     def test_changed_archive_and_xsa_pair_are_rejected(self):
         self.build()
