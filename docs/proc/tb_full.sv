@@ -1,6 +1,19 @@
 
 /*
+基础svtb的构建流程:
+-> 设置timescale
+-> 设置时钟
 
+-> 初始化顶层信号(如果是协议信号就定义成interface)并连接DUT 
+-> 设计task (给DUT设计好的激励, 基于待测的feature, 比如我们这里测DUT接收mode命令和过图能力, 就设置传图和传mode的task)
+            (一般来说cpu不需要这一步(cpu更直接, 就是从存储器读), 但是ASIC需要特定的激励task输入)
+
+-> 激励流的设定 initial
+
+-> 在仿真环境基础上搭建infrastructure: trace(必用, $display)  difftest  
+            (由于没有cml, 所以没有sdb, gdb可以用)
+
+-> 看波形和trace, difftest 进行debug
 */
 `timescale 1ps/1ps
 
@@ -263,6 +276,56 @@ module tb_full;
     endtask
 
 
+
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+
+task automatic print_pl_status(
+    input int threshold_set_mode,
+    input int threshold,
+    input int video_mode,
+    input int area_data
+);
+    $display("========== PL STATUS ==========");
+    $display("threshold_set_mode = %0d", threshold_set_mode);
+    $display("threshold          = %0d", threshold);
+    $display("video_mode         = %0d", video_mode);
+    $display("area_data          = %0d", area_data);
+    $display();
+endtask
+
+
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+
+/*
+激励流的设计: 
+发10张图, 每发1张图就改一下手动阈值, 并且回读PL所有状态
+*/
+initial begin: test_sequence
+
+    int threshold_set_mode;
+    int threshold;
+    int video_mode;
+    int area_data;
+
+    send_frame();
+
+    for (i = 0; i < 10; i++) begin
+        $display("[RUN] %0d", i);
+        set_mode(8'h04, 1);
+        set_mode(8'h08, i * 20);
+        set_mode(8'h10, i % 3);
+
+        send_frame();
+
+        read_mode(8'h04, threshold_set_mode);
+        read_mode(8'h08, threshold);
+        read_mode(8'h10, video_mode);
+        read_mode(8'h14, area_data);
+
+        print_pl_status(threshold_set_mode, threshold, video_mode, area_data);
+    end
+
+end
 
 endmodule
 
