@@ -17,7 +17,7 @@
 */
 `timescale 1ps/1ps
 
-interface axi_lite(
+interface axi_lite;
     logic [31:0] awaddr;
     logic        awvalid;
     logic        awready;
@@ -39,7 +39,6 @@ interface axi_lite(
     logic [1:0]  rresp;
     logic        rvalid;
     logic        rready;
-);
     modport master (
         output awaddr,
         output awvalid,
@@ -67,15 +66,14 @@ interface axi_lite(
 endinterface
 
 
-interface axi_stream(
+interface axi_stream;
 
     logic [63:0] tdata,
     logic        tvalid,
     logic        tready,    
     logic        tlast,
     logic [7:0]  tkeep,
-    logic        tuser
-);
+    logic        tuser;
     modport master (
         output tdata,
         output tvalid,
@@ -118,12 +116,12 @@ module tb_full;
         .pclk(pclk),
         .pclk_x5(pclk_x5),
 
-        .s_axis_data(as.tdata),
-        .s_axis_valid(as.tvalid),
-        .s_axis_ready(as.tready),
-        .s_axis_last(as.tlast),
-        .s_axis_keep(as.tkeep),
-        .s_axis_user(as.tuser),
+        .s_axis_tdata(as.tdata),
+        .s_axis_tvalid(as.tvalid),
+        .s_axis_tready(as.tready),
+        .s_axis_tlast(as.tlast),
+        .s_axis_tkeep(as.tkeep),
+        .s_axis_tuser(as.tuser),
 
         .awaddr(al.awaddr),  //
         .awvalid(al.awvalid), //
@@ -142,9 +140,8 @@ module tb_full;
         .rdata(al.rdata),
         .rresp(al.rresp),
         .rvalid(al.rvalid),
-        .rready(al.rready),
-
-    )
+        .rready(al.rready)
+    );
 
 // @(posedge clk);  代表驱动时钟, 类比verilator中的 top tick
 
@@ -307,9 +304,39 @@ initial begin: test_sequence
     int video_mode;
     int area_data;
 
+//  ####################################################
+// 注意这部分, 信号初始化和reset要有
+    clk = 0;
+    pclk = 0;
+    pclk_x5 = 0;
+    rst = 1;
+
+    al.awaddr = '0;
+    al.awvalid = 0;
+    al.wdata = '0;
+    al.wstrb = '0;
+    al.wvalid = 0;
+    al.bready = 0;
+    al.araddr = '0;
+    al.arvalid = 0;
+    al.rready = 0;
+
+    as.tdata = '0;
+    as.tvalid = 0;
+    as.tlast = 0;
+    as.tkeep = '0;
+    as.tuser = 0;
+
+    repeat (5) @(posedge clk);
+    
+    @(negedge clk);
+    rst = 0;
+
+//  ######################################################
+
     send_frame();
 
-    for (i = 0; i < 10; i++) begin
+    for (int i = 0; i < 10; i++) begin
         $display("[RUN] %0d", i);
         set_mode(8'h04, 1);
         set_mode(8'h08, i * 20);
