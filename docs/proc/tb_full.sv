@@ -130,7 +130,7 @@ module tb_full;
 
     )
 
-// @(posedge clk);  代表驱动时钟
+// @(posedge clk);  代表驱动时钟, 类比verilator中的 top tick
 
 // ★★: [Learn] 仿真协议输入的sv-tb实现
     task automatic set_mode(
