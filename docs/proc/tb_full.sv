@@ -135,28 +135,49 @@ module tb_full;
         input [7:0] mode,
         input [31:0] value
     );
+// bit: 标志位、握手状态  int: 计数器、整数运算、索引 (默认有符号)
         bit aw_done;
         bit w_done;
 
-        @(posedge clk) begin
-            al.awaddr = mode;
-            al.awvalid = 1;
-            al.wvalid = 1;
-            al.wdata = value;
+        aw_done = 0;
+        w_done = 0;
+        al.bready = 0;
 
-            while(!aw_done || !w_done) begin
-                if(al.awready) aw_done = 1; al.awvalid = 0;
-                if(al_wready) w_done = 1; al.wvalid = 0;
-            end
+        @(negedge clk);    // [Learn] tb的常用激励写法, 下降沿给激励, 上升沿读DUT反馈
+        al.awaddr = mode;
+        al.awvalid = 1;
+        al.wdata = value;
+        al.wstrb = 4'hF;
+        al.wvalid = 1;
+
+/*
+@(posedge clk) 和 @(negedge clk) 是过程的执行控制点：执行到它们时，
+    当前 begin-end 过程会暂停，直到对应的时钟沿到来，然后继续执行后面的语句。
+*/
+        while (!aw_done || !w_done) begin
+            @(posedge clk);
+            if (al.awvalid && al.awready) aw_done = 1;
+            if (al.wvalid && al.wready) w_done = 1;
+
+            @(negedge clk);
+            if (aw_done) al.awvalid = 0;
+            if (w_done) al.wvalid = 0;
         end
 
-        @(posedge clk) begin
-            while(!al.bvalid);
+        al.bready = 1;
 
-            al.bready = 1;
-            #10;
-            al.bready = 0;
-        end
+/*
+这种等待提前拉高ready, 等待valid的情况需要注意, 用do while
+        // while (!al.bvalid) begin    // 先检查条件, 如果条件不满足, 就直接跳出了, 不会等框里面的上升沿
+        //     @(posedge clk);
+        // end
+如果 bvalid 在拉高 bready 时已经为 1，普通 while 会直接跳过
+*/
+
+        do @(posedge clk); while(!al.bvalid);   // 先等一次上升沿, 再检查条件
+
+        @(negedge clk);
+        al.bready = 0;   // [Learn] task里面的赋值是持续存在, 信号会保留最后一次赋值的值
 
     endtask
 

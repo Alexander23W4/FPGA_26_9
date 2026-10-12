@@ -445,3 +445,102 @@ module tb_thr_ctrl;
     end
 
 endmodule
+
+
+
+class axi_write_txn;
+
+    bit [7:0]  offset;
+    bit [31:0] data;
+
+    int unsigned txn_id;
+
+    function new(
+        bit [7:0]  addr,
+        bit [31:0] value,
+        int unsigned id = 0
+    );
+        offset = addr;
+        data   = value;
+        txn_id = id;
+    endfunction
+
+    function void display();
+        $display(
+            "[TXN %0d] offset=0x%02h data=0x%08h",
+            txn_id, offset, data
+        );
+    endfunction
+
+endclass
+
+
+
+axi_write_txn txn;
+
+initial begin
+    txn = new(8'h08, 32'd90, 1);
+
+    txn.display();
+
+    axi_write(txn.offset, txn.data);
+end
+
+
+
+class image_test_txn;
+
+    rand bit        auto_mode;
+    rand bit [7:0]  threshold;
+    rand bit [7:0]  gray;
+
+    constraint threshold_c {
+        threshold inside {[20:220]};
+    }
+
+    constraint gray_c {
+        gray inside {[0:255]};
+    }
+
+    function void display();
+        $display(
+            "auto=%0b threshold=%0d gray=%0d",
+            auto_mode, threshold, gray
+        );
+    endfunction
+
+endclass
+
+
+image_test_txn tr;
+// 随机测试
+tr = new();
+
+repeat (10) begin
+
+    if (!tr.randomize())
+        $fatal(1, "Randomization failed");
+
+    tr.display();
+
+    // 配置阈值
+    axi_write(8'h08, {24'b0, tr.threshold});
+
+    // 配置模式：0=自动，1=手动
+    axi_write(8'h04, tr.auto_mode ? 32'd0 : 32'd1);
+
+    // 检查模式；手动模式时也检查阈值
+    check_mode(
+        tr.auto_mode,
+        tr.threshold,
+        !tr.auto_mode
+    );
+
+    // 输入一帧随机灰度图像
+    reset_counts();
+    send_frame(tr.gray);
+    wait_frame_done();
+
+    report_frame("RANDOM");
+end
+
