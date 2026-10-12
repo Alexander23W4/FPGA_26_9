@@ -29,6 +29,10 @@ set elf  [lindex $argv 1]
 set init [lindex $argv 2]
 set mode [lindex $argv 3]
 if {$mode eq ""} { set mode "init" }
+if {$mode ni {init noinit}} {
+    puts "!!!ARGS!!! mode must be init or noinit (got '$mode')"
+    exit 1
+}
 
 # ★ 曾经有一个 "oldorder" 模式: 把 ps7_post_config 放在 fpga -file 之前、
 #   并且配 PL 前不停核。实测它【稳定打死 DAP】:

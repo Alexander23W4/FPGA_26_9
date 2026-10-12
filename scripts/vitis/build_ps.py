@@ -47,6 +47,7 @@
 import os
 import shutil
 import sys
+import hashlib
 
 # ------------------------------- 参数 ----------------------------------------
 if len(sys.argv) < 4:
@@ -170,12 +171,6 @@ def find_xpfm(name):
             for fn in sorted(files):
                 if fn.endswith(".xpfm"):
                     return os.path.join(root, fn)
-
-    # 3) 兜底：整个工作区
-    for root, _dirs, files in os.walk(workspace):
-        for fn in sorted(files):
-            if fn.endswith(".xpfm"):
-                return os.path.join(root, fn)
 
     return None
 
@@ -397,6 +392,23 @@ if platform_exists:
         print("                    " + platform_dir)
         print("                    delete that directory and re-run")
         sys.exit(1)
+    # Rebuilding a platform does not import a new XSA. Update its hardware
+    # explicitly when requested or when the imported XSA differs.
+    imported_xsa = os.path.join(platform_dir, "hw", platform_name + ".xsa")
+    def xsa_digest(path):
+        if not os.path.isfile(path):
+            return None
+        with open(path, "rb") as fp:
+            return hashlib.sha256(fp.read()).hexdigest()
+    if force_platform or xsa_digest(imported_xsa) != xsa_digest(xsa):
+        print("[build_ps] Importing current hardware: " + xsa)
+        try:
+            if platform_obj.update_hw(hw=xsa) is not True:
+                raise RuntimeError("update_hw did not report success")
+        except Exception as exc:
+            print("!!!PLATFORM_UPDATE_FAILED!!! " + str(exc))
+            sys.exit(1)
+        need_build = True
 else:
     print("[build_ps] Creating platform: " + platform_name)
     # 目录可能已经因为 git 跟踪了 src/ 而存在，先挪开，建完再合并回来
@@ -432,7 +444,10 @@ if patch_link_speed():
 if need_build:
     print("[build_ps] Building platform ...")
     try:
-        platform_obj.build()
+        status = platform_obj.build()
+        # Vitis 2023.2 platform/build protobuf enums use SUCCESS=0.
+        if status != 0:
+            raise RuntimeError("platform build status=" + str(status))
     except Exception as exc:
         print("!!!PLATFORM_BUILD_FAILED!!! " + str(exc))
         sys.exit(1)
@@ -478,8 +493,14 @@ else:
 
 print("[build_ps] Building application: " + app_name)
 print("[build_ps] source dir: " + os.path.join(app_dir, "src"))
+# A failed/empty build must not pass simply because yesterday's ELF exists.
+expected_elf = os.path.join(app_dir, "build", app_name + ".elf")
+if os.path.isfile(expected_elf):
+    os.remove(expected_elf)
 try:
     status = app.build()
+    if status != 0:
+        raise RuntimeError("application build status=" + str(status))
 except Exception as exc:
     print("!!!APP_BUILD_FAILED!!! " + str(exc))
     sys.exit(1)
@@ -487,11 +508,7 @@ print("[build_ps] build status: " + str(status))
 
 # ------------------------------- 找 .elf -------------------------------------
 # 只在应用组件目录里找，避免误抓 platform 的 fsbl.elf
-elvs = []
-for root, _dirs, files in os.walk(app_dir if os.path.isdir(app_dir) else workspace):
-    for fn in files:
-        if fn.endswith(".elf") and fn != "fsbl.elf":
-            elvs.append(os.path.join(root, fn))
+elvs = [expected_elf] if os.path.isfile(expected_elf) else []
 
 for p in elvs:
     print("ELF=" + p)
@@ -537,7 +554,7 @@ newest_src = 0.0
 for root, _dirs, files in os.walk(src_dir):
     for fn in files:
         if fn.endswith((".c", ".h", ".cpp", ".cc", ".S", ".s", ".asm",
-                        ".inc")):
+                        ".inc", ".ld")) or fn == "CMakeLists.txt":
             try:
                 newest_src = max(newest_src, os.path.getmtime(os.path.join(root, fn)))
             except OSError:

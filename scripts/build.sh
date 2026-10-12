@@ -74,6 +74,7 @@ Options:
                          application name, otherwise the command fails.
                          Required for "all".)
   -f, --force-platform  Force rebuilding the platform even if already built
+      --xsa FILE       Use this exact hardware platform for the PS build
   -h, --help            Show this help
 
 Examples:
@@ -96,7 +97,7 @@ EOF
 CMD="${1:-}"; shift || true
 
 NAME=""; AXI=0; TOP=""; TB=""; JOBS=4; PLATFORM=""; FORCE_PLATFORM=0; TEMPLATE="hello_world"
-HP=0; FCLK0=""; RECREATE=0; NO_FS=0
+HP=0; FCLK0=""; RECREATE=0; NO_FS=0; XSA=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -n|--name) NAME="${2:-}"; shift 2 ;;
@@ -111,6 +112,7 @@ while [ $# -gt 0 ]; do
     -T|--template) TEMPLATE="${2:-}"; shift 2 ;;
     -p|--platform)       PLATFORM="${2:-}"; shift 2 ;;
     -f|--force-platform) FORCE_PLATFORM=1; shift ;;
+    --xsa) XSA="${2:-}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown option: $1   (run with -h for help)" ;;
   esac
@@ -189,6 +191,7 @@ do_pl() {
 do_zynq() {
   [ -n "$NAME" ] || die "Missing -n <project name>"
   check_tools
+  rm -f "${OUT_DIR}/latest-${NAME}-zynq.path" "${OUT_DIR}/latest-zynq.path"
 
   # -R：先删掉 Vivado 工程，强制从 Tcl 重建（改了 BD 结构时必须）
   if [ "$RECREATE" -eq 1 ]; then
@@ -198,6 +201,9 @@ do_zynq() {
 
   local out; out="$(new_out_dir)"
   info "Archive dir: ${out#${REPO_ROOT}/}"
+  info "Checking PL input files ..."
+  pl_input_hashes > "$out/PL_INPUTS.sha256" || die "Cannot snapshot PL inputs"
+  info "PL input check done. Starting Vivado; log: ${out#${REPO_ROOT}/}/build.log"
 
   # 组装透传给 build_zynq.tcl 的选项
   local vargs=("$NAME" "$(winpath "${VIVADO_PROJ_DIR}")")
@@ -207,19 +213,28 @@ do_zynq() {
   vargs+=("$JOBS")
 
   mkdir -p "${out}" || { echo "[FAIL] cannot create ${out}"; exit 1; }
-  run_vivado "${SCRIPTS_DIR}/tcl/build_zynq.tcl" "${vargs[@]}" 2>&1 | tee "${out}/build.log"
-  local rc="${PIPESTATUS[0]}"
-  [ "$rc" -eq 0 ] || die "Vivado build failed (rc=$rc). Log: ${out}/build.log"
+  run_vivado "${SCRIPTS_DIR}/tcl/build_zynq.tcl" "${vargs[@]}" 2>&1 | /usr/bin/tee "${out}/build.log"
+  local rc="$?"
+  [ "$rc" -eq 0 ] && grep -q '^BUILD_ZYNQ_OK[[:space:]]*$' "$out/build.log" \
+    || die "Vivado build did not finish successfully (rc=$rc). Log: ${out}/build.log"
+  (cd "$REPO_ROOT" && sha256sum -c "$out/PL_INPUTS.sha256" >/dev/null) \
+    || die "PL inputs changed during the build; rebuild before downloading"
 
   local pdir="${VIVADO_PROJ_DIR}/${NAME}"
   local bit xsa
-  bit="$(find "$pdir" -name '*.bit' -print -quit 2>/dev/null)"
-  xsa="$(find "$pdir" -name '*.xsa' -print -quit 2>/dev/null)"
+  bit="${pdir}/${NAME}.runs/impl_1/system_wrapper.bit"
+  xsa="${pdir}/${NAME}.xsa"
+  [ -s "$bit" ] && [ -s "$xsa" ] || die "Missing current bitstream or XSA"
+  cp -f "$bit" "$xsa" "$out/" || die "Cannot archive hardware outputs"
+  if [ "$NAME" = fpga_26 ]; then
+    grep -q '^PL_REGISTERS_OK ' "$out/build.log" || die "Missing implemented-register check"
+    cp -f "$pdir/register_audit.txt" "$out/" || die "Missing register audit report"
+  fi
+  (cd "$out" && sha256sum system_wrapper.bit "${NAME}.xsa" > ARTIFACTS.sha256) \
+    || die "Cannot hash hardware outputs"
 
-  if [ -n "$bit" ]; then cp -f "$bit" "$out/" && ok "Bitstream: $(basename "$bit")"; else warn "No .bit"; fi
-  if [ -n "$xsa" ]; then cp -f "$xsa" "$out/" && ok "Hardware platform: $(basename "$xsa")"; else warn "No .xsa"; fi
-
-  write_manifest "$out" "$NAME" "zynq"
+  write_manifest "$out" "$NAME" "zynq" || die "Cannot write hardware manifest"
+  publish_build "$out" "$NAME" zynq || die "Cannot publish hardware build"
   hr; ok "Zynq build done -> ${out#${REPO_ROOT}/}"; hr
 }
 
@@ -230,10 +245,20 @@ do_app() {
   [ -n "$NAME" ] || die "Missing -n <application name>"
   [ -f "$VITIS_BIN" ] || die "Vitis not found: $VITIS_BIN"
 
-  # 找最新的 .xsa
-  local xsa
-  xsa="$(find "${OUT_DIR}" -name '*.xsa' -print 2>/dev/null | sort | tail -n1)"
-  [ -n "$xsa" ] || die "No .xsa under build/out/. Run first: ./scripts/build.sh zynq -n <project>"
+  # Use an explicit XSA or a successful build receipt, never a directory sort.
+  local xsa hwout receipt
+  if [ -n "$XSA" ]; then
+    xsa="$XSA"
+  else
+    receipt="${OUT_DIR}/latest-zynq.path"
+    [ -z "$PLATFORM" ] || receipt="${OUT_DIR}/latest-${PLATFORM}-zynq.path"
+    [ -s "$receipt" ] || die "No successful hardware build receipt. Build zynq first or pass --xsa FILE"
+    hwout="$(cat "$receipt")"
+    [ -z "$PLATFORM" ] && PLATFORM="$(sed -n 's/^project     : //p' "$hwout/MANIFEST.txt")"
+    xsa="$hwout/${PLATFORM}.xsa"
+    (cd "$hwout" && sha256sum -c ARTIFACTS.sha256 >/dev/null) || die "Hardware archive is incomplete or modified"
+  fi
+  [ -s "$xsa" ] || die "Hardware platform not found: $xsa"
 
   # 平台名默认 = 硬件工程名（就是 xsa 的文件名），不加任何后缀
   if [ -z "$PLATFORM" ]; then
@@ -241,9 +266,13 @@ do_app() {
     info "Platform name not given, using hardware project name: ${PLATFORM}"
   fi
   check_component_names "$NAME" "$PLATFORM"
+  rm -f "${OUT_DIR}/latest-${NAME}-app.path"
 
   local out; out="$(new_out_dir)"
   info "Using hardware platform: ${xsa#${REPO_ROOT}/}"
+  info "Checking PS source files ..."
+  ps_input_hashes "$NAME" > "$out/PS_INPUTS.sha256" || die "Cannot snapshot PS sources"
+  info "PS source check done. Starting Vitis; log: ${out#${REPO_ROOT}/}/build.log"
 
   mkdir -p "${VITIS_WS_DIR}"
   # 组装参数：平台名 + 模板 + --force-platform（选填）
@@ -253,24 +282,35 @@ do_app() {
   [ "$NO_FS" -eq 1 ] && vargs+=("--no-fs")
 
   mkdir -p "${out}" || { echo "[FAIL] cannot create ${out}"; exit 1; }
-  run_vitis "${SCRIPTS_DIR}/vitis/build_ps.py" "${vargs[@]}" 2>&1 | tee "${out}/build.log"
-  local rc="${PIPESTATUS[0]}"
+  run_vitis "${SCRIPTS_DIR}/vitis/build_ps.py" "${vargs[@]}" 2>&1 | /usr/bin/tee "${out}/build.log"
+  local rc="$?"
 
   # ⚠ vitis.bat 不传递 python 的退出码，所以必须查日志里的错误标记
   if [ "$rc" -ne 0 ] \
+     || ! grep -q '^BUILD_PS_OK[[:space:]]*$' "$out/build.log" \
      || grep -qE '^!!!|Traceback \(most recent call last\)|BUILD_FAILED|PLATFORM_FAILED|APP_FAILED|NOXPFM|NOXSA' "${out}/build.log"; then
     die "Vitis build failed. Log: ${out}/build.log"
   fi
 
   # 只在应用组件目录里找 elf，避免误抓 platform 的 fsbl.elf
   local elf
-  elf="$(find "${VITIS_WS_DIR}/${NAME}" -name '*.elf' -print 2>/dev/null | head -n1)"
-  if [ -z "$elf" ]; then
-    elf="$(find "${VITIS_WS_DIR}" -name '*.elf' ! -name 'fsbl.elf' -print 2>/dev/null | head -n1)"
+  elf="${VITIS_WS_DIR}/${NAME}/build/${NAME}.elf"
+  [ -s "$elf" ] || die "No ELF produced for this application: $elf"
+  if [ -s "$out/PS_INPUTS.sha256" ]; then
+    (cd "$REPO_ROOT" && sha256sum -c "$out/PS_INPUTS.sha256" >/dev/null) \
+      || die "PS sources changed during the build"
+  else
+    ps_input_hashes "$NAME" > "$out/PS_INPUTS.sha256" || die "Cannot snapshot newly created application"
   fi
-  if [ -n "$elf" ]; then cp -f "$elf" "$out/" && ok "ELF: $(basename "$elf")"; else warn "No .elf produced"; fi
+  local init="${VITIS_WS_DIR}/${PLATFORM}/hw/sdt/ps7_init.tcl"
+  [ -s "$init" ] || die "No PS initialization script in the selected platform: $init"
+  cp -f "$elf" "$init" "$out/" || die "Cannot archive PS outputs"
+  sha256sum "$xsa" | cut -d' ' -f1 > "$out/XSA.sha256" || die "Cannot hash the selected XSA"
+  (cd "$out" && sha256sum "${NAME}.elf" ps7_init.tcl > ARTIFACTS.sha256) \
+    || die "Cannot hash PS outputs"
 
-  write_manifest "$out" "$NAME" "app"
+  write_manifest "$out" "$NAME" "app" || die "Cannot write application manifest"
+  publish_build "$out" "$NAME" app || die "Cannot publish application build"
   hr; ok "PS app build done -> ${out#${REPO_ROOT}/}"; hr
 }
 
@@ -284,6 +324,7 @@ do_all() {
   [ -n "$PLATFORM" ] || die "\"all\" needs -p <platform_name>: -n is used for both the project and the application, so the default platform name (= project name) would collide"
   check_component_names "$NAME" "$PLATFORM"
   do_zynq
+  XSA="$(cat "${OUT_DIR}/latest-${NAME}-zynq.path")/${NAME}.xsa"
   do_app
 }
 

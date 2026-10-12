@@ -38,93 +38,101 @@ bash ./network/launch_gui.sh /e/camus/images/testing/patient0047/patient0047_4CH
 Git Bash 终端按 `Ctrl+C`，脚本会同时停止 mock PS 服务。mock 返回演示用的模拟掩膜和
 状态，不代表 FPGA 的实际图像处理结果。
 
-## 当前上板：三张图循环 HDMI 测试
+## 当前上板：GUI 单帧 HDMI 测试
 
-以下命令均在仓库根目录的 Git Bash 中执行。当前通过完整实现的位流是：
+以下命令在仓库根目录的 Git Bash 中执行。现在使用 GUI 发图，不再以
+`pl_ctrl_test` 的三张图循环作为默认测试流程。
+
+### 1. 原命令的问题和修复
+
+命令名称没有过时，问题在它们调用的脚本和选择的产物：
+
+| 原写法 / 行为 | 具体问题 | 已修改的行为 |
+| --- | --- | --- |
+| `build.sh zynq -n fpga_26 -H` | 已有工程只更新编译顺序、重置 synthesis run；没有显式刷新模块引用、重置生成产物。检查到的旧实现缺少 `0x10/0x14`。 | 每次刷新模块引用，禁用 IP 缓存，重新生成 BD 输出和 OOC run，关闭增量检查点，然后重新综合实现。 |
+| 仅凭综合结束或 bit 文件日期判断成功 | 新顶层实现仍可能拼入旧模块网表。 | 完成实现后检查 `video_mode` 和 17 位面积保存寄存器；缺失则报 `STALE_PL`，不发布可下载产物。 |
+| `build.sh app -n MID_plt -f` | `-f` 原来只重编已有平台，没有把新 XSA 导入平台；平台配置曾指向 9 月 24 日的 XSA。 | 用 `update_hw` 导入指定 XSA，检查平台和应用构建状态；应用构建前移除旧 ELF，防止软失败后误报成功。 |
+| 遍历目录找到第一个 bit/ELF，或按路径排序选择 XSA | 可能选中历史产物、其他应用或其他硬件平台。 | 使用精确输出路径，归档成功产物，以成功记录指定 XSA；不再跨应用找 ELF。 |
+| 固定旧日期 `BIT=build/out/...`，或失败后继续单独烧录 | 会下载旧文件；下载成功只能证明传入文件被下载。 | `flash_current.sh` 使用成功构建的归档，检查文件哈希、源码哈希和 ELF/XSA 配对。构建失败后无法回退下载旧产物。 |
+| 每次 `rm -f csrc/.lock` | 锁文件不是构建缓存；Vitis 仍运行时删除它会绕过工作区互斥。 | 不常规删锁。编译前关闭占用该工作区的 Vitis；确认相关进程已退出且锁确实残留时，才手动删除。 |
+| 粘贴成 `initrm -f` | `init` 和下一条命令粘连，成为非法下载模式。 | 下载脚本只接受 `init` 或 `noinit`，非法参数立即失败。 |
+| PATH 优先选中 Vitis 的 `gnuwin/bin/tee.exe` | 旧版 Windows 工具与 Git Bash 输出管道混用，可能报“标准输出: No such file or directory”，终端输出停住。 | 公共脚本将 Git Bash `/usr/bin` 放在 PATH 首位；Vivado/Vitis/XSCT 仍通过明确的 `.bat` 路径调用。 |
+| 在实时日志管道中用 `tr` 去掉回车 | 管道缓冲可能隐藏启动信息，让终端停留在 `Archive dir`。 | 直接用 Git Bash 的 `tee` 实时输出；成功标记兼容 CRLF，并在输入校验和工具启动前打印进度。 |
+
+禁用缓存采用 Vivado 2023.2 的
+[官方 `config_ip_cache` 命令](https://docs.amd.com/r/2023.2-English/ug835-vivado-tcl-commands/config_ip_cache)。
+
+### 2. 一条命令完成 PL、PS 构建和 JTAG 下载
+
+先关闭占用此工程的 Vivado/Vitis，以及占用板卡串口的 GUI、终端。
+如果日志出现 `Failed to delete one or more files in run directory`，先停止当前构建，
+关闭打开此工程的 Vivado/Vitis 窗口，释放目录占用后重新运行。
+开发板连接并上电后执行：
+
+```bash
+./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
+```
+
+`&&` 使任何一步失败都停止后续步骤。正常日志应依次出现：
 
 ```text
-build/out/2026-10-01_120634_c10e018-dirty/system_wrapper.bit
+BD_REFRESH_OK
+PL_REGISTERS_OK
+BUILD_ZYNQ_OK
+BUILD_PS_OK
+[flashall] PL programmed
+FLASH_ALL_OK
 ```
 
-以后重新跑 `zynq` 构建后，必须把下面 `BIT` 改为该次构建输出的最新
-`system_wrapper.bit`；不要再使用旧的 `2026-09-26` 位流。
+这些标记后面可能带参数。`PL_REGISTERS_OK` 检查实现网表包含相应寄存器，
+不替代上板功能测试。
 
-### 1. 构建
+### 3. 尚未连接开发板时：先完成编译，之后只下载
 
-PL 有 RTL、BD 或约束改动时，先完整重建：
+先执行：
 
 ```bash
-./scripts/build.sh zynq -n fpga_26 -H -R
+./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f
 ```
 
-PS 程序每次改动后都要重新构建：
+拿到板卡并上电后，只需：
 
 ```bash
-rm -f csrc/.lock
-./scripts/build.sh app -n MID_plt -f
+bash ./scripts/flash_current.sh init
 ```
 
-### 2. JTAG 下载并运行
+脚本会打印本次采用的 bit 和 ELF 归档路径。无需填写旧的日期目录或 `BIT`。
+源码在构建后发生变化、输出文件被替换，或 ELF 使用的 XSA 不匹配时，脚本会停止。
+只有同次上电已经成功执行过初始化时，才可把 `init` 改成 `noinit`。
 
-首次上电、断电重上电后，或 DDR 状态不确定时，使用 `init`。它会初始化
-PS/DDR，配置 PL，随后执行 `ps7_post_config` 并下载 ELF：
+只有 C 源码改动而 PL 没改时，可以执行：
 
 ```bash
-BIT="build/out/2026-10-01_120634_c10e018-dirty/system_wrapper.bit"
-
-/e/Xilinx/Vitis/2023.2/bin/xsct.bat "$(cygpath -w scripts/tcl/flash_all.tcl)" \
-  "$(cygpath -w "$BIT")" \
-  "$(cygpath -w csrc/MID_plt/build/MID_plt.elf)" \
-  "$(cygpath -w csrc/fpga_26/hw/sdt/ps7_init.tcl)" init
+./scripts/build.sh app -n MID_plt -p fpga_26 && bash ./scripts/flash_current.sh init
 ```
 
-同一次上电期间，仅在已经成功执行过一次 `init` 后重新下载 bit/ELF 时，才可用
-`noinit`：
+此命令复用成功记录中的同一份 XSA。现在首次采用修复后的流程，必须先执行一次
+上面的 PL + PS 完整构建，建立新的成功记录。
+
+`-H` 配置 HP0/VDMA 路径；它不负责清缓存。`-f` 用于 PS 平台强制更新及重建。
+如果修改的是建工程 Tcl 中的 BD 结构，而不是现有模块内部 RTL，仍需给 `zynq`
+加 `-R` 从 Tcl 重建工程；这会删除原 Vivado 工程目录，GUI 中未导出的工程改动应先保存。
+普通 RTL 修改直接使用上面的命令即可。
+
+### 4. GUI 发图和回读
 
 ```bash
-/e/Xilinx/Vitis/2023.2/bin/xsct.bat "$(cygpath -w scripts/tcl/flash_all.tcl)" \
-  "$(cygpath -w "$BIT")" \
-  "$(cygpath -w csrc/MID_plt/build/MID_plt.elf)" \
-  "$(cygpath -w csrc/fpga_26/hw/sdt/ps7_init.tcl)" noinit
+bash ./network/launch_gui.sh
 ```
 
-### 3. 准备 eMMC 图片
+选择 **256×256、8-bit 灰度、无文件头、恰好 65,536 字节的 `.bin`**，设置阈值和
+“FPGA输出显示模式”，再点击“传输给FPGA”。当前路径为
+`GUI → eMMC → DDR → VDMA → AXI-Stream → PL → HDMI`。
+一次 D 仅发送一帧，遇到反压暂停，完整发完后 VDMA 自动停止。
 
-`pl_ctrl_test` 按名称查找 `iceberg`、`lofoten`、`gb200`。三份文件必须都是
-**256 x 256、8-bit 灰度、无文件头的 raw `.bin`**，每份恰好 65536 字节。串口脚本
-默认使用 `COM7`；端口不同就把下面的 `COM7` 改成实际端口。运行任何一个脚本前，
-先关闭占用该串口的串口终端。
-
-若要替换已有目录中的图片，先清空目录（这会删除已登记的图片）：
-
-```bash
-powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_clear.ps1)" -Port COM7
-```
-
-依次上传三张图。每条命令都应以 `RESULT: VERIFY OK` 结束：
-
-```bash
-powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_add.ps1)" -File D:/test_img/iceberg.bin -Port COM7
-powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_add.ps1)" -File D:/test_img/lofoten.bin -Port COM7
-powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_add.ps1)" -File D:/test_img/gb200.bin -Port COM7
-powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/emmc_list.ps1)" -Port COM7
-```
-
-目录应恰好列出三项，名称为 `iceberg`、`lofoten`、`gb200`，每项 `bytes=65536`、
-`w x h=256 x 256`、`bpp=1`。
-
-### 4. 运行 HDMI 循环测试
-
-```bash
-powershell -ExecutionPolicy Bypass -File "$(cygpath -w scripts/pc/run_test.ps1)" -Test pl_ctrl_test -Port COM7
-```
-
-程序会反复执行 `eMMC -> DDR -> VDMA MM2S -> AXI-Stream -> PL -> HDMI`，每张图显示
-约 10 秒。串口会显示当前图片、DDR 载入地址和 VDMA 状态。`pl_ctrl_test` 是无限循环；
-按 `Ctrl+C` 只能停止 PC 端串口输出，要停止板端循环则重新下载 ELF。
-
-`net_recv.ps1` 已从项目中删除：当前数据路径直接输出 HDMI，不经过 PC 网络接收端，
-不要执行旧的“笔记本开接收端”命令。
+等待图像处理完成后点击“请求FPGA状态”，查看标为“FPGA回读”的模式和面积。
+启动脚本同时提供 mock 网络演示，普通网页统计和预览不能作为 HDMI 实际输出的证据。
+串口默认 COM7；端口必须与板卡实际端口一致。`net_recv.ps1` 已删除，不再执行旧接收命令。
 
 ###
 一定要用上的: 

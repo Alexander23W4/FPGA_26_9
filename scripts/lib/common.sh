@@ -7,6 +7,12 @@
 # =============================================================================
 
 # ------------------------------- 路径 ---------------------------------------
+set -o pipefail
+# Vitis settings prepend an old gnuwin directory to PATH. Its tee.exe fails
+# on Git Bash/MSYS stdout pipes. Use one MSYS tool set for shell operations;
+# Vivado, Vitis and XSCT themselves are invoked by explicit .bat paths below.
+export PATH="/usr/bin:/mingw64/bin:$PATH"
+hash -r
 _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$(cd "${_lib_dir}/.." && pwd)"
 REPO_ROOT="$(cd "${SCRIPTS_DIR}/.." && pwd)"
@@ -84,9 +90,30 @@ git_branch(){ git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || ech
 # ------------------------------ 归档目录 ------------------------------------
 # 用法: OUT=$(new_out_dir)
 new_out_dir() {
-  local d="${OUT_DIR}/$(date +%Y-%m-%d_%H%M%S)_$(git_hash)$(git_dirty)"
-  mkdir -p "$d" || die "无法创建归档目录: $d"
+  mkdir -p "$OUT_DIR" || die "Cannot create $OUT_DIR"
+  local d
+  d="$(mktemp -d "${OUT_DIR}/$(date +%Y-%m-%d_%H%M%S)_$(git_hash)$(git_dirty)_XXXXXX")" \
+    || die "Cannot create a unique archive directory"
   printf '%s' "$d"
+}
+
+# Relative paths let the download helper verify that inputs still match the
+# successful build. Generated build/csrc platform files are not PL inputs.
+pl_input_hashes() {
+  (cd "$REPO_ROOT" && find rtl constrs board ip scripts/tcl -type f \
+    -print0 | sort -z | xargs -0 sha256sum)
+}
+
+ps_input_hashes() {
+  [ -d "$REPO_ROOT/csrc/$1/src" ] || return 0
+  (cd "$REPO_ROOT" && find "csrc/$1/src" -type f -print0 | sort -z | xargs -0 sha256sum)
+}
+
+publish_build() {
+  local out="$1" name="$2" target="$3"
+  printf '%s\n' "$out" > "${OUT_DIR}/latest-${name}-${target}.path.tmp" || return 1
+  mv -f "${OUT_DIR}/latest-${name}-${target}.path.tmp" "${OUT_DIR}/latest-${name}-${target}.path" || return 1
+  printf '%s\n' "$out" > "${OUT_DIR}/latest-${target}.path"
 }
 
 # ------------------------------ MANIFEST ------------------------------------

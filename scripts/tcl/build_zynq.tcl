@@ -32,6 +32,7 @@ if {$name eq "" || $pdir eq ""} {
 }
 
 set script_dir [file normalize [file dirname [info script]]]
+source [file join $script_dir build_freshness.tcl]
 set xpr        [file join $pdir $name "${name}.xpr"]
 set want_hp    [expr {[lsearch -exact $pass "-hp"] >= 0 ? 1 : 0}]
 
@@ -85,21 +86,21 @@ if {[get_property top [current_fileset]] eq ""} {
         set_property top [file rootname [file tail [lindex $wrapper 0]]] [current_fileset]
     }
 }
-update_compile_order -fileset sources_1
+prepare_fresh_bd $bd
 puts "\[build_zynq\] Top module: [get_property top [current_fileset]]"
 
 # --------------------------- 3. 综合 / 实现 / 位流 --------------------------
-# ★★ 必须把所有 *_synth_1 都 reset，不能只 reset 顶层的 synth_1。
-#    BD 里每个 module reference / 每个 IP 都有自己的 OOC 综合 run
-#    （system_top1_0_0_synth_1、system_axi_vdma_0_0_synth_1 ...）。
-#    只 reset synth_1 的话，RTL 改了 Vivado 会把旧网表直接拿去用。
-#    现象是"综合实现位流全都跑了，但新加的端口/寄存器在 FPGA 里根本不存在"，
-#    读它只会得到 default 值 —— 排查时会被这个骗得团团转。实测踩过。
+# Refresh and regeneration above are essential: reset_run alone does not
+# invalidate generated module-reference output products or cached checkpoints.
 puts "\[build_zynq\] Resetting all synthesis runs ..."
-reset_run -quiet synth_1
+foreach r {synth_1 impl_1} {
+    set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs $r]
+    set_property INCREMENTAL_CHECKPOINT {} [get_runs $r]
+    reset_run $r
+}
 set _ooc [get_runs -quiet *_synth_1]
 foreach _r $_ooc {
-    reset_run -quiet $_r
+    reset_run $_r
 }
 puts "\[build_zynq\] OOC synth runs reset: [llength $_ooc]"
 
@@ -120,6 +121,12 @@ if {[get_property PROGRESS [get_runs impl_1]] ne "100%"} {
 }
 puts "\[build_zynq\] Bitstream done"
 
+# Check implemented hardware, not merely RTL or bitstream modification time.
+if {$name eq "fpga_26"} {
+    open_run impl_1
+    verify_pl_registers [file join $pdir $name register_audit.txt]
+}
+
 # --------------------------- 4. 导出硬件平台 .xsa ---------------------------
 puts "\[build_zynq\] Exporting .xsa ..."
 set xsa [file join $pdir $name "${name}.xsa"]
@@ -134,6 +141,7 @@ if {[file exists $xsa]} {
     puts "XSA=$xsa"
 } else {
     puts "!!!NOXSA!!! Failed to generate .xsa"
+    exit 1
 }
 
 set bit [glob -nocomplain -directory [get_property DIRECTORY [get_runs impl_1]] *.bit]
