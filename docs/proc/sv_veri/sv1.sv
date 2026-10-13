@@ -173,6 +173,13 @@ module proc;
         rand bit [31:0] araddr;
         bit arvalid;
         bit rready;
+
+        rand bit [31:0] addr_start;
+        rand bit [31:0] addr_end;
+
+        constraint addr_range_0 {
+            ! (araddr inside {[addr_start: addr_end]})
+        }
         
         constraint addr_range {
             if(arvalid) begin
