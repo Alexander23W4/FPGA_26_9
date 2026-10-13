@@ -77,7 +77,7 @@ break        continue
 
 随机事件控制   rand_mode   pre_randomize
 
-随机数范围约束  constraint
+随机数范围约束  constraint   +   条件约束   生成有规律的随机数列
 
-随机数dist(控制随机权重)
+随机数dist(控制随机权重) 
 

@@ -209,6 +209,47 @@ module proc;
         }
     endclass
 
+    class temp;
+        rand byte addr[4];
+
+        constraint addr_range {
+            foreach (addr[i]) {     // 生成有规律的随机数
+                addr[i] > i * 4;
+                addr[i] < (i + 1) * 8;
+            }
+        }
+    endclass
+
+    // 这个例子更具实用价值: constraint框 内部可以加各种判断来操作随机数约束
+    class axi_write_txn;
+        rand bit [15:0] awaddr;
+        rand bit [31:0] wdata;
+        rand bit [3:0]  wstrb;
+
+        constraint addr_range {
+            awaddr inside {[16'h0000:16'hFFFF]};
+        }
+
+        constraint aligned_addr {
+            awaddr[1:0] == 2'b00;
+        }
+    endclass
+
+// ★: 刚刚我们定义的这些类都是transaction 类
+/*
+    Transaction 类
+    定义事务有哪些字段、哪些值合法
+
+    创建对象并调用 randomize()
+    生成一组满足约束的地址、数据和字节使能
+
+    Driver
+    读取事务字段，按时序驱动 AXI 信号
+
+    DUT
+    接收实际的总线传输
+*/
+
 endmodule
 
 
