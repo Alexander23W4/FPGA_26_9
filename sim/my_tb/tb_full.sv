@@ -167,6 +167,7 @@ module tb_full;
         aw_done = 0;
         w_done = 0;
 
+        // ★: 注意, 这种写法是一次性等待, 只等一次下降沿就过, 只生效一次
         @(negedge clk);    // [Learn] tb的常用激励写法, 下降沿给激励, 上升沿读DUT反馈
         al.awaddr = mode;
         al.awvalid = 1;
@@ -256,7 +257,7 @@ module tb_full;
     task automatic send_pixel(
         input int data
     );
-        @(negedge clk);
+        @(negedge clk);  
         as.tkeep = 1;
         as.tdata = data;
         as.tvalid = 1;

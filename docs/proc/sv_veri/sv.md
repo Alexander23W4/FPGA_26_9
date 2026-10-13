@@ -9,7 +9,13 @@ SV就是为 verilog 的 rtl仿真 服务的
 保留verilog的基本写法                   [仿真器直接连接RTL]
 逻辑语言的基本要素: 变量与计算 流控       [非常丰富]
 作为硬件控制的要素: 时序控制              [#n]
-具有高级语言的要素: task function class  [复用和面向对象]
+具有高级语言的要素: class                [面向对象]
+
+## SV仿真的关注重点:
+给DUT提供流式tb(initial), 观察输出
+
+怎么样能够更好的提供 更充分的tb
+怎么样输出trace, 集成difftest, 选择合适的信号观察波形
 
 # veriations && arr:   变量与计算
 wire reg  integer real time
@@ -55,4 +61,4 @@ repeat       forever
 
 break        continue
 
-# 
+# "@ #":  时序控制

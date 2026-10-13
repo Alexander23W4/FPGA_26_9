@@ -103,4 +103,25 @@ module proc;
         #20 $finish;
     end   
 
+    class temp;
+        rand int a;
+        randc int b;
+    endclass //temp
+
+    initial begin
+        temp tp;
+        tp = new();
+        repeat (10) begin
+            tp.randomize();
+            $display(...);
+        end
+    end
+
+    int a;
+    
+    initial begin
+        
+    end
 endmodule
+
+
