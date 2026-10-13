@@ -73,5 +73,11 @@ break        continue
 
 # randomization
 
-产生随机数   随机数约束
+产生随机数  randomize
+
+随机事件控制   rand_mode   pre_randomize
+
+随机数范围约束  constraint
+
+随机数dist(控制随机权重)
 

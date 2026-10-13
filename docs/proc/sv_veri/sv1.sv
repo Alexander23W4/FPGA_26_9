@@ -164,7 +164,7 @@ module proc;
         tp = new();
 
         repeat(10) begin
-            assert(tp.randomize());
+            assert(tp.randomize());   //
 
         end
     end
@@ -177,14 +177,28 @@ module proc;
         rand bit [31:0] addr_start;
         rand bit [31:0] addr_end;
 
-        constraint addr_range_0 {
-            ! (araddr inside {[addr_start: addr_end]})
+        constraint addr_range_0 {     //
+            ! (araddr inside {[addr_start: addr_end]})   //
         }
         
         constraint addr_range {
             if(arvalid) begin
                 araddr inside {32'h0000, 32'h0f0f};  //
             end
+        }
+    endclass
+
+    // dist 例如大多数时候连续传输像素，偶尔插入传输间隔，或者提高边界像素、特殊寄存器值的测试频率。
+
+    class axi_lite_write;
+        rand bit [31:0] awaddr;
+        rand bit [31:0] wdata;
+
+        constraint wdata_range{
+            wdata dist {                  //
+                [0:32'7fff] := 1,           //
+                [32'8000:32'affff] := 2
+            };
         }
     endclass
 
