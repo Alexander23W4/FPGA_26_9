@@ -2,7 +2,16 @@
 SystemVerilog for design is an extension of Verilog-2005
 SystemVerilog for verification
 
-# veriations && arr:
+## SV的地位
+SV就是为 verilog 的 rtl仿真 服务的
+本质上就是一个兼容verilog写法, C++语言(高级语言)思想, 再融合时序控制的  标准语言
+
+保留verilog的基本写法                   [仿真器直接连接RTL]
+逻辑语言的基本要素: 变量与计算 流控       [非常丰富]
+作为硬件控制的要素: 时序控制              [#n]
+具有高级语言的要素: task function class  [复用和面向对象]
+
+# veriations && arr:   变量与计算
 wire reg  integer real time
 
 类型	位宽	默认有符号性	能表示的数值范围
@@ -32,7 +41,7 @@ name()	returns the string representation of the given enumeration value
 array 
 queue
 
-# assignment && proc_ctrl
+# assignment && proc_ctrl:  流控
 Blocking assignment statements execute in series order. Blocking assignment blocks the execution of the next statement until the completion of the current assignment execution.
 
 注意, 阻塞赋值的本质就是顺序赋值, 也会锁存旧值. 如果rtl错误使用阻塞赋值, 就会综合出锁存器
@@ -46,3 +55,4 @@ repeat       forever
 
 break        continue
 
+# 
