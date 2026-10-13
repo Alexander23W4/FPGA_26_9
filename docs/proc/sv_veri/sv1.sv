@@ -213,6 +213,8 @@ module proc;
         rand byte addr[4];
 
         constraint addr_range {
+            unique {addr}  // unique, 让四个addr都不相同
+
             foreach (addr[i]) {     // 生成有规律的随机数
                 addr[i] > i * 4;
                 addr[i] < (i + 1) * 8;
@@ -237,6 +239,7 @@ module proc;
 
     initial begin
         axi_write_txn tp;
+        byte unsigned data;
         tp = new();
 
         repeat(2) begin
@@ -252,6 +255,10 @@ module proc;
                 $fatal("randomization error!");
             end
         end
+
+        data = $urandom();
+        data = $urandom_range(50, 5);
+
     end
 
 

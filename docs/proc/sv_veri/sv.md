@@ -77,10 +77,13 @@ break        continue
 
 随机事件控制   rand_mode   pre_randomize
 
-2. 随机约束
+2. 随机约束 (所有约束共同决定合法解的集合, 定义先后不决定优先级)
 
 随机数范围约束  constraint   +   条件约束   生成有规律的随机数列
 
 随机数dist(控制随机权重) 
 
-随机约束 可以禁用, 可以static, 可以inline, 可以设置成软约束
+随机约束   :: 可以禁用, 可以static, 可以inline, 可以设置成软约束, 可以unique约束
+
+所有约束共同决定合法解的集合
+
