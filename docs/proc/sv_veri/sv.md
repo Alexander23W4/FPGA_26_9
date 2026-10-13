@@ -2,7 +2,7 @@
 SystemVerilog for design is an extension of Verilog-2005
 SystemVerilog for verification
 
-# veriations:
+# veriations && arr:
 wire reg  integer real time
 
 类型	位宽	默认有符号性	能表示的数值范围
@@ -28,4 +28,14 @@ prev()	returns the value of previous member of the enumeration
 prev(N)	returns the value of previous Nth member of the enumeration
 num()	returns the number of elements in the given enumeration
 name()	returns the string representation of the given enumeration value
+
+array 
+queue
+
+# assignment
+Blocking assignment statements execute in series order. Blocking assignment blocks the execution of the next statement until the completion of the current assignment execution.
+
+注意, 阻塞赋值的本质就是顺序赋值, 也会锁存旧值. 如果rtl错误使用阻塞赋值, 就会综合出锁存器
+
+# proc_ctrl
 
