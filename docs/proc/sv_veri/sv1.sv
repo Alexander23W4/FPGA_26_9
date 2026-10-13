@@ -191,14 +191,21 @@ module proc;
     // dist 例如大多数时候连续传输像素，偶尔插入传输间隔，或者提高边界像素、特殊寄存器值的测试频率。
 
     class axi_lite_write;
-        rand bit [31:0] awaddr;
-        rand bit [31:0] wdata;
+        rand bit [15:0] awaddr;
+        rand bit [15:0] wdata;
 
         constraint wdata_range{
             wdata dist {                  //
-                [0:32'7fff] := 1,           //
-                [32'8000:32'affff] := 2
+                [0:16'h7fff] := 1,           //
+                [16'h8000:16'hffff] := 2
             };
+        }
+
+        constraint awaddr_range{
+            awaddr dist {
+                [0:16'h7fff] := 5,      // 每个都有5份的权重
+                [16'h8000:16'hffff] :/ 10    // 所有分摊10份的权重
+            }
         }
     endclass
 
