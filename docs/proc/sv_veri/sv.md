@@ -32,10 +32,17 @@ name()	returns the string representation of the given enumeration value
 array 
 queue
 
-# assignment
+# assignment && proc_ctrl
 Blocking assignment statements execute in series order. Blocking assignment blocks the execution of the next statement until the completion of the current assignment execution.
 
 注意, 阻塞赋值的本质就是顺序赋值, 也会锁存旧值. 如果rtl错误使用阻塞赋值, 就会综合出锁存器
 
-# proc_ctrl
+
+unique if    priority if
+
+while        do while
+for          foreach
+repeat       forever
+
+break        continue
 

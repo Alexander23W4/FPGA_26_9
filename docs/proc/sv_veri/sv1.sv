@@ -70,3 +70,37 @@ delete( ) –> empties the array, resulting in a zero-sized array.
 
 
 endmodule
+
+module proc;
+
+    initial begin
+        
+        rst = 1;
+
+        repeat(5) begin
+            @(posedge clk) begin
+                $display("%0d", rst);
+            end
+        end
+
+        @(negedge clk);
+        rst = 0;
+    end
+
+    int a;
+    initial begin
+        $display("-----------------------------------------------------------------");
+    
+        forever begin
+        $display("\tValue of a=%0d",a);
+        a++;
+        #5;
+        end
+    
+        $display("-----------------------------------------------------------------");
+    end
+    initial begin
+        #20 $finish;
+    end   
+
+endmodule
