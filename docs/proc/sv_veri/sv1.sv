@@ -169,6 +169,18 @@ module proc;
         end
     end
 
+    class axi_lite_read;
+        rand bit [31:0] araddr;
+        bit arvalid;
+        bit rready;
+        
+        constraint addr_range {
+            if(arvalid) begin
+                araddr inside {32'h0000, 32'h0f0f};  //
+            end
+        }
+    endclass
+
 endmodule
 
 
