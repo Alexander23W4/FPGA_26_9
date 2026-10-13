@@ -35,3 +35,12 @@ $isunknown	系统函数	检查表达式中是否包含 X 或 Z	if ($isunknown(da
 $onehot	系统函数	检查是否恰好有一位为 1	assert ($onehot(sel));
 $onehot0	系统函数	检查至多有一位为 1	assert ($onehot0(sel));
 $past	系统函数（断言语境）	获取前一个采样时钟周期的表达式值	assert (a == $past(b));
+
+
+# 验证
+模块级验证  芯片级验证  系统级验证
+
+
+
+
+
