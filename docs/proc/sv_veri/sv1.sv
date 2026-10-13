@@ -226,14 +226,35 @@ module proc;
         rand bit [31:0] wdata;
         rand bit [3:0]  wstrb;
 
-        constraint addr_range {
-            awaddr inside {[16'h0000:16'hFFFF]};
+        static constraint addr_range {       // 静态 constraint 所有object共享 
+            awaddr inside {[16'h0000:16'h7FFF]};
         }
 
         constraint aligned_addr {
-            awaddr[1:0] == 2'b00;
+            soft awaddr[1:0] == 2'b00;   // 软约束 (尽量满足, 如果冲突就放弃)
         }
     endclass
+
+    initial begin
+        axi_write_txn tp;
+        tp = new();
+
+        repeat(2) begin
+            assert(tp.randomize() with {    // 内联约束(临时约束)
+                awaddr > 16'h3fff;   
+            });
+        end
+
+        ttp.addr_range.constraint_mode(0);   //  所有object都禁用
+
+        repeat(2) begin
+            if(!tp.randomize()) begin
+                $fatal("randomization error!");
+            end
+        end
+    end
+
+
 
 // ★: 刚刚我们定义的这些类都是transaction 类
 /*
