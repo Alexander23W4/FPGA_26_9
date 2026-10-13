@@ -103,7 +103,7 @@ module proc;
         #20 $finish;
     end   
 
-    class temp;
+    class temp
         rand int a;
         randc int b;
     endclass //temp
@@ -118,10 +118,57 @@ module proc;
     end
 
     int a;
-    
+
+    class temp;
+        rand bit [31:0] addr;
+        rand bit [31:0] data;
+    endclass
+
     initial begin
+        temp tp;
+        tp = new();
+
+        tp.addr.random_mode(0);   // disable randomization for addr
         
+        tp.randomize();
     end
+
+    class temp;
+        bit fix_data;
+        rand bit [31:0] data;
+        rand bit [31:0] add;
+        bit [31:0] sum;
+
+        function void pre_randomize();    // 
+            if(fix_data) begin
+                data.rand_mode(0);
+            end else begin
+                data.rand_mode(1);
+            end
+
+            add.rand_mode(!fix_data);
+        endfunction
+
+        function void post_randomize();   // 
+            sum = data + add; 
+        endfunction
+
+        constraint add_range{
+            data > 10;
+        }
+
+    endclass
+
+    initial begin
+        temp tp;
+        tp = new();
+
+        repeat(10) begin
+            assert(tp.randomize());
+
+        end
+    end
+
 endmodule
 
 
