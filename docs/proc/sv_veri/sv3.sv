@@ -111,9 +111,48 @@ module sva;
     @(posedge clk)
         // (a && b) |-> ##1 c |-> ##2 !d;  错误写法
         (a && b) |-> ##1 c ##2 !d;    // 这样写才和p等效
+        (a || b) |-> ##[1:$] (c && d);
   endproperty
 
   assert property(p1);
+
+/*
+操作符	是否要求连续	后续序列何时开始
+b[*3]	是，连续 3 次	紧接连续重复的最后一次匹配
+b[->3]	否，允许间隔	紧接第三次 b 匹配
+b[=3]	否，允许间隔	可以晚于第三次 b 匹配
+*/
+    property p;
+    @(posedge clk)
+        a |-> ##1 b[*3];
+    endproperty
+
+    assert property(p);
+
+    property p;
+    @(posedge clk)
+        a |-> ##1 b[->3] ##1 c;
+        a |-> ##1 b[=3] ##1 c;
+    endproperty
+
+    assert property(p);
+
+// 一些SVA系统函数, 更方便进行 时序规则 的建模
+
+/*
+需求	推荐写法
+检查请求信号出现上升变化	    $rose(req)
+检查请求信号出现下降变化	    $fell(req)
+检查地址连续两个采样点不变	    $stable(addr)
+检查当前响应对应的历史请求	    $past(req, N)
+检查状态机恰好一个状态位有效	$onehot(state)
+检查多个请求中最多一个有效	    $onehot0(req)
+检查总线没有 X/Z	          !$isunknown(bus)
+检查向量中 1 的数量	           $countones(bus)
+*/
+    assert property (@(posedge clk) $rose(a));  
+    assert property (@(posedge clk) $fell(a));  
+    assert property (@(posedge clk) $stable(a));
 
 
 endmodule

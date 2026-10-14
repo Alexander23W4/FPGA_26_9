@@ -77,7 +77,7 @@ break        continue
 
 随机事件控制   rand_mode   pre_randomize
 
-2. 随机约束 (所有约束共同决定合法解的集合, 定义先后不决定优先级)
+2. 随机约束 (所有约束共同决定合法解的集合, 定义先后不决定优先级)     (★★★约束控制)
 
 随机数范围约束  constraint   +   条件约束   生成有规律的随机数列
 
@@ -105,4 +105,4 @@ mailbox 邮箱 [解耦generator&driver]
 
 时序断言 property   
 
-标准时序断言SVA
+标准时序断言SVA  (★★★时序规则的描述)
