@@ -173,11 +173,13 @@ module sva2;
     // syntax不正确
         // seq_1.ended |-> ##2 seq_2.ended;
         // seq_1.ended |-> ##2 seq_2;
-        
+
     // 要用and连接
         seq_1.ended |-> ##2 seq_2.ended and seq_1.ended |-> ##2 seq_2;  
     endproperty
 
 endmodule
+
+
 
 

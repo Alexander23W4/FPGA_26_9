@@ -106,3 +106,11 @@ mailbox 邮箱 [解耦generator&driver]
 时序断言 property   
 
 标准时序断言SVA  (★★★时序规则的描述)
+
+# 覆盖率 coverage
+
+Assertions 检查行为是否正确
+
+Functional Coverage 衡量验证场景是否充分
+
+Code Coverage 帮助发现 RTL 中未被执行的部分。
