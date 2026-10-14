@@ -349,5 +349,101 @@ module ev_test;
     join
   end
 
+  // 时钟块, 在上升沿之前#1读, 之后#2写 (避免和DUT同时读写, 造成不符合预期的仿真行为)
+  clocking cb @(posedge clk);
+    default input #1 output #2;
+    input  from_Dut;
+    output to_Dut;
+  endclocking
+
 endmodule 
+
+
+interface add_if;
+  logic [7:0] a;
+  logic [7:0] b;
+  logic [7:0] result;
+endinterface
+
+module test;
+  class packet;
+    int a;
+    int b;
+
+    constraint add_range{    // ★★★
+      a < 8'h7f;
+      b < 8'h7f;
+    }
+  endclass
+
+  class generator;  // 建一个packet, 建一个mbx   用packet randomize/赋予 数据, 用mbx.put传出去 
+    mailbox mbx;
+    packet pkt;
+
+    function new(mailbox mbx);
+      this.mbx = mbx;
+    endfunction 
+
+    task run;
+      pkt = new();
+      if(pkt.randomize()) begin      // ★★★
+        mbx.put(pkt);         // ★★★
+      end else begin
+        $fatal("error randomization");
+      end
+    endtask
+  endclass
+
+  class driver;
+    mailbox mbx;   // 创建用于接收generator数据的mbx
+    virtual add_if aif;    // 接收实际连接DUT的接口
+    packet pkt;
+
+    function new(mailbox mbx, add_if aif);
+      this.mbx = mbx;
+      this.aif = aif;
+    endfunction 
+
+    task send;
+      mbx.get(pkt);   // ★★★
+      aif.a = pkt.a;  // ★★★ ↓
+      aif.b = pkt.b;
+    endtask
+  endclass
+
+ // 实际 interface, 接到DUT
+  add_if aif;
+
+  initial begin
+    // mailbox
+    mailbox mbx
+    mbx = new();
+
+    generator gen = new(mbx);
+    driver dr = new(mbx);
+
+    // 生成并发送1000组随机数据
+    fork
+      repeat(1000) begin
+        gen.run();   // 生成1000
+      end
+
+      repeat(1000) begin
+        dr.send();   // 发送1000
+      end
+
+      assert(aif.result == aif.a + aif.b);
+    join
+
+  end
+
+endmodule
+
+
+
+
+
+
+
+
 

@@ -71,7 +71,7 @@ break        continue
 
 ## --> tb端:
 
-# randomization
+# 随机激励 randomization
 
 1. 产生随机数  randomize
 
@@ -91,7 +91,7 @@ break        continue
 # 进程协调机制
 fork join  [并行进程]
 
-semaphore 信号量 [模拟资源有限的情况,对同类型并行程序加以限制]
+semaphore 信号量 [模拟资源有限的情况,对"同类型并行程序"加以限制]
 
 mailbox 邮箱 [解耦generator&driver]  
 
