@@ -157,3 +157,27 @@ b[=3]	否，允许间隔	可以晚于第三次 b 匹配
 
 endmodule
 
+
+module sva2;
+
+    property p;
+    @(posedge clk)
+    disable iff (reset)     // property 禁用情形, 如果a |-> ##1 b[->3] ##1 c;中间出现reset == 1, 则取消这次assert
+        a |-> ##1 b[->3] ##1 c;
+    endproperty
+
+    assert property(p);
+
+    property p;
+    @(posedge clk)
+    // syntax不正确
+        // seq_1.ended |-> ##2 seq_2.ended;
+        // seq_1.ended |-> ##2 seq_2;
+        
+    // 要用and连接
+        seq_1.ended |-> ##2 seq_2.ended and seq_1.ended |-> ##2 seq_2;  
+    endproperty
+
+endmodule
+
+
