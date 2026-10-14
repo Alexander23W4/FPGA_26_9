@@ -202,7 +202,7 @@ module test;
     rand bit [15:0] wdata;
 
     constraint awaddr_range {
-      awaddr[1:0] = 2'b00;
+      awaddr[1:0] == 2'b00;
       awaddr inside {[16'h0000: 16'h3fff]};
     }
 
@@ -221,15 +221,16 @@ module test;
     task run;
       pkt = new();
       if(pkt.randomize()) begin
-        mb.put(pkt);
+        mb.put(pkt);            // 
       end else begin
-        $fatal("tandomization error");
+        $fatal(1, "tandomization error");
       end
     endtask
 
   endclass
 
   class driver;   // 从mb中取pkt, 然后send
+    axi_packet pkt;
     mailbox #(axi_packet) mb;
 
     function new (mailbox #(axi_packet) mb);
@@ -237,6 +238,7 @@ module test;
     endfunction
 
     task send;
+      mb.get(pkt);
       bit aw_done;
       bit w_done;
 
@@ -244,11 +246,11 @@ module test;
       w_done = 0;
 
       @(negedge clk);
-      axr.awaddr = mb.addr;
+      axr.awaddr = pkt.awaddr;
       axr.awvalid = 1;
       axr.wvalid = 1;
       axr.wstrb = 2'b11;
-      axr.wdata = mb.data;
+      axr.wdata = pkt.wdata;
 
       while(!(aw_done && w_done)) begin
         @(posedge clk);
@@ -274,18 +276,23 @@ module test;
 
   endclass
 
+  axi_lite_write axr;
 
   initial begin
-    mailbox #(axi_packet) mb;
+    mailbox #(axi_packet) mb = new();
 
     generator gen = new(mb);
     driver dr = new(mb);
 
-
+    fork
+      repeat(10) begin
+        gen.run();
+        dr.send();
+      end
+    join
 
   end
 
-  
 
 endmodule
 
