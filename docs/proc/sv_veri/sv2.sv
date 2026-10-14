@@ -284,9 +284,12 @@ module test;
     generator gen = new(mb);
     driver dr = new(mb);
 
-    fork
+    fork    // 这样写, generator和driver完全并行, 中间mailbox充当queue的传递作用
       repeat(10) begin
         gen.run();
+      end
+
+      repeat(10) begin
         dr.send();
       end
     join
@@ -295,4 +298,38 @@ module test;
 
 
 endmodule
+
+
+// 用event进行流程先后的准确控制, 适合需要 明确先后顺序 的 激励流场景
+module ev_test;
+  event ev;
+
+  initial begin
+    -> ev;
+    #10;
+    @(ev);
+    $display("received");
+  end
+
+  event ev1;
+
+  initial begin
+    -> ev1;
+    #10;
+    fork
+      begin
+        repeat(5) begin
+          #5;
+          ->ev1;
+        end
+      end
+
+      begin
+        wait(ev1.triggered);    // 会在#15, 20, 25...触发display
+        $display("ev1 is triggered");
+      end
+    join
+  end
+
+endmodule 
 
