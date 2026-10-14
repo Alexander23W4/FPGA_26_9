@@ -103,4 +103,6 @@ mailbox 邮箱 [解耦generator&driver]
 
 逻辑断言    
 
-时序断言 property
+时序断言 property   
+
+标准时序断言SVA
