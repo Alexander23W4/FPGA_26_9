@@ -87,3 +87,11 @@ break        continue
 
 所有约束共同决定合法解的集合
 
+
+# 进程协调机制类
+semaphore 信号量 [模拟资源有限的情况]
+
+mailbox 邮箱 [解耦generator&driver]  
+
+
+

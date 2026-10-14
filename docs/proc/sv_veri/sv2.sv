@@ -122,9 +122,9 @@ module test;
 
     sema = new(1);
 
-    forkw
-      if(tp1.randomize()) begin
-        send(tp1.awaddr, tp1.wdata, 1);
+    fork
+      if(tp1.randomize()) begin   // ↑ generator 创建并随机化 packet
+        send(tp1.awaddr, tp1.wdata, 1);   // driver
       end else begin
         $fatal("randomization error");
       end
@@ -177,3 +177,115 @@ module test;
 
 
 endmodule
+
+/*
+Generator
+创建 transaction 对象，随机化地址和数据
+
+Mailbox
+缓存 transaction，协调 put() 和 get()
+
+Driver
+取出 transaction，驱动 AXI-Lite，等待写响应
+
+DUT
+
+
+这里的关键是：generator 不再调用 send()，
+而是把 transaction 放进 mailbox；driver 自己从 mailbox 取出 transaction，再调用 AXI 驱动逻辑。
+*/
+
+module test;
+
+  class axi_packet;
+    rand bit [15:0] awaddr;
+    rand bit [15:0] wdata;
+
+    constraint awaddr_range {
+      awaddr[1:0] = 2'b00;
+      awaddr inside {[16'h0000: 16'h3fff]};
+    }
+
+  endclass
+
+  class generator;
+  
+    mailbox #(axi_packet) mb;
+    axi_packet pkt;
+
+    function new (mailbox #(axi_packet) mb);   // 初始化generator object的时候传递mb
+      this.mb = mb;
+    endfunction
+
+    // 产生随机axi_packet值, 并传递给mailbox
+    task run;
+      pkt = new();
+      if(pkt.randomize()) begin
+        mb.put(pkt);
+      end else begin
+        $fatal("tandomization error");
+      end
+    endtask
+
+  endclass
+
+  class driver;   // 从mb中取pkt, 然后send
+    mailbox #(axi_packet) mb;
+
+    function new (mailbox #(axi_packet) mb);
+      this.mb = mb;
+    endfunction
+
+    task send;
+      bit aw_done;
+      bit w_done;
+
+      aw_done = 0;
+      w_done = 0;
+
+      @(negedge clk);
+      axr.awaddr = mb.addr;
+      axr.awvalid = 1;
+      axr.wvalid = 1;
+      axr.wstrb = 2'b11;
+      axr.wdata = mb.data;
+
+      while(!(aw_done && w_done)) begin
+        @(posedge clk);
+        if(axr.awready) aw_done = 1;
+        if(axr.wready) w_done = 1;
+
+        @(negedge clk);
+        if(aw_done) axr.awvalid = 0;
+        if(w_done) axr.wvalid = 0;
+      end
+
+      @(negedge clk);
+      axr.bready = 1;
+
+      while(!(axr.bvalid && axr.bready)) begin   // 满足条件, 则说明上个上升沿已经完成握手, 可以退出
+        @(posedge clk);   // 推上升沿
+      end
+
+      @(negedge clk);
+      axr.bready = 0;
+
+    endtask
+
+  endclass
+
+
+  initial begin
+    mailbox #(axi_packet) mb;
+
+    generator gen = new(mb);
+    driver dr = new(mb);
+
+
+
+  end
+
+  
+
+endmodule
+
