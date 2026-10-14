@@ -55,7 +55,7 @@ module IPC;
 
   //display method
   task automatic display(int key);
-    sema.get(key); 
+    sema.get(key);     // 如果没有get成功, 就会阻塞在这条
     $display($time,"\tCurrent Simulation Time, Got %0d keys",key);
     #30;
     sema.put(key); 
@@ -88,25 +88,57 @@ module test;
 
     constraint awaddr_range {
       awaddr[1:0] = 2'b00;
-      awaddr inside [16'h0000: 16'h3fff];
+      awaddr inside {[16'h0000: 16'h3fff]};
     }
 
   endclass
 
+  axi_lite_write axr;
+  semaphore sema;
+
   initial begin
     axi_test tp;
-    axi_lite_write axr;
     tp = new();  
 
-    fork
-      tp.randomize();
-      send(tp.awaddr, tp.wdata);
-      tp.randomize();
-      send(tp.awaddr, tp.wdata);
+    sema = new(1);
+
+    // fork    // 这个是在示范一种会导致ub的多驱动错误写法 (如果不加sema)
+    //   if(tp.randomize()) begin
+    //     send(tp.awaddr, tp.wdata, 1);
+    //   end
+    
+    //   if(tp.randomize()) begin
+    //     send(tp.awaddr, tp.wdata, 1);
+    //   end
+    // join
+
+  end
+
+  initial begin
+    axi_test tp1;
+    axi_test tp2;
+    tp1 = new();
+    tp2 = new();
+
+    sema = new(1);
+
+    forkw
+      if(tp1.randomize()) begin
+        send(tp1.awaddr, tp1.wdata, 1);
+      end else begin
+        $fatal("randomization error");
+      end
+      if(tp2.randomize()) begin
+        send(tp2.awaddr, tp2.wdata, 1);
+      end else begin
+        $fatal("randomization error");
+      end
     join
   end
 
-  task send(bit [15:0] addr, bit [15:0] data);
+  task send(bit [15:0] addr, bit [15:0] data, int key_req);
+    sema.get(key_req);
+
     bit aw_done;
     bit w_done;
 
@@ -118,6 +150,7 @@ module test;
     axr.awvalid = 1;
     axr.wvalid = 1;
     axr.wstrb = 2'b11;
+    axr.wdata = data;
 
     while(!(aw_done && w_done)) begin
       @(posedge clk);
@@ -136,7 +169,10 @@ module test;
       @(posedge clk);   // 推上升沿
     end
 
+    @(negedge clk);
+    axr.bready = 0;
 
+    sema.put(key_req);
   endtask
 
 
