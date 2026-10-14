@@ -7,7 +7,8 @@ module IPC;
     initial begin
         sema = new(1);
 
-        fork    // 这里同时创建了两个进程
+      // 这里example 是经典的 fork并行 + semaphore模拟资源有限的情况
+        fork    // 这里同时创建了两个进程  fork...join 是 SystemVerilog 中用于并行启动多个进程，并等待它们全部结束
             display();
             display();
         join
@@ -22,6 +23,23 @@ module IPC;
 
         sema.put();
     endtask
+
+    task automatic pdisplay();
+      $display($time, "\tCurrent Simulation Time");
+      #30;
+    endtask
+
+    initial begin   // 普通这么写, 就是默认的顺序实行, #0打印一次, #30打印一次
+      pdisplay();
+      pdisplay();
+    end
+
+    initial begin
+      fork
+        pdisplay();
+        pdisplay();
+      join
+    end
 
 
   initial begin
@@ -41,6 +59,84 @@ module IPC;
     $display($time,"\tCurrent Simulation Time, Got %0d keys",key);
     #30;
     sema.put(key); 
+  endtask
+
+
+endmodule
+
+
+interface axi_lite_write;
+    logic [15:0] awaddr;
+    logic        awvalid;
+    logic        awready;
+
+    logic [15:0] wdata;
+    logic [1:0]  wstrb;
+    logic        wvalid;
+    logic        wready;
+
+    logic [1:0]  bresp;
+    logic        bvalid;
+    logic        bready;
+endinterface //axi_lite_read
+
+module test;
+
+  class axi_test;
+    rand bit [15:0] awaddr;
+    rand bit [15:0] wdata;
+
+    constraint awaddr_range {
+      awaddr[1:0] = 2'b00;
+      awaddr inside [16'h0000: 16'h3fff];
+    }
+
+  endclass
+
+  initial begin
+    axi_test tp;
+    axi_lite_write axr;
+    tp = new();  
+
+    fork
+      tp.randomize();
+      send(tp.awaddr, tp.wdata);
+      tp.randomize();
+      send(tp.awaddr, tp.wdata);
+    join
+  end
+
+  task send(bit [15:0] addr, bit [15:0] data);
+    bit aw_done;
+    bit w_done;
+
+    aw_done = 0;
+    w_done = 0;
+
+    @(negedge clk);
+    axr.awaddr = addr;
+    axr.awvalid = 1;
+    axr.wvalid = 1;
+    axr.wstrb = 2'b11;
+
+    while(!(aw_done && w_done)) begin
+      @(posedge clk);
+      if(axr.awready) aw_done = 1;
+      if(axr.wready) w_done = 1;
+
+      @(negedge clk);
+      if(aw_done) axr.awvalid = 0;
+      if(w_done) axr.wvalid = 0;
+    end
+
+    @(negedge clk);
+    axr.bready = 1;
+
+    while(!(axr.bvalid && axr.bready)) begin   // 满足条件, 则说明上个上升沿已经完成握手, 可以退出
+      @(posedge clk);   // 推上升沿
+    end
+
+
   endtask
 
 
