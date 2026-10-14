@@ -88,8 +88,10 @@ break        continue
 所有约束共同决定合法解的集合
 
 
-# 进程协调机制类
-semaphore 信号量 [模拟资源有限的情况]
+# 进程协调机制
+fork join  [并行进程]
+
+semaphore 信号量 [模拟资源有限的情况,对同类型并行程序加以限制]
 
 mailbox 邮箱 [解耦generator&driver]  
 

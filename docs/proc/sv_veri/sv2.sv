@@ -231,10 +231,13 @@ module test;
 
   class driver;   // 从mb中取pkt, 然后send
     axi_packet pkt;
+    virtual axi_lite_write axr;  // 这边用一个 虚拟接口 用new函数把真正连到DUT的接口取过来给虚拟接口, 在driver里面驱动虚拟接口
+
     mailbox #(axi_packet) mb;
 
-    function new (mailbox #(axi_packet) mb);
+    function new (mailbox #(axi_packet) mb, axi_lite_write axr);
       this.mb = mb;
+      this.axr = axr;
     endfunction
 
     task send;
@@ -276,13 +279,13 @@ module test;
 
   endclass
 
-  axi_lite_write axr;
+  axi_lite_write axr;   // 实际连到DUT的接口
 
   initial begin
     mailbox #(axi_packet) mb = new();
 
     generator gen = new(mb);
-    driver dr = new(mb);
+    driver dr = new(mb, axr);  // 传实际接口给driver
 
     fork    // 这样写, generator和driver完全并行, 中间mailbox充当queue的传递作用
       repeat(10) begin
@@ -306,8 +309,7 @@ module ev_test;
 
   initial begin
     -> ev;
-    #10;
-    @(ev);
+    @(ev);    // 不会触发
     $display("received");
   end
 
@@ -325,8 +327,24 @@ module ev_test;
       end
 
       begin
-        wait(ev1.triggered);    // 会在#15, 20, 25...触发display
+        wait(ev1.triggered);    // 会在#15, 20, 25...触发display   wait 能观察到当前仿真时间槽内事件已经触发的状态
         $display("ev1 is triggered");
+      end
+    join
+  end
+
+  event ev2, ev3;
+
+  initial begin
+    fork
+      begin
+        #5;
+        ->ev2;
+        #5;
+        ->ev3;
+      end
+      begin
+        wait_order(ev2, ev3) else $display("error");
       end
     join
   end
