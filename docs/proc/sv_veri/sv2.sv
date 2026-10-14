@@ -493,6 +493,42 @@ module sva;
   assert property (p1);
   assert property (p2);
 
+sequence seq_1;
+  @(posedge clk) a == 1;
+endsequence
+
+assert property (seq_1);
+
+property p1;
+  @(posedge clk) a == 1;
+endproperty
+
+assert property (p1);
+
+
+sequence seq;
+  a || b;
+endsequence
+
+sequence seq1;
+  c == 0;
+endsequence
+
+// 错误写法
+// property p;
+//   @(posedge clk);
+//   !a |-> seq;
+//   seq1;
+// endproperty
+
+property p;
+  @(posedge clk)
+    (!a |-> seq) and seq1;
+endproperty
+
+
+assert property (p);
+
 endmodule
 
 

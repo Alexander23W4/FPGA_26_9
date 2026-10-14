@@ -99,7 +99,7 @@ mailbox 邮箱 [解耦generator&driver]
 
 ## --> monitor端:
 
-# 断言 assert (把规则写成断言, 实时发现任何不合理的地方)
+# 断言 assert (把规则写成断言, 仿真中及时发现任何规则违反)
 
 逻辑断言    
 
