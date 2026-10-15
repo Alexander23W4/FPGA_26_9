@@ -144,3 +144,42 @@ program p_check(input logic clk, input logic q);
         $display("Reactive program: t=%0t q=%0b", $time, q);
     end
 endprogram
+
+
+
+// What is the difference between the clocking block and modport?
+// 这两个都可以定义到interface里面, 来定义接口的仿真驱动 时序 & 方向  
+
+
+// What is scope randomization?     
+// 对当前作用域中的变量进行随机化，常见方式是使用系统任务 std::randomize()
+module tb;
+    int a, b;
+
+    initial begin
+        if (std::randomize(a, b) with {
+            a inside {[1:10]};
+            b == a * 2;
+        }) begin
+            $display("a=%0d, b=%0d", a, b);
+        end
+        else begin
+            $display("Randomization failed");
+        end
+    end
+endmodule
+
+// What are automatic variables?
+// automatic可以让这个task并行调用, 互相不干扰
+
+task automatic count();
+    int i = 0;
+    i++;
+    $display("i = %0d", i);
+endtask
+
+initial begin
+    count();
+    count();
+    count();
+end

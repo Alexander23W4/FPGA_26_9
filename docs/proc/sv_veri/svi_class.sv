@@ -140,3 +140,16 @@ module tb;
         $display("p1.data   = %0d", p1.data);
     end
 endmodule
+
+
+
+// What is the use of extern?   类外声明
+class Packet;
+    int addr;
+
+    extern function void print_addr();
+endclass
+
+function void Packet::print_addr();
+    $display("addr = %0d", addr);
+endfunction
