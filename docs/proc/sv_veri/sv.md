@@ -95,14 +95,14 @@ break        continue
 所有约束共同决定合法解的集合
 
 
-# 进程协调机制
+# 仿真/进程协调机制/驱动时机
 fork join  [并行进程]
 
 semaphore 信号量 [模拟资源有限的情况,对"同类型并行程序"加以限制]
 
 mailbox 邮箱 [解耦generator&driver]  
 
-
+clocking 块 [避免竞争]              (★★★围绕同步事件在正确的时机驱动激励信号)
 
 ## --> monitor端:
 
@@ -112,7 +112,7 @@ mailbox 邮箱 [解耦generator&driver]
 
 时序断言 property   
 
-标准时序断言SVA     (★★★时序规则的描述)
+标准时序断言SVA              (★★★时序规则的描述)
 
 # 覆盖率 coverage
 
@@ -127,3 +127,11 @@ Code Coverage 帮助发现 RTL 中未被执行的部分。
 
     This includes the execution of design blocks, Number of Lines, Conditions, FSM, Toggle and Path.
     The simulator tool will automatically extract the code coverage from the design code.
+
+# 输出 trace
+
+display
+
+strobe
+
+monitor

@@ -92,3 +92,13 @@ program p_check(input logic clk, input logic q);
         $display("Reactive program: t=%0t q=%0b", $time, q);
     end
 endprogram
+
+
+
+// What is the Difference between SystemVerilog packed and unpacked array?
+bit [2:0][7:0] a;     // 两个 packed 维度
+bit [7:0] b [2:0];    // 一个 packed 维度 + 一个 unpacked 维度
+
+
+// in SystemVerilog which array type is preferred for memory declaration and why?
+logic [7:0] mem [0:1023];
