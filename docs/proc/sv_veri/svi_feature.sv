@@ -183,3 +183,14 @@ initial begin
     count();
     count();
 end
+
+
+// Explain the difference between fork-join, fork-join_none, and fork- join_any?
+/*
+    语法	父进程何时继续执行？	子进程是否自动终止？
+    fork...join	所有子进程完成后	不会自动终止其他进程
+    fork...join_any	任意一个子进程完成后	不会自动终止其他进程
+    fork...join_none	不等待子进程完成，立即继续	不会自动终止子进程
+*/
+
+

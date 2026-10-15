@@ -174,3 +174,61 @@ class Child extends Parent;
     endfunction
 endclass
 
+
+// What is inheritance and polymorphism?   继承  多态
+class Animal;
+    int age;
+
+    function void eat();
+        $display("Animal is eating");
+    endfunction
+endclass
+
+class Dog extends Animal;
+    function void bark();
+        $display("Dog is barking");
+    endfunction
+endclass
+
+module tb;
+    initial begin
+        Dog d = new();
+
+        d.age = 3;    // 继承自 Animal
+        d.eat();      // 继承自 Animal
+        d.bark();     // Dog 自己的方法
+    end
+endmodule
+
+
+class Animal;
+    virtual function void speak();   //
+        $display("Animal sound");
+    endfunction
+endclass
+
+class Dog extends Animal;
+    function void speak();
+        $display("Woof");
+    endfunction
+endclass
+
+class Cat extends Animal;
+    function void speak();
+        $display("Meow");
+    endfunction
+endclass
+
+module tb;
+    Animal a;
+    Dog d = new();
+    Cat c = new();
+
+    initial begin
+        a = d;
+        a.speak();  // Woof
+
+        a = c;
+        a.speak();  // Meow
+    end
+endmodule

@@ -120,3 +120,9 @@ DUT Interface
 2. Non-blocking assignment：<=
 右侧表达式在执行该语句时求值，左侧变量的更新则安排在当前时间步的 NBA（Non-Blocking Assignment）区域进行。
 */
+
+
+
+// Explain the difference between new( ) and new[ ] ?
+
+
