@@ -5,7 +5,7 @@ class generator;
     packet pkt;
     mailbox mbx;
 
-    event gen_end;   // ★
+    event gen_ended;   // ★
     int repeat_cnt;    //
 
     function new(mailbox mbx);
@@ -25,7 +25,7 @@ class generator;
                 $fatal("error randomization");
             end
         end
-        ->gen_end;  // 
+        ->gen_ended;  // 
     endtask
 
 endclass
