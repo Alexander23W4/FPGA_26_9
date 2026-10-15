@@ -18,6 +18,7 @@ class env;
     driver dr;
     monitor mon;
     scoreboard scb;
+    cov cov;
 
     mailbox mbx_t, mbx_m;
 
@@ -33,6 +34,8 @@ class env;
         dr = new(mbx_t, itf);
         mon = new(mbx_m, itf);
         scb = new(mbx_m);
+
+        cov = new(itf);
     endfunction
 
     task pre_test();
@@ -51,6 +54,8 @@ class env;
     task post_test();
         wait(gen.ended.triggered);    // gen里面的gen.ended事件在这里用上了, 控制仿真结束
         wait(gen.repeat_count == driv.no_transactions);
+
+        cov.cg.get_coverage();   // 
     endtask
 
     task run;
