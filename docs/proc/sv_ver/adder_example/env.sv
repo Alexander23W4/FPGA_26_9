@@ -23,7 +23,7 @@ class env;
 
     virtual intf itf;
 
-    function new(intf itf, int veri_round);   // [初始化] new 的作用就是把这个class(新object)里面的 变量/类 能初始化的都初始化好
+    function new(intf itf);   // [初始化] new 的作用就是把这个class(新object)里面的 变量/类 能初始化的都初始化好
         this.itf = itf;
 
         mbx_t = new();
@@ -33,8 +33,6 @@ class env;
         dr = new(mbx_t, itf);
         mon = new(mbx_m, itf);
         scb = new(mbx_m);
-
-        gen.repeat = veri_round;  //
     endfunction
 
     task pre_test();
