@@ -175,6 +175,7 @@ class Child extends Parent;
 endclass
 
 
+
 // What is inheritance and polymorphism?   继承  多态
 class Animal;
     int age;
@@ -232,3 +233,45 @@ module tb;
         a.speak();  // Meow
     end
 endmodule
+
+
+// What is callback?
+class Driver;
+    virtual task pre_send();
+        // 默认不做任何事
+    endtask
+
+    task send();
+        pre_send();  // 回调点
+        $display("Sending transaction");
+    endtask
+endclass
+
+class MyDriver extends Driver;
+    virtual task pre_send();
+        $display("Custom action before sending");
+    endtask
+endclass
+
+module tb;
+    initial begin
+        MyDriver d = new();
+        d.send();
+    end
+endmodule
+
+
+// What is “super “?   子类内部调用父类的方法
+
+class Animal;
+    virtual function void speak();
+        $display("Animal sound");
+    endfunction
+endclass
+
+class Dog extends Animal;
+    function void speak();
+        super.speak();  // 
+        $display("Woof!");
+    endfunction
+endclass

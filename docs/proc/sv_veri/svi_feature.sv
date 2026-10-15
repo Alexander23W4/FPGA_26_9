@@ -194,3 +194,23 @@ end
 */
 
 
+// ★★★ What is constraint solve-before?   使约束限制具有先后顺序
+
+class Packet;
+    rand bit [1:0] mode;
+    rand bit [7:0] len;
+
+    constraint c {
+        mode inside {[0:2]};
+        if (mode == 0)
+            len == 10;
+        else
+            len == 20;
+
+        solve mode before len; //
+    }
+endclass
+
+
+// What are illegal bins? Is it good to use it and why?
+// 一般来说不用illegal bins, 而是用assert来检查 是否出现 不符合预期的行为
