@@ -153,3 +153,24 @@ endclass
 function void Packet::print_addr();
     $display("addr = %0d", addr);
 endfunction
+
+
+// What is the scope of local and private variables?  类内变量可访问性  local protected public(默认)
+class Parent;
+    local     int a = 10;
+    protected int b = 20;
+             int c = 30;
+
+    function void show();
+        $display("a=%0d b=%0d c=%0d", a, b, c);
+    endfunction
+endclass
+
+class Child extends Parent;
+    function void test();
+        // $display("%0d", a); // 编译错误：local 成员不可由派生类访问
+        $display("%0d", b);    // 合法：protected 成员可由派生类访问
+        $display("%0d", c);    // 合法：默认公开访问
+    endfunction
+endclass
+
