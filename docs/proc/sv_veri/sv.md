@@ -12,10 +12,17 @@ SV就是为 verilog 的 rtl仿真 服务的
 具有高级语言的要素: class                [面向对象]
 
 ## SV仿真的关注重点:
-给DUT提供流式tb(initial), 观察输出
 
 怎么样能够更好的提供 更充分的tb
 怎么样输出trace, 集成difftest, 选择合适的信号观察波形
+
+仿真的重点就是: 
+输入:
+    尽可能贴合实际(约束,dist..) 尽可能充分(randomize) 的tb
+
+输出:
+    统计验证是否充分(coverage)
+    输出更关键的信息方便debug (assert, display, scoreboard, 包括输出值,波形的选择)
 
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
@@ -105,12 +112,18 @@ mailbox 邮箱 [解耦generator&driver]
 
 时序断言 property   
 
-标准时序断言SVA  (★★★时序规则的描述)
+标准时序断言SVA     (★★★时序规则的描述)
 
 # 覆盖率 coverage
 
-Assertions 检查行为是否正确
-
 Functional Coverage 衡量验证场景是否充分
 
+    [ Data-oriented Coverage ] – Checks combinations of data values have occurred. We can get Data-oriented coverage by writing Coverage groups, coverage points and also by cross coverage
+
+    [ Control-oriented Coverage ] – Checks whether sequences of behaviors have occurred. We can get assertion coverage by writing SystemVerilog Assertions
+
+
 Code Coverage 帮助发现 RTL 中未被执行的部分。
+
+    This includes the execution of design blocks, Number of Lines, Conditions, FSM, Toggle and Path.
+    The simulator tool will automatically extract the code coverage from the design code.
