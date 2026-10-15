@@ -1,58 +1,43 @@
 
+`include "environment.sv"
+`include "adder.sv"
 
-// DUT: 
-module adder (
-    input  logic       clk,
-    input  logic       reset,
-    input  logic [7:0] a,
-    input  logic [7:0] b,
-    input  logic       valid,
-    output logic [8:0] c
-);
-    reg larger_a;
+`timescale 1ps/1ps
 
-    always_ff @(posedge clk) begin
-        if (reset) begin
-            c <= '0;
-            larger_a <= 1'b0;
-        end
-        else if (valid) begin
-            c <= a + b;
-        end
+module top;
+  logic clk;
+  logic reset;
 
-        if(a > b) begin
-            larger_a <= 1'b1;
-        end else begin
-            larger_a <= 1'b0;
-        end
+  intf itf;
+
+  adder dut(
+    .a(itf.a),
+    .b(itf.b),
+    .c(itf.c),
+    .valid(itf.valid),
+    .clk(clk),
+    .reset(reset)
+  );
+
+  always #5 clk = ~clk;
+
+  initial begin
+    // ★: 这个放到最前面, 从最开始就记录波形
+    $dumpfile("dump.vcd"); 
+    $dumpvars;
+    
+    env = new(itf);
+
+    @(negedge clk);
+    reset = 1;
+    repeat(5) begin
+      @(posedge clk);
     end
+    @(negedge clk);
+    reset = 0;
+
+    env.run();
+    
+  end
 
 endmodule
-
-
-// interface   用来连接DUT
-interface intf;
-    logic [7:0] a;
-    logic [7:0] b;
-    logic [8:0] c;
-    // logic reset;    // ★  这里interface 不需要 reset & clk, 直接从仿真top连接
-    // logic clk;
-    logic valid;
-endinterface
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
