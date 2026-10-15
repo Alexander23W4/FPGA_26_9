@@ -39,7 +39,7 @@ module fifo_assert (
     assert property (no_write_when_full);
 endmodule
 
-bind fifo fifo_assert u_fifo_assert (   // bind
+bind fifo fifo_assert u_fifo_assert (   // bind    ★ 可以绑定到具体实例, 也可以泛泛地绑定到module(将自动绑定所有实例)
     .clk   (clk),
     .rst_n (rst_n),
     .wr_en (wr_en),

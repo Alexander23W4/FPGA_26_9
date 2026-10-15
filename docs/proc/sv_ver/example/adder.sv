@@ -14,13 +14,21 @@ module adder (
     input  logic       valid,
     output logic [8:0] c
 );
+    reg larger_a;
 
     always_ff @(posedge clk) begin
         if (reset) begin
             c <= '0;
+            larger_a <= 1'b0;
         end
         else if (valid) begin
             c <= a + b;
+        end
+
+        if(a > b) begin
+            larger_a <= 1'b1;
+        end else begin
+            larger_a <= 1'b0;
         end
     end
 
@@ -43,6 +51,7 @@ class packet;
     rand bit [7:0] a;
     randc bit [7:0] b;
     bit [8:0] c;
+    bit larger_a;
 
     constraint a_range {
         unique a;
@@ -53,7 +62,38 @@ class packet;
         b inside {[8'h20:$]};
     }
 
+    function void display(string name);    // ★: 这只是一个仿真的流程输出, 并不属于trace, 没有监视DUT的内部状态
+        $display("-------------------------");
+        $display("- %s ",name);
+        $display("-------------------------");
+        $display("- a = %0d, b = %0d",a,b);
+        $display("- c = %0d",c);
+        $display("-------------------------");
+    endfunction
 endclass
+
+
+/*
+    // 这个adder并不是状态机, DUT内部没有reg存储任何状态. 
+    // ★: 如果是状态机DUT, 则可以通过输出内部状态输出更丰富的trace
+
+    可以使用下面这个方法, 用bind在仿真顶层连接checker[module], checker这个module可以专门输出trace
+
+    module dut_checker (
+        input logic clk,
+        input logic larger_a
+    );
+        always @(posedge clk) begin
+            $display("[TRACE] time=%0t larger_a=%0b",
+                    $time, larger_a);
+        end
+    endmodule
+
+    bind dut dut_checker checker_inst (
+        .clk      (clk),
+        .larger_a (larger_a)
+    ); 
+*/
 
 
 // generator 产生一个随机transaction激励, 通过mailbox传给driver
@@ -69,7 +109,7 @@ class generator;
         this.mbx = mbx;
     endfunction
 
-    function gen;
+    task gen;
         pkt = new();
         repeat(repeat_cnt) begin
             if(pkt.randomize()) begin
@@ -79,10 +119,39 @@ class generator;
             end
         end
         ->gen_end;  // 
-    endfunction
+    endtask
 
 endclass
 
+
+// driver 从mailbox中获取激励值并用transaction接收, 按照接口时序驱动连接DUT的接口信号
+class driver;
+    int num_transac;   // driver计数
+    mailbox mbx;
+    virtual intf itf;
+    packet pkt;
+
+    function new(mailbox mbx, intf itf);
+        this.mbx = mbx;
+        this.itf = itf;
+    endfunction
+
+    task send;
+        mbx.get(pkt);
+        itf.valid = 0;
+        itf.a = pkt.a;
+        itf.b = pkt.b;
+
+        @(negedge clk);
+        itf.valid = 1;
+
+        @(negedge clk);
+        itf.valid = 0;
+
+        num_transac++;
+    endtask
+
+endcalss
 
 
 class monitor;
@@ -98,4 +167,9 @@ class monitor;
     task samp;
 
     endtask
+
 endclass
+
+
+
+
