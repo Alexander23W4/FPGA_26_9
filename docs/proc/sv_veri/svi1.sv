@@ -10,7 +10,7 @@ module itv;
 
 endmodule
 
-// Explain the simulation phases of SystemVerilog verification?   仿真阶段
+// ★★★ Explain the simulation phases of SystemVerilog verification?   仿真阶段
 
 /*
 1.1 主要事件区域
@@ -29,10 +29,13 @@ Postponed	在当前时间槽末尾观察最终值	$strobe、$monitor 的输出�
 /*
     事件区域	对应代码	在第一个上升沿 t=5 的行为
     Preponed	assert property 的采样	采样到 q=0
+
     Active	$display、q <= ~q 的右值计算	打印 q=0，计算出新值 1
     Inactive	#0 后的 $display	仍然打印 q=0
     NBA	q <= ~q 的更新	q 更新为 1
+
     Observed	q == 0 的断言求值	使用采样值 0，断言通过
+
     Reactive	program 过程、断言失败动作块	program 看到更新后的 q=1；断言失败动作块此时不执行
     Postponed	$strobe、$monitor 的输出	观察到 q=1
 
@@ -99,6 +102,128 @@ endprogram
 bit [2:0][7:0] a;     // 两个 packed 维度
 bit [7:0] b [2:0];    // 一个 packed 维度 + 一个 unpacked 维度
 
-
 // in SystemVerilog which array type is preferred for memory declaration and why?
 logic [7:0] mem [0:1023];
+
+
+
+
+// What is the difference between logic and bit in SystemVerilog?
+
+/*
+SystemVerilog 中，bit 和 logic 的核心区别是：
+    bit 是二态数据类型，只能表示 0 和 1；             默认值为 0。
+    logic 是四态数据类型，可以表示 0、1、X 和 Z。     默认值为 X。
+
+    X：未知值，例如仿真中尚未初始化的寄存器。
+    Z：高阻态，常用于建模三态信号。
+*/
+
+
+// What is the difference between datatype logic and wire?
+// 这里要强调 过程赋值  连续赋值  这两个定义
+
+
+
+
+// What is an abstract class?   抽象类  这个可以在定义 transaction 和 不同用途的的 generator 时使用
+virtual class Transaction;
+
+    int id;
+
+    function new(int id);
+        this.id = id;
+    endfunction
+
+    pure virtual function void display();
+
+endclass
+
+class ReadTransaction extends Transaction;
+
+    function new(int id);
+        super.new(id);
+    endfunction
+
+    function void display();
+        $display("Read transaction, id=%0d", id);
+    endfunction
+
+endclass
+
+// ★★★ What is DPI?
+/*
+DPI（Direct Programming Interface）是 SystemVerilog 与 C/C++ 之间的直接调用接口。
+
+如果没有 DPI，你需要通过文件、Socket 或其他机制交换数据；
+使用 DPI 后，SystemVerilog 可以直接调用 C 函数。
+
+*/
+
+
+// What is the difference between == and === ?
+// == 和 === 的核心区别是：== 会受到 X、Z 等未知或高阻值的影响，=== 则会把 X、Z 当作明确的比较值进行匹配。
+
+module tb;
+    logic [3:0] a, b;
+
+    initial begin
+        a = 4'b10X1;
+        b = 4'b10X1;
+
+        $display("==  : %b", a == b);   // 结果是X
+        $display("=== : %b", a === b);  // 结果是1
+    end
+endmodule
+
+// What are the system tasks?
+// 系统任务  带$的task
+
+
+// What is SystemVerilog assertion binding and advantages of it?
+// bind 使得 assertion 能够从DUT中独立出来 放到仿真模块里面
+module fifo (
+    input logic clk,
+    input logic rst_n,
+    input logic wr_en,
+    input logic full
+);
+    // FIFO RTL implementation
+endmodule
+
+module fifo_assert (
+    input logic clk,
+    input logic rst_n,
+    input logic wr_en,
+    input logic full
+);
+    property no_write_when_full;
+        @(posedge clk)
+        disable iff (!rst_n)
+        full |-> !wr_en;
+    endproperty
+
+    assert property (no_write_when_full);
+endmodule
+
+bind fifo fifo_assert u_fifo_assert (   // bind
+    .clk   (clk),
+    .rst_n (rst_n),
+    .wr_en (wr_en),
+    .full  (full)
+);
+
+
+
+// What are parameterized classes?   参数化类
+class DataContainer #(parameter type T = int);
+    T data;
+
+    function new(T data);
+        this.data = data;
+    endfunction
+
+    function void display();
+        $display("data = %0d", data);
+    endfunction
+endclass

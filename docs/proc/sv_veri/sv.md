@@ -112,7 +112,7 @@ clocking 块 [避免竞争]              (★★★围绕同步事件在正确�
 
 时序断言 property   
 
-标准时序断言SVA              (★★★时序规则的描述)
+标准时序断言SVA              (★★★时序规则的描述)    SVA-bind
 
 # 覆盖率 coverage
 
