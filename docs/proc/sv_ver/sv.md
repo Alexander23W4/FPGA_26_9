@@ -56,7 +56,7 @@ name()	returns the string representation of the given enumeration value
 array 
 queue
 
-# assignment && proc_ctrl:  流控
+# assignment && process_ctrl:  流控
 Blocking assignment statements execute in series order. Blocking assignment blocks the execution of the next statement until the completion of the current assignment execution.
 
 注意, 阻塞赋值的本质就是顺序赋值, 也会锁存旧值. 如果rtl错误使用阻塞赋值, 就会综合出锁存器
@@ -70,7 +70,7 @@ repeat       forever
 
 break        continue
 
-# "@ #":  时序控制
+# "@ # wait":  仿真时序控制
 
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
@@ -95,7 +95,7 @@ break        continue
 所有约束共同决定合法解的集合
 
 
-# 仿真/进程协调机制/驱动时机
+# 仿真进程协调机制/驱动时机
 fork join  [并行进程]
 
 semaphore 信号量 [模拟资源有限的情况,对"同类型并行程序"加以限制]
