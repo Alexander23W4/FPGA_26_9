@@ -105,7 +105,7 @@ module proc;
 
     class temp
         rand int a;
-        randc int b;
+        randc int b;    // randc: 在一个随机循环中，尽可能让所有合法值都出现一次，再开始新一轮循环。
     endclass //temp
 
     initial begin
@@ -235,6 +235,11 @@ module proc;
         constraint aligned_addr {
             soft awaddr[1:0] == 2'b00;   // 软约束 (尽量满足, 如果冲突就放弃)
         }
+
+        rand bit [31:0] array[10];
+        
+        constraint array_c {unique {array};    // unique 约束
+                            foreach(array[i]) array[i] < 10;}
     endclass
 
     initial begin

@@ -214,3 +214,96 @@ endclass
 
 // What are illegal bins? Is it good to use it and why?
 // 一般来说不用illegal bins, 而是用assert来检查 是否出现 不符合预期的行为
+
+
+
+
+// What is a package?   package  多个module 共享声明和定义, 通过 import 引入
+package cpu_pkg;
+    parameter int DATA_WIDTH = 32;
+
+    typedef enum logic [1:0] {
+        ADD,
+        SUB,
+        LOAD,
+        STORE
+    } opcode_t;
+
+    function automatic int add(int a, int b);
+        return a + b;
+    endfunction
+endpackage
+
+module cpu;
+    import cpu_pkg::*;   // import 之后就可以使用这个package里面的 所有定义
+
+    opcode_t opcode;
+    logic [DATA_WIDTH-1:0] data;
+
+    initial begin
+        opcode = ADD;
+        $display("%0d", add(3, 4));
+    end
+endmodule
+
+
+// Explain pass by value and pass by ref?
+task automatic change(input int x);
+    x = 100;
+endtask
+
+module tb;
+    int a = 10;
+
+    initial begin
+        change(a);
+        $display("a = %0d", a);  // 10
+    end
+endmodule
+
+
+task automatic change(ref int x);   // 传递引用 ref
+    x = 100;
+endtask
+
+module tb;
+    int a = 10;
+
+    initial begin
+        change(a);
+        $display("a = %0d", a);  // 100
+    end
+endmodule
+
+
+
+// What is the difference between associative and dynamic array?  关联数组  动态数组
+
+// 关联数组
+module tb;
+    int arr[int];   // associative array
+
+    initial begin
+        arr[10]  = 100;
+        arr[100] = 200;
+        arr[1000] = 300;
+
+        $display("%0d", arr[100]); // 200
+        $display("%0d", arr.num()); // 3
+    end
+endmodule
+
+
+// What is the type of SystemVerilog assertions? 
+// immediate assertion & concurrent assertion     即时断言  并发断言
+/*
+    Concurrent Assertion 中常见的三种使用方式：
+    类型	关键字	用途
+    Assertion	assert property	检查设计行为是否满足要求
+    Assumption	assume property	约束环境行为，常用于形式验证
+    Coverage	cover property	检查指定时序场景是否发生
+
+    例如：
+    assert property (@(posedge clk) req |-> ##1 ack);
+    cover property  (@(posedge clk) req ##1 ack);
+*/
