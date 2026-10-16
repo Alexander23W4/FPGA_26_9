@@ -159,11 +159,16 @@ async function dshReadback() {
   try {
     const j = await (await fetch('/api/serial/readback')).json();
     if (!j.ok) { alert('readback FAIL\n' + j.log); return; }
-    document.getElementById('dshRbMode').textContent = j.mode;
+    document.getElementById('dshRbMode').textContent = j.mode === 1 ? '手动' : '自动';
     document.getElementById('dshRbThr').textContent = j.threshold;
     const names = ['基础处理', '显示轮廓', '显示二值掩膜处理'];
     document.getElementById('dshRbVid').textContent = names[j.video_mode] || ('未知(' + j.video_mode + ')');
-    document.getElementById('dshRbLes').textContent = j.lesion_mm2 + ' mm² (' + j.lesion_pixels + ' px)';
+    const area = document.getElementById('dshRbLes');
+    const unit = document.createElement('span');
+    unit.className = 'unit'; unit.textContent = ' mm²';
+    const pixels = document.createElement('span');
+    pixels.className = 'sub-value'; pixels.textContent = j.lesion_pixels + ' px';
+    area.replaceChildren(document.createTextNode(j.lesion_mm2), unit, pixels);
   } catch (e) { alert('readback err: ' + e); }
 }
 document.getElementById('request').addEventListener('click', dshReadback);
@@ -391,10 +396,10 @@ def customize_page(page):
     page = page.replace(
         '<div id="metrics"',
         '<div id="dshReadback" data-system-mode="processing">'
-        '<div class="metric"><span>FPGA回读阈值模式</span><b id="dshRbMode">0</b></div>'
-        '<div class="metric"><span>FPGA回读阈值</span><b id="dshRbThr">0</b></div>'
-        '<div class="metric"><span>FPGA回读输出显示模式</span><b id="dshRbVid">基础处理</b></div>'
-        '<div class="metric"><span>FPGA回读病灶面积</span><b id="dshRbLes">0.000 mm²</b></div>'
+        '<div class="metric"><span>掩膜面积</span><b id="dshRbLes">—</b></div>'
+        '<div class="metric"><span>分割阈值</span><b id="dshRbThr">—</b></div>'
+        '<div class="metric"><span>阈值模式</span><b id="dshRbMode">—</b></div>'
+        '<div class="metric"><span>输出显示</span><b id="dshRbVid">—</b></div>'
         '</div><div id="metrics"')
     return page.replace('</body>', TAIL_SCRIPT + '</body>')
 

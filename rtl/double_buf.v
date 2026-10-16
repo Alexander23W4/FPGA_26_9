@@ -28,6 +28,8 @@ module double_buf (
 
     // ---- 两个存储区：强制 Block RAM ----
     (* ram_style = "block" *) reg [7:0] mem0 [0:DEPTH-1];
+    (* ram_style = "block" *) reg mem0_mask [0:DEPTH-1];
+    (* ram_style = "block" *) reg mem0_contour [0:DEPTH-1];
     (* ram_style = "block" *) reg [7:0] mem1 [0:DEPTH-1];
 
 

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFF5F8">
+  <title>Heartcare</title>
+  <link rel="preload" href="/assets/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/heartcare.css">
+</head>
+<body>
+<svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <!-- Heart pulse: Lucide, ISC license; see Lucide-LICENSE.txt. -->
+  <symbol id="icon-heart" viewBox="0 0 24 24">
+    <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/>
+    <path d="M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>
+  </symbol>
+  <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/></symbol>
+  <symbol id="icon-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/><rect x="9" y="9" width="6" height="6" rx="1"/></symbol>
+  <symbol id="icon-sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="icon-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 14h8M8 17h5"/></symbol>
+  <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 4v16h16M8 15v-4m5 4V7m5 8v-6"/></symbol>
+</svg>
+
+<div id="menuBackdrop" class="drawer-backdrop" aria-hidden="true"></div>
+<aside id="systemDrawer" class="sidebar" aria-label="系统导航">
+  <div class="brand-row">
+    <div class="brand"><span class="brand-mark"><svg aria-hidden="true"><use href="#icon-heart"/></svg></span><h1>Heartcare</h1></div>
+    <button id="menuClose" class="icon-button mobile-close" type="button" aria-label="关闭系统导航"><svg aria-hidden="true"><use href="#icon-close"/></svg></button>
+  </div>
+  <div class="nav-caption">工作空间</div>
+  <select id="systemMode" aria-label="系统模式" hidden><option value="simulation">模拟模式</option><option value="processing" selected>图像处理模式</option><option value="medical" disabled>医学分析模式</option></select>
+  <nav class="mode-navigation" aria-label="系统模式">
+    <button class="mode-option" type="button" data-mode="simulation" aria-pressed="false" title="模拟模式"><svg aria-hidden="true"><use href="#icon-image"/></svg><span class="nav-label">模拟模式<small>本地图像预览</small></span><span class="nav-indicator"></span></button>
+    <button class="mode-option" type="button" data-mode="processing" aria-pressed="true" title="图像处理模式"><svg aria-hidden="true"><use href="#icon-chip"/></svg><span class="nav-label">图像处理模式<small>FPGA 图像管线</small></span><span class="nav-indicator"></span></button>
+    <button class="mode-option" type="button" disabled title="医学分析模式暂未开放"><svg aria-hidden="true"><use href="#icon-heart"/></svg><span class="nav-label">医学分析模式<small>暂未开放</small></span></button>
+  </nav>
+  <div class="sidebar-footer"><span class="platform-icon"><svg aria-hidden="true"><use href="#icon-chip"/></svg></span><div class="platform-copy"><strong>ACZ7015</strong><span>Zynq 图像处理平台</span></div></div>
+</aside>
+
+<main class="workspace wrap">
+  <header class="workspace-header">
+    <div class="workspace-heading">
+      <div class="heading-line"><button id="menuToggle" class="icon-button" type="button" aria-label="收起系统导航" aria-controls="systemDrawer" aria-expanded="true"><svg aria-hidden="true"><use href="#icon-menu"/></svg></button><div><p class="eyebrow">IMAGE WORKSPACE</p><h2>影像工作台</h2></div></div>
+    </div>
+    <div class="header-actions" id="imagePicker"><button id="chooseImage">选择 BIN 图像</button><input id="imageFile" type="file" accept=".bin" hidden><div data-system-mode="processing"><button id="transfer">传输给FPGA</button></div></div>
+  </header>
+
+  <div class="workbench-grid">
+    <div class="visual-column">
+      <section class="preview-card" aria-labelledby="previewTitle">
+        <div class="card-heading"><div class="section-title"><span class="section-icon"><svg aria-hidden="true"><use href="#icon-image"/></svg></span><h3 id="previewTitle">图像预览</h3></div><span id="previewMode" class="soft-badge">本地预览</span></div>
+        <div class="view"><img id="view" alt="当前加载图像的预览"></div>
+        <div class="preview-footer"><div class="file-caption"><svg aria-hidden="true"><use href="#icon-file"/></svg><span id="imageName">正在加载图像…</span></div><span class="image-format">256 × 256 <span>·</span> 8-bit</span></div>
+      </section>
+
+      <section class="results-section" aria-labelledby="resultsTitle">
+        <div class="results-heading"><div class="section-title"><svg aria-hidden="true"><use href="#icon-chart"/></svg><h3 id="resultsTitle">处理结果</h3></div><div data-system-mode="processing"><button id="request">请求FPGA状态</button></div><span class="section-note" data-system-mode="simulation" hidden>模拟数据</span></div>
+        <div id="metrics" data-system-mode="simulation" hidden></div>
+        <pre id="logs" hidden></pre>
+      </section>
+    </div>
+
+    <aside class="settings-panel" aria-labelledby="settingsTitle">
+      <div class="settings-heading"><span class="section-icon"><svg aria-hidden="true"><use href="#icon-sliders"/></svg></span><div><h3 id="settingsTitle">处理参数</h3><p>配置当前工作模式</p></div></div>
+      <div class="settings-body">
+        <section class="setting-group" data-system-mode="processing">
+          <div class="group-heading"><span class="step-number">01</span><h4>输出显示</h4></div>
+          <label for="fpgaOutputMode">FPGA 输出显示模式</label>
+          <select id="fpgaOutputMode"><option value="0">基础处理</option><option value="1">显示轮廓</option><option value="2">显示二值掩膜处理</option></select>
+          <p class="field-note">设置开发板 HDMI 的输出内容</p>
+        </section>
+        <section class="setting-group" data-system-mode="processing">
+          <div class="group-heading"><span class="step-number">02</span><h4>图像分割</h4></div>
+          <div class="threshold-mode"><label id="thresholdModeLabel" for="thresholdMode">阈值模式：自动</label><button id="thresholdMode" class="switch" type="button" role="switch" aria-checked="false" aria-label="切换自动或手动阈值模式" disabled></button></div>
+          <div class="range-label"><label for="threshold">分割阈值</label><output id="thresholdValue" for="threshold">128</output></div><input id="threshold" type="range" min="0" max="255" value="128" disabled>
+          <div class="range-scale"><span>0</span><span>255</span></div>
+          <button id="thresholdUpdate" type="button">阈值更新</button>
+        </section>
+        <section class="setting-group" data-system-mode="simulation" hidden>
+          <div class="group-heading"><span class="step-number">01</span><h4>预览显示</h4></div>
+          <label for="mode">显示模式</label><select id="mode"><option value="0">原图</option><option value="1">增强</option><option value="2">掩膜</option><option value="3" selected>叠加</option></select>
+        </section>
+        <section class="setting-group" data-system-mode="simulation" hidden>
+          <div class="group-heading"><span class="step-number">02</span><h4>图像调节</h4></div>
+          <div class="range-label"><label for="center">窗位</label><output id="centerValue" for="center">128</output></div><input id="center" type="range" min="0" max="255" value="128">
+          <div class="range-label"><label for="width">窗宽</label><output id="widthValue" for="width">255</output></div><input id="width" type="range" min="1" max="255" value="255">
+          <div class="range-label"><label for="alpha">叠加透明度</label><div class="value-unit"><output id="alphaValue" for="alpha">45</output><span>%</span></div></div><input id="alpha" type="range" min="0" max="100" value="45">
+        </section>
+      </div>
+      <div class="settings-footnote"><svg aria-hidden="true"><use href="#icon-file"/></svg><div><strong>原始灰度 BIN</strong><span>256 × 256 · 65,536 字节</span></div></div>
+    </aside>
+  </div>
+  <footer class="workspace-footer"><span>Heartcare <span class="footer-dot">·</span> 心脏超声图像工作台</span><span id="currentModeCaption">图像处理模式</span></footer>
+</main>
+<script src="/assets/heartcare.js"></script>
+</body></html>

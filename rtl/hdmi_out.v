@@ -12,6 +12,8 @@ module hdmi_out(
     output wire buf_idx,
     output reg [15:0] buf_addr,
     input [7:0] buf_data,
+    input buf_mask,
+    input buf_contour,
 
     output reg [7:0]  vid_r,
     output reg [7:0]  vid_g,
@@ -22,6 +24,9 @@ module hdmi_out(
 
     input frame_ready_toggle, // 已同步到 pclk 的整帧完成翻转信号
     input write_idx_sync,     // 已同步到 pclk 的已完成帧 bank
+
+    input [31:0] video_mode;
+    input [31:0] mask_transparency;
 
     // ILA / AXI-Lite 调试状态：{state, read_bank, hcnt, vcnt, read_addr}
     output wire [37:0] dbg_status
@@ -100,12 +105,57 @@ module hdmi_out(
         vid_vs = 1'b1;
         vid_de = 1'b0;
 
+/*
+灰度 \(Y\)	颜色	RGB
+0	深蓝	(0, 0, 128)
+51	蓝	(0, 0, 255)
+102	青	(0, 255, 255)
+153	绿	(0, 255, 0)
+204	黄	(255, 255, 0)
+255	红	(128, 0, 0)
+*/
         if (state == BUF) begin
             if (vcnt >= 10'd112 && vcnt <= 10'd367 &&
                 hcnt >= 10'd192 && hcnt <= 10'd447) begin
-                vid_r = buf_data;
-                vid_g = buf_data;
-                vid_b = buf_data;
+                    case(video_mode);
+                        32'd3: begin
+                            vid_r = buf_mask ? ((100 - mask_transparency) * buf_data + mask_transparency * 255) / 100 : buf_data;
+                            vid_g = buf_mask ? (100 - mask_transparency) * buf_data / 100 : buf_data;
+                            vid_b = buf_mask ? (100 - mask_transparency) * buf_data / 100 : buf_data;
+                        end
+                        32'd4: begin
+                            if(buf_data <= 51) begin   // 0-51
+                                vid_r = 0;
+                                vid_g = 0;
+                                vid_b = 127 + buf_data * 2.5;
+                            end
+                            if(buf_data > 51 && buf_data <= 102) begin   // 52-102
+                                vid_r = 0;
+                                vid_g = (buf_data - 51) * 5;
+                                vid_b = 255;
+                            end
+                            if(buf_data > 102 && buf_data <= 153) begin  // 103-153
+                                vid_r = 0;
+                                vid_g = 255;
+                                vid_b = 255 - (buf_data - 102) * 5;
+                            end  
+                            if(buf_data > 153 && buf_data <= 204) begin   // 154-204
+                                vid_r = (buf_data - 153) * 5;
+                                vid_g = 255;
+                                vid_b = 0;
+                            end
+                            else begin  // 205-255
+                                vid_r = 255 - (buf_data - 204) * 2.5;
+                                vid_g = 255 - (buf_data - 204) * 5;
+                                vid_b = 0;
+                            end
+                        end
+                        default: begin
+                            vid_r = buf_data;
+                            vid_g = buf_data;
+                            vid_b = buf_data;
+                        end
+                    endcase
             end
             if (vcnt <= 10'd479 && hcnt <= 10'd639)
                 vid_de = 1'b1;

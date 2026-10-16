@@ -25,18 +25,14 @@
 #define PL_CTRL_BASE        0x44000000
 
 
-#define MODE_ADDR     0x00     
-#define CMD_REG_ADDR  0x04     // 0 自动阈值模式(默认)   1 手动阈值模式
-#define DATA_REG_ADDR 0x08     // 手动阈值
-#define VIDEO_MODE_ADDR 0x10  /* PL output mode: 0 only-denoise / 1 +contour / 2 +mask */
-#define LESION_ADDR    0x14  /* 上一帧二值掩膜像素数 (病灶面积 = 它 * 0.436280886141 mm^2) */
+#define MODE_ADDR     0x00     // 0 图像处理模式   1 医学分析模式
+#define CMD_REG_ADDR  0x01     // 0 自动阈值模式(默认)   1 手动阈值模式
+#define VIDEO_MODE_ADDR 0x02  /* PL output mode: 0 only-denoise / 1 +contour / 2 +mask */
 
-// 模式指令 (单图模式/视频流模式)
-#define SINGLE_MODE 0x01
-#define STREAM_MODE 0x02
+#define DATA_REG_ADDR 0x20     // 手动阈值
+#define LESION_ADDR    0x21  /* 上一帧二值掩膜像素数 (病灶面积 = 它 * 0.436280886141 mm^2) */
+#define MASK_TRANSP_ADDR 0x22   // 掩膜透明度
 
-// 控制指令
-#define REOPERATE 0x01
 
 
 

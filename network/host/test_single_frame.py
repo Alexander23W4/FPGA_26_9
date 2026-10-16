@@ -151,8 +151,8 @@ class SingleFrameTests(unittest.TestCase):
 
     def test_page_has_one_transfer_and_readback_handler(self):
         page = gui.customize_page(gui.web_common.HTML_PAGE)
-        self.assertIn('<title>心脏超声图像处理系统</title>', page)
-        self.assertIn('<h1>心脏超声图像处理系统</h1>', page)
+        self.assertIn('<title>Heartcare</title>', page)
+        self.assertIn('<h1>Heartcare</h1>', page)
         self.assertLess(page.index('<h1>'), page.index('id="systemMode"'))
         self.assertLess(page.index('id="systemMode"'), page.index('id="mode"'))
         for option in ('模拟模式', '图像处理模式', '医学分析模式'):

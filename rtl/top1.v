@@ -156,7 +156,7 @@ module top1 #(
     wire [PIXEL_W-1:0] ts_data;
     wire               ts_contour;
     wire               ts_mask;
-    wire [31:0]        video_mode;
+    wire [31:0]        video_mode;   // 0 去噪 1 轮廓 2 二值掩膜 3 叠加掩膜   4 伪彩色热力图
 
     reg  [PIXEL_W-1:0] hdl_data;      // ★ 在 always 里过程赋值, 必须是 reg (原来是 wire, 报 VRFC 10-1280)
     wire               hdl_valid;
@@ -202,7 +202,8 @@ module top1 #(
         .auto_mode_out(),
         .frame_done_out(),
 
-        .video_mode_out(video_mode)
+        .video_mode_out(video_mode),
+        .mask_transparency_out(mask_transparency)
     );
 
     // ---- video_mode 决定显示什么 ----
@@ -211,9 +212,10 @@ module top1 #(
     //   2: 去噪 + 二值掩膜
     always @(*) begin
         case (video_mode)
+            32'h0:   hdl_data = ts_data;
             32'h1:   hdl_data = ts_data | {PIXEL_W{ts_contour}};
             32'h2:   hdl_data = ts_mask ? {PIXEL_W{1'b1}} : {PIXEL_W{1'b0}};
-            32'h0:   hdl_data = ts_data;
+            32'h3:   
             default: hdl_data = ts_data;      // ★ 未定义的模式安全回退 (原来缺 default, 会推锁存器)
         endcase
     end
@@ -255,6 +257,8 @@ module top1 #(
             write_idx_sync   <= {write_idx_sync[0], fb_write_idx};
         end
     end
+
+
     wire [18:0] hdl_dbg_status;
     wire [37:0] hdmi_dbg_status;
     wire [7:0]  hdmi_vid_r;
@@ -269,6 +273,9 @@ module top1 #(
         .rst(rst),
 
         .hdl_data(hdl_data),
+        .hdl_mask(ts_mask),
+        .hdl_contour(ts_contour),
+
         .hdl_valid(hdl_valid),
         .hdl_eof(hdl_eof),
         .hdl_ready(hdl_ready),
@@ -276,6 +283,8 @@ module top1 #(
         .buf_idx(fb_write_idx),
         .buf_addr(fb_write_addr),
         .buf_data(fb_write_data),
+        .buf_mask(fb_write_mask),
+        .buf_contour(fab_write_contour),
         .en(fb_write_en),
 
         .read_buf_idx(read_idx_sync[1]),
@@ -286,13 +295,19 @@ module top1 #(
     double_buf u_double_buf (
         .clk(clk),
         .pclk(pclk),
+
         .write_en(fb_write_en),
         .write_buf_idx(fb_write_idx),
+        .write_addr(fb_write_addr),
+        .write_data(fb_write_data),
+        .write_mask(fb_write_mask),
+        .write_contour(fb_write_contour),
+
         .read_buf_idx(fb_read_idx),
         .read_addr(fb_read_addr),
-        .write_addr(fb_write_addr),
         .read_data(fb_read_data),
-        .write_data(fb_write_data)
+        .read_mask(fb_read_mask),
+        .read_contour(fb_read_contour)
     );
 
 
@@ -302,6 +317,9 @@ module top1 #(
         .buf_idx(fb_read_idx),
         .buf_addr(fb_read_addr),
         .buf_data(fb_read_data),
+        .buf_mask(fb_read_mask),
+        .buf_contour(fb_read_contour),
+
         .vid_r(hdmi_vid_r),
         .vid_g(hdmi_vid_g),
         .vid_b(hdmi_vid_b),
@@ -310,7 +328,8 @@ module top1 #(
         .vid_de(hdmi_vid_de),
         .frame_ready_toggle(frame_ready_sync[2]),
         .write_idx_sync(write_idx_sync[1]),
-        .dbg_status(hdmi_dbg_status)
+        .dbg_status(hdmi_dbg_status),
+        .mask_transparency(mask_transparency)
     );
 
 //     // -------- 板上观测：可经 AXI-Lite 读取，也会送入 ILA --------
