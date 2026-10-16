@@ -124,14 +124,48 @@ let dshCurrentFile = null;
 let dshNeedsUpload = false;
 let dshStreamMode = false;
 let dshStreamRunning = false;
+let dshFpsPaused = false;
 let dshStreamFiles = [], dshStreamIndex = 0, dshStreamFolder = '';
 let dshStreamSignature = '', dshStreamQueue = [];
+let dshStreamSamples = [], dshStreamCompleted = 0;
+const dshNow = () => typeof performance !== 'undefined' ? performance.now() : Date.now();
+function dshResetPerformance(resetFps = false) {
+    if (resetFps) { dshStreamSamples = []; resetFrameRate(); }
+    dshStreamCompleted = 0;
+  document.getElementById('streamPerformance').hidden = false;
+  document.getElementById('streamFps').textContent = '等待首帧回传…';
+  document.getElementById('streamFrameTime').textContent = '';
+  document.getElementById('streamTiming').textContent = '';
+}
+function dshRecordFrame(result, frameStarted) {
+  const now = dshNow(), t = result.timings_ms || {};
+  dshStreamCompleted++;
+    if (!dshFpsPaused) { dshStreamSamples.push(now); dshUpdateStreamFps(now); }
+  document.getElementById('streamFrameTime').textContent =
+    '本帧 ' + (now - frameStarted).toFixed(0) + ' ms · 已回传 ' + dshStreamCompleted + ' 帧';
+  document.getElementById('streamTiming').textContent =
+    '网口/板端 ' + Math.max(0, (t.transfer_ms || 0) - (t.pc_files_ms || 0)).toFixed(0) +
+    ' ms · PC 文件 ' + (t.pc_files_ms || 0).toFixed(0) +
+    ' ms · 状态回读 ' + (t.readback_ms || 0).toFixed(0) + ' ms';
+}
+function dshUpdateStreamFps(now = dshNow()) {
+    if (dshFpsPaused) { document.getElementById('streamFps').textContent = '回传 0.0 FPS'; return; }
+    dshStreamSamples = dshStreamSamples.filter(time => time >= now - 10000);
+    const elapsed = dshStreamSamples.length > 1 ? Math.min(10000, now - dshStreamSamples[0]) : 0;
+    const fps = elapsed > 0 ? (dshStreamSamples.length - 1) * 1000 / elapsed : 0;
+    document.getElementById('streamFps').textContent = '回传 ' + fps.toFixed(1) + ' FPS';
+}
+setInterval(dshUpdateStreamFps, 500);
 function dshValidateBin(file) {
   if (!file || !file.name.toLowerCase().endsWith('.bin') || file.size !== 65536)
     throw new Error('请选择 256x256x8-bit 的 BIN 文件，大小必须恰好为 65536 字节');
 }
 async function dshRun(action) {
   if (dshTransferBusy) return;
+    if (!dshStreamRunning) {
+        dshFpsPaused = false;
+        if (typeof resumeFrameRate === 'function') resumeFrameRate();
+    }
   const status = document.getElementById('processingStatus');
   const controls = ['imageFile', 'chooseImage', 'chooseStream', 'streamFolder', 'fpgaOutputMode', 'thresholdMode',
     'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'request'];
@@ -238,6 +272,7 @@ document.getElementById('imageFile').addEventListener('change', async e => {
     const j = await response.json();
     if (!response.ok || !j.ok) throw new Error(j.error || j.log);
     dshStreamMode = false;
+    document.getElementById('streamPerformance').hidden = true;
     document.getElementById('fullDisplayOption').disabled = false;
     updatePreviewLayout();
     dshCurrentFile = file;
@@ -278,6 +313,7 @@ function dshStreamControls() {
 }
 function dshStopStream() {
   dshStreamRunning = false; // Let the current frame finish; never truncate MM2S.
+    dshFpsPaused = true; dshStreamSamples = []; resetFrameRate(true); dshUpdateStreamFps();
   dshStreamControls();
   document.getElementById('chooseStream').disabled = true;
   document.getElementById('chooseStream').textContent = '等待当前帧完成…';
@@ -291,6 +327,7 @@ async function dshDrainStreamControls() {
 }
 async function dshStartStream(files) {
   if (dshTransferBusy || dshStreamRunning || systemModePending) return;
+  let performanceStarted = false;
   dshTransferBusy = true;
   dshStreamControls();
   try {
@@ -306,7 +343,8 @@ async function dshStartStream(files) {
     if (entries.some(entry => entry.folder !== folder)) throw new Error('一次只能选择一个流文件夹');
     entries.sort((a,b) => a.path.localeCompare(b.path, 'zh-CN', {numeric:true, sensitivity:'base'}));
     const signature = folder + '\n' + entries.map(entry => entry.path).join('\n');
-    if (signature !== dshStreamSignature) dshStreamIndex = 0;
+    const streamChanged = signature !== dshStreamSignature;
+    if (streamChanged) dshStreamIndex = 0;
     dshStreamSignature = signature; dshStreamFolder = folder; dshStreamFiles = entries;
     if (document.getElementById('systemMode').value !== 'processing') {
       systemModeRevision++; systemModePending = true;
@@ -319,11 +357,15 @@ async function dshStartStream(files) {
     }
     dshStreamMode = true;
     if (document.getElementById('fpgaOutputMode').value === '5') document.getElementById('fpgaOutputMode').value = '0';
+    dshFpsPaused = false; resumeFrameRate();
     dshStreamRunning = true; dshStreamControls();
+    dshResetPerformance(streamChanged);
+    performanceStarted = true;
     while (dshStreamRunning) {
       await dshDrainStreamControls();
       if (!dshStreamRunning) break;
       const entry = dshStreamFiles[dshStreamIndex];
+      const frameStarted = dshNow();
       dshTransferBusy = true;
       const data = await entry.file.arrayBuffer();
       if (!dshStreamRunning) break;
@@ -346,6 +388,7 @@ async function dshStartStream(files) {
         throw new Error('本帧没有收到完整的 FPGA 回传');
       renderProcessedResults(Object.fromEntries(result.results.map(item => [String(item.mode), item])), result.results_revision);
       dshApplyReadback(result.readback);
+      dshRecordFrame(result, frameStarted);
       dshNeedsUpload = false;
       dshStreamIndex = (dshStreamIndex + 1) % dshStreamFiles.length;
       dshTransferBusy = false;
@@ -356,6 +399,8 @@ async function dshStartStream(files) {
   } catch (error) { alert('流处理失败: ' + error.message); }
   finally {
     dshStreamRunning = false; dshTransferBusy = false;
+    if (performanceStarted) document.getElementById('streamFrameTime').textContent +=
+      (dshStreamCompleted ? ' · 已停止' : '已停止 · 已回传 0 帧');
     for (const request of dshStreamQueue.splice(0)) request.reject(new Error('流已停止，参数尚未更新'));
     document.getElementById('processingStatus').textContent = '';
     dshStreamControls();
@@ -416,8 +461,14 @@ def _board_talk_locked(payload, wait=1.5):
         s.reset_input_buffer(); s.write(payload); s.flush()
         deadline = None if wait is None else time.monotonic() + wait
         buf = bytearray()
-        while deadline is None or time.monotonic() < deadline:
-            c = s.read(4096)
+        while True:
+            remaining = None if deadline is None else deadline - time.monotonic()
+            if remaining is not None and remaining <= 0:
+                break
+            s.timeout = 0.3 if remaining is None else min(0.3, remaining)
+            # Drain available bytes; when silent, block for only the next byte.
+            # A short END-terminated reply must not wait to fill a 4096-byte read.
+            c = s.read(min(4096, s.in_waiting or 1))
             if c:
                 buf += c
                 if b"===== END =====" in buf:
@@ -579,6 +630,12 @@ def _do_render(mode, state=None):
 def _display_job(bin_bytes, filename, mode, state, upload, stream_folder=None, stream_path=None):
     """Upload once; render other modes only after the preceding PC save completes."""
     global _DISPLAY_PENDING
+    started = time.perf_counter()
+    timings = {'transfer_ms': 0.0, 'readback_ms': 0.0, 'pc_files_ms': 0.0}
+    def record_transfer(result, before):
+        timings['transfer_ms'] += (time.perf_counter() - before) * 1000
+        stages = result.get('timings_ms', {})
+        timings['pc_files_ms'] += stages.get('save_ms', 0) + stages.get('preview_ms', 0)
     result_name = None
     readback = None
     try:
@@ -618,7 +675,9 @@ def _display_job(bin_bytes, filename, mode, state, upload, stream_folder=None, s
         with _serial_lock():
             if upload and not context['uploaded']:
                 save_options = {'result_name': result_name} if result_name is not None else {}
+                before = time.perf_counter()
                 result = _FRAME_CLIENT.transfer(bin_bytes, filename, **save_options)
+                record_transfer(result, before)
                 context['uploaded'] = True
                 context['input_bytes'] = FRAME_BYTES
                 # The first return belongs to the NEW image in the current PL mode.
@@ -636,7 +695,9 @@ def _display_job(bin_bytes, filename, mode, state, upload, stream_folder=None, s
                     with state.lock:
                         state.transfer_status.update(mode=current_mode)
                 save_options = {'result_name': result_name} if result_name is not None else {}
+                before = time.perf_counter()
                 result = _FRAME_CLIENT.render(current_mode, filename, **save_options)
+                record_transfer(result, before)
                 if not result['frames']:  # Board has no image yet; just configure it.
                     break
                 results.append(result)
@@ -647,15 +708,18 @@ def _display_job(bin_bytes, filename, mode, state, upload, stream_folder=None, s
                     state.log('模式 %d 回传已保存并确认: %s' % (current_mode, result['files']['bin']))
             if result_name is not None:
                 # No next input frame until both the fresh return and R complete.
+                before = time.perf_counter()
                 readback = _readback_regs()
+                timings['readback_ms'] = (time.perf_counter() - before) * 1000
                 if not readback['ok']:
                     raise RuntimeError('本帧 FPGA 状态回读失败: ' + readback['log'])
         _DISPLAY_PENDING = None
         results.sort(key=lambda item: item['mode'])
+        timings['service_total_ms'] = (time.perf_counter() - started) * 1000
         return {'ok': True, 'frames': len(results), 'bytes': context['input_bytes'],
                 'output_bytes': sum(item['output_bytes'] for item in results),
                 'results': results, 'files': results[-1]['files'] if results else None,
-                'readback': readback, **_state_versions(state),
+                'readback': readback, 'timings_ms': timings, **_state_versions(state),
                 'log': '\n'.join(item['log'] for item in results) or '显示模式已设置'}
     except TimeoutError as exc:
         _DISPLAY_PENDING = None
@@ -695,6 +759,7 @@ def customize_page(page):
         '<div class="metric"><span>阈值模式</span><b id="dshRbMode">—</b></div>'
         '<div class="metric"><span>输出显示</span><b id="dshRbVid">—</b></div>'
         '<div class="metric"><span>掩膜透明度</span><b id="dshRbAlpha">—</b></div>'
+        '<div class="metric"><span>帧率</span><b><span id="dshGuiFps">—</span> <span class="unit">FPS</span></b></div>'
         '</div><div id="metrics"')
     return page.replace('</body>', TAIL_SCRIPT + '</body>')
 

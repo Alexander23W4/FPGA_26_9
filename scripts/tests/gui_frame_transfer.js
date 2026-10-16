@@ -23,7 +23,7 @@ const document = {
 document.getElementById('systemMode').value = 'processing';
 document.getElementById('width').value = '255';
 document.getElementById('center').value = '128';
-const ctx = vm.createContext({document, URLSearchParams, setInterval() {},
+const ctx = vm.createContext({document, URLSearchParams, performance, setInterval() {},
   window: {matchMedia: () => ({matches: false, addEventListener() {}})},
   alert: value => alerts.push(value), fetch: (url, options) => {
     if (url.startsWith('/api/network/')) {

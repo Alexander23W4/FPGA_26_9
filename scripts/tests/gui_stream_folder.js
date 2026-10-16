@@ -56,7 +56,7 @@ const realFetch=async(url,options)=>{
   }
   return response;
 };
-ctx=vm.createContext({document,URLSearchParams,setTimeout,setInterval(){},
+ctx=vm.createContext({document,URLSearchParams,performance,setTimeout,setInterval(){},
   window:{matchMedia:()=>({matches:false,addEventListener(){}})},alert:value=>alerts.push(value),fetch:realFetch});
 vm.runInContext(fs.readFileSync(path.join(path.dirname(process.argv[2]),'assets/heartcare.js'),'utf8'),ctx);
 vm.runInContext(script,ctx);
@@ -77,6 +77,7 @@ function frame(name,value){const input=new Uint8Array(65536).fill(value);return 
     assert.strictEqual(elements.comparisonProcessed.src,'data:image/png;base64,previous-confirmed');
     assert.strictEqual(vm.runInContext('dshStreamRunning',ctx),false);
     assert.strictEqual(vm.runInContext('dshStreamIndex',ctx),0,'a failed frame remains pending for an explicit retry');
+    assert.strictEqual(vm.runInContext('dshStreamCompleted',ctx),0,'failed returns must not count toward FPS');
     console.log('GUI_STREAM_FAILURE_OK: no next upload or stale display after CRC failure');return;
   }
   assert.deepStrictEqual(alerts,[]);
@@ -102,6 +103,16 @@ function frame(name,value){const input=new Uint8Array(65536).fill(value);return 
   assert.strictEqual(elements.chooseImage.disabled,false);
   assert.strictEqual(vm.runInContext('dshStreamRunning',ctx),false);
   assert.strictEqual(elements.fullDisplayOption.disabled,true,'full display stays unavailable for a selected stream');
+  assert.strictEqual(vm.runInContext('dshStreamCompleted',ctx),3);
+  assert.strictEqual(elements.streamPerformance.hidden,false);
+  assert.match(elements.streamFps.textContent,/回传 \d+\.\d FPS/);
+  assert.match(elements.streamFrameTime.textContent,/本帧 \d+ ms · 已回传 3 帧 · 已停止/);
+  assert.match(elements.streamTiming.textContent,/网口\/板端 \d+ ms · PC 文件 \d+ ms · 状态回读 \d+ ms/);
+  for(const result of completed){
+    const t=result.timings_ms;
+    assert(t.transfer_ms>0 && t.service_total_ms>=t.transfer_ms+t.readback_ms);
+    assert(t.pc_files_ms>0 && t.pc_files_ms<=t.transfer_ms);
+  }
   // A stale poll is unable to replace the newest returned frame or original.
   const right=elements.comparisonProcessed.src,left=elements.comparisonOriginal.src;
   ctx.renderProcessedResults({'0':{mode:0,image:'stale',job:999}},completed[0].results_revision);

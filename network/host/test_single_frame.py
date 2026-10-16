@@ -72,6 +72,7 @@ class SingleFrameTests(unittest.TestCase):
         chunks = iter([b"VDMA: sending\r\n"] + [b""] * 8 +
                       [gui.FRAME_DONE_LINE.encode(), b"\r\n===== EN", b"D =====\r\n"])
         serial = Mock()
+        serial.in_waiting = 0
         serial.read.side_effect = lambda n: next(chunks)
         with patch.dict(sys.modules, {"serial": types.SimpleNamespace(Serial=lambda *a, **k: serial)}):
             result = gui._board_talk_locked(b"D\x00\x00\x00\x00", wait=None)
@@ -81,12 +82,31 @@ class SingleFrameTests(unittest.TestCase):
 
     def test_partial_response_times_out_as_failure(self):
         serial = Mock()
+        serial.in_waiting = 0
         serial.read.return_value = b"still working\r\n"
         with patch.dict(sys.modules, {"serial": types.SimpleNamespace(Serial=lambda *a, **k: serial)}), \
              patch.object(gui.time, "monotonic", side_effect=[0.0, 0.0, 0.6]):
             with self.assertRaises(TimeoutError):
                 gui._board_talk_locked(b"E", wait=0.5)
         serial.close.assert_called_once()
+
+    def test_short_serial_reply_does_not_wait_for_a_full_read_buffer(self):
+        import serial
+        # Only a local loopback transport is used; never open the board COM port.
+        port = serial.serial_for_url('loop://', timeout=0.3)
+        reply = b'[PL rdbk] STATUS = 123\r\n===== END =====\r\n'
+        original_write = port.write
+        def reply_to_command(command):
+            original_write(reply)
+            return len(command)
+        with patch.object(port, 'write', side_effect=reply_to_command), \
+             patch.object(serial, 'Serial', return_value=port):
+            before = time.perf_counter()
+            result = gui._board_talk_locked(b'R')
+            elapsed = time.perf_counter() - before
+        self.assertEqual(result, reply.decode())
+        self.assertFalse(port.is_open)
+        self.assertLess(elapsed, 0.2, 'a queued short response must not wait out the 300 ms timeout')
 
     def test_transfer_lock_prevents_interleaving_and_duplicate_send(self):
         entered, release = threading.Event(), threading.Event()
@@ -180,6 +200,17 @@ class SingleFrameTests(unittest.TestCase):
         self.assertIn("file.size !== 65536", page)
         self.assertIn("/api/network/transfer?", page)
         self.assertIn("/api/network/render?mode=", page)
+        self.assertIn('id="dshGuiFps">—</span>', page)
+        self.assertIn('FPS</span>', page)
+        self.assertIn('function updateFrameRate(){', script)
+        self.assertIn('function resetFrameRate(paused=false){', script)
+        self.assertIn('time>=now-10000', script)
+        self.assertIn('resetFrameRate();', page)
+        self.assertIn('resetFrameRate(true);', page)
+        self.assertIn('let dshFpsPaused = false;', page)
+        self.assertIn("if (dshFpsPaused) { document.getElementById('streamFps').textContent = '回传 0.0 FPS'; return; }", page)
+        self.assertIn('dshResetPerformance(streamChanged);', page)
+        self.assertIn('if(visibleResultChanged)updateFrameRate();', script)
         self.assertIn("</body></html>", page)
 
 

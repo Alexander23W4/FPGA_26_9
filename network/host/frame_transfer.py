@@ -180,6 +180,8 @@ class FrameTransferClient:
             pass
 
     def _transaction(self, operation, image, filename, expected_mode, result_name=None):
+        started = time.perf_counter()
+        timings = {'save_ms': 0.0, 'preview_ms': 0.0}
         result_name = normalize_result_name(result_name)
         if result_name is not None:
             stable_result_paths(self.folder, result_name)
@@ -235,6 +237,7 @@ class FrameTransferClient:
                             raw = recv_exact(sock, length, deadline)
                             if crc(raw) != checksum:
                                 raise ValueError('FPGA result CRC mismatch')
+                            before_save = time.perf_counter()
                             files = context['files']
                             if (files is None or not Path(files['png']).is_file() or
                                 not Path(files['bin']).is_file() or crc(Path(files['bin']).read_bytes()) != checksum):
@@ -249,6 +252,7 @@ class FrameTransferClient:
                             context['crc'], context['mode'] = checksum, mode
                             # Reopen and validate before releasing PS result-buffer ownership.
                             saved_result_png(context['files'], mode, checksum)
+                            timings['save_ms'] += (time.perf_counter() - before_save) * 1000
                             sock.settimeout(remaining_time(deadline))
                             sock.sendall(packet(SAVED, job, OUTPUT_BYTES, checksum, mode))
                             kind, length, done_crc, done_mode = receive_header(sock, job, deadline)
@@ -256,11 +260,14 @@ class FrameTransferClient:
                                 raise ValueError('FPGA did not confirm the PC save acknowledgement')
                         files = context['files']
                         # GUI loads the on-disk result after the PS confirms the save.
+                        before_preview = time.perf_counter()
                         preview = saved_result_png(files, context['mode'], context['crc'])
+                        timings['preview_ms'] += (time.perf_counter() - before_preview) * 1000
+                        timings['total_ms'] = (time.perf_counter() - started) * 1000
                         self.pending = None
                         return {'ok': True, 'frames': 1, 'bytes': len(image),
                                 'output_bytes': OUTPUT_BYTES, 'job': job, 'files': files,
-                                'mode': context['mode'], 'image': preview,
+                                'mode': context['mode'], 'image': preview, 'timings_ms': timings,
                                 'log': ('网口上传 DDR → PL' if operation == UPLOAD else '复用 PL 图像，更新显示模式')+
                                        ' → S2MM → DDR → PC 保存完成\n'+files['png']+'\n'+files['bin']}
                 except RemoteError as error:

@@ -18,11 +18,41 @@ let systemModeRevision=0;
 let processedResults={};
 let sourceRevision=-1;
 let resultsRevision=-1;
+let displayedResultTimes=[];
+let hasDisplayedResult=false;
+let frameRatePaused=false;
 const streamModeLabels=['去噪流','轮廓流','二值掩膜流','叠加掩膜流','伪彩色映射流'];
 
 function isStreamMode(){return typeof dshStreamMode!=='undefined'&&dshStreamMode;}
 function streamRunning(){return typeof dshStreamRunning!=='undefined'&&dshStreamRunning;}
 function transferBusy(){return (typeof dshTransferBusy!=='undefined'&&dshTransferBusy)||streamRunning();}
+function refreshFrameRate(now=performance.now()){
+  const display=document.getElementById('dshGuiFps');
+  if(!display)return;
+  if(frameRatePaused){display.textContent='0.00';return;}
+  displayedResultTimes=displayedResultTimes.filter(time=>time>=now-10000);
+  if(!hasDisplayedResult){display.textContent='—';return;}
+  if(displayedResultTimes.length<2){display.textContent='0.00';return;}
+  const elapsed=Math.min(10000,now-displayedResultTimes[0]);
+  display.textContent=((displayedResultTimes.length-1)*1000/elapsed).toFixed(2);
+}
+function updateFrameRate(){
+  if(frameRatePaused)return;
+  displayedResultTimes.push(performance.now());
+  hasDisplayedResult=true;
+  refreshFrameRate();
+}
+function resetFrameRate(paused=false){
+  displayedResultTimes=[];
+  hasDisplayedResult=false;
+  frameRatePaused=paused;
+  const display=document.getElementById('dshGuiFps');
+  if(display)display.textContent=paused?'0.00':'—';
+}
+function resumeFrameRate(){
+  if(frameRatePaused)resetFrameRate();
+}
+setInterval(refreshFrameRate,500);
 function showOriginalFrame(imageBase64,name,revision=null){
   if(Number.isFinite(revision)){
     if(revision<sourceRevision)return false;
@@ -50,10 +80,12 @@ function renderProcessedResults(results,revision=null){
       const src='data:image/png;base64,'+result.image;
       const job=result.job===undefined?'':String(result.job);
       // A new completed transfer must repaint even when its pixel bytes are identical.
-      if(image.src!==src||image.getAttribute('data-result-job')!==job)image.src=src;
+      const updated=image.src!==src||image.getAttribute('data-result-job')!==job;
+      if(updated)image.src=src;
       image.setAttribute('data-result-job',job);
       image.title=result.files&&result.files.bin||'FPGA 回传结果';
-    }else{image.removeAttribute('src');image.removeAttribute('data-result-job');image.title='等待 FPGA 回传';}
+      return updated;
+    }else{image.removeAttribute('src');image.removeAttribute('data-result-job');image.title='等待 FPGA 回传';return false;}
   }
   let comparisonResult=processedResults[fpgaOutputMode.value];
   if(isStreamMode()){
@@ -66,8 +98,12 @@ function renderProcessedResults(results,revision=null){
   }else{
     document.getElementById('comparisonProcessedLabel').textContent=fpgaOutputMode.selectedOptions[0].textContent;
   }
-  show('comparisonProcessed',comparisonResult);
-  for(let mode=0;mode<5;mode++)show('fullViewMode'+mode,processedResults[String(mode)]);
+  let visibleResultChanged=show('comparisonProcessed',comparisonResult)&&!comparisonPreview.hidden;
+  for(let mode=0;mode<5;mode++){
+    const changed=show('fullViewMode'+mode,processedResults[String(mode)]);
+    if(changed&&!fullPreview.hidden)visibleResultChanged=true;
+  }
+  if(visibleResultChanged)updateFrameRate();
   return true;
 }
 
@@ -249,10 +285,6 @@ async function poll(){
     setSimulateState(Boolean(state.simulate));
     showOriginalFrame(state.image,state.image_name,state.source_revision);
     renderProcessedResults(state.processed_results,state.results_revision);
-    if(transferBusy()&&state.transfer_status&&state.transfer_status.busy){
-      const progress=state.transfer_status;
-      document.getElementById('processingStatus').textContent='处理回传中：'+progress.completed+'/'+progress.total+'…';
-    }
     renderMetrics(state.status||{},state);
     document.getElementById('logs').textContent=(state.logs||[]).join('\n');
   }catch(e){/* Keep the last complete preview while reconnecting. */}
