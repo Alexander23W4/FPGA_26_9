@@ -37,7 +37,7 @@
     <button class="mode-option" type="button" data-mode="processing" aria-pressed="true" title="图像处理模式"><svg aria-hidden="true"><use href="#icon-chip"/></svg><span class="nav-label">图像处理模式<small>FPGA 图像管线</small></span><span class="nav-indicator"></span></button>
     <button class="mode-option" type="button" disabled title="医学分析模式暂未开放"><svg aria-hidden="true"><use href="#icon-heart"/></svg><span class="nav-label">医学分析模式<small>暂未开放</small></span></button>
   </nav>
-  <div class="sidebar-footer"><span class="platform-icon"><svg aria-hidden="true"><use href="#icon-chip"/></svg></span><div class="platform-copy"><strong>ACZ7015</strong><span>Zynq 图像处理平台</span></div></div>
+  <div class="sidebar-footer"><span class="platform-icon"><svg aria-hidden="true"><use href="#icon-chip"/></svg></span><div class="platform-copy"><strong>Heartcare</strong><span>心脏超声图像处理平台</span></div></div>
 </aside>
 
 <main class="workspace wrap">
@@ -45,7 +45,7 @@
     <div class="workspace-heading">
       <div class="heading-line"><button id="menuToggle" class="icon-button" type="button" aria-label="收起系统导航" aria-controls="systemDrawer" aria-expanded="true"><svg aria-hidden="true"><use href="#icon-menu"/></svg></button><div><p class="eyebrow">IMAGE WORKSPACE</p><h2>影像工作台</h2></div></div>
     </div>
-    <div class="header-actions" id="imagePicker"><button id="chooseImage">选择 BIN 图像</button><input id="imageFile" type="file" accept=".bin" hidden><div data-system-mode="processing"><button id="transfer">传输给FPGA</button></div></div>
+    <div class="header-actions" id="imagePicker"><button id="chooseImage">选择 BIN 图像</button><input id="imageFile" type="file" accept=".bin" hidden><span id="processingStatus" data-system-mode="processing" role="status" aria-live="polite"></span></div>
   </header>
 
   <div class="workbench-grid">

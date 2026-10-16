@@ -4,7 +4,7 @@ const source = fs.readFileSync(process.argv[2], 'utf8');
 const script = source.match(/TAIL_SCRIPT = r"""<script>([\s\S]*?)<\/script>"""/)[1];
 const elements = {}, pending = new Set(), alerts = [];
 function element() {
-  return {value: '0', textContent: '', listeners: {},
+  return {value: '0', textContent: '', disabled: false, files: [], listeners: {},
     addEventListener(event, fn) {this.listeners[event] = fn;},
     replaceChildren(...children) {this.children = children;}};
 }
@@ -13,6 +13,7 @@ const document = {
   createElement: element, createTextNode: text => ({textContent: text})
 };
 const ctx = vm.createContext({document, updateOverlayControls() {}, updatePreviewLayout() {},
+  poll: async () => {},
   fetch: path => fetch(process.argv[3] + path), alert: text => alerts.push(text)});
 vm.runInContext(script, ctx);
 // The change handler schedules a readback without awaiting it; drain it here.
@@ -40,7 +41,6 @@ async function settle() {while (pending.size) await Promise.all([...pending]);}
   }
   select.value = '5';
   await select.listeners.change({target: select});
-  assert.match(elements.outputModeNote.textContent, /0–4/);
   await ctx.dshReadback();
   assert.strictEqual(select.value, '5', 'hardware readback must preserve full-display selection');
   assert.deepStrictEqual(alerts, []);

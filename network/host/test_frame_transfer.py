@@ -20,7 +20,10 @@ class MockBoard(socketserver.ThreadingTCPServer):
         self.job=0;self.done=False;self.uploads=0;self.acks=0;self.resumes=0
         self.bad_crc=False;self.bad_length=False;self.lose_done=False;self.drop_upload=False;self.bad_done=False
         self.check_saved=lambda:None
-        self.mode=4;self.raw=RAW;self.events=[]
+        self.mode=4;self.raw=RAW;self.events=[];self.has_frame=False;self.renders=0
+        self.stall_next=False;self.stall_job=None;self.cancels=[]
+        self.release_late=threading.Event();self.cancel_seen=threading.Event()
+        self.input_images=[];self.error_next=None
 
 class MockHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -28,15 +31,34 @@ class MockHandler(socketserver.BaseRequestHandler):
         try:
             magic,kind,job,length,checksum,extra=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))
             if magic!=transfer.MAGIC:raise AssertionError('magic')
+            if kind==transfer.CANCEL:
+                assert length==checksum==extra==0
+                board.cancels.append(job)
+                if board.job==job:board.job=0;board.done=False
+                board.cancel_seen.set()
+                return
             if kind==transfer.UPLOAD:
                 if board.drop_upload:
                     board.drop_upload=False
                     return
                 image=transfer.recv_exact(self.request,length)
-                if image!=INPUT or checksum!=transfer.crc(INPUT):raise AssertionError('upload bytes/CRC')
-                board.uploads+=1;board.job=job
+                if len(image)!=transfer.INPUT_BYTES or checksum!=transfer.crc(image):raise AssertionError('upload bytes/CRC')
+                board.input_images.append(image)
+                board.uploads+=1;board.job=job;board.has_frame=True
                 board.done=False;board.raw=bytes([11,22,33,board.mode])*65536
                 board.events.append(('upload',board.mode))
+            elif kind==transfer.RENDER:
+                assert length==0 and checksum==0 and extra in range(5)
+                assert not board.job or board.done, 'new mode requested before PC save ACK'
+                if extra!=board.mode:
+                    board.events.append(('mode',extra))
+                board.mode=extra
+                if not board.has_frame:
+                    self.request.sendall(transfer.packet(transfer.CONFIGURED,job,extra=extra))
+                    return
+                board.renders+=1;board.job=job;board.done=False
+                board.raw=bytes([11,22,33,board.mode])*65536
+                board.events.append(('render',extra))
             elif kind==transfer.RESUME:
                 board.resumes+=1
                 if job!=board.job:
@@ -48,12 +70,20 @@ class MockHandler(socketserver.BaseRequestHandler):
                     return
             else:raise AssertionError('unexpected request')
             raw=board.raw
+            result_mode=board.mode
+            if board.error_next:
+                message=board.error_next.encode();board.error_next=None
+                self.request.sendall(transfer.packet(transfer.ERROR,job,len(message),0,2)+message)
+                return
+            if board.stall_next:
+                board.stall_next=False;board.stall_job=job
+                board.release_late.wait(5)
             length=len(raw)-1 if board.bad_length else len(raw)
             checksum=transfer.crc(raw)^(1 if board.bad_crc else 0)
-            header=transfer.packet(transfer.RESULT,job,length,checksum,board.mode)
+            header=transfer.packet(transfer.RESULT,job,length,checksum,result_mode)
             self.request.sendall(header[:7]);self.request.sendall(header[7:]+raw)
             magic,kind,ack_job,ack_len,ack_crc,mode=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))
-            if (magic,kind,ack_job,ack_len,ack_crc,mode)!=(transfer.MAGIC,transfer.SAVED,job,len(raw),transfer.crc(raw),board.mode):
+            if (magic,kind,ack_job,ack_len,ack_crc,mode)!=(transfer.MAGIC,transfer.SAVED,job,len(raw),transfer.crc(raw),result_mode):
                 raise AssertionError('invalid save ACK')
             board.check_saved()
             board.acks+=1;board.done=True
@@ -70,9 +100,62 @@ def running_board():
     board=MockBoard()
     thread=threading.Thread(target=board.serve_forever,daemon=True);thread.start()
     try:yield board
-    finally:board.shutdown();board.server_close();thread.join(2)
+    finally:board.release_late.set();board.shutdown();board.server_close();thread.join(2)
 
 class FrameTransferTests(unittest.TestCase):
+    def test_timeout_discards_job_without_resume_and_next_image_starts_fresh(self):
+        with running_board() as board,tempfile.TemporaryDirectory() as folder:
+            board.stall_next=True
+            client=transfer.FrameTransferClient('127.0.0.1',board.server_address[1],folder,.2)
+            with self.assertRaisesRegex(TimeoutError,'已取消'):
+                client.transfer(INPUT,'expired.bin')
+            self.assertIsNone(client.pending)
+            self.assertTrue(board.cancel_seen.wait(1))
+            self.assertEqual(board.cancels,[board.stall_job])
+            self.assertEqual((board.uploads,board.resumes,board.acks),(1,0,0))
+            self.assertFalse(list(Path(folder).glob('*.bin')))
+            client.timeout=2
+            result=client.transfer(INPUT[::-1],'fresh.bin')
+            self.assertTrue(result['ok'])
+            self.assertNotEqual(result['job'],board.stall_job)
+            board.release_late.set()
+            self.assertEqual((board.uploads,board.resumes,board.acks),(2,0,1))
+            self.assertEqual(board.input_images[-1],INPUT[::-1])
+            self.assertTrue(all(path.name.startswith('fresh_') for path in Path(folder).iterdir()))
+
+    def test_render_timeout_clears_pending_and_does_not_resume(self):
+        with running_board() as board,tempfile.TemporaryDirectory() as folder:
+            client=transfer.FrameTransferClient('127.0.0.1',board.server_address[1],folder,2)
+            client.transfer(INPUT,'a.bin')
+            board.stall_next=True;client.timeout=.2
+            with self.assertRaises(TimeoutError):client.render(2,'a.bin')
+            self.assertIsNone(client.pending)
+            self.assertTrue(board.cancel_seen.wait(1))
+            self.assertEqual((board.renders,board.resumes,board.acks),(1,0,1))
+            client.timeout=2
+            self.assertTrue(client.transfer(INPUT,'different.bin')['ok'])
+            self.assertEqual((board.uploads,board.acks),(2,2))
+
+    def test_board_reported_timeout_also_discards_the_job(self):
+        with running_board() as board,tempfile.TemporaryDirectory() as folder:
+            board.error_next='DMA/PL timeout; reset board'
+            client=transfer.FrameTransferClient('127.0.0.1',board.server_address[1],folder,2)
+            with self.assertRaises(TimeoutError):client.transfer(INPUT,'expired.bin')
+            self.assertIsNone(client.pending)
+            self.assertTrue(board.cancel_seen.wait(1))
+            self.assertEqual((board.resumes,board.acks),(0,0))
+
+    def test_fragmented_header_cannot_extend_the_transaction_deadline(self):
+        clock=[0.0]
+        class SlowSocket:
+            def settimeout(self,value):pass
+            def recv(self,count):
+                clock[0]+=.03
+                return b'x'
+        with patch.object(transfer.time,'monotonic',side_effect=lambda:clock[0]):
+            with self.assertRaises(TimeoutError):transfer.recv_exact(SlowSocket(),24,.1)
+        self.assertLess(clock[0],.2)
+
     def test_upload_save_then_ack_and_png_channels(self):
         with running_board() as board,tempfile.TemporaryDirectory() as folder:
             def saved():

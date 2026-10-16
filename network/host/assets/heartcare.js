@@ -60,7 +60,7 @@ maskOpacity.addEventListener('input',()=>{
 function updateOverlayControls(){
   const mode=document.getElementById('fpgaOutputMode').value;
   document.getElementById('outputModeNote').textContent=mode==='5'
-    ?'发送后依次处理模式 0–4，显示原图及五张 FPGA 回传图'
+    ?'依次接收并保存五种模式结果；切换模式复用板上图像'
     :mode==='3'?'红色掩膜叠加，0% 完全透明，100% 实心红色':'设置开发板 HDMI 的输出内容';
 }
 document.getElementById('fpgaOutputMode').addEventListener('change',updateOverlayControls);
@@ -216,7 +216,7 @@ async function poll(){
     renderProcessedResults(state.processed_results);
     if(transferBusy()&&state.transfer_status&&state.transfer_status.busy){
       const progress=state.transfer_status;
-      document.getElementById('transfer').textContent='处理回传中：'+progress.completed+'/'+progress.total+'…';
+      document.getElementById('processingStatus').textContent='处理回传中：'+progress.completed+'/'+progress.total+'…';
     }
     document.getElementById('imageName').textContent=state.image_name;
     document.getElementById('imageName').title=state.image_name;

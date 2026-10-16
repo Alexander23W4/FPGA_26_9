@@ -266,6 +266,7 @@ GUI_STATIC_FILES = {
     "/assets/heartcare.js": ("heartcare.js", "text/javascript; charset=utf-8"),
     "/assets/InterVariable.woff2": ("InterVariable.woff2", "font/woff2"),
     "/assets/heart-pulse.svg": ("heart-pulse.svg", "image/svg+xml"),
+    "/assets/workspace-texture.svg": ("workspace-texture.svg", "image/svg+xml"),
 }
 HTML_PAGE = (GUI_ASSET_DIR / "heartcare.html").read_text(encoding="utf-8")
 

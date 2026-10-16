@@ -15,8 +15,8 @@
 #define DATA_REG_ADDR    0x20u /* Manual threshold, 0..255 */
 #define LESION_ADDR      0x21u /* RO: last complete frame's foreground pixels */
 #define MASK_TRANSP_ADDR 0x22u /* Overlay opacity 0..100; 0 transparent, 100 solid */
-#define BACK_RECEIVE     0x30u /* Byte offset 0xC0: write bit0=1 to ACK; reads as 0 */
-#define BACK_STATUS      0x31u /* RO byte 0xC4: bit0 busy, bit1 waiting ACK, bit2 overflow */
+#define BACK_RECEIVE     0x30u /* Legacy ACK, no longer required; reads as 0 */
+#define BACK_STATUS      0x31u /* RO byte 0xC4: bit0 busy, bit1 reserved zero, bit2 overflow */
 
 #define PL_REG_OFFSET(index)  ((unsigned)(index) << 2u)
 #define PL_REG_ADDRESS(index) (PL_CTRL_BASE + PL_REG_OFFSET(index))

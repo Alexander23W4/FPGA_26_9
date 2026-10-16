@@ -47,7 +47,7 @@ class SingleFrameTests(unittest.TestCase):
             self.assertFalse(gui._do_transfer(FRAME, index=1)["ok"])
             talk.assert_not_called()
 
-    def test_one_click_sets_mode_then_uses_network_without_emmc_data(self):
+    def test_upload_uses_network_without_uart_mode_change_or_emmc(self):
         expected = {"ok": True, "mode": 0, "frames": 1, "bytes": 65536,
                     "output_bytes": 262144, "files": {"png": "x.png"}, "log": "saved"}
         with patch.object(gui._FRAME_CLIENT, "transfer", return_value=expected) as send, \
@@ -56,8 +56,8 @@ class SingleFrameTests(unittest.TestCase):
             result = gui._do_transfer(FRAME, filename="frame.bin")
             self.assertTrue(result['ok'], result)
             self.assertEqual(result['results'], [expected])
-            send.assert_called_once_with(FRAME, "frame.bin", expected_mode=0)
-            uart.assert_called_once_with(b'V\x00', 1.5)
+            send.assert_called_once_with(FRAME, "frame.bin")
+            uart.assert_not_called()
             emmc.assert_not_called()
 
     def test_network_failure_is_not_reported_as_success_or_fallback_upload(self):
@@ -66,7 +66,7 @@ class SingleFrameTests(unittest.TestCase):
             result = gui._do_transfer(FRAME)
             self.assertFalse(result["ok"])
             self.assertIn("link down", result["log"])
-            uart.assert_called_once_with(b'V\x00', 1.5)
+            uart.assert_not_called()
 
     def test_serial_waits_through_silence_and_split_end_marker(self):
         chunks = iter([b"VDMA: sending\r\n"] + [b""] * 8 +
@@ -96,7 +96,7 @@ class SingleFrameTests(unittest.TestCase):
             entered.set()
             if not release.wait(2):
                 raise RuntimeError("test did not release transfer")
-            return {"ok": True, "output_bytes": 262144, "files": {}, "log": "saved"}
+            return {"ok": True, "mode": 0, "output_bytes": 262144, "files": {}, "log": "saved"}
         def read(*args, **kwargs):
             if args[0].startswith(b'V'):
                 return '[PL rdbk] VIDEO_MODE(0x02) = 0\n'
@@ -158,7 +158,8 @@ class SingleFrameTests(unittest.TestCase):
         self.assertNotIn("maskOpacityApplied", script)
         self.assertNotIn("maskOpacityUpdate.addEventListener('click',()=>", script)
         self.assertIn("/api/serial/mask_transparency?value=", page)
-        self.assertIn("if (e.target.value === '5')", page)
+        self.assertNotIn('id="transfer"', page)
+        self.assertIn('id="processingStatus"', page)
         for label in ('原图', '去噪图', '轮廓图', '二值掩膜图', '叠加掩膜图', '伪彩色映射图'):
             self.assertIn(f'<figcaption>{label}</figcaption>', page)
         self.assertIn('id="comparisonPreview" class="comparison-preview" hidden', page)
@@ -182,6 +183,7 @@ class SingleFrameTests(unittest.TestCase):
         self.assertIn("name=' + encodeURIComponent(file.name)", page)
         self.assertIn("file.size !== 65536", page)
         self.assertIn("/api/network/transfer?", page)
+        self.assertIn("/api/network/render?mode=", page)
         self.assertIn("</body></html>", page)
 
 

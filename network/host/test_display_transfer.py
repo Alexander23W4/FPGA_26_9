@@ -33,6 +33,20 @@ def display_board():
 
 
 class DisplayTransferTests(unittest.TestCase):
+    def test_timeout_discards_partial_batch_and_allows_different_input(self):
+        with display_board() as (board, state, client):
+            with patch.object(client,'render',side_effect=TimeoutError('等待 FPGA 回传超时')):
+                failed=gui._do_transfer(INPUT,filename='expired.bin',mode=5,state=state)
+            self.assertFalse(failed['ok'])
+            self.assertTrue(failed['timeout'])
+            self.assertIsNone(gui._DISPLAY_PENDING)
+            self.assertIsNone(client.pending)
+            self.assertFalse(state.transfer_status['busy'])
+            self.assertNotIn('total',state.transfer_status)
+            fresh=gui._do_transfer(INPUT[::-1],filename='different.bin',mode=4,state=state)
+            self.assertTrue(fresh['ok'],fresh)
+            self.assertEqual((board.uploads,board.resumes),(2,0))
+
     def test_partial_batch_retries_current_mode_without_repeating_completed_modes(self):
         with display_board() as (board, state, client):
             save = transfer.save_result
@@ -43,30 +57,36 @@ class DisplayTransferTests(unittest.TestCase):
             with patch.object(transfer, 'save_result', side_effect=disk_failure):
                 result = gui._do_transfer(INPUT, filename='input.bin', mode=5, state=state)
             self.assertFalse(result['ok'])
-            self.assertEqual((board.uploads, board.acks), (3, 2))
-            self.assertEqual(sorted(state.processed_results), ['0', '1'])
+            self.assertEqual((board.uploads, board.acks), (1, 3))
+            self.assertEqual(sorted(state.processed_results), ['0', '1', '4'])
             self.assertFalse(state.transfer_status['busy'])
             self.assertIsNotNone(client.pending)
             self.assertFalse(gui._do_transfer(INPUT, filename='input.bin', mode=4)['ok'])
             self.assertFalse(gui._do_transfer(INPUT[::-1], filename='input.bin', mode=5)['ok'])
-            self.assertEqual((board.uploads, board.acks), (3, 2))
+            self.assertEqual((board.uploads, board.acks), (1, 3))
             result = gui._do_transfer(INPUT, filename='input.bin', mode=5, state=state)
             self.assertTrue(result['ok'], result['log'])
-            self.assertEqual((board.uploads, board.acks, board.resumes), (5, 5, 1))
-            self.assertEqual([m for event, m in board.events if event == 'mode'], list(range(5)))
+            self.assertEqual((board.uploads, board.renders, board.acks, board.resumes), (1, 4, 5, 1))
+            self.assertEqual([m for event, m in board.events if event == 'mode'], list(range(4)))
             self.assertEqual([item['mode'] for item in result['results']], list(range(5)))
             self.assertEqual(sorted(state.processed_results), ['0', '1', '2', '3', '4'])
             self.assertIsNone(gui._DISPLAY_PENDING)
             self.assertIsNone(client.pending)
 
-    def test_mode_readback_failure_stops_before_upload(self):
-        with display_board() as (board, state, client), \
-             patch.object(gui, '_board_talk_locked', return_value=line('VIDEO_MODE', 0)):
-            result = gui._do_transfer(INPUT, filename='input.bin', mode=3, state=state)
-            self.assertFalse(result['ok'])
-            self.assertIn('readback mismatch', result['log'])
-            self.assertEqual((board.uploads, board.acks), (0, 0))
-            self.assertFalse(state.processed_results)
+    def test_mode_only_render_never_uploads_and_threshold_rerun_uploads_once(self):
+        with display_board() as (board, state, client):
+            self.assertTrue(gui._do_transfer(INPUT, filename='input.bin', mode=4, state=state)['ok'])
+            self.assertTrue(gui._do_render(3, state)['ok'])
+            self.assertEqual((board.uploads, board.renders, board.acks), (1, 1, 2))
+            self.assertTrue(gui._do_transfer(INPUT, filename='input.bin', mode=3, state=state)['ok'])
+            self.assertEqual((board.uploads, board.renders, board.acks), (2, 1, 3))
+
+    def test_mode_before_first_image_configures_without_dma_result(self):
+        with display_board() as (board, state, client):
+            result = gui._do_render(2, state)
+            self.assertTrue(result['ok'], result)
+            self.assertEqual(result['frames'], 0)
+            self.assertEqual((board.mode, board.uploads, board.acks), (2, 0, 0))
             self.assertIsNone(client.pending)
 
     def test_original_and_processed_preview_use_exact_input_and_saved_bin(self):

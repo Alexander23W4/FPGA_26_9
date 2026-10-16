@@ -28,22 +28,26 @@ class DisplayRegistersTests(unittest.TestCase):
             writes.append(payload)
             return line(name, payload[1])
         class QuietHandler(gui.NetworkHandler):
+            state = None
             def log_message(self, *args):
                 pass
         server = gui.NetworkServer(('127.0.0.1', 0), QuietHandler)
         worker = threading.Thread(target=server.serve_forever, daemon=True)
         worker.start()
+        def render(mode, state=None):
+            values['VIDEO_MODE'] = 0 if int(mode)==5 else int(mode)
+            return {'ok': True, 'results': [], 'log': 'configured'}
         try:
             root = Path(__file__).resolve().parents[2]
-            with patch.object(gui, '_board_talk', side_effect=uart):
+            with patch.object(gui, '_board_talk', side_effect=uart), \
+                 patch.object(gui, '_do_render', side_effect=render):
                 result = subprocess.run([shutil.which('node'),
                     str(root/'scripts/tests/gui_display_controls.js'), gui.__file__,
                     'http://127.0.0.1:%d' % server.server_port],
                     capture_output=True, text=True, encoding='utf-8', timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('GUI_DISPLAY_HTTP_OK', result.stdout)
-            self.assertEqual(writes, [b'V'+bytes([m]) for m in (3,4,2,0,1)] +
-                                     [b'P'+bytes([a]) for a in (0,45,100)])
+            self.assertEqual(writes, [b'P'+bytes([a]) for a in (0,45,100)])
         finally:
             server.shutdown()
             server.server_close()

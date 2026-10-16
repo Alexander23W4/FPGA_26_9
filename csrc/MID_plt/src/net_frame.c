@@ -25,16 +25,21 @@
 #define DONE 4u
 #define ERROR 5u
 #define RESUME 6u
+#define RENDER 7u
+#define CONFIGURED 8u
+#define CANCEL 9u
 #define UPLOAD_REQUIRED 1u
 #define FAILED 2u
 #define BUSY 3u
 #define VDMA_ERRORS 0xff0u
 #define COUNTS_PER_SECOND (XPAR_CPU_CORE_CLOCK_FREQ_HZ/2u)
-enum phase {IDLE, RECEIVING, READY, RUNNING, RESULT_READY, ACKING, FAULT};
+enum phase {IDLE, RECEIVING, READY, RUNNING, RESULT_READY, FAULT};
 static enum phase phase;
 static struct netif interface;
 static struct tcp_pcb *client;
 static int started;
+static int has_frame,redraw,cancelled;
+static u32 requested_mode;
 static u32 job,upload_crc,result_crc,result_mode,last_done,last_crc,last_mode;
 static u32 received,header_used,discard_remaining;
 static u8 rx_header[HEADER_BYTES],tx_header[HEADER_BYTES];
@@ -70,13 +75,25 @@ static void error_response(u32 id,u32 code,const char *message)
 }
 static void send_result(void)
 {
-    if(client)response(RESULT,job,(const void *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE,result_crc,result_mode);
+    if(client&&!cancelled)response(RESULT,job,(const void *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE,result_crc,result_mode);
+}
+static void cancel_job(u32 id)
+{
+    if(id==last_done)last_done=0;
+    if(id!=job)return; /* A late cancellation must not discard a newer job. */
+    cancelled=1;
+    tx_header_used=HEADER_BYTES;tx_length=tx_offset=0;tx_payload=0;
+    /* In-flight DMA must drain before DDR can be reused. It will not send a
+     * result or wait for SAVED. Real DMA/PL faults still require board reset. */
+    if(phase!=RUNNING&&phase!=FAULT) {
+        phase=IDLE;job=0;received=discard_remaining=0;
+    }
 }
 static void fail_job(const char *reason)
 {
     phase=FAULT;
     xil_printf("[network] job %u FAILED: %s; reset board before another frame\r\n",job,reason);
-    if(client)error_response(job,FAILED,reason);
+    if(client&&!cancelled)error_response(job,FAILED,reason);
 }
 static void pump_tx(void)
 {
@@ -104,6 +121,10 @@ static void handle_header(void)
     u32 type=get32(rx_header+4),id=get32(rx_header+8),length=get32(rx_header+12);
     u32 checksum=get32(rx_header+16),extra=get32(rx_header+20);
     if(get32(rx_header)!=MAGIC) {error_response(id,FAILED,"unsupported protocol; update host and firmware together");return;}
+    if(type==CANCEL) {
+        if(!id||length||checksum||extra) {error_response(id,FAILED,"invalid cancel request");return;}
+        cancel_job(id);return; /* One-way: PC has already stopped waiting. */
+    }
     if(type==UPLOAD) {
         /* A rejected upload still has a TCP payload. Drain it without treating
          * image bytes as more command headers or overwriting the error reply. */
@@ -112,28 +133,43 @@ static void handle_header(void)
         if(!id||length!=NET_INPUT_BYTES||extra!=0) {error_response(id,FAILED,"input must be 256x256x8-bit, 65536 bytes");return;}
         if((back_state()&1u)!=0u) {error_response(id,BUSY,"PL return branch is not idle");return;}
         discard_remaining=0;
-        job=id;upload_crc=checksum;received=0;phase=RECEIVING;job_started=ticks();
+        job=id;redraw=0;cancelled=0;upload_crc=checksum;received=0;phase=RECEIVING;job_started=ticks();
+        return;
+    }
+    if(type==RENDER) {
+        if(!id||length||checksum||extra>4u) {error_response(id,FAILED,"invalid render request");return;}
+        if(phase!=IDLE||(back_state()&1u)) {error_response(id,BUSY,"previous frame is unfinished; resume it first");return;}
+        if(!has_frame) {
+            Xil_Out32(PL_REG_ADDRESS(VIDEO_MODE_ADDR),extra);dsb();
+            if(Xil_In32(PL_REG_ADDRESS(VIDEO_MODE_ADDR))!=extra) {
+                error_response(id,FAILED,"display mode register readback mismatch");return;
+            }
+            response(CONFIGURED,id,0,0,0,extra);return;
+        }
+        job=id;redraw=1;cancelled=0;requested_mode=extra;
+        if(Xil_In32(PL_REG_ADDRESS(VIDEO_MODE_ADDR))==extra&&result_mode==extra) {
+            phase=RESULT_READY;send_result();
+        } else phase=READY;
         return;
     }
     if(type==RESUME) {
         if(length||checksum||extra) {error_response(id,FAILED,"invalid resume request");return;}
         if(id==last_done&&last_done) {response(DONE,id,0,0,last_crc,last_mode);return;}
-        if(id!=job||phase==IDLE) {error_response(id,UPLOAD_REQUIRED,"upload required");return;}
+        if(id!=job||phase==IDLE||cancelled) {error_response(id,UPLOAD_REQUIRED,"upload required");return;}
         if(phase==RESULT_READY)send_result();
         else if(phase==FAULT)error_response(id,FAILED,"DMA/PL job failed; reset board before retrying");
-        /* READY/RUNNING/ACKING: the main loop will reply when that phase ends. */
+        /* READY/RUNNING: the main loop will reply when that phase ends. */
         return;
     }
     if(type==SAVED) {
         if(id==last_done&&last_done&&checksum==last_crc&&length==IMG_RES_DDR_SIZE&&extra==last_mode) {
             response(DONE,id,0,0,last_crc,last_mode);return;
         }
-        if(id!=job||(phase!=RESULT_READY&&phase!=ACKING)||length!=IMG_RES_DDR_SIZE||
+        if(id!=job||phase!=RESULT_READY||length!=IMG_RES_DDR_SIZE||
            checksum!=result_crc||extra!=result_mode) {error_response(id,FAILED,"save acknowledgement does not match the completed result");return;}
-        if(phase!=ACKING) {
-            Xil_Out32(PL_REG_ADDRESS(BACK_RECEIVE),1u);dsb();
-            phase=ACKING;job_started=ticks();
-        }
+        /* PC acknowledgement protects DDR ownership only. PL rearms at TLAST. */
+        last_done=job;last_crc=result_crc;last_mode=result_mode;phase=IDLE;
+        response(DONE,last_done,0,0,last_crc,last_mode);
         return;
     }
     error_response(id,FAILED,"unknown frame command");
@@ -206,7 +242,7 @@ int net_frame_init(void)
     if(tcp_bind(bound,IP_ADDR_ANY,FRAME_TCP_PORT)!=ERR_OK) {tcp_close(bound);return -1;}
     listener=tcp_listen(bound);if(!listener) {tcp_close(bound);return -1;}
     tcp_accept(listener,accept_client);
-    phase=IDLE;last_tcp=last_arp=last_rx=ticks();started=1;
+    phase=IDLE;has_frame=0;cancelled=0;last_tcp=last_arp=last_rx=ticks();started=1;
     xil_printf("[network] DDR frame TCP server 192.168.1.10:%u\r\n",FRAME_TCP_PORT);
     return 0;
 }
@@ -219,7 +255,16 @@ void net_frame_poll(void)
     if(now-last_arp>=COUNTS_PER_SECOND*5ull) {etharp_tmr();last_arp=now;}
     if(now-last_rx>=COUNTS_PER_SECOND/10u) {xemacpsif_resetrx_on_no_rxdata(&interface);last_rx=now;}
     if(phase==READY) {
-        if(!vdma_alive()||(vdma_mm2s_status()&1u)==0u) {fail_job("input VDMA is unavailable or busy");}
+        if(redraw) {
+            /* Arm the receiver before a mode change can launch a PL packet. */
+            if(s2mm_arm(IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE)!=0)fail_job("S2MM preparation failed");
+            else {
+                Xil_Out32(PL_REG_ADDRESS(VIDEO_MODE_ADDR),requested_mode);dsb();
+                if(Xil_In32(PL_REG_ADDRESS(VIDEO_MODE_ADDR))!=requested_mode)fail_job("display mode register readback mismatch");
+                else {phase=RUNNING;job_started=now;}
+            }
+        }
+        else if(!vdma_alive()||(vdma_mm2s_status()&1u)==0u) {fail_job("input VDMA is unavailable or busy");}
         else if(vdma_mm2s_reset()!=0||s2mm_arm(IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE)!=0) {fail_job("DMA preparation failed");}
         else {
             Xil_DCacheFlushRange(IMG_DDR_BASE,NET_INPUT_BYTES);dsb();
@@ -229,27 +274,26 @@ void net_frame_poll(void)
     }
     if(phase==RUNNING) {
         status=s2mm_poll(IMG_RES_DDR_SIZE);sr=vdma_mm2s_status();
-        if(status<0||(sr&VDMA_ERRORS))fail_job("DMA error or incomplete output packet; reset board");
-        else if(status==1&&(sr&0x1001u)==0x1001u&&(back_state()&2u)) {
+        if(status<0||(!redraw&&(sr&VDMA_ERRORS)))fail_job("DMA error or incomplete output packet; reset board");
+        else if(status==1&&(redraw||(sr&0x1001u)==0x1001u)&&!(back_state()&1u)) {
             if(back_state()&4u)fail_job("PL return FIFO overflow; reset board");
             else {
                 Xil_DCacheInvalidateRange(IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);dsb();
                 first=pixels[0]>>24;
                 for(i=0;i<65536u&&((pixels[i]>>24)==first);++i) { }
-                if(first>4u||i!=65536u)fail_job("output mode/pixel framing mismatch; reset board");
+                if(first>4u||i!=65536u||(redraw&&first!=requested_mode))fail_job("output mode/pixel framing mismatch; reset board");
                 else {
                     result_mode=first;result_crc=crc32_calc((const u8 *)pixels,IMG_RES_DDR_SIZE);
-                    s2mm_stop();phase=RESULT_READY;send_result();
-                    xil_printf("[network] result ready job=%u bytes=%u CRC=0x%08x\r\n",job,IMG_RES_DDR_SIZE,result_crc);
+                    s2mm_stop();has_frame=1;
+                    if(cancelled) {
+                        phase=IDLE;job=0;
+                    } else {
+                        phase=RESULT_READY;send_result();
+                        xil_printf("[network] result ready job=%u bytes=%u CRC=0x%08x\r\n",job,IMG_RES_DDR_SIZE,result_crc);
+                    }
                 }
             }
         } else if(now-job_started>COUNTS_PER_SECOND*30ull)fail_job("DMA/PL timeout; reset board");
-    }
-    if(phase==ACKING) {
-        if((back_state()&1u)==0u) {
-            last_done=job;last_crc=result_crc;last_mode=result_mode;phase=IDLE;
-            if(client)response(DONE,last_done,0,0,last_crc,last_mode);
-        } else if(now-job_started>COUNTS_PER_SECOND*2ull)fail_job("PL did not consume save acknowledgement; reset board");
     }
     if(phase==RECEIVING&&now-job_started>COUNTS_PER_SECOND*30ull) {
         discard_remaining=NET_INPUT_BYTES-received;phase=IDLE;

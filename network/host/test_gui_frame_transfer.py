@@ -14,7 +14,7 @@ from test_display_registers import line
 
 class GuiFrameTransferTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'Node.js is needed to execute GUI handlers')
-    def test_real_button_through_network_and_saved_files(self):
+    def test_real_selection_mode_and_threshold_events(self):
         class QuietHandler(gui.NetworkHandler):
             def log_message(self, *args):
                 pass
@@ -28,17 +28,23 @@ class GuiFrameTransferTests(unittest.TestCase):
             original.write_bytes(INPUT)
             state = gui.web_common.WebState(str(original), False)
             handler.state = state
+            thresholds, opacities = [], []
+            opacity = 45
             def uart(payload, wait=1.5):
+                nonlocal opacity
                 if payload == b'R':
                     values = dict(MODE=0, CMD_REG=0, VIDEO_MODE=board.mode, STATUS=128,
-                                  DATA_REG=128, LESION=123, MASK_TRANSP=45)
+                                  DATA_REG=128, LESION=123, MASK_TRANSP=opacity)
                     return ''.join(line(name, value) for name, value in values.items())
-                self.assertEqual(payload[0:1], b'V')
-                self.assertEqual(board.uploads, board.acks)
-                self.assertEqual(len(state.processed_results), board.acks)
-                board.mode = payload[1]
-                board.events.append(('mode', board.mode))
-                return line('VIDEO_MODE', board.mode)
+                if payload[0:1] == b'P':
+                    opacities.append(payload)
+                    board.events.append(('opacity', payload[1]))
+                    opacity = payload[1]
+                    return line('MASK_TRANSP', opacity + int(len(opacities)>1))
+                self.assertEqual(payload[0:1], b'T')
+                thresholds.append(payload)
+                board.events.append(('threshold', payload[-1]))
+                return line('CMD_REG', payload[1]) + line('DATA_REG', payload[-1] + int(len(thresholds)>1))
             results = Path(folder)/'results'
             client = FrameTransferClient('127.0.0.1', board.server_address[1], folder, 2)
             client.folder = str(results)
@@ -55,12 +61,16 @@ class GuiFrameTransferTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     self.assertIn('GUI_FRAME_HTTP_OK', result.stdout)
                 modes = list(range(5)) if mode == 5 else [mode]
-                self.assertEqual((board.uploads, board.acks), (len(modes), len(modes)))
-                self.assertEqual(board.events, [(event, m) for m in modes for event in ('mode', 'upload', 'ack')])
-                self.assertEqual(len(list(results.glob('*.bin'))), len(modes))
-                self.assertEqual(len(list(results.glob('*.png'))), len(modes))
-                self.assertEqual(sorted(state.processed_results), [str(m) for m in modes])
-                for m in modes:
+                self.assertEqual((board.uploads, board.acks), (3, 2*len(modes)+2))
+                self.assertEqual(board.renders, 2*len(modes)-1)
+                self.assertEqual(len(list(results.glob('*.bin'))), 2*len(modes)+2)
+                self.assertEqual(len(list(results.glob('*.png'))), 2*len(modes)+2)
+                opacity_index = board.events.index(('opacity', 35))
+                self.assertEqual(board.events[opacity_index+1], ('upload', 4 if mode==5 else mode))
+                threshold_index = board.events.index(('threshold', 77))
+                self.assertEqual(board.events[threshold_index+1], ('upload', 3))
+                self.assertEqual(sorted(state.processed_results), ['3'])
+                for m in (3,):
                     raw = Path(state.processed_results[str(m)]['files']['bin']).read_bytes()
                     self.assertEqual(raw, bytes([11,22,33,m])*65536)
             finally:

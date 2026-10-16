@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="240" viewBox="0 0 1600 240" preserveAspectRatio="none">
+  <!-- Fixed pigment and paper noise: decoration only, no target-shaped motif. -->
+  <defs>
+    <filter id="rose-pigment" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".018 .046" numOctaves="5" seed="17"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 .65  0 0 0 0 .16  0 0 0 0 .29  2.6 0 0 0 -.96"/>
+    </filter>
+    <filter id="blush-pigment" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".028 .045" numOctaves="3" seed="8"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .88  0 0 0 0 .88  3.2 0 0 0 -1.25"/>
+    </filter>
+    <filter id="paper-grain" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" seed="31"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 .48  0 0 0 0 .12  0 0 0 0 .22  .9 0 0 0 -.27"/>
+    </filter>
+  </defs>
+  <path fill="#f0c5d0" d="M0 0h1600v240H0z"/>
+  <path fill="#fff" filter="url(#rose-pigment)" opacity=".55" d="M0 0h1600v240H0z"/>
+  <path fill="#fff" filter="url(#blush-pigment)" opacity=".45" d="M0 0h1600v240H0z"/>
+  <path fill="#fff" filter="url(#paper-grain)" opacity=".4" d="M0 0h1600v240H0z"/>
+</svg>
