@@ -41,6 +41,15 @@ GUI 的“全显示模式”（值 5）仍为占位，不发送给 FPGA。
 切换模式或透明度可直接重绘当前图像，无需再次发送 D。
 RGB 与 HS/VS/DE 使用相同的两级流水线，图像区域外保持黑色。
 
+### 显示链路分工
+
+像素数据依次经过：`double_buf → out_arr → hdmi_out → hdmi_tx`。
+`out_arr` 锁存每帧显示配置，并通过内部 `video_colorizer` 完成五种模式的 RGB 计算。
+`hdmi_out` 接收计算后的 RGB，产生并对齐 HS/VS/DE，再统一输出给 `hdmi_tx`。
+缓存读地址、bank、图像窗口和帧边界仍由 `hdmi_out` 的扫描计数生成。
+RGB 计算保留两级流水线，HS/VS/DE 在 `hdmi_out` 内经过相同级数；
+首张完整图片到达后持续扫描，无新图片时刷新当前缓存。
+
 ## GUI / PS 命令
 
 - `V + 1 字节`：模式 0～4。

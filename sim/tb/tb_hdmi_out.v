@@ -16,7 +16,8 @@ module tb_hdmi_out;
     wire [37:0] hdmi_debug;
     wire [7:0] r,g,b;
     wire hs,vs,de;
-    wire raw_hs,raw_vs,raw_de,image_active,frame_start;
+    wire [7:0] arr_r,arr_g,arr_b;
+    wire image_active,frame_start;
     reg [31:0] mode=3,alpha=50;
     wire [31:0] mode_pclk,alpha_pclk;
     reg [2:0] done_sync=0;
@@ -37,14 +38,14 @@ module tb_hdmi_out;
         .write_contour(write_contour),.read_buf_idx(read_bank),.read_addr(read_addr),
         .read_data(read_data),.read_mask(read_mask),.read_contour(read_contour));
     hdmi_out dut(.pclk(pclk),.rst(rst),.buf_idx(read_bank),.buf_addr(read_addr),
-        .vid_hs(raw_hs),.vid_vs(raw_vs),.vid_de(raw_de),
+        .in_r(arr_r),.in_g(arr_g),.in_b(arr_b),
+        .vid_r(r),.vid_g(g),.vid_b(b),.vid_hs(hs),.vid_vs(vs),.vid_de(de),
         .frame_start(frame_start),.image_active(image_active),
         .frame_ready_toggle(done_sync[2]),.write_idx_sync(bank_sync[1]),.dbg_status(hdmi_debug));
     out_arr formatter(.pclk(pclk),.rst(rst),
         .buf_data(read_data),.buf_mask(read_mask),.buf_contour(read_contour),
-        .vid_r(r),.vid_g(g),.vid_b(b),.vid_hs(hs),.vid_vs(vs),.vid_de(de),
+        .vid_r(arr_r),.vid_g(arr_g),.vid_b(arr_b),
         .frame_start(frame_start),.image_active(image_active),
-        .in_hs(raw_hs),.in_vs(raw_vs),.in_de(raw_de),
         .video_mode(mode_pclk),.mask_transparency(alpha_pclk));
 
     integer written=0,pixels_checked=0,scan=0,displayed=0;

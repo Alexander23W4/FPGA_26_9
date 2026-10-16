@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 
 // Display formatting after the frame store, entirely in the pclk domain.
-// hdmi_out owns raster/address generation; this module owns display settings,
-// all five color modes, and the matching two-stage RGB/HS/VS/DE pipeline.
+// Data path: frame store -> out_arr (two-stage RGB calculation) -> hdmi_out.
+// hdmi_out supplies the read window/frame boundary and owns HDMI control timing.
 module out_arr (
     input wire pclk, input wire rst,
     input wire [7:0] buf_data,
@@ -10,9 +10,7 @@ module out_arr (
     // These settings have already crossed into pclk through display_cfg_cdc.
     input wire [31:0] video_mode, input wire [31:0] mask_transparency,
     input wire frame_start, input wire image_active,
-    input wire in_hs, input wire in_vs, input wire in_de,
-    output wire [7:0] vid_r, output wire [7:0] vid_g, output wire [7:0] vid_b,
-    output wire vid_hs, output wire vid_vs, output wire vid_de
+    output wire [7:0] vid_r, output wire [7:0] vid_g, output wire [7:0] vid_b
 );
     reg [31:0] video_mode_active;
     reg [6:0] mask_transparency_active;
@@ -35,7 +33,8 @@ module out_arr (
         .pclk(pclk), .rst(rst),
         .gray(buf_data), .mask(buf_mask), .contour(buf_contour),
         .mode(video_mode_active), .alpha(mask_transparency_active),
-        .image_active(image_active), .in_hs(in_hs), .in_vs(in_vs), .in_de(in_de),
-        .r(vid_r), .g(vid_g), .b(vid_b), .hs(vid_hs), .vs(vid_vs), .de(vid_de)
+        // Only RGB leaves this module; hdmi_out aligns its own HS/VS/DE.
+        .image_active(image_active), .in_hs(1'b1), .in_vs(1'b1), .in_de(1'b1),
+        .r(vid_r), .g(vid_g), .b(vid_b), .hs(), .vs(), .de()
     );
 endmodule

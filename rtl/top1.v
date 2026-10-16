@@ -167,7 +167,7 @@ module top1 #(
     wire [37:0] hdmi_dbg_status;
     wire [7:0] hdmi_vid_r, hdmi_vid_g, hdmi_vid_b;
     wire hdmi_vid_hs, hdmi_vid_vs, hdmi_vid_de;
-    wire hdmi_raw_hs, hdmi_raw_vs, hdmi_raw_de;
+    wire [7:0] arr_vid_r, arr_vid_g, arr_vid_b;
     wire hdmi_image_active, hdmi_frame_start;
 
     hdl_out u_hdl_out (
@@ -193,17 +193,19 @@ module top1 #(
         .buf_mask(fb_read_mask), .buf_contour(fb_read_contour),
         .video_mode(video_mode_pclk), .mask_transparency(mask_transparency_pclk),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
-        .in_hs(hdmi_raw_hs), .in_vs(hdmi_raw_vs), .in_de(hdmi_raw_de),
-        .vid_r(hdmi_vid_r), .vid_g(hdmi_vid_g), .vid_b(hdmi_vid_b),
-        .vid_hs(hdmi_vid_hs), .vid_vs(hdmi_vid_vs), .vid_de(hdmi_vid_de)
+        .vid_r(arr_vid_r), .vid_g(arr_vid_g), .vid_b(arr_vid_b)
     );
 
-    // Raw raster timing and frame-store addresses. out_arr produces the final
-    // RGB and equally delayed control signals used by hdmi_tx below.
+
+
+    // Pixel data flows from the frame store through out_arr into hdmi_out.
+    // hdmi_out emits RGB and matching HS/VS/DE together to hdmi_tx.
     hdmi_out u_hdmi_out (
         .pclk(pclk), .rst(rst),
+        .in_r(arr_vid_r), .in_g(arr_vid_g), .in_b(arr_vid_b),
+        .vid_r(hdmi_vid_r), .vid_g(hdmi_vid_g), .vid_b(hdmi_vid_b),
         .buf_idx(fb_read_idx), .buf_addr(fb_read_addr),
-        .vid_hs(hdmi_raw_hs), .vid_vs(hdmi_raw_vs), .vid_de(hdmi_raw_de),
+        .vid_hs(hdmi_vid_hs), .vid_vs(hdmi_vid_vs), .vid_de(hdmi_vid_de),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
         .frame_ready_toggle(frame_ready_sync[2]), .write_idx_sync(write_idx_sync[1]),
         .dbg_status(hdmi_dbg_status)
