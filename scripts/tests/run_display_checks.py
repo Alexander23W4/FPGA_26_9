@@ -24,14 +24,15 @@ def main():
         return output
     sources = sorted((ROOT / 'rtl').rglob('*.v'))
     tests = [ROOT / 'sim/tb/tb_display_regs.sv', ROOT / 'sim/tb/tb_video_colorizer.sv',
-             ROOT / 'sim/tb/tb_hdmi_out.v', ROOT / 'sim/tb/tb_top_thr.v']
+             ROOT / 'sim/tb/tb_hdmi_out.v', ROOT / 'sim/tb/tb_top_thr.v',
+             ROOT / 'sim/tb/tb_back_stream.sv', ROOT / 'sim/tb/tb_back_ack.sv']
     run('compile', binary/'xvlog.bat', '--sv', '--relax', '--work', 'xil_defaultlib', *sources, *tests,
         binary.parent/'data/verilog/src/glbl.v')
     run('top1_elaborate', binary/'xelab.bat', '--relax', '-L', 'unisims_ver',
         'xil_defaultlib.top1', 'xil_defaultlib.glbl', '-s', 'top1_ports')
     script = args.out / 'run.tcl'
     script.write_text('run all\nquit\n', encoding='ascii')
-    for top in ('tb_display_regs', 'tb_video_colorizer', 'tb_hdmi_out', 'tb_top_thr'):
+    for top in ('tb_back_ack', 'tb_display_regs', 'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr'):
         run(top+'_elaborate', binary/'xelab.bat', '--relax', 'xil_defaultlib.'+top, '-s', top)
         output = run(top, binary/'xsim.bat', top, '-tclbatch', script, '-onerror', 'quit')
         if '[PASS]' not in output:

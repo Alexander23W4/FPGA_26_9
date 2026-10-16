@@ -9,11 +9,27 @@ module out_arr (
     input wire buf_mask, input wire buf_contour,
     // These settings have already crossed into pclk through display_cfg_cdc.
     input wire [31:0] video_mode, input wire [31:0] mask_transparency,
-    input wire frame_start, input wire image_active,
-    output wire [7:0] vid_r, output wire [7:0] vid_g, output wire [7:0] vid_b
+    input wire frame_start, input wire image_active, input wire new_frame,
+    output wire [7:0] vid_r, output wire [7:0] vid_g, output wire [7:0] vid_b,
+    output wire vid_valid, output wire vid_sof,
+    output wire [31:0] video_mode_out
 );
     reg [31:0] video_mode_active;
     reg [6:0] mask_transparency_active;
+    reg [1:0] valid_pipe, sof_pipe;
+    assign vid_valid = valid_pipe[1];
+    assign vid_sof = sof_pipe[1];
+    assign video_mode_out = video_mode_active;
+
+    // Metadata follows the same two stages as RGB. vid_sof marks the new
+    // display job before its image window; vid_valid excludes all black margins.
+    always @(posedge pclk) begin
+        if (rst) begin valid_pipe <= 0; sof_pipe <= 0; end
+        else begin
+            valid_pipe <= {valid_pipe[0], image_active};
+            sof_pipe <= {sof_pipe[0], new_frame};
+        end
+    end
 
     // Freeze one complete setting pair for each displayed frame. A mode change
     // redraws the current bank at the next frame boundary without another D.

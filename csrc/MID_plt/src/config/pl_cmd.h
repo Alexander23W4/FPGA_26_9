@@ -6,7 +6,7 @@
 #define PL_CTRL_BASE    0x44000000u
 
 /* WORD register numbers, not byte offsets. Always use PL_REG_ADDRESS().
- * Physical byte offsets: 00,04,08,0C,80,84,88 respectively.
+ * Physical byte offsets: 00,04,08,0C,80,84,88,C0 respectively.
  */
 #define MODE_ADDR        0x00u /* 0 image processing, 1 medical (reserved) */
 #define CMD_REG_ADDR     0x01u /* 0 automatic threshold, 1 manual */
@@ -15,6 +15,7 @@
 #define DATA_REG_ADDR    0x20u /* Manual threshold, 0..255 */
 #define LESION_ADDR      0x21u /* RO: last complete frame's foreground pixels */
 #define MASK_TRANSP_ADDR 0x22u /* Overlay opacity 0..100; 0 transparent, 100 solid */
+#define BACK_RECEIVE     0x30u /* Byte offset 0xC0: write bit0=1 to ACK; reads as 0 */
 
 #define PL_REG_OFFSET(index)  ((unsigned)(index) << 2u)
 #define PL_REG_ADDRESS(index) (PL_CTRL_BASE + PL_REG_OFFSET(index))

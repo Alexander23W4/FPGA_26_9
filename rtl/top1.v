@@ -16,7 +16,7 @@ module top1 #(
     input  wire        rst,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 pclk CLK" *)
-    (* X_INTERFACE_PARAMETER = "FREQ_HZ 25200000" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF M_AXIS, ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
     input  wire                    pclk,        // 像素时钟 25.2MHz (clk_wiz clk_out1)
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 pclk_x5 CLK" *)
@@ -38,11 +38,19 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TUSER" *)
     input  wire        s_axis_tuser,
 
-    output wire [63:0] m_axis_tdata,
+    // Return channel: exactly one {mode,R,G,B} pixel per handshake, pclk domain.
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TDATA" *)
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME M_AXIS, TDATA_NUM_BYTES 4, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 25200000" *)
+    output wire [31:0] m_axis_tdata,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TVALID" *)
     output wire        m_axis_tvalid,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TREADY" *)
     input  wire        m_axis_tready,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TLAST" *)
     output wire        m_axis_tlast,
-    output wire [7:0]  m_axis_tkeep,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TKEEP" *)
+    output wire [3:0]  m_axis_tkeep,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TUSER" *)
     output wire        m_axis_tuser,
 
     // ---------------- AXI-Lite 从口：向上接 PS ----------------
@@ -111,6 +119,7 @@ module top1 #(
     wire dn_valid, dn_eof, dn_ready;
     wire ts_contour, ts_mask, hdl_valid, hdl_eof, hdl_ready;
     wire [31:0] video_mode, mask_transparency;
+    wire back_ack_src, back_ack_ready, back_receive_done;
     denoise u_denoise (
         .ap_clk(clk), .ap_rst(rst), .in_data(px_data[7:0]),
         .in_valid(px_valid), .in_last(px_eof), .in_ready(px_ready),
@@ -130,7 +139,8 @@ module top1 #(
         .m_axis_tready(hdl_ready), .m_axis_tlast(hdl_eof),
         .m_axis_tmask(ts_mask), .m_axis_tcontour(ts_contour),
         .threshold_out(), .auto_mode_out(), .frame_done_out(),
-        .video_mode_out(video_mode), .mask_transparency_out(mask_transparency)
+        .video_mode_out(video_mode), .mask_transparency_out(mask_transparency),
+        .back_receive_done_out(back_ack_src), .back_receive_ready(back_ack_ready)
     );
 
     // Preserve all three planes. Display selection happens after the frame store,
@@ -162,6 +172,10 @@ module top1 #(
         .mode_in(video_mode), .alpha_in(mask_transparency),
         .mode_out(video_mode_pclk), .alpha_out(mask_transparency_pclk)
     );
+    back_ack_cdc u_back_ack_cdc (
+        .src_clk(clk), .dst_clk(pclk), .rst(rst),
+        .src_pulse(back_ack_src), .src_ready(back_ack_ready), .dst_pulse(back_receive_done)
+    );
 
     wire [18:0] hdl_dbg_status;
     wire [37:0] hdmi_dbg_status;
@@ -169,6 +183,9 @@ module top1 #(
     wire hdmi_vid_hs, hdmi_vid_vs, hdmi_vid_de;
     wire [7:0] arr_vid_r, arr_vid_g, arr_vid_b;
     wire hdmi_image_active, hdmi_frame_start;
+    wire hdmi_new_frame, arr_vid_valid, arr_vid_sof;
+    wire [31:0] arr_video_mode;
+    (* MARK_DEBUG = "TRUE" *) wire back_busy, back_waiting_ack, back_overflow, back_frame_sent;
 
     hdl_out u_hdl_out (
         .clk(clk), .rst(rst),
@@ -193,13 +210,22 @@ module top1 #(
         .buf_mask(fb_read_mask), .buf_contour(fb_read_contour),
         .video_mode(video_mode_pclk), .mask_transparency(mask_transparency_pclk),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
-        .vid_r(arr_vid_r), .vid_g(arr_vid_g), .vid_b(arr_vid_b)
+        .new_frame(hdmi_new_frame),
+        .vid_r(arr_vid_r), .vid_g(arr_vid_g), .vid_b(arr_vid_b),
+        .vid_valid(arr_vid_valid), .vid_sof(arr_vid_sof), .video_mode_out(arr_video_mode)
     );
 
 
+    back_stream u_back_stream (
+        .clk(pclk), .rst(rst), .sof(arr_vid_sof), .valid(arr_vid_valid),
+        .R(arr_vid_r), .G(arr_vid_g), .B(arr_vid_b), .video_mode(arr_video_mode),
+        .back_receive_done(back_receive_done),
+        .tdata(m_axis_tdata), .tvalid(m_axis_tvalid), .tready(m_axis_tready),
+        .tkeep(m_axis_tkeep), .tlast(m_axis_tlast), .tuser(m_axis_tuser),
+        .back_en(), .busy(back_busy), .waiting_ack(back_waiting_ack),
+        .frame_sent(back_frame_sent), .overflow(back_overflow)
+    );
 
-    // Pixel data flows from the frame store through out_arr into hdmi_out.
-    // hdmi_out emits RGB and matching HS/VS/DE together to hdmi_tx.
     hdmi_out u_hdmi_out (
         .pclk(pclk), .rst(rst),
         .in_r(arr_vid_r), .in_g(arr_vid_g), .in_b(arr_vid_b),
@@ -207,6 +233,7 @@ module top1 #(
         .buf_idx(fb_read_idx), .buf_addr(fb_read_addr),
         .vid_hs(hdmi_vid_hs), .vid_vs(hdmi_vid_vs), .vid_de(hdmi_vid_de),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
+        .new_frame(hdmi_new_frame),
         .frame_ready_toggle(frame_ready_sync[2]), .write_idx_sync(write_idx_sync[1]),
         .dbg_status(hdmi_dbg_status)
     );

@@ -2,7 +2,7 @@
 
 // Register numbers match config/pl_cmd.h. AXI carries BYTE addresses:
 // MODE=0x00, CMD=0x04, VIDEO=0x08, STATUS=0x0c,
-// DATA=0x80, AREA=0x84, MASK_TRANSP=0x88 (number << 2).
+// DATA=0x80, AREA=0x84, MASK_TRANSP=0x88, BACK_RECEIVE=0xc0 (number << 2).
 module axi_lite_slave (
     input wire s_axi_aclk, input wire s_axi_aresetn,
     input wire [31:0] s_axi_awaddr, input wire s_axi_awvalid,
@@ -21,12 +21,14 @@ module axi_lite_slave (
     input wire [31:0] status_in,
     output reg [31:0] reg_video_mode,
     input wire [16:0] lesion_pixels,
-    output reg [31:0] reg_mask_transparency
+    output reg [31:0] reg_mask_transparency,
+    output reg reg_back_receive,
+    input wire back_receive_ready
 );
     localparam [6:0] ADDR_MODE = 7'h00, ADDR_CMD = 7'h01,
         ADDR_VIDEO_MODE = 7'h02, ADDR_STATUS = 7'h03,
         ADDR_DATA = 7'h20, ADDR_AREA_DATA = 7'h21,
-        ADDR_MASK_TRANSP = 7'h22;
+        ADDR_MASK_TRANSP = 7'h22, ADDR_BACK_RECEIVE = 7'h30;
 
     reg aw_pending, w_pending;
     reg [31:0] aw_saved, w_saved;
@@ -36,8 +38,12 @@ module axi_lite_slave (
     wire [31:0] write_addr = aw_pending ? aw_saved : s_axi_awaddr;
     wire [31:0] write_data = w_pending ? w_saved : s_axi_wdata;
     wire [3:0] write_strb = w_pending ? strb_saved : s_axi_wstrb;
-    wire write_commit = !s_axi_bvalid && (aw_pending || aw_take) &&
-                        (w_pending || w_take);
+    wire ack_write = write_addr[1:0] == 0 && write_addr[8:2] == ADDR_BACK_RECEIVE &&
+                     write_strb[0] && write_data[0];
+    // Retain AW/W while the previous ACK crosses clock domains. A second ACK
+    // must wait instead of overwriting the outstanding event.
+    wire write_commit = !s_axi_bvalid && (aw_pending || aw_take) && (w_pending || w_take) &&
+                        (!ack_write || back_receive_ready);
 
     function [31:0] merge_bytes;
         input [31:0] previous, data;
@@ -65,8 +71,10 @@ module axi_lite_slave (
             reg_mode <= 0; reg_cmd <= 0; reg_threshold <= 0;
             reg_video_mode <= 0; reg_mask_transparency <= 32'd45;
             host_wr_en <= 0;
+            reg_back_receive <= 0;
         end else begin
             host_wr_en <= 0;
+            reg_back_receive <= 0;
             if (aw_take) begin aw_saved <= s_axi_awaddr; aw_pending <= 1; end
             if (w_take) begin
                 w_saved <= s_axi_wdata; strb_saved <= s_axi_wstrb; w_pending <= 1;
@@ -85,6 +93,8 @@ module axi_lite_slave (
                             reg_threshold <= write_data[7:0]; host_wr_en <= 1;
                         end
                         ADDR_MASK_TRANSP: reg_mask_transparency <= next_alpha > 100 ? 32'd100 : next_alpha;
+                        // W1P: exactly one source-clock pulse per accepted write.
+                        ADDR_BACK_RECEIVE: if (write_strb[0] && write_data[0]) reg_back_receive <= 1;
                         default: s_axi_bresp <= 2'b10;
                     endcase
                 end
@@ -109,6 +119,7 @@ module axi_lite_slave (
                         ADDR_DATA: s_axi_rdata <= {24'd0, reg_threshold};
                         ADDR_AREA_DATA: s_axi_rdata <= {15'd0, lesion_pixels};
                         ADDR_MASK_TRANSP: s_axi_rdata <= reg_mask_transparency;
+                        ADDR_BACK_RECEIVE: s_axi_rdata <= 0; // action register, no stored level
                         default: s_axi_rresp <= 2'b10;
                     endcase
                 end

@@ -17,7 +17,17 @@ module tb_hdmi_out;
     wire [7:0] r,g,b;
     wire hs,vs,de;
     wire [7:0] arr_r,arr_g,arr_b;
-    wire image_active,frame_start;
+    wire image_active,frame_start,new_frame,arr_valid,arr_sof;
+    wire [31:0] arr_mode,return_data;
+    wire return_valid,return_last,return_user,return_wait,return_overflow;
+    wire [3:0] return_keep;
+    integer return_cycles=0,return_pixels=0,return_packets=0,new_jobs=0;
+    wire return_ready=return_cycles%64>=8;
+    always @(negedge pclk)begin
+        if(rst)return_cycles<=0;
+        else return_cycles<=return_cycles+1;
+    end
+    reg return_ack=0;
     reg [31:0] mode=3,alpha=50;
     wire [31:0] mode_pclk,alpha_pclk;
     reg [2:0] done_sync=0;
@@ -41,12 +51,19 @@ module tb_hdmi_out;
         .in_r(arr_r),.in_g(arr_g),.in_b(arr_b),
         .vid_r(r),.vid_g(g),.vid_b(b),.vid_hs(hs),.vid_vs(vs),.vid_de(de),
         .frame_start(frame_start),.image_active(image_active),
+        .new_frame(new_frame),
         .frame_ready_toggle(done_sync[2]),.write_idx_sync(bank_sync[1]),.dbg_status(hdmi_debug));
     out_arr formatter(.pclk(pclk),.rst(rst),
         .buf_data(read_data),.buf_mask(read_mask),.buf_contour(read_contour),
         .vid_r(arr_r),.vid_g(arr_g),.vid_b(arr_b),
         .frame_start(frame_start),.image_active(image_active),
+        .new_frame(new_frame),.vid_valid(arr_valid),.vid_sof(arr_sof),.video_mode_out(arr_mode),
         .video_mode(mode_pclk),.mask_transparency(alpha_pclk));
+    back_stream return_path(.clk(pclk),.rst(rst),.sof(arr_sof),.valid(arr_valid),
+        .R(arr_r),.G(arr_g),.B(arr_b),.video_mode(arr_mode),.back_receive_done(return_ack),
+        .tdata(return_data),.tvalid(return_valid),.tready(return_ready),
+        .tkeep(return_keep),.tlast(return_last),.tuser(return_user),
+        .back_en(),.busy(),.waiting_ack(return_wait),.frame_sent(),.overflow(return_overflow));
 
     integer written=0,pixels_checked=0,scan=0,displayed=0;
     task send_frame;
@@ -78,6 +95,38 @@ module tb_hdmi_out;
             heat={rr[7:0],gg[7:0],bb[7:0]};
         end
     endfunction
+    integer return_gray,return_red,return_green;
+    reg [23:0] return_expected;
+    reg return_was_stalled=0;
+    reg [37:0] return_held;
+    always @(posedge pclk)begin
+        if(rst)begin
+            return_pixels=0;return_packets=0;new_jobs=0;
+            return_ack<=0;return_was_stalled=0;
+        end else begin
+            return_ack<=return_wait;
+            if(arr_sof)new_jobs=new_jobs+1;
+            if(return_overflow)$fatal(1,"return FIFO overflow with bounded stalls");
+            if(return_was_stalled&&(!return_valid||{return_last,return_user,return_keep,return_data}!==return_held))
+                $fatal(1,"return AXI beat changed under backpressure");
+            return_was_stalled=return_valid&&!return_ready;
+            return_held={return_last,return_user,return_keep,return_data};
+            if(return_valid&&return_ready)begin
+                if(return_packets>=2)$fatal(1,"ordinary HDMI redraw triggered another return packet");
+                return_gray=return_packets==0?return_pixels%256:255-return_pixels%256;
+                if(return_packets==0)begin
+                    return_red=return_pixels%256<128?(50*return_gray+50*255)/100:return_gray;
+                    return_green=return_pixels%256<128?50*return_gray/100:return_gray;
+                    return_expected={return_red[7:0],return_green[7:0],return_green[7:0]};
+                end else return_expected=heat(return_gray);
+                if(return_data!=={8'(return_packets==0?3:4),return_expected}||return_keep!==4'hf||
+                   return_user!==(return_pixels==0)||return_last!==(return_pixels==65535))
+                    $fatal(1,"return frame/pixel/mode mismatch frame=%0d pixel=%0d data=%h",return_packets,return_pixels,return_data);
+                if(return_last)begin return_pixels=0;return_packets=return_packets+1;end
+                else return_pixels=return_pixels+1;
+            end
+        end
+    end
     reg [23:0] expected_previous=0,expected_current;
     reg previous_hs=1,previous_vs=1,previous_de=0,previous_image=0;
     reg current_hs,current_vs,current_de,current_image;
@@ -113,6 +162,7 @@ module tb_hdmi_out;
             end
             if(dut.state==1 && x==799 && y==524)scan=scan+1;
             #1;
+            if(arr_valid!==previous_image)$fatal(1,"return valid and RGB latency mismatch");
             if({r,g,b}!==expected_previous || {hs,vs,de}!=={previous_hs,previous_vs,previous_de})
                 $fatal(1,"HDMI RGB/control mismatch scan=%0d got=%h expected=%h",scan,{r,g,b},expected_previous);
             if(previous_image)begin
@@ -138,7 +188,8 @@ module tb_hdmi_out;
         join
         wait(displayed==3);
         if(written!=2 || writer_debug[18])$fatal(1,"writer frame accounting");
-        $display("[PASS] tb_hdmi_out pixels=%0d: all planes, bank boundaries, CDC, alpha, heatmap, redraw without D",pixels_checked);
+        if(return_packets!=2||return_pixels!=0||new_jobs!=2)$fatal(1,"return frame count mismatch");
+        $display("[PASS] tb_hdmi_out pixels=%0d: HDMI continuous, two AXI return frames, stalls, CDC and redraw without duplicate capture",pixels_checked);
         $finish;
     end
     initial begin #30000000;$fatal(1,"HDMI path timeout");end

@@ -10,6 +10,9 @@ module tb_display_regs;
     wire [31:0] rdata,mode,cmd,video,alpha;
     wire [7:0] threshold;
     wire host_wr;
+    wire back_ack;
+    reg back_ack_ready=1,previous_ack=0;
+    integer ack_writes=0;
     integer writes=0;
     axi_lite_slave dut (
         .s_axi_aclk(clk),.s_axi_aresetn(rst_n),
@@ -20,9 +23,18 @@ module tb_display_regs;
         .s_axi_rdata(rdata),.s_axi_rresp(rresp),.s_axi_rvalid(rvalid),.s_axi_rready(rready),
         .reg_mode(mode),.reg_cmd(cmd),.reg_threshold(threshold),.host_wr_en(host_wr),
         .status_in(32'd128),.reg_video_mode(video),.lesion_pixels(17'd65536),
-        .reg_mask_transparency(alpha)
+        .reg_mask_transparency(alpha),
+        .reg_back_receive(back_ack), .back_receive_ready(back_ack_ready)
     );
     always @(posedge clk) if(rst_n && host_wr) writes=writes+1;
+    always @(posedge clk)begin
+        if(!rst_n)previous_ack=0;
+        else begin
+            if(back_ack&&previous_ack)$fatal(1,"ACK lasted longer than one cycle");
+            if(back_ack)ack_writes=ack_writes+1;
+            previous_ack=back_ack;
+        end
+    end
 
     task automatic wr(input [31:0] address,value,input [3:0] enables,
                       input integer aw_delay,w_delay,input [1:0] response);
@@ -80,7 +92,26 @@ module tb_display_regs;
         wr('h88,0,4'b0000,0,0,0);rd('h88,100,0);
         wr('h01,42,4'hf,0,0,2);rd('h01,0,2);rd('h10,0,2);
         rd('h00,'h1122aa44,0);
-        $display("[PASS] tb_display_regs aligned map, AW/W ordering, WSTRB, held responses, area=65536");
+        rd('hc0,0,0);
+        wr('hc0,1,4'hf,0,4,0);rd('hc0,0,0);
+        if(ack_writes!=1)$fatal(1,"write-one ACK missing or repeated");
+        back_ack_ready=0;
+        wr('hc0,0,4'hf,0,0,0);
+        wr('hc0,1,4'b0010,0,0,0);
+        wr('hc0,1,4'b0000,0,0,0);
+        wr('hc1,1,4'hf,0,0,2);wr('h30,1,4'hf,0,0,2);
+        if(ack_writes!=1)$fatal(1,"zero/masked/unaligned write fired ACK");
+        fork
+            wr('hc0,1,4'hf,4,0,0);
+            begin
+                repeat(12)@(negedge clk);
+                if(bvalid||ack_writes!=1)$fatal(1,"ACK did not wait for CDC ready");
+                back_ack_ready=1;
+            end
+        join
+        rd('hc0,0,0);
+        if(ack_writes!=2)$fatal(1,"queued ACK missing");
+        $display("[PASS] tb_display_regs aligned map, WSTRB, area=65536, ACK W1P, held responses and CDC backpressure");
         $finish;
     end
     initial begin #100000;$fatal(1,"register test timeout");end

@@ -9,7 +9,7 @@ module hdmi_out (
     output wire [7:0] vid_r, output wire [7:0] vid_g, output wire [7:0] vid_b,
     output wire buf_idx, output wire [15:0] buf_addr,
     output reg vid_hs, output reg vid_vs, output reg vid_de,
-    output wire image_active, output wire frame_start,
+    output wire image_active, output wire frame_start, output wire new_frame,
     input wire frame_ready_toggle, input wire write_idx_sync,
     output wire [37:0] dbg_status
 );
@@ -43,6 +43,8 @@ module hdmi_out (
     // then once per raster even when there is no newly received image.
     assign frame_start = !rst && ((state == IDLE && frame_ready_toggle != frame_ready_seen) ||
                                   (state == BUF && raster_end));
+    // New input image only: ordinary refreshes/config-only redraws are excluded.
+    assign new_frame = frame_start && frame_ready_toggle != frame_ready_seen;
 
     assign buf_idx = buf_idx_save;
     assign buf_addr = counter;
