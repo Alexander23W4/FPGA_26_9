@@ -24,6 +24,9 @@ class MockBoard(socketserver.ThreadingTCPServer):
         self.stall_next=False;self.stall_job=None;self.cancels=[]
         self.release_late=threading.Event();self.cancel_seen=threading.Event()
         self.input_images=[];self.error_next=None
+        # Optional fresh hardware result generator for stream integration tests.
+        # Existing tests retain the original fixed result pixels and event list.
+        self.raw_factory=None;self.result_log=[]
 
 class MockHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -46,6 +49,8 @@ class MockHandler(socketserver.BaseRequestHandler):
                 board.input_images.append(image)
                 board.uploads+=1;board.job=job;board.has_frame=True
                 board.done=False;board.raw=bytes([11,22,33,board.mode])*65536
+                if board.raw_factory is not None:
+                    board.raw=board.raw_factory(board, image)
                 board.events.append(('upload',board.mode))
             elif kind==transfer.RENDER:
                 assert length==0 and checksum==0 and extra in range(5)
@@ -58,6 +63,8 @@ class MockHandler(socketserver.BaseRequestHandler):
                     return
                 board.renders+=1;board.job=job;board.done=False
                 board.raw=bytes([11,22,33,board.mode])*65536
+                if board.raw_factory is not None:
+                    board.raw=board.raw_factory(board, board.input_images[-1])
                 board.events.append(('render',extra))
             elif kind==transfer.RESUME:
                 board.resumes+=1
@@ -71,6 +78,7 @@ class MockHandler(socketserver.BaseRequestHandler):
             else:raise AssertionError('unexpected request')
             raw=board.raw
             result_mode=board.mode
+            board.result_log.append((job,result_mode,raw))
             if board.error_next:
                 message=board.error_next.encode();board.error_next=None
                 self.request.sendall(transfer.packet(transfer.ERROR,job,len(message),0,2)+message)

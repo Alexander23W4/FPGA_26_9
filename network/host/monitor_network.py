@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 import protocol as proto
 import web_common
-from frame_transfer import FrameTransferClient
+from frame_transfer import FrameTransferClient, normalize_result_name
 
 
 def load_gray(path):
@@ -122,6 +122,10 @@ TAIL_SCRIPT = r"""<script>
 let dshTransferBusy = false;
 let dshCurrentFile = null;
 let dshNeedsUpload = false;
+let dshStreamMode = false;
+let dshStreamRunning = false;
+let dshStreamFiles = [], dshStreamIndex = 0, dshStreamFolder = '';
+let dshStreamSignature = '', dshStreamQueue = [];
 function dshValidateBin(file) {
   if (!file || !file.name.toLowerCase().endsWith('.bin') || file.size !== 65536)
     throw new Error('请选择 256x256x8-bit 的 BIN 文件，大小必须恰好为 65536 字节');
@@ -129,7 +133,7 @@ function dshValidateBin(file) {
 async function dshRun(action) {
   if (dshTransferBusy) return;
   const status = document.getElementById('processingStatus');
-  const controls = ['imageFile', 'chooseImage', 'fpgaOutputMode', 'thresholdMode',
+  const controls = ['imageFile', 'chooseImage', 'chooseStream', 'streamFolder', 'fpgaOutputMode', 'thresholdMode',
     'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'request'];
   const disabled = controls.map(id => document.getElementById(id).disabled);
   dshTransferBusy = true;
@@ -165,7 +169,7 @@ async function dshProcess(upload) {
   if (result.timeout) dshNeedsUpload = true;
   if (typeof renderProcessedResults === 'function' && result.results) {
     const previous = upload ? {} : processedResults;
-    renderProcessedResults({...previous, ...Object.fromEntries(result.results.map(item => [String(item.mode), item]))});
+    renderProcessedResults({...previous, ...Object.fromEntries(result.results.map(item => [String(item.mode), item]))}, result.results_revision);
   }
   if (!response.ok || !result.ok) throw new Error(result.log || result.error);
   if (upload) dshNeedsUpload = false;
@@ -173,20 +177,24 @@ async function dshProcess(upload) {
   await poll();
 }
 async function dshTransfer() { return dshRun(() => dshProcess(true)); }
+async function dshParameter(action) {
+  if (!dshStreamRunning) return dshRun(action);
+  try {
+    await new Promise((resolve, reject) => dshStreamQueue.push({action, resolve, reject}));
+  } catch (error) { alert('参数更新失败: ' + error.message); }
+}
 async function dshThrUpdate() {
-  return dshRun(async () => {
-    const manual = document.getElementById('thresholdMode').getAttribute('aria-checked') === 'true';
-    const value = document.getElementById('threshold').value;
+  const manual = document.getElementById('thresholdMode').getAttribute('aria-checked') === 'true';
+  const value = document.getElementById('threshold').value;
+  return dshParameter(async () => {
     const j = await (await fetch('/api/serial/threshold?mode=' + (manual ? 1 : 0) + '&value=' + value)).json();
     if (!j.ok) throw new Error('阈值更新失败: ' + j.log);
-    if (dshCurrentFile || document.getElementById('imageFile').files[0]) await dshProcess(true);
-    await dshReadback();
+    if (!dshStreamMode && (dshCurrentFile || document.getElementById('imageFile').files[0])) await dshProcess(true);
+    if (!dshStreamRunning) await dshReadback();
   });
 }
-async function dshReadback() {
-  try {
-    const j = await (await fetch('/api/serial/readback')).json();
-    if (!j.ok) { alert('readback FAIL\n' + j.log); return; }
+function dshApplyReadback(j) {
+    if (!j.ok) throw new Error('状态回读失败: ' + j.log);
     document.getElementById('dshRbMode').textContent = j.mode === 1 ? '手动' : '自动';
     document.getElementById('dshRbThr').textContent = j.actual_threshold;
     const names = ['去噪处理', '轮廓处理', '二值掩膜处理', '叠加掩膜处理', '伪彩色热力图处理'];
@@ -199,12 +207,19 @@ async function dshReadback() {
     area.replaceChildren(document.createTextNode(j.lesion_mm2), unit, pixels);
     document.getElementById('dshRbAlpha').textContent = j.mask_transparency + '%';
     lastConfirmedVideoMode = j.video_mode;
-    if (!dshTransferBusy && document.getElementById('fpgaOutputMode').value !== '5')
+    if (!dshStreamMode && !dshTransferBusy && document.getElementById('fpgaOutputMode').value !== '5')
       document.getElementById('fpgaOutputMode').value = j.video_mode;
-    document.getElementById('maskOpacity').value = j.mask_transparency;
-    document.getElementById('maskOpacityValue').textContent = j.mask_transparency;
+    if (!dshStreamMode) {
+      document.getElementById('maskOpacity').value = j.mask_transparency;
+      document.getElementById('maskOpacityValue').textContent = j.mask_transparency;
+    }
     updateOverlayControls();
     updatePreviewLayout();
+}
+async function dshReadback(queued = false) {
+  if (dshStreamRunning && queued !== true) return dshParameter(() => dshReadback(true));
+  try {
+    dshApplyReadback(await (await fetch('/api/serial/readback')).json());
   } catch (e) { alert('readback err: ' + e); }
 }
 document.getElementById('request').addEventListener('click', dshReadback);
@@ -222,6 +237,9 @@ document.getElementById('imageFile').addEventListener('change', async e => {
       {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: await file.arrayBuffer()});
     const j = await response.json();
     if (!response.ok || !j.ok) throw new Error(j.error || j.log);
+    dshStreamMode = false;
+    document.getElementById('fullDisplayOption').disabled = false;
+    updatePreviewLayout();
     dshCurrentFile = file;
     document.getElementById('imageName').textContent = '当前图像: ' + j.name;
     renderProcessedResults({});
@@ -231,20 +249,125 @@ document.getElementById('imageFile').addEventListener('change', async e => {
 });
 let lastConfirmedVideoMode = 0;
 document.getElementById('fpgaOutputMode').addEventListener('change', async e => {
+  if (dshStreamMode) return; // The next input frame carries the requested mode.
   await dshRun(async () => {
     const message = await dshProcess(false); await dshReadback(); return message;
   });
 });
 document.getElementById('maskOpacityUpdate').addEventListener('click', async e => {
   const button = e.currentTarget;
-  await dshRun(async () => {
-    const value = document.getElementById('maskOpacity').value;
+  const value = document.getElementById('maskOpacity').value;
+  await dshParameter(async () => {
     const result = await (await fetch('/api/serial/mask_transparency?value=' + value)).json();
     if (!result.ok) throw new Error('掩膜透明度更新失败: ' + result.log);
     button.textContent = '已更新';
-    if (dshCurrentFile || document.getElementById('imageFile').files[0]) await dshProcess(true);
-    await dshReadback();
+    if (!dshStreamMode && (dshCurrentFile || document.getElementById('imageFile').files[0])) await dshProcess(true);
+    if (!dshStreamRunning) await dshReadback();
   });
+});
+
+function dshStreamControls() {
+  const stopping = !dshStreamRunning && dshTransferBusy;
+  document.getElementById('chooseImage').disabled = dshStreamRunning || dshTransferBusy;
+  document.getElementById('chooseStream').textContent = dshStreamRunning ? '停止流' : '选择流文件夹';
+  document.getElementById('chooseStream').disabled = !dshStreamRunning && dshTransferBusy;
+  for (const id of ['fpgaOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'request'])
+    document.getElementById(id).disabled = stopping;
+  document.getElementById('fullDisplayOption').disabled = dshStreamMode;
+  updateModeMenu(); updateThresholdControls(); updatePreviewLayout();
+}
+function dshStopStream() {
+  dshStreamRunning = false; // Let the current frame finish; never truncate MM2S.
+  dshStreamControls();
+  document.getElementById('chooseStream').disabled = true;
+  document.getElementById('chooseStream').textContent = '等待当前帧完成…';
+}
+async function dshDrainStreamControls() {
+  while (dshStreamQueue.length) {
+    const request = dshStreamQueue.shift();
+    try { await request.action(); request.resolve(); }
+    catch (error) { request.reject(error); dshStreamRunning = false; return; }
+  }
+}
+async function dshStartStream(files) {
+  if (dshTransferBusy || dshStreamRunning || systemModePending) return;
+  dshTransferBusy = true;
+  dshStreamControls();
+  try {
+    const entries = Array.from(files).filter(file => file.name.toLowerCase().endsWith('.bin')).map(file => {
+      dshValidateBin(file);
+      const parts = file.webkitRelativePath.split('/');
+      const folder = parts.shift(), path = parts.join('/');
+      if (!folder || !path) throw new Error('请选择包含 BIN 图像的文件夹');
+      return {file, folder, path};
+    });
+    if (!entries.length) throw new Error('所选文件夹没有 BIN 图像');
+    const folder = entries[0].folder;
+    if (entries.some(entry => entry.folder !== folder)) throw new Error('一次只能选择一个流文件夹');
+    entries.sort((a,b) => a.path.localeCompare(b.path, 'zh-CN', {numeric:true, sensitivity:'base'}));
+    const signature = folder + '\n' + entries.map(entry => entry.path).join('\n');
+    if (signature !== dshStreamSignature) dshStreamIndex = 0;
+    dshStreamSignature = signature; dshStreamFolder = folder; dshStreamFiles = entries;
+    if (document.getElementById('systemMode').value !== 'processing') {
+      systemModeRevision++; systemModePending = true;
+      try {
+        const response = await fetch('/api/system_mode?mode=processing');
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || '系统模式切换失败');
+        setSimulateState(false);
+      } finally { systemModePending = false; }
+    }
+    dshStreamMode = true;
+    if (document.getElementById('fpgaOutputMode').value === '5') document.getElementById('fpgaOutputMode').value = '0';
+    dshStreamRunning = true; dshStreamControls();
+    while (dshStreamRunning) {
+      await dshDrainStreamControls();
+      if (!dshStreamRunning) break;
+      const entry = dshStreamFiles[dshStreamIndex];
+      dshTransferBusy = true;
+      const data = await entry.file.arrayBuffer();
+      if (!dshStreamRunning) break;
+      const query = '?name=' + encodeURIComponent(entry.file.name) + '&stream=1&folder=' +
+        encodeURIComponent(dshStreamFolder) + '&path=' + encodeURIComponent(entry.path);
+      // Update raw preview at read time, retaining the previous confirmed output.
+      const originalResponse = await fetch('/api/image' + query,
+        {method:'POST', headers:{'Content-Type':'application/octet-stream'}, body:data});
+      const original = await originalResponse.json();
+      if (!originalResponse.ok || !original.ok) throw new Error(original.error || original.log);
+      showOriginalFrame(original.image, original.name, original.source_revision);
+      if (!dshStreamRunning) break;
+      const mode = document.getElementById('fpgaOutputMode').value;
+      const response = await fetch('/api/network/transfer' + query + '&index=0&mode=' + mode,
+        {method:'POST', headers:{'Content-Type':'application/octet-stream'}, body:data});
+      const result = await response.json();
+      if (result.timeout) dshNeedsUpload = true;
+      if (!response.ok || !result.ok) throw new Error(result.log || result.error);
+      if (result.frames !== 1 || !result.results || result.results.length !== 1)
+        throw new Error('本帧没有收到完整的 FPGA 回传');
+      renderProcessedResults(Object.fromEntries(result.results.map(item => [String(item.mode), item])), result.results_revision);
+      dshApplyReadback(result.readback);
+      dshNeedsUpload = false;
+      dshStreamIndex = (dshStreamIndex + 1) % dshStreamFiles.length;
+      dshTransferBusy = false;
+      await dshDrainStreamControls();
+      // Yield between frames so stop/parameter clicks can run even on localhost.
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  } catch (error) { alert('流处理失败: ' + error.message); }
+  finally {
+    dshStreamRunning = false; dshTransferBusy = false;
+    for (const request of dshStreamQueue.splice(0)) request.reject(new Error('流已停止，参数尚未更新'));
+    document.getElementById('processingStatus').textContent = '';
+    dshStreamControls();
+  }
+}
+document.getElementById('chooseStream').addEventListener('click', () => {
+  if (dshStreamRunning) { dshStopStream(); return; }
+  if (dshTransferBusy) return;
+  const picker = document.getElementById('streamFolder'); picker.value = ''; picker.click();
+});
+document.getElementById('streamFolder').addEventListener('change', async e => {
+  if (e.target.files.length) await dshStartStream(e.target.files);
 });
 </script>"""
 
@@ -424,10 +547,28 @@ def emmc_to_ddr_play_once(index=0):
     return _board_talk(b"D" + (int(index) & 0xFFFFFFFF).to_bytes(4, "little"), wait=None)
 
 
-def _do_transfer(bin_bytes, index=0, filename="image.bin", mode=0, state=None):
+def _stream_target(folder, relative, filename):
+    if not folder or '/' in folder or '\\' in folder:
+        raise ValueError('流文件夹名称无效')
+    result_name = normalize_result_name(folder + '/' + relative)
+    if result_name.split('/')[-1] != filename:
+        raise ValueError('流图像名称与相对路径不一致')
+    return result_name
+
+
+def _state_versions(state):
+    if state is None:
+        return {}
+    with state.lock:
+        return {'source_revision': state.source_revision, 'results_revision': state.results_revision}
+
+
+def _do_transfer(bin_bytes, index=0, filename="image.bin", mode=0, state=None,
+                 stream_folder=None, stream_path=None):
     if int(index) != 0:
         return {'ok': False, 'log': '单帧网口传输的索引必须为 0'}
-    return _display_job(bin_bytes, filename, mode, state, upload=True)
+    return _display_job(bin_bytes, filename, mode, state, upload=True,
+                        stream_folder=stream_folder, stream_path=stream_path)
 
 
 def _do_render(mode, state=None):
@@ -435,15 +576,21 @@ def _do_render(mode, state=None):
                         mode, state, upload=False)
 
 
-def _display_job(bin_bytes, filename, mode, state, upload):
+def _display_job(bin_bytes, filename, mode, state, upload, stream_folder=None, stream_path=None):
     """Upload once; render other modes only after the preceding PC save completes."""
     global _DISPLAY_PENDING
+    result_name = None
+    readback = None
     try:
         if upload:
             _validate_bin_frame(bin_bytes, filename)
         mode = int(mode)
         if mode not in range(6):
             raise ValueError("处理模式必须为 0..5（5 为全显示）")
+        if stream_folder is not None:
+            if mode == 5:
+                raise ValueError('流模式不支持全显示')
+            result_name = _stream_target(stream_folder, stream_path or '', filename)
     except Exception as exc:
         return {"ok": False, "log": str(exc)}
     if not _TRANSFER_LOCK.acquire(blocking=False):
@@ -452,7 +599,7 @@ def _display_job(bin_bytes, filename, mode, state, upload):
     modes = list(range(5)) if mode == 5 else [mode]
     context = None
     try:
-        key = (upload, hashlib.sha256(bin_bytes).digest(), filename, mode)
+        key = (upload, hashlib.sha256(bin_bytes).digest(), filename, mode, result_name)
         if _DISPLAY_PENDING is not None:
             if _DISPLAY_PENDING['key'] != key:
                 raise RuntimeError("上一任务的回传尚未确认，请使用相同原图和显示模式重试")
@@ -462,22 +609,24 @@ def _display_job(bin_bytes, filename, mode, state, upload):
         results = context['results']
         if state is not None:
             if upload:
-                state.replace_image(bin_bytes, filename)
+                state.replace_image(bin_bytes, filename, preserve_results=result_name is not None,
+                                    display_name=stream_folder)
             with state.lock:
                 state.processed_results.update({str(item['mode']): item for item in results})
                 state.transfer_status = {'busy': True, 'completed': len(results), 'total': len(modes)}
         # Keep UART parameters fixed throughout upload, render and durable saves.
         with _serial_lock():
             if upload and not context['uploaded']:
-                result = _FRAME_CLIENT.transfer(bin_bytes, filename)
+                save_options = {'result_name': result_name} if result_name is not None else {}
+                result = _FRAME_CLIENT.transfer(bin_bytes, filename, **save_options)
                 context['uploaded'] = True
                 context['input_bytes'] = FRAME_BYTES
                 # The first return belongs to the NEW image in the current PL mode.
                 if result['mode'] in modes:
                     results.append(result)
                     if state is not None:
+                        state.publish_result(result, stream=result_name is not None)
                         with state.lock:
-                            state.processed_results[str(result['mode'])] = result
                             state.transfer_status.update(completed=len(results))
             completed = {item['mode'] for item in results}
             for current_mode in modes:
@@ -486,20 +635,27 @@ def _display_job(bin_bytes, filename, mode, state, upload):
                 if state is not None:
                     with state.lock:
                         state.transfer_status.update(mode=current_mode)
-                result = _FRAME_CLIENT.render(current_mode, filename)
+                save_options = {'result_name': result_name} if result_name is not None else {}
+                result = _FRAME_CLIENT.render(current_mode, filename, **save_options)
                 if not result['frames']:  # Board has no image yet; just configure it.
                     break
                 results.append(result)
                 if state is not None:
+                    state.publish_result(result, stream=result_name is not None)
                     with state.lock:
-                        state.processed_results[str(current_mode)] = result
                         state.transfer_status.update(completed=len(results))
                     state.log('模式 %d 回传已保存并确认: %s' % (current_mode, result['files']['bin']))
+            if result_name is not None:
+                # No next input frame until both the fresh return and R complete.
+                readback = _readback_regs()
+                if not readback['ok']:
+                    raise RuntimeError('本帧 FPGA 状态回读失败: ' + readback['log'])
         _DISPLAY_PENDING = None
         results.sort(key=lambda item: item['mode'])
         return {'ok': True, 'frames': len(results), 'bytes': context['input_bytes'],
                 'output_bytes': sum(item['output_bytes'] for item in results),
                 'results': results, 'files': results[-1]['files'] if results else None,
+                'readback': readback, **_state_versions(state),
                 'log': '\n'.join(item['log'] for item in results) or '显示模式已设置'}
     except TimeoutError as exc:
         _DISPLAY_PENDING = None
@@ -508,14 +664,14 @@ def _display_job(bin_bytes, filename, mode, state, upload):
             with state.lock:
                 state.transfer_status = {}
             state.log(str(exc))
-        return {"ok": False, "timeout": True, "results": results, "log": str(exc)}
+        return {"ok": False, "timeout": True, "results": results, "log": str(exc), **_state_versions(state)}
     except Exception as exc:
         if context is not None:
             _DISPLAY_PENDING = context if (_FRAME_CLIENT.pending is not None or context['uploaded']) else None
         message = "%s: %s" % (type(exc).__name__, exc)
         if state is not None:
             state.log('处理失败: ' + message)
-        return {"ok": False, "results": results, "log": message}
+        return {"ok": False, "results": results, "log": message, **_state_versions(state)}
     finally:
         if state is not None and context is not None:
             with state.lock:
@@ -553,6 +709,11 @@ class NetworkHandler(web_common.Handler):
         try:
             query = parse_qs(parsed.query)
             filename = query.get('name', [''])[0]
+            stream = query.get('stream', ['0'])[0] == '1'
+            folder = query.get('folder', [''])[0] if stream else None
+            relative = query.get('path', [''])[0] if stream else None
+            if stream:
+                _stream_target(folder, relative, filename)
             if Path(filename).suffix.lower() != '.bin':
                 raise ValueError('仅支持 256x256x8-bit 的 .bin 文件')
             n = int(self.headers.get('Content-Length', '0'))
@@ -568,14 +729,18 @@ class NetworkHandler(web_common.Handler):
                         old = _DISPLAY_PENDING['key']
                         if not old[0] or old[1:3] != (hashlib.sha256(data).digest(), filename):
                             raise RuntimeError('上一任务尚未完成，请先用原来的图像和显示模式恢复回传')
-                    self.state.replace_image(data, filename)
+                        if old[4] != (_stream_target(folder, relative, filename) if stream else None):
+                            raise RuntimeError('上一任务的结果目录尚未确认，请先恢复原任务')
+                    self.state.replace_image(data, filename, preserve_results=stream, display_name=folder)
                 finally:
                     _TRANSFER_LOCK.release()
-                self.send_json({'ok': True, 'name': self.state.image_name})
+                extra = self.state.original_snapshot() if stream else {}
+                self.send_json({'ok': True, 'name': self.state.image_name, **extra})
             else:
                 index = query.get('index', ['0'])[0]
                 mode = query.get('mode', ['0'])[0]
-                self.send_json(_do_transfer(data, index, filename=filename, mode=mode, state=self.state))
+                extra = {'stream_folder': folder, 'stream_path': relative} if stream else {}
+                self.send_json(_do_transfer(data, index, filename=filename, mode=mode, state=self.state, **extra))
         except Exception as exc:
             message = '%s: %s' % (type(exc).__name__, exc)
             self.send_json({'ok': False, 'log': message, 'error': message}, status=400)

@@ -97,15 +97,44 @@ class WebState:
         self.serial_connected = False
         self.processed_results: dict[str, dict] = {}
         self.transfer_status: dict = {}
+        self.source_revision = 0
+        self.results_revision = 0
+        self.source_kind = "image"
+        self.stream_folder = ""
 
-    def replace_image(self, data: bytes, filename: str) -> None:
+    def replace_image(self, data: bytes, filename: str, *,
+                      preserve_results: bool = False, display_name: str | None = None) -> None:
         image = decode_gray_image(data, filename)
+        source_kind = "stream" if preserve_results else "image"
+        stream_folder = str(display_name or "") if preserve_results else ""
         with self.lock:
+            same_stream = (source_kind == "stream"
+                           and self.source_kind == "stream"
+                           and self.stream_folder == stream_folder)
             self.image = image
-            self.image_name = Path(filename).name
+            self.image_name = str(display_name) if display_name is not None else Path(filename).name
             self.mask = None
-            self.processed_results = {}
+            self.source_kind = source_kind
+            self.stream_folder = stream_folder
+            self.source_revision += 1
+            if not (preserve_results and same_stream):
+                self.processed_results = {}
+                self.results_revision += 1
         self.log(f"已选择图像: {self.image_name}")
+
+    def publish_result(self, result: dict, *, stream: bool = False) -> dict:
+        """Publish a freshly received result, never an existing file lookup."""
+        published = dict(result)
+        if "files" in published:
+            published["files"] = dict(published["files"])
+        mode = str(int(published["mode"]))
+        with self.lock:
+            if stream:
+                self.processed_results = {mode: published}
+            else:
+                self.processed_results[mode] = published
+            self.results_revision += 1
+        return dict(published)
 
     def log(self, message: str) -> None:
         with self.lock:
@@ -135,14 +164,20 @@ class WebState:
         Image.fromarray(rgb, mode="RGB").save(output, format="PNG", optimize=True)
         return base64.b64encode(output.getvalue()).decode("ascii")
 
-    def original_snapshot(self) -> dict[str, str]:
+    def original_snapshot(self) -> dict[str, object]:
         with self.lock:
             original = self.image.copy()
             image_name = self.image_name
+            source_revision = getattr(self, "source_revision", 0)
+            results_revision = getattr(self, "results_revision", 0)
+            source_kind = getattr(self, "source_kind", "image")
+            stream_folder = getattr(self, "stream_folder", "")
         output = io.BytesIO()
         Image.fromarray(original).save(output, format="PNG")
         return {"image": base64.b64encode(output.getvalue()).decode("ascii"),
-                "image_name": image_name}
+                "image_name": image_name, "source_revision": source_revision,
+                "results_revision": results_revision, "source_kind": source_kind,
+                "stream_folder": stream_folder}
 
     def snapshot(self, mode: int, center: int, width: int, alpha: int) -> dict[str, object]:
         with self.lock:
@@ -153,6 +188,10 @@ class WebState:
             image_name = self.image_name
             processed_results = dict(self.processed_results)
             transfer_status = dict(self.transfer_status)
+            source_revision = self.source_revision
+            results_revision = self.results_revision
+            source_kind = self.source_kind
+            stream_folder = self.stream_folder
             original = self.image.copy() if not simulate else None
         status["mode_name"] = MODE_NAMES[status.get("mode", mode)] if int(status.get("mode", mode)) < len(MODE_NAMES) else str(status.get("mode", mode))
         if original is not None:
@@ -164,7 +203,9 @@ class WebState:
         return {"image": preview, "status": status,
                 "logs": logs, "simulate": simulate, "serial_connected": connected,
                 "image_name": image_name, "processed_results": processed_results,
-                "transfer_status": transfer_status}
+                "transfer_status": transfer_status, "source_revision": source_revision,
+                "results_revision": results_revision, "source_kind": source_kind,
+                "stream_folder": stream_folder}
 
 
 class WebSimulator:
@@ -265,6 +306,7 @@ GUI_STATIC_FILES = {
     "/assets/heartcare.css": ("heartcare.css", "text/css; charset=utf-8"),
     "/assets/heartcare.js": ("heartcare.js", "text/javascript; charset=utf-8"),
     "/assets/InterVariable.woff2": ("InterVariable.woff2", "font/woff2"),
+    "/assets/ManropeVariable.ttf": ("ManropeVariable.ttf", "font/ttf"),
     "/assets/heart-pulse.svg": ("heart-pulse.svg", "image/svg+xml"),
     "/assets/workspace-texture.svg": ("workspace-texture.svg", "image/svg+xml"),
 }

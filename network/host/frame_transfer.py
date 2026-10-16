@@ -83,15 +83,60 @@ def saved_result_png(files, mode, checksum):
     return base64.b64encode(output.getvalue()).decode('ascii')
 
 
-def save_result(raw, filename, mode, job, folder):
+def normalize_result_name(result_name):
+    """Accept a portable relative BIN path without Windows path aliases."""
+    if result_name is None:
+        return None
+    try:
+        name = os.fspath(result_name)
+    except TypeError as error:
+        raise ValueError('result_name must be a safe relative BIN path') from error
+    if not isinstance(name, str):
+        raise ValueError('result_name must be a safe relative BIN path')
+    name = name.replace('\\', '/')
+    parts = name.split('/')
+    reserved = {'CON', 'PRN', 'AUX', 'NUL', 'CONIN$', 'CONOUT$'}
+    reserved.update(prefix + digit for prefix in ('COM', 'LPT')
+                    for digit in '123456789\u00b9\u00b2\u00b3')
+    for part in parts:
+        if (not part or part in ('.', '..') or part.endswith((' ', '.')) or
+                any(ord(char) < 32 or char in '<>:"|?*' for char in part) or
+                part.split('.')[0].rstrip(' ').upper() in reserved):
+            raise ValueError('result_name must be a safe relative BIN path')
+    if Path(parts[-1]).suffix.lower() != '.bin':
+        raise ValueError('result_name must end in .bin')
+    return '/'.join(parts)
+
+
+def stable_result_paths(folder, result_name):
+    """Reject existing symlinks/junctions that would write outside the result root."""
+    root = Path(folder).resolve()
+    binary = root.joinpath(*result_name.split('/'))
+    png = binary.with_suffix('.png')
+    for path in (binary, png):
+        try:
+            path.resolve().relative_to(root)
+        except ValueError as error:
+            raise ValueError('result_name resolves outside the result folder') from error
+    return binary, png
+
+
+def save_result(raw, filename, mode, job, folder, *, result_name=None):
     image = result_image(raw, mode)
-    stem = Path(filename.replace('\\', '/')).stem
-    stem = ''.join(c if c.isalnum() or c in '_-' else '_' for c in stem)[:80] or 'image'
+    result_name = normalize_result_name(result_name)
     root = Path(folder)
-    root.mkdir(parents=True, exist_ok=True)
-    name = '%s_%s_%s_%08x' % (stem, MODE_NAMES[mode], datetime.now().strftime('%Y%m%d_%H%M%S_%f'), job)
-    binary, png = root/(name+'.bin'), root/(name+'.png')
-    temps = (root/(name+'.bin.part'), root/(name+'.png.part'))
+    if result_name is None:
+        stem = Path(filename.replace('\\', '/')).stem
+        stem = ''.join(c if c.isalnum() or c in '_-' else '_' for c in stem)[:80] or 'image'
+        name = '%s_%s_%s_%08x' % (stem, MODE_NAMES[mode], datetime.now().strftime('%Y%m%d_%H%M%S_%f'), job)
+        binary, png = root/(name+'.bin'), root/(name+'.png')
+    else:
+        binary, png = stable_result_paths(root, result_name)
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    if result_name is not None:
+        # Check again after directory creation, including existing file symlinks.
+        binary, png = stable_result_paths(root, result_name)
+    temps = tuple(path.with_name(path.name + '.%08x.part' % job) for path in (binary, png))
     try:
         with temps[0].open('xb') as output:
             output.write(raw); output.flush(); os.fsync(output.fileno())
@@ -111,18 +156,18 @@ class FrameTransferClient:
         self.pending = None
         self.lock = threading.Lock()
 
-    def transfer(self, image, filename, expected_mode=None):
+    def transfer(self, image, filename, expected_mode=None, *, result_name=None):
         if len(image) != INPUT_BYTES or Path(filename).suffix.lower() != '.bin':
             raise ValueError('input must be a 256x256x8-bit BIN of exactly 65536 bytes')
         if expected_mode is not None and expected_mode not in range(5):
             raise ValueError('expected processing mode must be 0..4')
-        return self._transaction(UPLOAD, image, filename, expected_mode)
+        return self._transaction(UPLOAD, image, filename, expected_mode, result_name)
 
-    def render(self, mode, filename='image.bin'):
+    def render(self, mode, filename='image.bin', *, result_name=None):
         """Reuse the PL frame. Firmware arms S2MM before changing display mode."""
         if mode not in range(5):
             raise ValueError('processing mode must be 0..4')
-        return self._transaction(RENDER, b'', filename, mode)
+        return self._transaction(RENDER, b'', filename, mode, result_name)
 
     def _cancel_job(self, job):
         # A fresh connection also drops a partially uploaded body at the PS.
@@ -134,7 +179,10 @@ class FrameTransferClient:
         except OSError:
             pass
 
-    def _transaction(self, operation, image, filename, expected_mode):
+    def _transaction(self, operation, image, filename, expected_mode, result_name=None):
+        result_name = normalize_result_name(result_name)
+        if result_name is not None:
+            stable_result_paths(self.folder, result_name)
         if not self.lock.acquire(blocking=False):
             raise RuntimeError('another FPGA frame transaction is in progress')
         try:
@@ -143,10 +191,13 @@ class FrameTransferClient:
                 raise RuntimeError('上一张图片的回传尚未确认，请先重新发送同一张图片以恢复任务')
             if self.pending is not None and self.pending['expected_mode'] != expected_mode:
                 raise RuntimeError('上一处理模式尚未确认，请先重试原来的处理任务')
+            if self.pending is not None and self.pending.get('result_name') != result_name:
+                raise RuntimeError('上一回传任务的保存路径尚未确认，请先重试原来的处理任务')
             if self.pending is None:
                 self.pending = {'job': secrets.randbits(32) or 1, 'digest': digest,
                                 'filename': filename, 'uploaded': False, 'files': None,
-                                'expected_mode': expected_mode, 'operation': operation}
+                                'expected_mode': expected_mode, 'operation': operation,
+                                'result_name': result_name}
             context = self.pending
             job = context['job']
             deadline = time.monotonic() + self.timeout
@@ -188,7 +239,11 @@ class FrameTransferClient:
                             if (files is None or not Path(files['png']).is_file() or
                                 not Path(files['bin']).is_file() or crc(Path(files['bin']).read_bytes()) != checksum):
                                 try:
-                                    context['files'] = save_result(raw, context['filename'], mode, job, self.folder)
+                                    if context['result_name'] is None:
+                                        context['files'] = save_result(raw, context['filename'], mode, job, self.folder)
+                                    else:
+                                        context['files'] = save_result(raw, context['filename'], mode, job, self.folder,
+                                                                       result_name=context['result_name'])
                                 except OSError as error:
                                     raise ResultSaveError('PC 保存失败，FPGA 尚未收到确认：'+str(error)) from error
                             context['crc'], context['mode'] = checksum, mode

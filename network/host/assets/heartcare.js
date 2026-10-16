@@ -16,31 +16,73 @@ let lastThreshold=null;
 let systemModePending=false;
 let systemModeRevision=0;
 let processedResults={};
+let sourceRevision=-1;
+let resultsRevision=-1;
+const streamModeLabels=['去噪流','轮廓流','二值掩膜流','叠加掩膜流','伪彩色映射流'];
 
-function transferBusy(){return typeof dshTransferBusy!=='undefined'&&dshTransferBusy;}
-function renderProcessedResults(results){
+function isStreamMode(){return typeof dshStreamMode!=='undefined'&&dshStreamMode;}
+function streamRunning(){return typeof dshStreamRunning!=='undefined'&&dshStreamRunning;}
+function transferBusy(){return (typeof dshTransferBusy!=='undefined'&&dshTransferBusy)||streamRunning();}
+function showOriginalFrame(imageBase64,name,revision=null){
+  if(Number.isFinite(revision)){
+    if(revision<sourceRevision)return false;
+    sourceRevision=revision;
+  }
+  const src='data:image/png;base64,'+imageBase64;
+  for(const id of ['view','comparisonOriginal','fullViewOriginal']){
+    const image=document.getElementById(id);
+    if(image.src!==src)image.src=src;
+  }
+  document.getElementById('imageName').textContent=name;
+  document.getElementById('imageName').title=name;
+  return true;
+}
+function renderProcessedResults(results,revision=null){
+  if(Number.isFinite(revision)){
+    if(revision<resultsRevision)return false;
+    resultsRevision=revision;
+  }
   processedResults=results||{};
   function show(id,result){
     const image=document.getElementById(id);
     image.hidden=!result;
     if(result){
       const src='data:image/png;base64,'+result.image;
-      if(image.src!==src)image.src=src;
-      image.title=result.files.bin;
-    }else{image.removeAttribute('src');image.title='等待 FPGA 回传';}
+      const job=result.job===undefined?'':String(result.job);
+      // A new completed transfer must repaint even when its pixel bytes are identical.
+      if(image.src!==src||image.getAttribute('data-result-job')!==job)image.src=src;
+      image.setAttribute('data-result-job',job);
+      image.title=result.files&&result.files.bin||'FPGA 回传结果';
+    }else{image.removeAttribute('src');image.removeAttribute('data-result-job');image.title='等待 FPGA 回传';}
   }
-  show('comparisonProcessed',processedResults[fpgaOutputMode.value]);
+  let comparisonResult=processedResults[fpgaOutputMode.value];
+  if(isStreamMode()){
+    // Requested mode may already have changed while the previous frame is still in flight.
+    const entries=Object.entries(processedResults);
+    const last=entries.length?entries[entries.length-1]:null;
+    comparisonResult=last&&last[1];
+    const actualMode=comparisonResult&&comparisonResult.mode!==undefined?Number(comparisonResult.mode):last?Number(last[0]):Number(fpgaOutputMode.value);
+    document.getElementById('comparisonProcessedLabel').textContent=streamModeLabels[actualMode]||'处理流';
+  }else{
+    document.getElementById('comparisonProcessedLabel').textContent=fpgaOutputMode.selectedOptions[0].textContent;
+  }
+  show('comparisonProcessed',comparisonResult);
   for(let mode=0;mode<5;mode++)show('fullViewMode'+mode,processedResults[String(mode)]);
+  return true;
 }
 
 function updatePreviewLayout(){
   const processing=systemMode.value==='processing';
-  const showAll=processing&&fpgaOutputMode.value==='5';
+  const stream=isStreamMode();
+  document.getElementById('fullDisplayOption').disabled=stream;
+  const showAll=processing&&!stream&&fpgaOutputMode.value==='5';
   const showComparison=processing&&!showAll;
   singlePreview.hidden=processing;
   comparisonPreview.hidden=!showComparison;
   fullPreview.hidden=!showAll;
-  document.getElementById('comparisonProcessedLabel').textContent=fpgaOutputMode.selectedOptions[0].textContent;
+  document.getElementById('comparisonOriginalLabel').textContent=stream?'原流':'原图';
+  document.getElementById('comparisonOriginal').alt=stream?'原流':'原图';
+  document.getElementById('comparisonProcessed').alt=stream?'FPGA 回传处理流':'FPGA 回传处理图';
   renderProcessedResults(processedResults);
 }
 fpgaOutputMode.addEventListener('change',updatePreviewLayout);
@@ -66,13 +108,14 @@ function updateOverlayControls(){
 document.getElementById('fpgaOutputMode').addEventListener('change',updateOverlayControls);
 
 function updateThresholdControls(){
-  thresholdMode.disabled=simulateOn||transferBusy();
+  const blocked=transferBusy()&&!streamRunning();
+  thresholdMode.disabled=simulateOn||blocked;
   const manual=thresholdMode.getAttribute('aria-checked')==='true';
   document.getElementById('thresholdModeLabel').textContent='阈值模式：'+(manual?'手动':'自动');
-  threshold.disabled=simulateOn||!manual||transferBusy();
+  threshold.disabled=simulateOn||!manual||blocked;
 }
 function sendThreshold(){
-  if(simulateOn||transferBusy()||thresholdMode.getAttribute('aria-checked')!=='true')return;
+  if(simulateOn||isStreamMode()||transferBusy()||thresholdMode.getAttribute('aria-checked')!=='true')return;
   const value=threshold.value;
   if(value!==lastThreshold){lastThreshold=value;fetch('/api/command?threshold='+value);}
 }
@@ -172,12 +215,7 @@ async function reloadOriginalImage(){
   const response=await fetch('/api/original',{cache:'no-store'});
   if(!response.ok)throw new Error('原图重新加载失败');
   const original=await response.json();
-  const imageSrc='data:image/png;base64,'+original.image;
-  document.getElementById('view').src=imageSrc;
-  document.getElementById('comparisonOriginal').src=imageSrc;
-  document.getElementById('fullViewOriginal').src=imageSrc;
-  document.getElementById('imageName').textContent=original.image_name;
-  document.getElementById('imageName').title=original.image_name;
+  showOriginalFrame(original.image,original.image_name,original.source_revision);
 }
 
 function renderMetrics(status,state){
@@ -209,17 +247,12 @@ async function poll(){
     const state=await response.json();
     if(systemModePending||revision!==systemModeRevision)return;
     setSimulateState(Boolean(state.simulate));
-    const imageSrc='data:image/png;base64,'+state.image;
-    document.getElementById('view').src=imageSrc;
-    document.getElementById('comparisonOriginal').src=imageSrc;
-    document.getElementById('fullViewOriginal').src=imageSrc;
-    renderProcessedResults(state.processed_results);
+    showOriginalFrame(state.image,state.image_name,state.source_revision);
+    renderProcessedResults(state.processed_results,state.results_revision);
     if(transferBusy()&&state.transfer_status&&state.transfer_status.busy){
       const progress=state.transfer_status;
       document.getElementById('processingStatus').textContent='处理回传中：'+progress.completed+'/'+progress.total+'…';
     }
-    document.getElementById('imageName').textContent=state.image_name;
-    document.getElementById('imageName').title=state.image_name;
     renderMetrics(state.status||{},state);
     document.getElementById('logs').textContent=(state.logs||[]).join('\n');
   }catch(e){/* Keep the last complete preview while reconnecting. */}

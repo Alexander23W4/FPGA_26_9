@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#FFF5F8">
   <title>Heartcare</title>
   <link rel="preload" href="/assets/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/ManropeVariable.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/assets/heartcare.css">
 </head>
 <body>
@@ -43,9 +44,9 @@
 <main class="workspace wrap">
   <header class="workspace-header">
     <div class="workspace-heading">
-      <div class="heading-line"><button id="menuToggle" class="icon-button" type="button" aria-label="收起系统导航" aria-controls="systemDrawer" aria-expanded="true"><svg aria-hidden="true"><use href="#icon-menu"/></svg></button><div><p class="eyebrow">IMAGE WORKSPACE</p><h2>影像工作台</h2></div></div>
+      <div class="heading-line"><button id="menuToggle" class="icon-button" type="button" aria-label="收起系统导航" aria-controls="systemDrawer" aria-expanded="true"><svg aria-hidden="true"><use href="#icon-menu"/></svg></button><h2>Heartcare</h2></div>
     </div>
-    <div class="header-actions" id="imagePicker"><button id="chooseImage">选择 BIN 图像</button><input id="imageFile" type="file" accept=".bin" hidden><span id="processingStatus" data-system-mode="processing" role="status" aria-live="polite"></span></div>
+    <div class="header-actions" id="imagePicker"><button id="chooseImage" type="button">选择 BIN 图像</button><button id="chooseStream" type="button">选择流文件夹</button><input id="imageFile" type="file" accept=".bin" hidden><input id="streamFolder" type="file" accept=".bin" webkitdirectory directory multiple hidden><span id="processingStatus" data-system-mode="processing" role="status" aria-live="polite"></span></div>
   </header>
 
   <div class="workbench-grid">
@@ -54,7 +55,7 @@
         <div class="card-heading"><div class="section-title"><span class="section-icon"><svg aria-hidden="true"><use href="#icon-image"/></svg></span><h3 id="previewTitle">图像预览</h3></div><span id="previewMode" class="soft-badge">本地预览</span></div>
         <div id="singlePreview" class="view"><img id="view" alt="当前加载图像的预览"></div>
         <div id="comparisonPreview" class="comparison-preview" hidden>
-          <figure class="comparison-tile"><div class="comparison-media"><img id="comparisonOriginal" alt="原图"></div><figcaption>原图</figcaption></figure>
+          <figure class="comparison-tile"><div class="comparison-media"><img id="comparisonOriginal" alt="原图"></div><figcaption id="comparisonOriginalLabel">原图</figcaption></figure>
           <figure class="comparison-tile"><div class="comparison-media"><img id="comparisonProcessed" alt="FPGA 回传处理图" hidden></div><figcaption id="comparisonProcessedLabel">去噪处理</figcaption></figure>
         </div>
         <div id="fullPreview" class="full-preview" hidden>
@@ -81,7 +82,7 @@
         <section class="setting-group" data-system-mode="processing">
           <div class="group-heading"><span class="step-number">01</span><h4>输出显示</h4></div>
           <label for="fpgaOutputMode">FPGA 输出显示模式</label>
-          <select id="fpgaOutputMode"><option value="0">去噪处理</option><option value="1">轮廓处理</option><option value="2">二值掩膜处理</option><option value="3">叠加掩膜处理</option><option value="4">伪彩色热力图处理</option><option value="5">全显示</option></select>
+          <select id="fpgaOutputMode"><option value="0">去噪处理</option><option value="1">轮廓处理</option><option value="2">二值掩膜处理</option><option value="3">叠加掩膜处理</option><option value="4">伪彩色热力图处理</option><option id="fullDisplayOption" value="5">全显示</option></select>
           <p class="field-note" id="outputModeNote" aria-live="polite">设置开发板 HDMI 的输出内容</p>
         </section>
         <section class="setting-group" data-system-mode="processing">
