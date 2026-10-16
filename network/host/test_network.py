@@ -2,7 +2,9 @@ import sys
 import threading
 import time
 import unittest
+import tempfile
 from pathlib import Path
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -14,11 +16,12 @@ import web_common
 from mock_ps_server import MockPS
 from monitor_network import TcpControlWorker, TcpImageSender
 
-IMAGE = r'C:/Users/13995/Desktop/fpga校赛/camus_processed/images/training/patient0001/patient0001_4CH_ED.png'
-
 class NetworkIntegrationTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.folder = tempfile.TemporaryDirectory()
+        cls.image = str(Path(cls.folder.name) / 'fixture.png')
+        Image.frombytes('L', (256,256), bytes(range(256))*256).save(cls.image)
         cls.mock = MockPS('127.0.0.1', 5200, 5201)
         threading.Thread(target=cls.mock.control_loop, daemon=True).start()
         threading.Thread(target=cls.mock.image_loop, daemon=True).start()
@@ -27,9 +30,10 @@ class NetworkIntegrationTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.mock.stop_event.set()
+        cls.folder.cleanup()
 
     def test_control_and_image(self):
-        state = web_common.WebState(IMAGE, False)
+        state = web_common.WebState(self.image, False)
         worker = TcpControlWorker(state, '127.0.0.1', 5200)
         worker.start()
         deadline = time.time() + 3
@@ -39,7 +43,7 @@ class NetworkIntegrationTest(unittest.TestCase):
         self.assertTrue(worker.write(proto.encode_set_threshold(166)))
         self.assertTrue(worker.write(proto.encode_set_mode(1)))
         self.assertTrue(worker.write(proto.encode_start_analyze()))
-        result = TcpImageSender('127.0.0.1', 5201, 4096).send_file(IMAGE, 9)
+        result = TcpImageSender('127.0.0.1', 5201, 4096).send_file(self.image, 9)
         self.assertGreater(result['Mbps'], 1.0)
         deadline = time.time() + 3
         while time.time() < deadline:

@@ -1,4 +1,5 @@
-"""Offline checks for the GUI's single-frame UART transaction."""
+"""Offline checks for network frame transfer and the retained UART controls."""
+import base64
 import io
 import sys
 import threading
@@ -6,6 +7,9 @@ import time
 import types
 import unittest
 from unittest.mock import Mock, patch
+
+import numpy as np
+from PIL import Image
 
 import monitor_network as gui
 
@@ -16,6 +20,18 @@ FRAME = bytes(range(256)) * 256
 
 
 class SingleFrameTests(unittest.TestCase):
+    def test_original_snapshot_returns_stored_unprocessed_image(self):
+        state = gui.web_common.WebState.__new__(gui.web_common.WebState)
+        state.lock = threading.Lock()
+        state.image = np.arange(256 * 256, dtype=np.uint8).reshape(256, 256)
+        state.image_name = "selected.bin"
+
+        result = state.original_snapshot()
+        restored = np.asarray(Image.open(io.BytesIO(base64.b64decode(result["image"]))))
+
+        self.assertEqual(result["image_name"], "selected.bin")
+        np.testing.assert_array_equal(restored, state.image)
+
     def test_only_exact_raw_bin_is_accepted(self):
         gui._validate_bin_frame(FRAME, "frame.BIN")
         for data, name in ((FRAME, "frame.png"), (FRAME, "frame"),
@@ -31,48 +47,26 @@ class SingleFrameTests(unittest.TestCase):
             self.assertFalse(gui._do_transfer(FRAME, index=1)["ok"])
             talk.assert_not_called()
 
-    def transfer(self, clear, uploaded, done):
-        with patch.object(gui, "_board_talk_locked", side_effect=[clear, done]) as talk, \
-             patch.object(gui, "_load_to_emmc_locked", return_value=uploaded) as upload:
+    def test_one_click_sets_mode_then_uses_network_without_emmc_data(self):
+        expected = {"ok": True, "mode": 0, "frames": 1, "bytes": 65536,
+                    "output_bytes": 262144, "files": {"png": "x.png"}, "log": "saved"}
+        with patch.object(gui._FRAME_CLIENT, "transfer", return_value=expected) as send, \
+             patch.object(gui, "_board_talk_locked", return_value='[PL rdbk] VIDEO_MODE(0x02) = 0\n') as uart, \
+             patch.object(gui, "_load_to_emmc_locked") as emmc:
             result = gui._do_transfer(FRAME, filename="frame.bin")
-            return result, talk, upload
+            self.assertTrue(result['ok'], result)
+            self.assertEqual(result['results'], [expected])
+            send.assert_called_once_with(FRAME, "frame.bin", expected_mode=0)
+            uart.assert_called_once_with(b'V\x00', 1.5)
+            emmc.assert_not_called()
 
-    def test_one_click_uploads_once_and_sends_one_d(self):
-        result, talk, upload = self.transfer(
-            "RESULT: eMMC CLEARED" + END, (True, UPLOAD_OK),
-            gui.FRAME_DONE_LINE + END)
-        self.assertTrue(result["ok"])
-        self.assertEqual((result["frames"], result["bytes"]), (1, 65536))
-        self.assertEqual(talk.call_args_list[1].args, (b"D\x00\x00\x00\x00",))
-        self.assertIsNone(talk.call_args_list[1].kwargs["wait"])
-        upload.assert_called_once_with(FRAME, gui.EMMC_FIXED_ADDR)
-
-    def test_empty_catalog_clear_is_success(self):
-        result, _, _ = self.transfer(
-            "RESULT: eMMC 已经是空的" + END, (True, UPLOAD_OK), gui.FRAME_DONE_LINE + END)
-        self.assertTrue(result["ok"])
-
-    def test_clear_failure_is_not_hidden_by_cleared_banner(self):
-        result, talk, upload = self.transfer(
-            ">>> E: eMMC CLEARED <<<\nRESULT: CLEAR FAILED" + END,
-            (True, UPLOAD_OK), gui.FRAME_DONE_LINE + END)
-        self.assertFalse(result["ok"])
-        self.assertEqual(talk.call_count, 1)
-        upload.assert_not_called()
-
-    def test_verified_but_unregistered_upload_never_sends_d(self):
-        result, talk, _ = self.transfer(
-            "RESULT: eMMC CLEARED" + END,
-            (True, "RESULT: VERIFY OK 但未登记目录" + END), gui.FRAME_DONE_LINE + END)
-        self.assertFalse(result["ok"])
-        self.assertEqual(talk.call_count, 1)
-
-    def test_old_started_message_and_failed_d_are_not_success(self):
-        for response in ("RESULT: OK -- VDMA started", "RESULT: FAILED (VDMA error)"):
-            with self.subTest(response=response):
-                result, _, _ = self.transfer(
-                    "RESULT: eMMC CLEARED" + END, (True, UPLOAD_OK), response + END)
-                self.assertFalse(result["ok"])
+    def test_network_failure_is_not_reported_as_success_or_fallback_upload(self):
+        with patch.object(gui._FRAME_CLIENT, "transfer", side_effect=ConnectionError("link down")), \
+             patch.object(gui, "_board_talk_locked", return_value='[PL rdbk] VIDEO_MODE(0x02) = 0\n') as uart:
+            result = gui._do_transfer(FRAME)
+            self.assertFalse(result["ok"])
+            self.assertIn("link down", result["log"])
+            uart.assert_called_once_with(b'V\x00', 1.5)
 
     def test_serial_waits_through_silence_and_split_end_marker(self):
         chunks = iter([b"VDMA: sending\r\n"] + [b""] * 8 +
@@ -95,26 +89,21 @@ class SingleFrameTests(unittest.TestCase):
         serial.close.assert_called_once()
 
     def test_transfer_lock_prevents_interleaving_and_duplicate_send(self):
-        entered = threading.Event()
-        release = threading.Event()
-        order = []
-        results = []
-
-        def talk(payload, wait=1.5):
-            order.append(payload[:1])
-            if payload == b"E":
-                entered.set()
-                if not release.wait(2):
-                    raise RuntimeError("test did not release transfer")
-                return "RESULT: eMMC CLEARED" + END
-            return gui.FRAME_DONE_LINE + END if payload[:1] == b"D" else END
-
-        def upload(*args):
-            order.append(b"A")
-            return True, UPLOAD_OK
-
-        with patch.object(gui, "_board_talk_locked", side_effect=talk), \
-             patch.object(gui, "_load_to_emmc_locked", side_effect=upload):
+        entered, release = threading.Event(), threading.Event()
+        order, results = [], []
+        def send(*args, **kwargs):
+            order.append("NET")
+            entered.set()
+            if not release.wait(2):
+                raise RuntimeError("test did not release transfer")
+            return {"ok": True, "output_bytes": 262144, "files": {}, "log": "saved"}
+        def read(*args, **kwargs):
+            if args[0].startswith(b'V'):
+                return '[PL rdbk] VIDEO_MODE(0x02) = 0\n'
+            order.append("R")
+            return END
+        with patch.object(gui._FRAME_CLIENT, "transfer", side_effect=send), \
+             patch.object(gui, "_board_talk_locked", side_effect=read):
             worker = threading.Thread(target=lambda: results.append(gui._do_transfer(FRAME)))
             reader = threading.Thread(target=lambda: gui._board_talk(b"R"))
             worker.start()
@@ -123,7 +112,7 @@ class SingleFrameTests(unittest.TestCase):
                 self.assertFalse(gui._do_transfer(FRAME)["ok"])
                 reader.start()
                 time.sleep(0.02)
-                self.assertEqual(order, [b"E"])
+                self.assertEqual(order, ["NET"])
             finally:
                 release.set()
                 worker.join(2)
@@ -132,7 +121,7 @@ class SingleFrameTests(unittest.TestCase):
             self.assertFalse(worker.is_alive())
             self.assertFalse(reader.is_alive())
             self.assertTrue(results[0]["ok"])
-            self.assertEqual(order, [b"E", b"A", b"D", b"R"])
+            self.assertEqual(order, ["NET", "R"])
 
     def test_http_rejects_wrong_suffix_size_and_short_body(self):
         for path, size, body in (("/api/serial/transfer?name=a.png", 65536, FRAME),
@@ -157,7 +146,7 @@ class SingleFrameTests(unittest.TestCase):
         self.assertLess(page.index('id="systemMode"'), page.index('id="mode"'))
         for option in ('模拟模式', '图像处理模式', '医学分析模式'):
             self.assertIn(option, page)
-        for option in ('显示叠加掩膜处理', '显示伪彩色热力图处理', '全显示模式'):
+        for option in ('去噪处理', '轮廓处理', '二值掩膜处理', '叠加掩膜处理', '伪彩色热力图处理', '全显示'):
             self.assertIn(option, page)
         simulation_section = page.index('<section class="setting-group" data-system-mode="simulation"')
         self.assertLess(page.index('id="fpgaOutputMode"'), simulation_section)
@@ -170,12 +159,29 @@ class SingleFrameTests(unittest.TestCase):
         self.assertNotIn("maskOpacityUpdate.addEventListener('click',()=>", script)
         self.assertIn("/api/serial/mask_transparency?value=", page)
         self.assertIn("if (e.target.value === '5')", page)
+        for label in ('原图', '去噪图', '轮廓图', '二值掩膜图', '叠加掩膜图', '伪彩色映射图'):
+            self.assertIn(f'<figcaption>{label}</figcaption>', page)
+        self.assertIn('id="comparisonPreview" class="comparison-preview" hidden', page)
+        self.assertIn('id="comparisonOriginal" alt="原图"', page)
+        self.assertIn('id="comparisonProcessedLabel">去噪处理</figcaption>', page)
+        self.assertIn('id="fullPreview" class="full-preview" hidden', page)
+        script = (gui.web_common.GUI_ASSET_DIR / "heartcare.js").read_text(encoding="utf-8")
+        self.assertIn("const showAll=processing&&fpgaOutputMode.value==='5'", script)
+        self.assertIn("const showComparison=processing&&!showAll", script)
+        self.assertIn("getElementById('comparisonOriginal').src=imageSrc", script)
+        self.assertIn("getElementById('fullViewOriginal').src=imageSrc", script)
+        self.assertIn('if(systemModePending||revision!==systemModeRevision)return;', script)
+        self.assertIn('await reloadOriginalImage();', script)
+        self.assertIn('function reloadOriginalImage(){', script)
+        self.assertNotIn('imagePicker.click()', script)
+        self.assertIn("fetch('/api/original',{cache:'no-store'})", script)
         self.assertIn('accept=".bin"', page)
         self.assertEqual(page.count("async function dshTransfer()"), 1)
         self.assertEqual(page.count("async function dshReadback()"), 1)
         self.assertEqual(page.count("addEventListener('click', dshReadback)"), 1)
         self.assertIn("name=' + encodeURIComponent(file.name)", page)
         self.assertIn("file.size !== 65536", page)
+        self.assertIn("/api/network/transfer?", page)
         self.assertIn("</body></html>", page)
 
 

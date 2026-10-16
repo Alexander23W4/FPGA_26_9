@@ -8,7 +8,7 @@ module top1 #(
 )(
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI S_AXIS, ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS, ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
     input  wire        clk,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
@@ -120,6 +120,14 @@ module top1 #(
     wire ts_contour, ts_mask, hdl_valid, hdl_eof, hdl_ready;
     wire [31:0] video_mode, mask_transparency;
     wire back_ack_src, back_ack_ready, back_receive_done;
+    (* ASYNC_REG = "TRUE" *) reg [2:0] back_status_meta,back_status_sync;
+    always @(posedge clk)begin
+        if(rst)begin back_status_meta<=0;back_status_sync<=0;end
+        else begin
+            back_status_meta<={back_overflow,back_waiting_ack,back_busy};
+            back_status_sync<=back_status_meta;
+        end
+    end
     denoise u_denoise (
         .ap_clk(clk), .ap_rst(rst), .in_data(px_data[7:0]),
         .in_valid(px_valid), .in_last(px_eof), .in_ready(px_ready),
@@ -140,7 +148,8 @@ module top1 #(
         .m_axis_tmask(ts_mask), .m_axis_tcontour(ts_contour),
         .threshold_out(), .auto_mode_out(), .frame_done_out(),
         .video_mode_out(video_mode), .mask_transparency_out(mask_transparency),
-        .back_receive_done_out(back_ack_src), .back_receive_ready(back_ack_ready)
+        .back_receive_done_out(back_ack_src), .back_receive_ready(back_ack_ready),
+        .back_status(back_status_sync)
     );
 
     // Preserve all three planes. Display selection happens after the frame store,

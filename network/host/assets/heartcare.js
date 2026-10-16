@@ -5,12 +5,45 @@ const systemMode=document.getElementById('systemMode');
 const menuToggle=document.getElementById('menuToggle');
 const systemDrawer=document.getElementById('systemDrawer');
 const workspace=document.querySelector('.workspace');
+const fpgaOutputMode=document.getElementById('fpgaOutputMode');
+const singlePreview=document.getElementById('singlePreview');
+const comparisonPreview=document.getElementById('comparisonPreview');
+const fullPreview=document.getElementById('fullPreview');
 const modeButtons=[...systemDrawer.querySelectorAll('[data-mode]')];
 const compactNavigation=window.matchMedia('(max-width:960px)');
 let simulateOn=false;
 let lastThreshold=null;
 let systemModePending=false;
 let systemModeRevision=0;
+let processedResults={};
+
+function transferBusy(){return typeof dshTransferBusy!=='undefined'&&dshTransferBusy;}
+function renderProcessedResults(results){
+  processedResults=results||{};
+  function show(id,result){
+    const image=document.getElementById(id);
+    image.hidden=!result;
+    if(result){
+      const src='data:image/png;base64,'+result.image;
+      if(image.src!==src)image.src=src;
+      image.title=result.files.bin;
+    }else{image.removeAttribute('src');image.title='等待 FPGA 回传';}
+  }
+  show('comparisonProcessed',processedResults[fpgaOutputMode.value]);
+  for(let mode=0;mode<5;mode++)show('fullViewMode'+mode,processedResults[String(mode)]);
+}
+
+function updatePreviewLayout(){
+  const processing=systemMode.value==='processing';
+  const showAll=processing&&fpgaOutputMode.value==='5';
+  const showComparison=processing&&!showAll;
+  singlePreview.hidden=processing;
+  comparisonPreview.hidden=!showComparison;
+  fullPreview.hidden=!showAll;
+  document.getElementById('comparisonProcessedLabel').textContent=fpgaOutputMode.selectedOptions[0].textContent;
+  renderProcessedResults(processedResults);
+}
+fpgaOutputMode.addEventListener('change',updatePreviewLayout);
 
 for(const id of ['threshold','center','width','alpha']){
   const input=document.getElementById(id);
@@ -27,19 +60,19 @@ maskOpacity.addEventListener('input',()=>{
 function updateOverlayControls(){
   const mode=document.getElementById('fpgaOutputMode').value;
   document.getElementById('outputModeNote').textContent=mode==='5'
-    ?'该选项仅为界面展示，暂未连接FPGA输出'
+    ?'发送后依次处理模式 0–4，显示原图及五张 FPGA 回传图'
     :mode==='3'?'红色掩膜叠加，0% 完全透明，100% 实心红色':'设置开发板 HDMI 的输出内容';
 }
 document.getElementById('fpgaOutputMode').addEventListener('change',updateOverlayControls);
 
 function updateThresholdControls(){
-  thresholdMode.disabled=simulateOn;
+  thresholdMode.disabled=simulateOn||transferBusy();
   const manual=thresholdMode.getAttribute('aria-checked')==='true';
   document.getElementById('thresholdModeLabel').textContent='阈值模式：'+(manual?'手动':'自动');
-  threshold.disabled=simulateOn||!manual;
+  threshold.disabled=simulateOn||!manual||transferBusy();
 }
 function sendThreshold(){
-  if(simulateOn||thresholdMode.getAttribute('aria-checked')!=='true')return;
+  if(simulateOn||transferBusy()||thresholdMode.getAttribute('aria-checked')!=='true')return;
   const value=threshold.value;
   if(value!==lastThreshold){lastThreshold=value;fetch('/api/command?threshold='+value);}
 }
@@ -94,7 +127,7 @@ document.addEventListener('keydown',e=>{
 function updateModeMenu(){
   for(const button of modeButtons){
     button.setAttribute('aria-pressed',String(button.dataset.mode===systemMode.value));
-    button.disabled=systemModePending;
+    button.disabled=systemModePending||transferBusy();
   }
   document.getElementById('currentModeCaption').textContent=simulateOn?'模拟模式':'图像处理模式';
 }
@@ -105,13 +138,13 @@ function setSimulateState(enabled){
   if(simulateOn!==enabled)lastThreshold=null;
   simulateOn=enabled;
   systemMode.value=enabled?'simulation':'processing';
-  updateModeMenu();updatePreviewLabel();
+  updateModeMenu();updatePreviewLabel();updatePreviewLayout();
   for(const group of document.querySelectorAll('[data-system-mode]'))group.hidden=group.dataset.systemMode!==systemMode.value;
   updateThresholdControls();
 }
 for(const button of modeButtons){
   button.addEventListener('click',()=>{
-    if(systemModePending)return;
+    if(systemModePending||transferBusy())return;
     const changed=systemMode.value!==button.dataset.mode;
     systemMode.value=button.dataset.mode;
     if(changed)systemMode.dispatchEvent(new Event('change'));
@@ -128,8 +161,24 @@ systemMode.addEventListener('change',async()=>{
     if(!response.ok||!result.ok)throw new Error(result.error||'系统模式切换失败');
     setSimulateState(Boolean(result.simulate));
   }catch(e){setSimulateState(previous);alert('系统模式切换失败: '+e.message);}
-  finally{systemModePending=false;systemMode.disabled=false;updateModeMenu();}
+  finally{
+    systemModePending=false;systemMode.disabled=false;updateModeMenu();
+    try{await reloadOriginalImage();}catch(e){/* Keep the existing preview if the source reload fails. */}
+    poll();
+  }
 });
+
+async function reloadOriginalImage(){
+  const response=await fetch('/api/original',{cache:'no-store'});
+  if(!response.ok)throw new Error('原图重新加载失败');
+  const original=await response.json();
+  const imageSrc='data:image/png;base64,'+original.image;
+  document.getElementById('view').src=imageSrc;
+  document.getElementById('comparisonOriginal').src=imageSrc;
+  document.getElementById('fullViewOriginal').src=imageSrc;
+  document.getElementById('imageName').textContent=original.image_name;
+  document.getElementById('imageName').title=original.image_name;
+}
 
 function renderMetrics(status,state){
   const rows=[
@@ -158,12 +207,21 @@ async function poll(){
     const query=new URLSearchParams({mode:document.getElementById('mode').value,center:document.getElementById('center').value,width:document.getElementById('width').value,alpha:document.getElementById('alpha').value});
     const response=await fetch('/api/state?'+query);
     const state=await response.json();
-    if(!systemModePending&&revision===systemModeRevision)setSimulateState(Boolean(state.simulate));
-    document.getElementById('view').src='data:image/png;base64,'+state.image;
+    if(systemModePending||revision!==systemModeRevision)return;
+    setSimulateState(Boolean(state.simulate));
+    const imageSrc='data:image/png;base64,'+state.image;
+    document.getElementById('view').src=imageSrc;
+    document.getElementById('comparisonOriginal').src=imageSrc;
+    document.getElementById('fullViewOriginal').src=imageSrc;
+    renderProcessedResults(state.processed_results);
+    if(transferBusy()&&state.transfer_status&&state.transfer_status.busy){
+      const progress=state.transfer_status;
+      document.getElementById('transfer').textContent='处理回传中：'+progress.completed+'/'+progress.total+'…';
+    }
     document.getElementById('imageName').textContent=state.image_name;
     document.getElementById('imageName').title=state.image_name;
     renderMetrics(state.status||{},state);
     document.getElementById('logs').textContent=(state.logs||[]).join('\n');
   }catch(e){/* Keep the last complete preview while reconnecting. */}
 }
-syncNavigation();updateThresholdControls();poll();setInterval(poll,150);
+syncNavigation();updatePreviewLayout();updateThresholdControls();poll();setInterval(poll,150);

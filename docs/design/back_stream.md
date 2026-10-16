@@ -1,13 +1,13 @@
 # PL 图像回传接口
 
-本次只实现 PL 像素回传和顶层 `M_AXIS` 连接。
-S2MM、DDR、PS 网络发送和 PC 文件确认留待后续接入。
+已接通 PL 像素回传、AXI DMA S2MM、DDR、PS 网络发送和 PC 文件保存确认。
+地址、GUI 使用及失败恢复见 [network_ddr.md](network_ddr.md)。
 
 ## 数据路径
 
 ```text
 double_buf → out_arr ─→ hdmi_out → hdmi_tx
-                    └→ back_stream → top1.M_AXIS → 后续 S2MM
+                    └→ back_stream → top1.M_AXIS → AXI DMA S2MM → DDR → TCP → PC
 ```
 
 `out_arr` 的 `vid_valid` 与 RGB 经过相同两级流水线，只标记 256×256 图像窗口。
@@ -51,7 +51,7 @@ DMA 接收通道应使用 AXI DMA 的包结束语义；这里不是 VDMA 的行�
 ## 当前顶层接法
 
 所有回传信号属于 **pclk 域**；M_AXIS 的接口属性也绑定 pclk。
-后续 DMA 的 S_AXIS_S2MM 使用同一时钟，否则需要 AXI-Stream 时钟转换。
+DMA 的 S_AXIS_S2MM 当前使用同一 25.2 MHz 时钟；以后若改成不同时钟，需要时钟转换。
 
 反馈寄存器已接通：`BACK_RECEIVE` 编号 **0x30**，实际字节偏移 **0xC0**，
 PS 地址 **0x440000C0**。有效低字节写入 bit0=1 触发一次确认；
@@ -67,7 +67,9 @@ AXI-Lite 在 clk 域产生单周期事件，经 `back_ack_cdc` 的请求/确认�
 再产生一个周期的 `back_receive_done`。后续连续 ACK 写入会等待前一个事件完成跨域，
 不会覆盖尚未送达的事件；AXI 写响应确认的是源端已接受事件，目的端随后解除等待。
 `back_stream` 发完一帧后等待这个确认，确认后可接收下一次新图片触发。
-PS/PC 自动产生确认的流程仍待后续接入；写这个寄存器本身不代表 PC 已成功保存文件。
+PC 保存 BIN 和 PNG 成功后发 SAVED，PS 校验任务信息后写这个寄存器。
+新增 `BACK_STATUS` 编号 0x31、字节偏移 0xC4；bit0=busy、bit1=waiting_ack、bit2=overflow。
+三个状态经两级同步送入 clk 域。PS 等 busy 清零才发 DONE，防止确认尚未跨域时启动下一帧。
 `back_busy`、`back_waiting_ack`、`back_overflow`、`back_frame_sent` 已标记为调试信号。
 
 ## 局部验证

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
+import hashlib
 import socket
 import sys
 import threading
@@ -15,6 +16,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 import protocol as proto
 import web_common
+from frame_transfer import FrameTransferClient
 
 
 def load_gray(path):
@@ -135,23 +137,30 @@ async function dshTransfer() {
   const file = document.getElementById('imageFile').files[0];
   try { dshValidateBin(file); } catch (e) { alert(e.message); return; }
   const button = document.getElementById('transfer');
-  const picker = document.getElementById('imageFile');
-  const choose = document.getElementById('chooseImage');
   const caption = button.textContent;
+  const mode = document.getElementById('fpgaOutputMode').value;
+  const controls = ['transfer', 'imageFile', 'chooseImage', 'fpgaOutputMode', 'thresholdMode',
+    'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'request'];
+  const disabled = controls.map(id => document.getElementById(id).disabled);
   dshTransferBusy = true;
-  button.disabled = picker.disabled = choose.disabled = true;
-  button.textContent = '发送中，等待一帧完成…';
+  controls.forEach(id => { document.getElementById(id).disabled = true; });
+  if (typeof updateModeMenu === 'function') updateModeMenu();
+  button.textContent = mode === '5' ? '全显示处理中：0/5…' : '网口传输中，等待回传保存…';
   try {
-    const response = await fetch('/api/serial/transfer?index=0&name=' + encodeURIComponent(file.name),
+    const response = await fetch('/api/network/transfer?index=0&name=' + encodeURIComponent(file.name) + '&mode=' + mode,
       {method: 'POST', headers: {'Content-Type': 'application/octet-stream'},
        body: await file.arrayBuffer()});
     const result = await response.json();
-    alert((response.ok && result.ok ? '一帧发送完成，VDMA 已停机\n\n' : '发送失败\n\n') + result.log);
+    if (typeof renderProcessedResults === 'function' && result.results)
+      renderProcessedResults(Object.fromEntries(result.results.map(item => [String(item.mode), item])));
+    alert((response.ok && result.ok ? 'FPGA 处理完成，结果已保存到 PC\n\n' : '发送失败\n\n') + result.log);
   } catch (e) {
     alert('发送失败: ' + e);
   } finally {
     dshTransferBusy = false;
-    button.disabled = picker.disabled = choose.disabled = false;
+    controls.forEach((id, i) => { document.getElementById(id).disabled = disabled[i]; });
+    if (typeof updateModeMenu === 'function') updateModeMenu();
+    if (typeof updateThresholdControls === 'function') updateThresholdControls();
     button.textContent = caption;
   }
 }
@@ -161,7 +170,7 @@ async function dshReadback() {
     if (!j.ok) { alert('readback FAIL\n' + j.log); return; }
     document.getElementById('dshRbMode').textContent = j.mode === 1 ? '手动' : '自动';
     document.getElementById('dshRbThr').textContent = j.threshold;
-    const names = ['基础处理', '显示轮廓', '显示二值掩膜处理', '显示叠加掩膜处理', '显示伪彩色热力图处理'];
+    const names = ['去噪处理', '轮廓处理', '二值掩膜处理', '叠加掩膜处理', '伪彩色热力图处理'];
     document.getElementById('dshRbVid').textContent = names[j.video_mode] || ('未知(' + j.video_mode + ')');
     const area = document.getElementById('dshRbLes');
     const unit = document.createElement('span');
@@ -171,10 +180,12 @@ async function dshReadback() {
     area.replaceChildren(document.createTextNode(j.lesion_mm2), unit, pixels);
     document.getElementById('dshRbAlpha').textContent = j.mask_transparency + '%';
     lastConfirmedVideoMode = j.video_mode;
-    document.getElementById('fpgaOutputMode').value = j.video_mode;
+    if (!dshTransferBusy && document.getElementById('fpgaOutputMode').value !== '5')
+      document.getElementById('fpgaOutputMode').value = j.video_mode;
     document.getElementById('maskOpacity').value = j.mask_transparency;
     document.getElementById('maskOpacityValue').textContent = j.mask_transparency;
     updateOverlayControls();
+    updatePreviewLayout();
   } catch (e) { alert('readback err: ' + e); }
 }
 document.getElementById('request').addEventListener('click', dshReadback);
@@ -189,6 +200,7 @@ document.getElementById('imageFile').addEventListener('change', async e => {
     const j = await response.json();
     if (!response.ok || !j.ok) throw new Error(j.error || j.log);
     document.getElementById('imageName').textContent = '当前图像: ' + j.name;
+    renderProcessedResults({});
     poll();
   } catch (e) { alert('图像加载失败: ' + e.message); }
 });
@@ -196,7 +208,7 @@ let lastConfirmedVideoMode = 0;
 document.getElementById('fpgaOutputMode').addEventListener('change', async e => {
     const outputModeNote = document.getElementById('outputModeNote');
     if (e.target.value === '5') {
-        outputModeNote.textContent = '该选项仅为界面展示，暂未连接FPGA输出';
+        outputModeNote.textContent = '发送后依次处理模式 0–4，显示原图及五张 FPGA 回传图';
         return;
     }
     outputModeNote.textContent = '设置开发板 HDMI 的输出内容';
@@ -205,6 +217,7 @@ document.getElementById('fpgaOutputMode').addEventListener('change', async e => 
     if (!j.ok) {
       e.target.value = lastConfirmedVideoMode;
       updateOverlayControls();
+    updatePreviewLayout();
       alert('video mode FAIL\n' + j.log); return;
     }
     lastConfirmedVideoMode = j.video_mode;
@@ -212,6 +225,7 @@ document.getElementById('fpgaOutputMode').addEventListener('change', async e => 
   } catch (error) {
     e.target.value = lastConfirmedVideoMode;
     updateOverlayControls();
+    updatePreviewLayout();
     alert('video mode err: ' + error);
   }
 });
@@ -240,8 +254,10 @@ _SERIAL_PORT = _os.environ.get("SERIAL_PORT", "COM7")
 EMMC_FIXED_ADDR = 2048
 FRAME_BYTES = 256 * 256
 FRAME_DONE_LINE = "RESULT: FRAME_DONE frames=1 bytes=65536"
-_SERIAL_LOCK = threading.Lock()
+_SERIAL_LOCK = threading.RLock()
 _TRANSFER_LOCK = threading.Lock()
+_FRAME_CLIENT = FrameTransferClient()
+_DISPLAY_PENDING = None
 
 
 def _serial_lock():
@@ -257,7 +273,6 @@ PL_REGISTERS = {"MODE": 0x00, "CMD_REG": 0x01, "VIDEO_MODE": 0x02,
 
 def _board_talk(payload, wait=1.5):
     """往板子串口发字节, 返回板子打印的内容"""
-    import serial
     _lk = _serial_lock(); _lk.acquire()
     try:
         return _board_talk_locked(payload, wait)
@@ -399,45 +414,72 @@ def emmc_to_ddr_play_once(index=0):
     return _board_talk(b"D" + (int(index) & 0xFFFFFFFF).to_bytes(4, "little"), wait=None)
 
 
-def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR, filename="image.bin"):
+def _do_transfer(bin_bytes, index=0, filename="image.bin", mode=0, state=None):
+    """Serialize mode write -> upload -> durable result -> PL ACK -> GUI, per mode."""
+    global _DISPLAY_PENDING
     try:
         _validate_bin_frame(bin_bytes, filename)
         if int(index) != 0:
-            raise ValueError("GUI 单图传输的目录索引必须为 0")
+            raise ValueError("单帧网口传输的索引必须为 0")
+        mode = int(mode)
+        if mode not in range(6):
+            raise ValueError("处理模式必须为 0..5（5 为全显示）")
     except Exception as exc:
         return {"ok": False, "log": str(exc)}
     if not _TRANSFER_LOCK.acquire(blocking=False):
         return {"ok": False, "log": "已有一帧正在传输，请等待完成"}
-
-    log = []
+    results = []
+    modes = list(range(5)) if mode == 5 else [mode]
+    context = None
     try:
-        # One lock covers E -> A -> D, including the upload subprocess's UART.
-        # Other UART commands cannot interrupt this transaction.
+        key = (hashlib.sha256(bin_bytes).digest(), filename, mode)
+        if _DISPLAY_PENDING is not None:
+            if _DISPLAY_PENDING['key'] != key:
+                raise RuntimeError("上一任务的回传尚未确认，请使用相同原图和显示模式重试")
+            context = _DISPLAY_PENDING
+        else:
+            context = {'key': key, 'results': []}
+        results = context['results']
+        if state is not None:
+            state.replace_image(bin_bytes, filename)
+            with state.lock:
+                state.processed_results = {str(item['mode']): item for item in results}
+                state.transfer_status = {'busy': True, 'completed': len(results), 'total': len(modes)}
+        # RLock allows the checked UART write to use the same serial bridge.
+        # Keep settings fixed for the entire batch, including every return ACK.
         with _serial_lock():
-            clr = _board_talk_locked(b"E", wait=300.0)
-            log.append("--- 1) E clear ---\n" + clr)
-            if not any(line.strip() in ("RESULT: eMMC CLEARED",
-                                        "RESULT: eMMC 已经是空的")
-                       for line in clr.splitlines()):
-                return {"ok": False, "log": "\n".join(log) + "\nE clear failed"}
-
-            okc, up = _load_to_emmc_locked(bin_bytes, emmc_addr)
-            log.append("--- 2) A upload ---\n" + up)
-            if not (okc and "SUCCESSFUL" in up and
-                    "===== END =====" in up and
-                    "RESULT: VERIFY OK" in up.splitlines()):
-                return {"ok": False, "log": "\n".join(log) + "\nA upload failed"}
-
-            done = _board_talk_locked(b"D\x00\x00\x00\x00", wait=None)
-            log.append("--- 3) D single frame ---\n" + done)
-            if FRAME_DONE_LINE not in (line.strip() for line in done.splitlines()):
-                return {"ok": False, "log": "\n".join(log) +
-                        "\nD did not confirm complete single-frame transfer"}
-        return {"ok": True, "frames": 1, "bytes": FRAME_BYTES, "log": "\n".join(log)}
+            for current_mode in modes[len(results):]:
+                if state is not None:
+                    with state.lock:
+                        state.transfer_status.update(mode=current_mode)
+                # RESUME owns the old mode until its saved result is acknowledged.
+                if _FRAME_CLIENT.pending is None:
+                    written = _set_video_mode(current_mode)
+                    if not written['ok']:
+                        raise RuntimeError('显示模式更新失败: ' + written['log'])
+                result = _FRAME_CLIENT.transfer(bin_bytes, filename, expected_mode=current_mode)
+                results.append(result)
+                if state is not None:
+                    with state.lock:
+                        state.processed_results[str(current_mode)] = result
+                        state.transfer_status.update(completed=len(results))
+                    state.log('模式 %d 回传已保存并确认: %s' % (current_mode, result['files']['bin']))
+        _DISPLAY_PENDING = None
+        return {'ok': True, 'frames': len(results), 'bytes': FRAME_BYTES * len(results),
+                'output_bytes': sum(item['output_bytes'] for item in results),
+                'results': results, 'files': results[-1]['files'],
+                'log': '\n'.join(item['log'] for item in results)}
     except Exception as exc:
-        return {"ok": False, "log": "\n".join(log) +
-                "\n%s: %s" % (type(exc).__name__, exc)}
+        if context is not None:
+            _DISPLAY_PENDING = context if _FRAME_CLIENT.pending is not None else None
+        message = "%s: %s" % (type(exc).__name__, exc)
+        if state is not None:
+            state.log('处理失败: ' + message)
+        return {"ok": False, "results": results, "log": message}
     finally:
+        if state is not None and context is not None:
+            with state.lock:
+                state.transfer_status.update(busy=False)
         _TRANSFER_LOCK.release()
 
 
@@ -468,7 +510,7 @@ class NetworkHandler(web_common.Handler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path not in ('/api/serial/transfer', '/api/image'):
+        if parsed.path not in ('/api/network/transfer', '/api/serial/transfer', '/api/image'):
             super().do_POST()
             return
         try:
@@ -482,11 +524,17 @@ class NetworkHandler(web_common.Handler):
             data = self.rfile.read(n)
             _validate_bin_frame(data, filename)
             if parsed.path == '/api/image':
-                self.state.replace_image(data, filename)
+                if not _TRANSFER_LOCK.acquire(blocking=False):
+                    raise RuntimeError('正在处理图像，请等待回传完成后再选择原图')
+                try:
+                    self.state.replace_image(data, filename)
+                finally:
+                    _TRANSFER_LOCK.release()
                 self.send_json({'ok': True, 'name': self.state.image_name})
             else:
                 index = query.get('index', ['0'])[0]
-                self.send_json(_do_transfer(data, index, filename=filename))
+                mode = query.get('mode', ['0'])[0]
+                self.send_json(_do_transfer(data, index, filename=filename, mode=mode, state=self.state))
         except Exception as exc:
             message = '%s: %s' % (type(exc).__name__, exc)
             self.send_json({'ok': False, 'log': message, 'error': message}, status=400)
@@ -561,6 +609,9 @@ def main():
     parser.add_argument('--board-ip', default='192.168.1.10')
     parser.add_argument('--control-port', type=int, default=5000)
     parser.add_argument('--image-port', type=int, default=5001)
+    parser.add_argument('--transfer-ip', default='192.168.1.10')
+    parser.add_argument('--transfer-port', type=int, default=5002)
+    parser.add_argument('--result-dir', default='E:/fpga_done_img')
     parser.add_argument('--image', default=r'C:/Users/13995/Desktop/fpga校赛/camus_processed/images/training/patient0001/patient0001_4CH_ED.png')
     parser.add_argument('--simulate', action='store_true')
     parser.add_argument('--simulate-image', action='store_true')
@@ -569,6 +620,8 @@ def main():
     parser.add_argument('--upload-on-start', action='store_true')
     parser.add_argument('--no-browser', action='store_true')
     args = parser.parse_args()
+    global _FRAME_CLIENT
+    _FRAME_CLIENT = FrameTransferClient(args.transfer_ip, args.transfer_port, args.result_dir)
 
     web_common.HTML_PAGE = customize_page(web_common.HTML_PAGE)
     state = web_common.WebState(args.image, args.simulate)

@@ -24,7 +24,7 @@ module tb_display_regs;
         .reg_mode(mode),.reg_cmd(cmd),.reg_threshold(threshold),.host_wr_en(host_wr),
         .status_in(32'd128),.reg_video_mode(video),.lesion_pixels(17'd65536),
         .reg_mask_transparency(alpha),
-        .reg_back_receive(back_ack), .back_receive_ready(back_ack_ready)
+        .reg_back_receive(back_ack), .back_receive_ready(back_ack_ready), .back_status(3'b011)
     );
     always @(posedge clk) if(rst_n && host_wr) writes=writes+1;
     always @(posedge clk)begin
@@ -93,6 +93,7 @@ module tb_display_regs;
         wr('h01,42,4'hf,0,0,2);rd('h01,0,2);rd('h10,0,2);
         rd('h00,'h1122aa44,0);
         rd('hc0,0,0);
+        rd('hc4,3,0);wr('hc4,0,4'hf,0,0,2);rd('hc4,3,0);
         wr('hc0,1,4'hf,0,4,0);rd('hc0,0,0);
         if(ack_writes!=1)$fatal(1,"write-one ACK missing or repeated");
         back_ack_ready=0;

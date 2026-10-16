@@ -433,7 +433,7 @@ if {$want_axi_infra} {
             CONFIG.C_ENABLE_ILA_AXI_MON  {false} \
             CONFIG.C_DATA_DEPTH          {4096} \
             CONFIG.C_NUM_OF_PROBES       {1} \
-            CONFIG.C_PROBE0_WIDTH        {256} \
+            CONFIG.C_PROBE0_WIDTH        {128} \
         ] [get_bd_cells u_ila_hdmi]
         connect_bd_net [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins u_ila_hdmi/clk]
         connect_bd_net [get_bd_pins top1_0/debug_probe] [get_bd_pins u_ila_hdmi/probe0]
@@ -594,9 +594,8 @@ if {$want_hp} {
     # S_AXI_HP0 在 Zynq-7000 上是 AXI3 / 64bit，interconnect 负责协议转换
     connect_bd_intf_net [get_bd_intf_pins axi_ic_hp/M00_AXI] [get_bd_intf_pins $ps7/S_AXI_HP0]
 
-    # --- VDMA S2MM (回写通道) 已废弃 ---
-    # 结果由 PL 直接走 HDMI 输出, 不再回写 DDR: axi_vdma_0 的 c_include_s2mm=0,
-    # 这里不再连 M_AXI_S2MM, axi_ic_hp 也只留 S00。
+    # 输入使用 VDMA MM2S 接 S00。独立 AXI DMA 的 S2MM 包回传由文件末尾的
+    # ensure_return_dma 补入 S01；输出仍同时走 HDMI。
 
     # --- AXI VDMA 的内存读口接到 S00 ---
     # 注意：VDMA 的 s_axi_lite_aclk / axi_resetn 已经在上面 gp_slaves
@@ -708,6 +707,11 @@ if {$want_axi_infra} {
     }
 }
 
+# ---- Return DMA is part of both fresh and migrated projects. ----
+if {$want_hp} {
+    source [file join [file dirname [info script]] s2mm_return.tcl]
+    ensure_return_dma
+}
 # ---- 保存并校验 ----
 regenerate_bd_layout
 set _vd_err ""

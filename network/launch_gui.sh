@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON="${PYTHON:-/e/PythonVersionEnv/Python3.14.0/python.exe}"
 INITIAL_IMAGE="${1:-/e/camus/images/testing/patient0027/patient0027_4CH_ED.png}"
+FPGA_HOST="${FPGA_IP:-192.168.1.10}"
 MOCK_PID=""
 
 cleanup() {
@@ -104,4 +105,5 @@ fi
 
 "$PYTHON" ./network/host/monitor_network.py \
   --board-ip 127.0.0.1 --control-port 5000 --image-port 5001 \
+  --transfer-ip "$FPGA_HOST" --transfer-port 5002 --result-dir E:/fpga_done_img \
   --image "$INITIAL_IMAGE"

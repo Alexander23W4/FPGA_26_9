@@ -16,6 +16,7 @@
 | LESION | 0x21 | 0x84 | 只读：上一完整输出帧的掩膜像素数，0～65536 |
 | MASK_TRANSP | 0x22 | 0x88 | 掩膜不透明度 0～100，复位为 45 |
 | BACK_RECEIVE | 0x30 | 0xC0 | 写 bit0=1 触发回传确认，自动清零；读回 0 |
+| BACK_STATUS | 0x31 | 0xC4 | 只读：bit0 busy、bit1 waiting_ack、bit2 overflow |
 
 AXI 写地址和写数据可分开到达，支持 WSTRB。未对齐、未映射以及写只读寄存器
 返回 SLVERR。该地址表用于当前 `top1` + `MID_plt` 串口链路；
@@ -35,7 +36,11 @@ AXI 写地址和写数据可分开到达，支持 WSTRB。未对齐、未映射�
 `R=((100-a)*gray+a*255)/100`，`G=B=(100-a)*gray/100`，结果向下取整。
 0% 完全透明，100% 实心红色；mask=0 保留灰度。
 模式 4 的颜色依次经过深蓝、蓝、青、绿、黄、暗红。
-GUI 的“全显示模式”（值 5）仍为占位，不发送给 FPGA。
+GUI 的“全显示”（值 5）按 0→1→2→3→4 顺序执行五轮网口处理，同一原图发送五次。
+每轮先通过串口 V 命令让 PS 写 AXI-Lite VIDEO_MODE 并回读确认，随后发图、
+保存并校验对应 BIN、发送 SAVED，由 PS 写 BACK_RECEIVE（receive_done）。
+收到 DONE 后 GUI 从该 BIN 加载处理图，再进入下一轮。六宫格显示原图及五张处理图；
+值 5 只用于 GUI 编排，不写入 FPGA 模式寄存器。单独模式执行同样流程一次，显示原图与处理图。
 
 帧缓存同时保存灰度、mask、contour，三路使用相同写使能、bank 和地址。
 显示配置通过握手跨入像素时钟域，在 HDMI 帧边界生效；
@@ -52,6 +57,7 @@ RGB 计算保留两级流水线，HS/VS/DE 在 `hdmi_out` 内经过相同级数�
 首张完整图片到达后持续扫描，无新图片时刷新当前缓存。
 
 PL 的单像素 AXI 回传支路见 [back_stream.md](back_stream.md)。
+GUI 的直接网口发图与保存回传结果见 [network_ddr.md](network_ddr.md)。
 
 ## GUI / PS 命令
 

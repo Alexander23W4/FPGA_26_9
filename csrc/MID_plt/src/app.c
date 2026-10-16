@@ -14,6 +14,7 @@
 #include "feat/emmc_load.h"
 #include "feat/img2ddr.h"
 #include "feat/clear.h"
+#include "feat/net_frame.h"
 #include "config/pl_cmd.h"
 #include "xil_printf.h"
 #include "xil_types.h"
@@ -191,6 +192,15 @@ int app_init(void)
 int app_exec(char c)
 {
     u32 i;
+    if(net_frame_busy() && c!=CMD_READBACK && c!=CMD_HELP) {
+        u8 discarded[4];u32 count=0;
+        if(c==CMD_THRESHOLD)count=2;
+        else if(c==CMD_IMG_TO_DDR)count=4;
+        else if(c==CMD_VIDEO_MODE||c==CMD_MASK_TRANSP||c==CMD_SYSTEM_MODE)count=1;
+        if(count)uartln_get_bytes(discarded,count);
+        xil_printf("BUSY: network frame owns DDR/PL; command rejected\r\n===== END =====\r\n");
+        return -1;
+    }
 
     for (i = 0u; i < APP_CMD_COUNT; i++) {
         if (c == cmds[i].cmd) {

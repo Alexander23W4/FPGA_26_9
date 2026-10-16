@@ -23,12 +23,13 @@ module axi_lite_slave (
     input wire [16:0] lesion_pixels,
     output reg [31:0] reg_mask_transparency,
     output reg reg_back_receive,
-    input wire back_receive_ready
+    input wire back_receive_ready,
+    input wire [2:0] back_status
 );
     localparam [6:0] ADDR_MODE = 7'h00, ADDR_CMD = 7'h01,
         ADDR_VIDEO_MODE = 7'h02, ADDR_STATUS = 7'h03,
         ADDR_DATA = 7'h20, ADDR_AREA_DATA = 7'h21,
-        ADDR_MASK_TRANSP = 7'h22, ADDR_BACK_RECEIVE = 7'h30;
+        ADDR_MASK_TRANSP = 7'h22, ADDR_BACK_RECEIVE = 7'h30, ADDR_BACK_STATUS = 7'h31;
 
     reg aw_pending, w_pending;
     reg [31:0] aw_saved, w_saved;
@@ -120,6 +121,7 @@ module axi_lite_slave (
                         ADDR_AREA_DATA: s_axi_rdata <= {15'd0, lesion_pixels};
                         ADDR_MASK_TRANSP: s_axi_rdata <= reg_mask_transparency;
                         ADDR_BACK_RECEIVE: s_axi_rdata <= 0; // action register, no stored level
+                        ADDR_BACK_STATUS: s_axi_rdata <= {29'd0,back_status};
                         default: s_axi_rresp <= 2'b10;
                     endcase
                 end

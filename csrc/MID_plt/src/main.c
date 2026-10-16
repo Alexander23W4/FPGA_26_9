@@ -26,6 +26,7 @@
 #include "common/uartln.h"
 #include "xil_printf.h"
 #include "xil_types.h"
+#include "feat/net_frame.h"
 
 /* --------------------------------------------------------------------------
  *  test 注册表
@@ -139,11 +140,13 @@ int main(void)
 
     app_init();     /* 探测 eMMC / VDMA，打印单字母命令表 */
     test_help();    /* 再把 -test 这一套列出来 */
+    if(net_frame_init()!=0)xil_printf("ERROR: network frame service failed to initialize\r\n");
 
     for (;;) {
         int c;
 
-        xil_printf("\r\n> ");
+        net_frame_poll();
+        if(!uartln_rx_ready())continue;
         c = (int)uartln_getc();
 
         /* 串口终端敲回车会多送一个 \r 或 \n，静默吃掉 */
@@ -155,7 +158,8 @@ int main(void)
             /* test 名：收完整行 */
             line[0] = '-';
             (void)read_line_rest(&line[1], (u32)sizeof(line) - 1u);
-            check_args(line);
+            if(net_frame_busy())xil_printf("BUSY: cannot run a test during a network frame\r\n");
+            else check_args(line);
         } else {
             /* 老的单字母命令。后面的二进制参数由对应 feature 自己收 */
             (void)app_exec((char)c);

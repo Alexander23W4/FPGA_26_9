@@ -1,5 +1,9 @@
 ## 当前显示功能和地址表
 
+当前发图已改为 `GUI → 网口 → DDR → PL → S2MM → DDR → 网口 → PC`。
+输出保留模式与 RGB，使用 `0x20010000–0x2004FFFF`；文件自动保存到 `E:/fpga_done_img`。
+完整地址、协议和重试说明见 [network_ddr.md](network_ddr.md)。
+
 已接通叠加掩膜、伪彩色热力图及掩膜透明度。
 寄存器编号、实际 AXI 字节偏移、串口命令和验证方法见 [display_modes.md](display_modes.md)。
 本次更改需要同时重新构建并下载 PS 和 PL；下面的统一构建下载命令仍适用。
@@ -42,9 +46,9 @@ bash ./network/launch_gui.sh
 就自动启动 mock PS，再以 `--board-ip 127.0.0.1` 打开 GUI。若 mock 已经在这两个端口
 运行，则直接复用，不会重复启动。GUI 网页使用 <http://127.0.0.1:8765/>。这些端口仅在
 本机回环地址监听，不需要开放 Windows 防火墙端口；若 8765 已被占用，先关闭已有 GUI
-再运行启动命令。浏览器打开后，点击
-**“选择本地图像”** 即可通过文件资源管理器换图；点击 **“上传当前图像”** 会把当前图像
-发给 mock 服务。需要指定启动时预览的初始图片时，把路径作为第一个参数：
+再运行启动命令。浏览器打开后，点击 **“选择BIN图像”** 即可换图。
+“传输给FPGA”使用真实板卡网口 5002，结果保存到 `E:/fpga_done_img`。
+需要指定启动时预览的初始图片时，把路径作为第一个参数：
 
 ```bash
 bash ./network/launch_gui.sh /e/camus/images/testing/patient0047/patient0047_4CH_ES.png
@@ -132,7 +136,7 @@ bash ./scripts/flash_current.sh init
 上面的 PL + PS 完整构建，建立新的成功记录。
 
 `-H` 配置 HP0/VDMA 路径；它不负责清缓存。`-f` 用于 PS 平台强制更新及重建。
-如果修改的是建工程 Tcl 中的 BD 结构，而不是现有模块内部 RTL，仍需给 `zynq`
+这次 S2MM 连接会自动迁移到已有 BD。其他尚未提供迁移的建工程 Tcl 结构修改，需给 `zynq`
 加 `-R` 从 Tcl 重建工程；这会删除原 Vivado 工程目录，GUI 中未导出的工程改动应先保存。
 普通 RTL 修改直接使用上面的命令即可。
 
@@ -144,10 +148,13 @@ bash ./network/launch_gui.sh
 
 选择 **256×256、8-bit 灰度、无文件头、恰好 65,536 字节的 `.bin`**，设置阈值和
 “FPGA输出显示模式”，再点击“传输给FPGA”。当前路径为
-`GUI → eMMC → DDR → VDMA → AXI-Stream → PL → HDMI`。
-一次 D 仅发送一帧，遇到反压暂停，完整发完后 VDMA 自动停止。
+`GUI → TCP → 输入DDR → VDMA → PL`；输出同时走 HDMI 和
+`back_stream → AXI DMA S2MM → 输出DDR → TCP → PC`。
+每次仅发送一帧，遇到反压暂停，完整发完后 VDMA 自动停止。
+GUI 发图不再经过 eMMC；PC 保存 BIN 和 PNG 成功后，PS 才确认 PL 回传完成。
 
 等待图像处理完成后点击“请求FPGA状态”，查看标为“FPGA回读”的模式和面积。
+结果目录为 `E:/fpga_done_img`。板端 `192.168.1.10:5002`，PC 网卡应在同一网段。
 启动脚本同时提供 mock 网络演示，普通网页统计和预览不能作为 HDMI 实际输出的证据。
 串口默认 COM7；端口必须与板卡实际端口一致。`net_recv.ps1` 已删除，不再执行旧接收命令。
 

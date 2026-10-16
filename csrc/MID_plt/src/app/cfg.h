@@ -26,8 +26,13 @@
  * ========================================================================== */
 #define IMG_DDR_BASE        0x20000000u
 #define IMG_DDR_SIZE        (16u * 1024u * 1024u)
-/* 结果图回写缓冲区 IMG_RES_DDR_BASE / IMG_RES_DDR_SIZE 已删除:
- * 结果不再经 VDMA S2MM 回 DDR, 由 PL 直接走 HDMI 输出。 */
+/* Network input: 0x20000000..0x2000ffff (one 8-bit grayscale image).
+ * S2MM output: 0x20010000..0x2004ffff (one {mode,R,G,B} image). */
+#define NET_INPUT_BYTES      65536u
+#define IMG_RES_DDR_BASE     0x20010000u
+#define IMG_RES_DDR_SIZE     262144u
+#define S2MM_BASEADDR        0x45000000u
+#define FRAME_TCP_PORT       5002u
 
 /* ==========================================================================
  *  eMMC 布局
@@ -87,10 +92,9 @@
 #define CMD_VIDEO_MODE      'V'      /* +1 byte: modes 0..4 */
 #define CMD_MASK_TRANSP     'P'      /* +1 byte: overlay opacity 0..100 */
 #define CMD_SYSTEM_MODE     'M'      /* +1 byte: 0 image, 1 medical (reserved) */
-/* ---- 网口回传已废弃 ----
- * 原来 PL 把结果写回 DDR(VDMA S2MM), 再由 PS 经 ENET0 用 UDP 发给笔记本。
- * 现在结果直接走 HDMI, 这条路连同 feat_net_send.c / net_send.h / net_recv.ps1
- * 一起删掉了。 */
+/* GUI 图像通过 TCP 5002 直接写输入 DDR；回传通过独立 AXI DMA S2MM 写输出
+ * DDR，再经同一 TCP 连接发往 PC。PC 保存成功后才写 BACK_RECEIVE。
+ * 实现见 net_frame.c；不使用旧 UDP 接收脚本。 */
 
 /* 单次传输上限（DDR 缓冲减去 TOC 空间，保守取 16MB 里的一大半） */
 #define IMG_MAX_BYTES       (8u * 1024u * 1024u)

@@ -95,6 +95,8 @@ class WebState:
         self.logs: list[str] = []
         self.simulate = simulate
         self.serial_connected = False
+        self.processed_results: dict[str, dict] = {}
+        self.transfer_status: dict = {}
 
     def replace_image(self, data: bytes, filename: str) -> None:
         image = decode_gray_image(data, filename)
@@ -102,6 +104,7 @@ class WebState:
             self.image = image
             self.image_name = Path(filename).name
             self.mask = None
+            self.processed_results = {}
         self.log(f"已选择图像: {self.image_name}")
 
     def log(self, message: str) -> None:
@@ -132,6 +135,15 @@ class WebState:
         Image.fromarray(rgb, mode="RGB").save(output, format="PNG", optimize=True)
         return base64.b64encode(output.getvalue()).decode("ascii")
 
+    def original_snapshot(self) -> dict[str, str]:
+        with self.lock:
+            original = self.image.copy()
+            image_name = self.image_name
+        output = io.BytesIO()
+        Image.fromarray(original).save(output, format="PNG")
+        return {"image": base64.b64encode(output.getvalue()).decode("ascii"),
+                "image_name": image_name}
+
     def snapshot(self, mode: int, center: int, width: int, alpha: int) -> dict[str, object]:
         with self.lock:
             status = dict(self.status)
@@ -139,10 +151,20 @@ class WebState:
             simulate = self.simulate
             connected = self.serial_connected
             image_name = self.image_name
+            processed_results = dict(self.processed_results)
+            transfer_status = dict(self.transfer_status)
+            original = self.image.copy() if not simulate else None
         status["mode_name"] = MODE_NAMES[status.get("mode", mode)] if int(status.get("mode", mode)) < len(MODE_NAMES) else str(status.get("mode", mode))
-        return {"image": self.render_png(mode, center, width, alpha), "status": status,
+        if original is not None:
+            output = io.BytesIO()
+            Image.fromarray(original).save(output, format="PNG")
+            preview = base64.b64encode(output.getvalue()).decode("ascii")
+        else:
+            preview = self.render_png(mode, center, width, alpha)
+        return {"image": preview, "status": status,
                 "logs": logs, "simulate": simulate, "serial_connected": connected,
-                "image_name": image_name}
+                "image_name": image_name, "processed_results": processed_results,
+                "transfer_status": transfer_status}
 
 
 class WebSimulator:
@@ -296,6 +318,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/image":
             self.send_json({"error": "POST an image file"}, status=405)
+            return
+        if parsed.path == "/api/original":
+            self.send_json(self.state.original_snapshot())
             return
         if parsed.path == "/api/state":
             mode = int(query.get("mode", ["3"])[0])

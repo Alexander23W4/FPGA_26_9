@@ -71,7 +71,8 @@ module top_threshold_demo (
     output wire [31:0] video_mode_out,
     output wire [31:0] mask_transparency_out,
     output wire back_receive_done_out,
-    input wire back_receive_ready
+    input wire back_receive_ready,
+    input wire [2:0] back_status
 );
     reg [16:0] lesion_pixels;        // ★ 17 位: 一帧最多 256*256=65536, 16 位会溢出归零
     reg [16:0] lesion_pixels_save;   // Previous completed frame; byte offset 0x84.
@@ -123,7 +124,8 @@ module top_threshold_demo (
         .reg_video_mode(video_mode_out),
         .lesion_pixels (lesion_pixels_save),
         .reg_mask_transparency(mask_transparency_out),
-        .reg_back_receive(back_receive_done_out), .back_receive_ready(back_receive_ready)
+        .reg_back_receive(back_receive_done_out), .back_receive_ready(back_receive_ready),
+        .back_status(back_status)
     );
 
     // ---- Otsu core: auto threshold ----

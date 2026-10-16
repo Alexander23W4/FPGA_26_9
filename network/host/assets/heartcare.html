@@ -52,7 +52,19 @@
     <div class="visual-column">
       <section class="preview-card" aria-labelledby="previewTitle">
         <div class="card-heading"><div class="section-title"><span class="section-icon"><svg aria-hidden="true"><use href="#icon-image"/></svg></span><h3 id="previewTitle">图像预览</h3></div><span id="previewMode" class="soft-badge">本地预览</span></div>
-        <div class="view"><img id="view" alt="当前加载图像的预览"></div>
+        <div id="singlePreview" class="view"><img id="view" alt="当前加载图像的预览"></div>
+        <div id="comparisonPreview" class="comparison-preview" hidden>
+          <figure class="comparison-tile"><div class="comparison-media"><img id="comparisonOriginal" alt="原图"></div><figcaption>原图</figcaption></figure>
+          <figure class="comparison-tile"><div class="comparison-media"><img id="comparisonProcessed" alt="FPGA 回传处理图" hidden></div><figcaption id="comparisonProcessedLabel">去噪处理</figcaption></figure>
+        </div>
+        <div id="fullPreview" class="full-preview" hidden>
+          <figure class="full-preview-tile"><div class="full-preview-media"><img id="fullViewOriginal" alt="原图"></div><figcaption>原图</figcaption></figure>
+          <figure class="full-preview-tile"><div class="full-preview-media"><img id="fullViewMode0" alt="去噪图" hidden></div><figcaption>去噪图</figcaption></figure>
+          <figure class="full-preview-tile"><div class="full-preview-media"><img id="fullViewMode1" alt="轮廓图" hidden></div><figcaption>轮廓图</figcaption></figure>
+          <figure class="full-preview-tile"><div class="full-preview-media"><img id="fullViewMode2" alt="二值掩膜图" hidden></div><figcaption>二值掩膜图</figcaption></figure>
+          <figure class="full-preview-tile"><div class="full-preview-media"><img id="fullViewMode3" alt="叠加掩膜图" hidden></div><figcaption>叠加掩膜图</figcaption></figure>
+          <figure class="full-preview-tile"><div class="full-preview-media"><img id="fullViewMode4" alt="伪彩色映射图" hidden></div><figcaption>伪彩色映射图</figcaption></figure>
+        </div>
         <div class="preview-footer"><div class="file-caption"><svg aria-hidden="true"><use href="#icon-file"/></svg><span id="imageName">正在加载图像…</span></div><span class="image-format">256 × 256 <span>·</span> 8-bit</span></div>
       </section>
 
@@ -69,7 +81,7 @@
         <section class="setting-group" data-system-mode="processing">
           <div class="group-heading"><span class="step-number">01</span><h4>输出显示</h4></div>
           <label for="fpgaOutputMode">FPGA 输出显示模式</label>
-          <select id="fpgaOutputMode"><option value="0">基础处理</option><option value="1">显示轮廓</option><option value="2">显示二值掩膜处理</option><option value="3">显示叠加掩膜处理</option><option value="4">显示伪彩色热力图处理</option><option value="5">全显示模式</option></select>
+          <select id="fpgaOutputMode"><option value="0">去噪处理</option><option value="1">轮廓处理</option><option value="2">二值掩膜处理</option><option value="3">叠加掩膜处理</option><option value="4">伪彩色热力图处理</option><option value="5">全显示</option></select>
           <p class="field-note" id="outputModeNote" aria-live="polite">设置开发板 HDMI 的输出内容</p>
         </section>
         <section class="setting-group" data-system-mode="processing">

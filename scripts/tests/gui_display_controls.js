@@ -12,7 +12,7 @@ const document = {
   getElementById(id) {return elements[id] ||= element();},
   createElement: element, createTextNode: text => ({textContent: text})
 };
-const ctx = vm.createContext({document, updateOverlayControls() {},
+const ctx = vm.createContext({document, updateOverlayControls() {}, updatePreviewLayout() {},
   fetch: path => fetch(process.argv[3] + path), alert: text => alerts.push(text)});
 vm.runInContext(script, ctx);
 // The change handler schedules a readback without awaiting it; drain it here.
@@ -24,7 +24,7 @@ ctx.dshReadback = () => {
 async function settle() {while (pending.size) await Promise.all([...pending]);}
 (async () => {
   const select = elements.fpgaOutputMode;
-  const names = ['基础处理','显示轮廓','显示二值掩膜处理','显示叠加掩膜处理','显示伪彩色热力图处理'];
+  const names = ['去噪处理','轮廓处理','二值掩膜处理','叠加掩膜处理','伪彩色热力图处理'];
   for (const mode of [3, 4, 2, 0, 1]) {
     select.value = String(mode);
     await select.listeners.change({target: select}); await settle();
@@ -39,7 +39,9 @@ async function settle() {while (pending.size) await Promise.all([...pending]);}
   }
   select.value = '5';
   await select.listeners.change({target: select});
-  assert.match(elements.outputModeNote.textContent, /暂未连接/);
+  assert.match(elements.outputModeNote.textContent, /0–4/);
+  await ctx.dshReadback();
+  assert.strictEqual(select.value, '5', 'hardware readback must preserve full-display selection');
   assert.deepStrictEqual(alerts, []);
-  console.log('GUI_DISPLAY_HTTP_OK: V0..4, P0/45/100, readback and mode-5 placeholder');
+  console.log('GUI_DISPLAY_HTTP_OK: V0..4, P0/45/100 and full-display readback');
 })().catch(error => {console.error(error); process.exitCode = 1;});
