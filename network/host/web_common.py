@@ -240,14 +240,17 @@ class SerialWorker(threading.Thread):
 
 HTML_PAGE = """<!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><title>FPGA医学影像监控</title>
+<head><meta charset="utf-8"><title>心脏超声图像处理系统</title>
 <style>
 body{margin:0;background:#0f1720;color:#e5edf5;font-family:Segoe UI,Microsoft YaHei,sans-serif}
-.wrap{display:flex;min-height:100vh}.panel{width:330px;padding:16px;background:#16222d;box-sizing:border-box}
-.view{flex:1;display:flex;align-items:center;justify-content:center;padding:18px}.view img{width:min(78vh,90%);image-rendering:pixelated;border:1px solid #385064;background:#000}
-h1{font-size:20px;margin:0 0 14px}label{display:block;margin:12px 0 4px}input[type=range]{width:100%}
+[hidden]{display:none!important}
+.wrap{display:grid;grid-template-columns:330px minmax(0,1fr) 330px;height:100vh;height:100dvh;overflow:hidden}
+.panel{min-width:0;min-height:0;padding:16px;background:#16222d;box-sizing:border-box;overflow-y:auto}
+.view{min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;overflow:hidden}
+.view img{display:block;width:min(78vh,100%);max-height:100%;aspect-ratio:1;object-fit:contain;box-sizing:border-box;image-rendering:pixelated;border:1px solid #385064;background:#000}
+h1,h2{font-size:20px;margin:0 0 14px}label{display:block;margin:12px 0 4px}input[type=range]{width:100%}
 select,button{width:100%;padding:7px;background:#203342;color:#fff;border:1px solid #426078;border-radius:5px}
-button{cursor:pointer;margin-top:6px}.metric{display:flex;justify-content:space-between;border-bottom:1px solid #263b4b;padding:5px 0}
+button{cursor:pointer;margin-top:6px}.metric{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #263b4b;padding:5px 0}.metric b{text-align:right;overflow-wrap:anywhere}
 .threshold-mode{display:flex;align-items:center;justify-content:space-between;margin:12px 0 4px}
 .threshold-mode label{margin:0}
 .switch{position:relative;width:48px;height:26px;padding:0;margin:0;border:0;border-radius:999px;background:#164674;transition:background .2s;flex:none}
@@ -261,18 +264,34 @@ button:active:not(:disabled){background:#1687ff;border-color:#7bc0ff;color:#fff}
 input:disabled{opacity:.4;cursor:not-allowed}
 pre{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:12px;background:#0c141b;padding:8px}
 </style></head><body><div class="wrap">
-<div class="panel"><h1>FPGA医学影像监控</h1>
+<div class="panel controls-panel"><h1>心脏超声图像处理系统</h1>
+<label for="systemMode">系统模式</label><select id="systemMode"><option value="simulation">模拟模式</option><option value="processing" selected>图像处理模式</option><option value="medical" disabled>医学分析模式</option></select>
+<div data-system-mode="simulation" hidden>
 <label>显示模式</label><select id="mode"><option value="0">原图</option><option value="1">增强</option><option value="2">掩膜</option><option value="3" selected>叠加</option></select>
+</div>
+<div data-system-mode="processing">
 <div class="fpga-output-mode"><label>FPGA输出显示模式</label><select id="fpgaOutputMode"><option value="0">基础处理</option><option value="1">显示轮廓</option><option value="2">显示二值掩膜处理</option></select></div>
 <div class="threshold-mode"><label id="thresholdModeLabel" for="thresholdMode">阈值模式：自动</label><button id="thresholdMode" class="switch" type="button" role="switch" aria-checked="false" aria-label="切换自动或手动阈值模式" disabled></button></div>
 <div class="threshold-value"><label for="threshold">分割阈值</label><span id="thresholdValue">128</span></div><input id="threshold" type="range" min="0" max="255" value="128" disabled>
 <button id="thresholdUpdate" type="button">阈值更新</button>
+<button id="request">请求FPGA状态</button>
+</div>
+<div data-system-mode="simulation" hidden>
 <label>窗位 <span id="centerValue">128</span></label><input id="center" type="range" min="0" max="255" value="128">
 <label>窗宽 <span id="widthValue">255</span></label><input id="width" type="range" min="1" max="255" value="255">
 <label>叠加透明度 <span id="alphaValue">45</span>%</label><input id="alpha" type="range" min="0" max="100" value="45">
-<button id="simulate">切换模拟模式</button><button id="request">请求FPGA状态</button><button id="transfer">传输给FPGA</button>
-<div id="metrics"></div><pre id="logs"></pre></div>
-<div class="view"><img id="view" alt="FPGA display"></div></div>
+</div>
+<div id="imagePicker">
+<button id="chooseImage">选择 BIN 图像</button>
+<input id="imageFile" type="file" accept=".bin" hidden>
+<div>256×256，8-bit 灰度，65,536 字节</div><div id="imageName"></div>
+</div>
+<div data-system-mode="processing"><button id="transfer">传输给FPGA</button></div>
+</div>
+<div class="view"><img id="view" alt="FPGA display"></div>
+<div class="panel data-panel"><h2>数据输出</h2>
+<div id="metrics" data-system-mode="simulation" hidden></div><pre id="logs" hidden></pre></div>
+</div>
 <script>
 const ids=['threshold','center','width','alpha'];for(const id of ids){const e=document.getElementById(id);e.addEventListener('input',()=>{document.getElementById(id+'Value').textContent=e.value;});}
 const thresholdMode=document.getElementById('thresholdMode');const threshold=document.getElementById('threshold');let simulateOn=false;
@@ -281,11 +300,41 @@ let lastThreshold=null;function sendThreshold(){if(simulateOn||thresholdMode.get
 thresholdMode.addEventListener('click',()=>{thresholdMode.setAttribute('aria-checked',thresholdMode.getAttribute('aria-checked')!=='true'?'true':'false');lastThreshold=null;updateThresholdControls();sendThreshold();});
 setInterval(sendThreshold,150);
 document.getElementById('mode').addEventListener('change',e=>fetch('/api/command?mode='+e.target.value));
-document.getElementById('simulate').addEventListener('click',()=>fetch('/api/command?simulate=toggle').then(poll));
 document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));
-function setSimulateState(enabled){if(simulateOn!==enabled){lastThreshold=null;}simulateOn=enabled;updateThresholdControls();}
+const systemMode=document.getElementById('systemMode');
+let systemModePending=false;
+let systemModeRevision=0;
+function setSimulateState(enabled){
+  if(simulateOn!==enabled) lastThreshold=null;
+  simulateOn=enabled;
+  systemMode.value=enabled?'simulation':'processing';
+  for(const group of document.querySelectorAll('[data-system-mode]')){
+    group.hidden=group.dataset.systemMode!==systemMode.value;
+  }
+  updateThresholdControls();
+}
+systemMode.addEventListener('change',async()=>{
+  const previous=simulateOn;
+  const mode=systemMode.value;
+  systemModeRevision++;
+  systemModePending=true;
+  systemMode.disabled=true;
+  setSimulateState(mode==='simulation');
+  try{
+    const r=await fetch('/api/system_mode?mode='+encodeURIComponent(mode));
+    const j=await r.json();
+    if(!r.ok||!j.ok) throw new Error(j.error||'系统模式切换失败');
+    setSimulateState(Boolean(j.simulate));
+  }catch(e){
+    setSimulateState(previous);
+    alert('系统模式切换失败: '+e.message);
+  }finally{
+    systemModePending=false;
+    systemMode.disabled=false;
+  }
+});
 updateThresholdControls();
-async function poll(){try{const q=new URLSearchParams({mode:document.getElementById('mode').value,center:document.getElementById('center').value,width:document.getElementById('width').value,alpha:document.getElementById('alpha').value});const r=await fetch('/api/state?'+q);const j=await r.json();setSimulateState(Boolean(j.simulate));document.getElementById('view').src='data:image/png;base64,'+j.image;document.getElementById('imageName').textContent='当前图像: '+j.image_name;const s=j.status||{};const rows={frame:s.frame_id,mode:s.mode_name,threshold:s.threshold,area_pixels:s.area_pixels,area_mm2:s.area_mm2,inference_ms:s.inference_us===undefined?'-':(s.inference_us/1000).toFixed(3),serial:j.serial_connected?'connected':'offline',simulate:j.simulate?'on':'off'};document.getElementById('metrics').innerHTML=Object.entries(rows).map(([k,v])=>'<div class="metric"><span>'+k+'</span><b>'+(v===undefined?'-':v)+'</b></div>').join('');document.getElementById('logs').textContent=(j.logs||[]).join('\\n');}catch(e){}}
+async function poll(){const revision=systemModeRevision;try{const q=new URLSearchParams({mode:document.getElementById('mode').value,center:document.getElementById('center').value,width:document.getElementById('width').value,alpha:document.getElementById('alpha').value});const r=await fetch('/api/state?'+q);const j=await r.json();if(!systemModePending&&revision===systemModeRevision)setSimulateState(Boolean(j.simulate));document.getElementById('view').src='data:image/png;base64,'+j.image;document.getElementById('imageName').textContent='当前图像: '+j.image_name;const s=j.status||{};const rows={frame:s.frame_id,mode:s.mode_name,threshold:s.threshold,area_pixels:s.area_pixels,area_mm2:s.area_mm2,inference_ms:s.inference_us===undefined?'-':(s.inference_us/1000).toFixed(3),serial:j.serial_connected?'connected':'offline',simulate:j.simulate?'on':'off'};document.getElementById('metrics').innerHTML=Object.entries(rows).map(([k,v])=>'<div class="metric"><span>'+k+'</span><b>'+(v===undefined?'-':v)+'</b></div>').join('');document.getElementById('logs').textContent=(j.logs||[]).join('\\n');}catch(e){}}
 poll();setInterval(poll,150);
 </script></body></html>"""
 
@@ -332,10 +381,16 @@ class Handler(BaseHTTPRequestHandler):
             alpha = int(query.get("alpha", ["45"])[0])
             self.send_json(self.state.snapshot(mode, center, width, alpha))
             return
+        if parsed.path == "/api/system_mode":
+            mode = query.get("mode", [""])[0]
+            if mode not in ("simulation", "processing"):
+                self.send_json({"ok": False, "error": "unsupported system mode"}, status=400)
+                return
+            with self.state.lock:
+                self.state.simulate = mode == "simulation"
+            self.send_json({"ok": True, "simulate": mode == "simulation"})
+            return
         if parsed.path == "/api/command":
-            if "simulate" in query:
-                with self.state.lock:
-                    self.state.simulate = not self.state.simulate
             if "mode" in query:
                 mode_value = int(query["mode"][0])
                 if self.simulator is not None:

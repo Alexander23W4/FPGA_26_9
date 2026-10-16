@@ -219,7 +219,7 @@ class SerialWorker(threading.Thread):
 
 HTML_PAGE = """<!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><title>FPGA医学影像监控</title>
+<head><meta charset="utf-8"><title>心脏超声图像处理系统</title>
 <style>
 body{margin:0;background:#0f1720;color:#e5edf5;font-family:Segoe UI,Microsoft YaHei,sans-serif}
 .wrap{display:flex;min-height:100vh}.panel{width:330px;padding:16px;background:#16222d;box-sizing:border-box}
@@ -230,7 +230,8 @@ button{cursor:pointer;margin-top:6px}.metric{display:flex;justify-content:space-
 button:active:not(:disabled){background:#1687ff;border-color:#7bc0ff;color:#fff}
 pre{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:12px;background:#0c141b;padding:8px}
 </style></head><body><div class="wrap">
-<div class="panel"><h1>FPGA医学影像监控</h1>
+<div class="panel"><h1>心脏超声图像处理系统</h1>
+<label for="systemMode">系统模式</label><select id="systemMode"><option>模拟模式</option><option>图像处理模式</option><option>医学分析模式</option></select>
 <label>显示模式</label><select id="mode"><option value="0">原图</option><option value="1">增强</option><option value="2">掩膜</option><option value="3" selected>叠加</option></select>
 <label>分割阈值 <span id="thresholdValue">128</span></label><input id="threshold" type="range" min="0" max="255" value="128">
 <button id="thresholdUpdate" type="button">阈值更新</button>

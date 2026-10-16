@@ -181,7 +181,6 @@ document.getElementById('imageFile').addEventListener('change', async e => {
     poll();
   } catch (e) { alert('图像加载失败: ' + e.message); }
 });
-document.getElementById('upload').addEventListener('click', () => fetch('/api/upload').then(poll));
 document.getElementById('fpgaOutputMode').addEventListener('change', async e => {
   try {
     const j = await (await fetch('/api/serial/video_mode?mode=' + e.target.value)).json();
@@ -379,13 +378,6 @@ def _do_transfer(bin_bytes, index=0, emmc_addr=EMMC_FIXED_ADDR, filename="image.
 
 
 def customize_page(page):
-    page = page.replace(
-        '<button id="request">请求FPGA状态</button>',
-        '<button id="request">请求FPGA状态</button>'
-        '<button id="chooseImage">选择 BIN 图像</button>'
-        '<input id="imageFile" type="file" accept=".bin" hidden>'
-        '<div>256×256，8-bit 灰度，65,536 字节</div>'
-        '<div id="imageName"></div><button id="upload">上传当前图像</button>')
     # The UART readback handler is installed once in TAIL_SCRIPT.
     page = page.replace(
         "document.getElementById('request').addEventListener('click',()=>fetch('/api/command?request=1'));", "")
@@ -397,13 +389,13 @@ def customize_page(page):
         '<button id="transfer">传输给FPGA</button>',
         '<button id="transfer" onclick="dshTransfer()">传输给FPGA</button>')
     page = page.replace(
-        '<div id="metrics">',
-        '<div id="dshReadback">'
+        '<div id="metrics"',
+        '<div id="dshReadback" data-system-mode="processing">'
         '<div class="metric"><span>FPGA回读阈值模式</span><b id="dshRbMode">0</b></div>'
         '<div class="metric"><span>FPGA回读阈值</span><b id="dshRbThr">0</b></div>'
         '<div class="metric"><span>FPGA回读输出显示模式</span><b id="dshRbVid">基础处理</b></div>'
         '<div class="metric"><span>FPGA回读病灶面积</span><b id="dshRbLes">0.000 mm²</b></div>'
-        '</div><div id="metrics">')
+        '</div><div id="metrics"')
     return page.replace('</body>', TAIL_SCRIPT + '</body>')
 
 
@@ -434,7 +426,6 @@ class NetworkHandler(web_common.Handler):
             message = '%s: %s' % (type(exc).__name__, exc)
             self.send_json({'ok': False, 'log': message, 'error': message}, status=400)
 
-    image_sender = None
     control_worker = None
 
     def do_GET(self):
@@ -453,30 +444,10 @@ class NetworkHandler(web_common.Handler):
                     self.control_worker.write(proto.encode_set_mode(value))
             if 'request' in query and self.control_worker is not None:
                 self.control_worker.write(proto.encode_request_status())
-            if 'simulate' in query:
-                with self.state.lock:
-                    self.state.simulate = not self.state.simulate
             if 'mode' in query:
                 # mode is the local display mode; do not write PL MODE_REG.
                 pass
             self.send_json({'ok': True})
-            return
-        if parsed.path == '/api/upload':
-            try:
-                if self.image_sender is None:
-                    raise RuntimeError('image sender is not configured')
-                with self.state.lock:
-                    image = self.state.image.copy()
-                result = self.image_sender.send_image(image, self.server.next_image_frame())
-                if self.control_worker is not None:
-                    self.control_worker.write(proto.encode_set_threshold(self.server.threshold))
-                    self.control_worker.write(proto.encode_set_mode(self.server.pl_mode))
-                    self.control_worker.write(proto.encode_start_analyze())
-                self.state.log(f"图像上传完成并启动分析: {result['bytes']} bytes, {result['elapsed_ms']:.2f} ms")
-                self.send_json({'ok': True, 'result': result})
-            except Exception as exc:
-                self.state.log(f'图像上传失败: {exc}')
-                self.send_json({'ok': False, 'error': str(exc)})
             return
         if parsed.path == '/api/serial/readback':
             self.send_json(_readback_regs())
@@ -541,7 +512,6 @@ def main():
     web_common.Handler.state = state
     web_common.Handler.simulator = simulator
     web_common.Handler.serial_worker = control_worker
-    NetworkHandler.image_sender = image_sender
     NetworkHandler.control_worker = control_worker
 
     if args.upload_on_start:
@@ -564,13 +534,8 @@ def main():
     threading.Thread(target=background, daemon=True).start()
     server = NetworkServer((args.host, args.port), NetworkHandler)
     server.image_path = args.image
-    server.frame_counter = 0
     server.threshold = args.threshold
     server.pl_mode = args.pl_mode
-    def next_image_frame():
-        server.frame_counter = (server.frame_counter + 1) & 0xFFFF
-        return server.frame_counter
-    server.next_image_frame = next_image_frame
     url = f'http://{args.host}:{args.port}/'
     state.log('网络监控服务已启动: ' + url)
     if not args.no_browser:

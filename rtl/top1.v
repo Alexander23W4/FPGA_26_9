@@ -313,62 +313,62 @@ module top1 #(
         .dbg_status(hdmi_dbg_status)
     );
 
-    // -------- 板上观测：可经 AXI-Lite 读取，也会送入 ILA --------
-    always @(posedge clk) begin
-        if (rst) begin
-            dbg_axis_beats_q   <= 32'd0;
-            dbg_input_frames_q <= 32'd0;
-            dbg_output_frames_q <= 32'd0;
-        end else begin
-            if (s_axis_tvalid && s_axis_tready)
-                dbg_axis_beats_q <= dbg_axis_beats_q + 1'b1;
-            if (px_valid && px_ready && px_eof)
-                dbg_input_frames_q <= dbg_input_frames_q + 1'b1;
-            if (fb_write_en && fb_write_addr == 16'hFFFF)
-                dbg_output_frames_q <= dbg_output_frames_q + 1'b1;
-        end
-    end
+//     // -------- 板上观测：可经 AXI-Lite 读取，也会送入 ILA --------
+//     always @(posedge clk) begin
+//         if (rst) begin
+//             dbg_axis_beats_q   <= 32'd0;
+//             dbg_input_frames_q <= 32'd0;
+//             dbg_output_frames_q <= 32'd0;
+//         end else begin
+//             if (s_axis_tvalid && s_axis_tready)
+//                 dbg_axis_beats_q <= dbg_axis_beats_q + 1'b1;
+//             if (px_valid && px_ready && px_eof)
+//                 dbg_input_frames_q <= dbg_input_frames_q + 1'b1;
+//             if (fb_write_en && fb_write_addr == 16'hFFFF)
+//                 dbg_output_frames_q <= dbg_output_frames_q + 1'b1;
+//         end
+//     end
 
-    assign dbg_beats  = dbg_axis_beats_q;
-    assign dbg_pixels = {16'd0, fb_write_addr};
-    assign dbg_frames = {16'd0, dbg_input_frames_q[7:0],
-                         dbg_output_frames_q[7:0]};
-    assign dbg_stat   = {13'd0, hdl_dbg_status};
-    assign dbg_stream = {22'd0, s_axis_tvalid, s_axis_tready, s_axis_tlast,
-                         s_axis_tuser, px_eof, hdl_eof, fb_write_en,
-                         fb_write_idx, fb_read_idx, frame_ready_toggle};
+//     assign dbg_beats  = dbg_axis_beats_q;
+//     assign dbg_pixels = {16'd0, fb_write_addr};
+//     assign dbg_frames = {16'd0, dbg_input_frames_q[7:0],
+//                          dbg_output_frames_q[7:0]};
+//     assign dbg_stat   = {13'd0, hdl_dbg_status};
+//     assign dbg_stream = {22'd0, s_axis_tvalid, s_axis_tready, s_axis_tlast,
+//                          s_axis_tuser, px_eof, hdl_eof, fb_write_en,
+//                          fb_write_idx, fb_read_idx, frame_ready_toggle};
 
-    // 128-bit 单 probe。当前优先观察 VDMA 的完整 64-bit 流拍、TKEEP 和实际
-    // 写入帧缓存的单字节数据；用来区分上游高 32bit 为 0、TKEEP 填充和 axi2px
-    // 展开错误。
-    // 位定义从高到低：
-    // [127:119] hdl 状态低 9 位, [118:103] 写地址, [102:95] 写数据,
-    // [94:87] TKEEP, [86:23] VDMA 64-bit TDATA, [22:16] 标志, [15:0] 保留。
-    // create_zynq_project.tcl 会把这个 net 接到 BD 内的 u_ila_hdmi。
-    (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] hdmi_ila_probe;
-    assign hdmi_ila_probe = {
-        hdl_dbg_status[8:0], fb_write_addr, fb_write_data, s_axis_tkeep, s_axis_tdata,
-        s_axis_tvalid, s_axis_tready, s_axis_tlast,
-        px_eof, hdl_eof, fb_write_en, frame_ready_toggle, 16'd0
-    };
-// -------- ★ 128 位观测包 (端口宽度保持 128, 因此不需要同步 mref) --------
-    //  动端口宽度会让 BD 里的 top1_0 失效 (mref 接口是缓存的), 所以只塞进现有 128 位。
-    (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] dbg_pack;
-    assign dbg_pack = {
-        rdata[7:0],                 // [127:120] 回读数据低8位 (看 0x10 读回 0 还是 2)
-        awaddr[8:0],                // [119:111] ★ 写地址 (PS 送来的是不是 0x10)
-        wdata[7:0],                 // [110:103] 写数据低8位
-        awvalid, awready,           // [102][101] ★ 写地址握手
-        wvalid,  wready,            // [100][ 99] ★ 写数据握手
-        bvalid,  bready,            // [ 98][ 97] 写响应
-        rvalid,  rready,            // [ 96][ 95] 读响应
-        arvalid, arready,           // [ 94][ 93] 读地址握手
-        bresp[0], rresp[0],         // [ 92][ 91]
-        fb_write_addr,              // [ 90: 75] ★ 帧缓存写地址
-        hdl_dbg_status,             // [ 74: 56] ★ {eof_mismatch,state,buf_idx_save,counter}
-        56'd0
-    };
-    assign debug_probe = dbg_pack;
+//     // 128-bit 单 probe。当前优先观察 VDMA 的完整 64-bit 流拍、TKEEP 和实际
+//     // 写入帧缓存的单字节数据；用来区分上游高 32bit 为 0、TKEEP 填充和 axi2px
+//     // 展开错误。
+//     // 位定义从高到低：
+//     // [127:119] hdl 状态低 9 位, [118:103] 写地址, [102:95] 写数据,
+//     // [94:87] TKEEP, [86:23] VDMA 64-bit TDATA, [22:16] 标志, [15:0] 保留。
+//     // create_zynq_project.tcl 会把这个 net 接到 BD 内的 u_ila_hdmi。
+//     (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] hdmi_ila_probe;
+//     assign hdmi_ila_probe = {
+//         hdl_dbg_status[8:0], fb_write_addr, fb_write_data, s_axis_tkeep, s_axis_tdata,
+//         s_axis_tvalid, s_axis_tready, s_axis_tlast,
+//         px_eof, hdl_eof, fb_write_en, frame_ready_toggle, 16'd0
+//     };
+// // -------- ★ 128 位观测包 (端口宽度保持 128, 因此不需要同步 mref) --------
+//     //  动端口宽度会让 BD 里的 top1_0 失效 (mref 接口是缓存的), 所以只塞进现有 128 位。
+//     (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] dbg_pack;
+//     assign dbg_pack = {
+//         rdata[7:0],                 // [127:120] 回读数据低8位 (看 0x10 读回 0 还是 2)
+//         awaddr[8:0],                // [119:111] ★ 写地址 (PS 送来的是不是 0x10)
+//         wdata[7:0],                 // [110:103] 写数据低8位
+//         awvalid, awready,           // [102][101] ★ 写地址握手
+//         wvalid,  wready,            // [100][ 99] ★ 写数据握手
+//         bvalid,  bready,            // [ 98][ 97] 写响应
+//         rvalid,  rready,            // [ 96][ 95] 读响应
+//         arvalid, arready,           // [ 94][ 93] 读地址握手
+//         bresp[0], rresp[0],         // [ 92][ 91]
+//         fb_write_addr,              // [ 90: 75] ★ 帧缓存写地址
+//         hdl_dbg_status,             // [ 74: 56] ★ {eof_mismatch,state,buf_idx_save,counter}
+//         56'd0
+//     };
+//     assign debug_probe = dbg_pack;
 
     // TMDS 串行位: 来自 hdmi_tx, 在这里紧贴端口做 OBUFDS
     wire tmds_ser_r;
