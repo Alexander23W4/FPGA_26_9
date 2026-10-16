@@ -107,13 +107,17 @@ pl_input_hashes() {
 ps_input_hashes() {
   [ -d "$REPO_ROOT/csrc/$1/src" ] || return 0
   local generated="csrc/$1/src/CMakeLists.txt"
+  # CMake emits this compilation database for editors; the build does not read
+  # it as an input. Regeneration must not invalidate an otherwise current ELF.
+  local compilation_db="csrc/$1/src/compile_commands.json"
   if [ "${2:-all}" = user ]; then
     # update_hw/app.build rewrite this root file. UserConfig.cmake, linker
     # scripts and C/H sources remain protected during the build.
-    (cd "$REPO_ROOT" && find "csrc/$1/src" -type f ! -path "$generated" \
+    (cd "$REPO_ROOT" && find "csrc/$1/src" -type f ! -path "$generated" ! -path "$compilation_db" \
       -print0 | sort -z | xargs -0 -r sha256sum)
   else
-    (cd "$REPO_ROOT" && find "csrc/$1/src" -type f -print0 | sort -z | xargs -0 -r sha256sum)
+    (cd "$REPO_ROOT" && find "csrc/$1/src" -type f ! -path "$compilation_db" \
+      -print0 | sort -z | xargs -0 -r sha256sum)
   fi
 }
 

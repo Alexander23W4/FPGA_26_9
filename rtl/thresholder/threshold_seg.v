@@ -12,6 +12,7 @@ module threshold_seg (
     input  wire        valid_in,     // pixel valid flag
     input  wire        en,          // ★ 全局使能: 0 则本拍不推进
     input  wire [7:0]  threshold,   // current threshold from th_select
+    input  wire        strict_gt,   // auto: classes <= threshold / > threshold
     output reg         mask_out,    // binary mask: 1 = target, 0 = background
     output reg         valid_out    // mask valid flag
 );
@@ -22,7 +23,7 @@ module threshold_seg (
         end else if (en) begin   // en=0 时整拍保持不动
             valid_out <= valid_in;
             if (valid_in)
-                mask_out <= (pix_in >= threshold) ? 1'b1 : 1'b0;
+                mask_out <= strict_gt ? (pix_in > threshold) : (pix_in >= threshold);
         end
     end
 endmodule

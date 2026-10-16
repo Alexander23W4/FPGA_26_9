@@ -219,7 +219,7 @@ module top1 #(
         .buf_mask(fb_read_mask), .buf_contour(fb_read_contour),
         .video_mode(video_mode_pclk), .mask_transparency(mask_transparency_pclk),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
-        .new_frame(hdmi_new_frame),
+        .new_frame(hdmi_new_frame), .back_busy(back_busy),
         .vid_r(arr_vid_r), .vid_g(arr_vid_g), .vid_b(arr_vid_b),
         .vid_valid(arr_vid_valid), .vid_sof(arr_vid_sof), .video_mode_out(arr_video_mode)
     );

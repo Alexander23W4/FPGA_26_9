@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 
 // Actual two-bank frame writer + all three BRAM planes + CDC + HDMI raster.
-// Two input frames, three displayed frames: the last mode change redraws a bank.
+// Two input frames, five displayed frames: a busy mode-only redraw is deferred;
+// the final unchanged refresh returns nothing and never needs an ACK.
 module tb_hdmi_out;
     reg clk=0,pclk=0,rst=1;
     always #3 clk=~clk;
@@ -19,7 +20,7 @@ module tb_hdmi_out;
     wire [7:0] arr_r,arr_g,arr_b;
     wire image_active,frame_start,new_frame,arr_valid,arr_sof;
     wire [31:0] arr_mode,return_data;
-    wire return_valid,return_last,return_user,return_wait,return_overflow;
+    wire return_valid,return_last,return_user,return_wait,return_overflow,return_busy;
     wire [3:0] return_keep;
     integer return_cycles=0,return_pixels=0,return_packets=0,new_jobs=0;
     wire return_ready=return_cycles%64>=8;
@@ -28,6 +29,7 @@ module tb_hdmi_out;
         else return_cycles<=return_cycles+1;
     end
     reg return_ack=0;
+    reg hold_return=0;
     reg [31:0] mode=3,alpha=50;
     wire [31:0] mode_pclk,alpha_pclk;
     reg [2:0] done_sync=0;
@@ -57,13 +59,13 @@ module tb_hdmi_out;
         .buf_data(read_data),.buf_mask(read_mask),.buf_contour(read_contour),
         .vid_r(arr_r),.vid_g(arr_g),.vid_b(arr_b),
         .frame_start(frame_start),.image_active(image_active),
-        .new_frame(new_frame),.vid_valid(arr_valid),.vid_sof(arr_sof),.video_mode_out(arr_mode),
+        .new_frame(new_frame),.back_busy(return_busy||hold_return),.vid_valid(arr_valid),.vid_sof(arr_sof),.video_mode_out(arr_mode),
         .video_mode(mode_pclk),.mask_transparency(alpha_pclk));
     back_stream return_path(.clk(pclk),.rst(rst),.sof(arr_sof),.valid(arr_valid),
         .R(arr_r),.G(arr_g),.B(arr_b),.video_mode(arr_mode),.back_receive_done(return_ack),
         .tdata(return_data),.tvalid(return_valid),.tready(return_ready),
         .tkeep(return_keep),.tlast(return_last),.tuser(return_user),
-        .back_en(),.busy(),.waiting_ack(return_wait),.frame_sent(),.overflow(return_overflow));
+        .back_en(),.busy(return_busy),.waiting_ack(return_wait),.frame_sent(),.overflow(return_overflow));
 
     integer written=0,pixels_checked=0,scan=0,displayed=0;
     task send_frame;
@@ -104,7 +106,7 @@ module tb_hdmi_out;
             return_pixels=0;return_packets=0;new_jobs=0;
             return_ack<=0;return_was_stalled=0;
         end else begin
-            return_ack<=return_wait;
+            if(return_wait)$fatal(1,"return path still waits for ACK");
             if(arr_sof)new_jobs=new_jobs+1;
             if(return_overflow)$fatal(1,"return FIFO overflow with bounded stalls");
             if(return_was_stalled&&(!return_valid||{return_last,return_user,return_keep,return_data}!==return_held))
@@ -112,14 +114,19 @@ module tb_hdmi_out;
             return_was_stalled=return_valid&&!return_ready;
             return_held={return_last,return_user,return_keep,return_data};
             if(return_valid&&return_ready)begin
-                if(return_packets>=2)$fatal(1,"ordinary HDMI redraw triggered another return packet");
+                if(return_packets>=3)$fatal(1,"unchanged HDMI refresh triggered another return packet");
                 return_gray=return_packets==0?return_pixels%256:255-return_pixels%256;
                 if(return_packets==0)begin
                     return_red=return_pixels%256<128?(50*return_gray+50*255)/100:return_gray;
                     return_green=return_pixels%256<128?50*return_gray/100:return_gray;
                     return_expected={return_red[7:0],return_green[7:0],return_green[7:0]};
-                end else return_expected=heat(return_gray);
-                if(return_data!=={8'(return_packets==0?3:4),return_expected}||return_keep!==4'hf||
+                end else if(return_packets==1) return_expected=heat(return_gray);
+                else begin
+                    return_red=return_pixels%256>=128?255:return_gray;
+                    return_green=return_pixels%256>=128?0:return_gray;
+                    return_expected={return_red[7:0],return_green[7:0],return_green[7:0]};
+                end
+                if(return_data!=={8'(return_packets==1?4:3),return_expected}||return_keep!==4'hf||
                    return_user!==(return_pixels==0)||return_last!==(return_pixels==65535))
                     $fatal(1,"return frame/pixel/mode mismatch frame=%0d pixel=%0d data=%h",return_packets,return_pixels,return_data);
                 if(return_last)begin return_pixels=0;return_packets=return_packets+1;end
@@ -183,14 +190,17 @@ module tb_hdmi_out;
                 repeat(2)@(negedge clk);mode=2;alpha=33;
                 repeat(2)@(negedge clk);mode=4;alpha=0;
                 wait(displayed>=2);
-                @(negedge clk);mode=3;alpha=100;
+                @(negedge clk);hold_return=1;mode=3;alpha=100;
+                wait(scan==2 && pixels_checked>=2*65536+1000);
+                if(new_jobs!=2||!formatter.return_pending)$fatal(1,"busy mode change was lost or started early");
+                @(negedge pclk);hold_return=0;
             end
         join
-        wait(displayed==3);
+        wait(displayed==5);
         if(written!=2 || writer_debug[18])$fatal(1,"writer frame accounting");
-        if(return_packets!=2||return_pixels!=0||new_jobs!=2)$fatal(1,"return frame count mismatch");
-        $display("[PASS] tb_hdmi_out pixels=%0d: HDMI continuous, two AXI return frames, stalls, CDC and redraw without duplicate capture",pixels_checked);
+        if(return_packets!=3||return_pixels!=0||new_jobs!=3)$fatal(1,"return frame count mismatch");
+        $display("[PASS] tb_hdmi_out pixels=%0d: HDMI continuous, new-image/mode-only return, busy deferral, no ACK, stalls, CDC and unchanged refresh",pixels_checked);
         $finish;
     end
-    initial begin #30000000;$fatal(1,"HDMI path timeout");end
+    initial begin #40000000;$fatal(1,"HDMI path timeout");end
 endmodule

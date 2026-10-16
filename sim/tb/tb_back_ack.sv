@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-// Real AXI-Lite decoder -> asynchronous event handshake -> back_stream rearm.
+// Legacy ACK decoder/CDC compatibility. Frames now complete independently of ACK.
 module tb_back_ack;
     reg clk=0,pclk=0,rst=1;
     always #5 clk=~clk;
@@ -84,15 +84,18 @@ module tb_back_ack;
     endtask
     initial begin
         repeat(4)@(negedge pclk);rst=0;
-        send_frame();wait(waiting);
+        send_frame();wait(packets==1);@(negedge pclk);
+        if(busy||waiting)$fatal(1,"frame completion still requires ACK");
         write_ack(0,4'hf,0,0);write_ack(1,4'b0010,0,0);
         repeat(4)@(negedge pclk);
-        if(!waiting||dst_events!=0)$fatal(1,"zero/masked write released return path");
+        if(busy||waiting||dst_events!=0)$fatal(1,"zero/masked write disturbed idle return path");
         write_ack(1,4'hf,0,4);
-        wait(!busy);wait(source_ready);
+        wait(dst_events==1);wait(source_ready);
         if(src_events!=1||dst_events!=1)$fatal(1,"first cross-domain ACK lost");
-        send_frame();wait(waiting);
-        if(packets!=2)$fatal(1,"ACK failed to rearm second frame");
+        send_frame();wait(packets==2);@(negedge pclk);
+        if(busy||waiting)$fatal(1,"second frame failed to auto-rearm");
+        send_frame();wait(packets==3);@(negedge pclk);
+        if(busy||waiting)$fatal(1,"next frame needed an ACK");
         // A second write is queued while the previous event is still in flight.
         write_ack(1,4'hf,0,0);
         write_ack(1,4'hf,0,0);
@@ -106,9 +109,9 @@ module tb_back_ack;
         repeat(4)@(negedge pclk);rst=0;
         repeat(10)@(negedge pclk);
         if(dst_events!=0||src_events!=0||!source_ready||busy)$fatal(1,"phantom ACK after reset");
-        send_frame();wait(waiting);write_ack(1,4'hf,3,0);wait(!busy);
+        send_frame();wait(packets==1);write_ack(1,4'hf,3,0);wait(dst_events==1);wait(source_ready);
         if(src_events!=1||dst_events!=1)$fatal(1,"post-reset ACK mismatch");
-        $display("[PASS] tb_back_ack: AXI 0xc0 -> clk/pclk handshake -> rearm, queued writes, WSTRB, reset");
+        $display("[PASS] tb_back_ack: legacy ACK CDC/WSTRB/reset valid; frames auto-idle without ACK");
         $finish;
     end
     initial begin #100000;$fatal(1,"back ACK timeout");end

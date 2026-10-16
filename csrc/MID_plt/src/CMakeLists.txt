@@ -59,6 +59,8 @@ collect(PROJECT_LIB_DEPS xiltimer;xilffs;lwip213)
 
 
 
+
+
 collect(PROJECT_LIB_DEPS gcc)
 collect(PROJECT_LIB_DEPS c)
 
@@ -75,15 +77,15 @@ collect(PROJECT_LIB_DEPS c)
 collect (PROJECT_LIB_SOURCES app.c)
 collect (PROJECT_LIB_SOURCES crc32.c)
 collect (PROJECT_LIB_SOURCES drv_emmc.c)
-collect (PROJECT_LIB_SOURCES drv_vdma.c)
 collect (PROJECT_LIB_SOURCES drv_s2mm.c)
-collect (PROJECT_LIB_SOURCES net_frame.c)
+collect (PROJECT_LIB_SOURCES drv_vdma.c)
 collect (PROJECT_LIB_SOURCES feat_emmc_clear.c)
 collect (PROJECT_LIB_SOURCES feat_emmc_load.c)
 collect (PROJECT_LIB_SOURCES feat_img2ddr.c)
 collect (PROJECT_LIB_SOURCES img_catalog.c)
 collect (PROJECT_LIB_SOURCES img_ddr.c)
 collect (PROJECT_LIB_SOURCES main.c)
+collect (PROJECT_LIB_SOURCES net_frame.c)
 collect (PROJECT_LIB_SOURCES platform.c)
 collect (PROJECT_LIB_SOURCES pl_ctrl_test.c)
 collect (PROJECT_LIB_SOURCES uartln.c)

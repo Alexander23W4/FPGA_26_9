@@ -152,11 +152,9 @@ void choose_single_img_proc(void)
     PL_WR(MODE_ADDR, PL_SYSTEM_IMAGE);
     PL_WR(CMD_REG_ADDR, PL_THRESHOLD_MANUAL);
 
-    /* ★ 写一次固定阈值, 让 PL 从 Otsu 自动模式切到手动固定阈值 ★
-       原因: otsu_core 的直方图只在复位时清零, 跨帧一直累积 =>
-             每个 frame_done 算出的阈值都不同 => 阈值逐帧漂移 =>
-             双缓冲两个 bank 的分割结果不一样 => 轮廓白线一直闪。
-       写一次 DATA_REG 之后 th_select 会把 auto_mode 置 0, 阈值就固定了。*/
+    /* This diagnostic deliberately uses a fixed manual threshold. CMD_REG
+       selects manual mode; DATA_REG supplies its value. Automatic processing
+       now computes an independent Otsu threshold and replays the same frame. */
     PL_WR(DATA_REG_ADDR, FIXED_THRESHOLD);
 }
 

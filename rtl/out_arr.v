@@ -10,6 +10,7 @@ module out_arr (
     // These settings have already crossed into pclk through display_cfg_cdc.
     input wire [31:0] video_mode, input wire [31:0] mask_transparency,
     input wire frame_start, input wire image_active, input wire new_frame,
+    input wire back_busy,
     output wire [7:0] vid_r, output wire [7:0] vid_g, output wire [7:0] vid_b,
     output wire vid_valid, output wire vid_sof,
     output wire [31:0] video_mode_out
@@ -17,17 +18,26 @@ module out_arr (
     reg [31:0] video_mode_active;
     reg [6:0] mask_transparency_active;
     reg [1:0] valid_pipe, sof_pipe;
+    reg return_pending;
+    wire display_changed = video_mode != video_mode_active;
+    wire return_start = frame_start && !back_busy &&
+                        (return_pending || new_frame || display_changed);
     assign vid_valid = valid_pipe[1];
     assign vid_sof = sof_pipe[1];
     assign video_mode_out = video_mode_active;
 
     // Metadata follows the same two stages as RGB. vid_sof marks the new
     // display job before its image window; vid_valid excludes all black margins.
+    // Capture each newly selected image/mode once, only from a frame boundary.
     always @(posedge pclk) begin
-        if (rst) begin valid_pipe <= 0; sof_pipe <= 0; end
+        if (rst) begin valid_pipe <= 0; sof_pipe <= 0; return_pending <= 0; end
         else begin
             valid_pipe <= {valid_pipe[0], image_active};
-            sof_pipe <= {sof_pipe[0], new_frame};
+            sof_pipe <= {sof_pipe[0], return_start};
+            if (frame_start) begin
+                if (return_start) return_pending <= 0;
+                else if (new_frame || display_changed) return_pending <= 1;
+            end
         end
     end
 

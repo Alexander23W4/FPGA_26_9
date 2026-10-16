@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // One {mode,R,G,B} pixel per beat; the video producer never waits for this tap.
-// All ports, including back_receive_done, belong to clk (pclk in top1).
+// All ports belong to clk (pclk in top1). The legacy ACK port is ignored.
 module back_stream #(
     parameter integer FRAME_PIXELS = 256 * 256,
     parameter integer FIFO_DEPTH = 2048
@@ -10,7 +10,7 @@ module back_stream #(
     input wire sof, input wire valid,
     input wire [7:0] R, input wire [7:0] G, input wire [7:0] B,
     input wire [31:0] video_mode,
-    input wire back_receive_done,
+    input wire back_receive_done, // retained for existing wrappers; no rearm ACK
     output reg [31:0] tdata,
     output reg tvalid, input wire tready,
     output wire [3:0] tkeep,
@@ -20,7 +20,7 @@ module back_stream #(
 );
     localparam integer PTR_W = $clog2(FIFO_DEPTH);
     localparam integer PIX_W = FRAME_PIXELS < 2 ? 1 : $clog2(FRAME_PIXELS);
-    localparam [2:0] IDLE=0, CAPTURE=1, PUSH_TAIL=2, DRAIN=3, WAIT_ACK=4;
+    localparam [2:0] IDLE=0, CAPTURE=1, PUSH_TAIL=2, DRAIN=3;
     reg [2:0] state;
     reg [7:0] frame_mode;
     reg [PIX_W-1:0] pixel_count;
@@ -45,7 +45,7 @@ module back_stream #(
     assign tkeep = 4'hf;
     assign back_en = state == CAPTURE;
     assign busy = state != IDLE;
-    assign waiting_ack = state == WAIT_ACK;
+    assign waiting_ack = 1'b0; // compatibility status: never waits for PS
 
     // Hold the entire output tuple stable whenever TVALID && !TREADY.
     always @(posedge clk) begin
@@ -100,10 +100,8 @@ module back_stream #(
             if (state == PUSH_TAIL && fifo_space) state <= DRAIN;
             if (state == DRAIN && tvalid && tready && tlast) begin
                 frame_sent <= 1;
-                state <= back_receive_done ? IDLE : WAIT_ACK;
+                state <= IDLE;
             end
-            // An early ACK cannot discard an in-flight frame.
-            if (state == WAIT_ACK && back_receive_done) state <= IDLE;
         end
     end
 

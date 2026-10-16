@@ -78,7 +78,7 @@ Git Bash 终端按 `Ctrl+C`，脚本会同时停止 mock PS 服务。mock 返回
 | 粘贴成 `initrm -f` | `init` 和下一条命令粘连，成为非法下载模式。 | 下载脚本只接受 `init` 或 `noinit`，非法参数立即失败。 |
 | PATH 优先选中 Vitis 的 `gnuwin/bin/tee.exe` | 旧版 Windows 工具与 Git Bash 输出管道混用，可能报“标准输出: No such file or directory”，终端输出停住。 | 公共脚本将 Git Bash `/usr/bin` 放在 PATH 首位；Vivado/Vitis/XSCT 仍通过明确的 `.bat` 路径调用。 |
 | 在实时日志管道中用 `tr` 去掉回车 | 管道缓冲可能隐藏启动信息，让终端停留在 `Archive dir`。 | 直接用 Git Bash 的 `tee` 实时输出；成功标记兼容 CRLF，并在输入校验和工具启动前打印进度。 |
-| 编译前后校验 Vitis 自动重写的根 `CMakeLists.txt` | 更新平台时会正常重写该配置，PS 编译成功后仍误报源码变化。 | 编译期间校验 C/H、`UserConfig.cmake`、链接脚本等用户文件；编译完成后再记录包含最终 `CMakeLists.txt` 的全部输入，下载前仍检查配置是否改变。 |
+| 编译前后校验 Vitis 自动重写的根 `CMakeLists.txt` 或 `compile_commands.json` | CMake 配置及编辑器编译命令清单会正常生成，PS 编译成功后仍误报源码变化。 | 编译期间校验 C/H、`UserConfig.cmake`、链接脚本等用户文件；编译完成后记录最终 `CMakeLists.txt`，下载前仍校验。`compile_commands.json` 是生成物，始终排除出构建输入校验。 |
 
 禁用缓存采用 Vivado 2023.2 的
 [官方 `config_ip_cache` 命令](https://docs.amd.com/r/2023.2-English/ug835-vivado-tcl-commands/config_ip_cache)。

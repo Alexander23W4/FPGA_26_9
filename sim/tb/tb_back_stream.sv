@@ -71,20 +71,19 @@ module tb_back_stream;
     initial begin
         repeat(4)@(negedge clk);rst=0;
         send_frame(3);
-        wait(wait_ack);@(negedge clk);
-        if(packets!=1||overflow||en||!busy)$fatal(1,"first frame did not finish cleanly");
-        sof=1;valid=1;repeat(12)@(negedge clk);sof=0;valid=0;
-        if(packets!=1||v)$fatal(1,"repeated frame while awaiting ACK");
-        acknowledge();if(busy)$fatal(1,"ACK did not release job");
-        send_frame(4);wait(wait_ack);@(negedge clk);
-        if(packets!=2||overflow)$fatal(1,"second frame after ACK failed");
-        acknowledge();
+        wait(packets==1);@(negedge clk);
+        if(overflow||en||busy||wait_ack||!sent)$fatal(1,"first frame did not return directly to idle");
+        repeat(12)@(negedge clk);
+        if(packets!=1||v||busy||sent)$fatal(1,"ordinary refresh repeated a completed packet");
+        // No ACK between complete frames; the next SOF must start immediately.
+        send_frame(4);wait(packets==2);@(negedge clk);
+        if(overflow||busy||wait_ack)$fatal(1,"second frame without ACK failed");
         // Reset while TVALID is blocked: no old FIFO words may leak afterward.
         @(negedge clk);enable_ready=0;sof=1;valid=1;
         @(negedge clk);sof=0;repeat(8)@(negedge clk);
         rst=1;valid=0;repeat(3)@(negedge clk);rst=0;enable_ready=1;
-        send_frame(2);wait(wait_ack);@(negedge clk);
-        if(packets!=1||overflow)$fatal(1,"reset left stale words");
+        send_frame(2);wait(packets==1);@(negedge clk);
+        if(overflow||busy||wait_ack)$fatal(1,"reset left stale words");
         normal_done=1;
     end
 
@@ -125,14 +124,14 @@ module tb_back_stream;
         ev=0;
         if(!eoverflow)$fatal(1,"missing overflow error");
         repeat(10)@(negedge clk);erready=1;
-        wait(ewait);@(negedge clk);
+        wait(eterm==1);@(negedge clk);
         if(eterm!=1||ecount>=16||ecount<2)$fatal(1,"overflow packet did not terminate");
         eack=1;@(negedge clk);eack=0;
         overflow_done=1;
     end
     initial begin
         wait(normal_done&&overflow_done&&capacity_done&&single_done);
-        $display("[PASS] tb_back_stream: 3 full frames, stalls, stable TLAST/TUSER, early/late ACK, overflow, exact capacity, single pixel and reset");
+        $display("[PASS] tb_back_stream: auto-idle after TLAST, next frame without ACK, stalls, stable TLAST/TUSER, overflow, exact capacity, single pixel and reset");
         $finish;
     end
     initial begin #10000000;$fatal(1,"back_stream timeout");end
@@ -161,7 +160,7 @@ module back_stream_capacity_case #(parameter integer N=6)(input wire clk,output 
         repeat(4)@(negedge clk);rst=0;sof=1;valid=1;
         for(i=0;i<N;i=i+1)begin p=i;@(negedge clk);sof=0;end
         valid=0;repeat(12)@(negedge clk);ready=1;
-        wait(wait_ack);@(negedge clk);
+        wait(ends==1);@(negedge clk);
         if(got!=N||ends!=1||overflow)$fatal(1,"capacity case N=%0d did not finish",N);
         done=1;
     end

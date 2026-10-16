@@ -15,10 +15,9 @@ module th_select (
     output reg  [7:0]  threshold,   // final threshold used by segmenter
     output reg         auto_mode    // 1 = auto (Otsu), 0 = manual (host)
 );
-    // ★ 模式完全由主机的 reg_cmd[0] 决定:
-    //     host_mode = 0 -> 自动: threshold 跟随 Otsu 的输出
-    //     host_mode = 1 -> 手动: threshold 用主机写进 reg_threshold 的值
-    //   算法本身(threshold_seg / contour_extract)不参与, 只是拿到 threshold。
+    // Configuration/status selection. The frame buffer separately snapshots
+    // the mode and threshold, so register writes never split an active frame.
+    // otsu_th retains the latest completed result, including in manual mode.
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             threshold <= 8'd128;        // 默认阈值
@@ -26,16 +25,9 @@ module th_select (
         end else begin
             auto_mode <= ~host_mode;    // 主机说了算
 
-            if (host_mode) begin   
-                // 手动: 主机写 DATA_REG 时装载阈值
-                if (host_wr_en) // 只有 data_reg 被修改过后, 这个才有效.  也就是说, 若cmd_reg = 1, 不改reg值, 就不更新 threhold 值
-                    threshold <= host_th;
-            end else begin
-                // 自动: Otsu 每帧算完就更新
-                if (otsu_done)
-                    threshold <= otsu_th;
-            end
+            threshold <= host_mode ? host_th : otsu_th;
         end
     end
+    wire _unused = &{1'b0, host_wr_en, otsu_done};
 endmodule
 

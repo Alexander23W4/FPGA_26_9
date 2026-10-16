@@ -7,22 +7,9 @@
 // - Threshold segmentation + contour extraction
 //============================================================
 
-/*
-axi_slave -> regs  (manual) --
-                              --> threshold_sel  -> [threshold] ->  threshold_seg(mask){mask} -> contour{contour} 
-          -> otsu  (auto)   --
-
-★: 现在的逻辑是: 每次回手动之后 (0x04 = 1之后), 默认不将threshold直接置成现有的threshold_reg值, 而是需要写入一次新值, 才能够更新
-但是 0x04 = 1的时候, 也不会听从otsu的值, 而是一直维持默认值, 直到重新写入手动值
-
-所以回自动:
-axi_wr(8'h04, 32'd0);
-
-设置手动:
-axi_wr(8'h04, 32'd1);
-axi_wr(8'h80, 32'd200);  // Byte offset: DATA register index 0x20 << 2.
-
-*/
+// Input -> frame RAM + histogram -> current-frame Otsu -> RAM replay ->
+// segmentation -> contour. Manual mode keeps its existing >= comparison;
+// automatic mode uses the Otsu partition <= t / > t.
 `timescale 1ns / 1ps
 
 module top_threshold_demo (
@@ -79,10 +66,11 @@ module top_threshold_demo (
     // Internal reset: active high
     wire rst = ~rst_n;
 
-    // Map slave input signals to internal names
-    wire [7:0] pix_in     = s_axis_tdata;   // pixel data
-    wire       pix_valid  = s_axis_tvalid;  // pixel valid
-    wire       frame_done = s_axis_tlast;   // frame end (last pixel)
+    // Segment only the buffered replay, after the current threshold is ready.
+    wire [7:0] pix_in;
+    wire pix_valid, frame_done;
+    wire [7:0] frame_threshold;
+    wire frame_auto, frame_busy;
     // ★ 全局使能: 由 contour_extract 的 cot_ready_in 引出
     //   它为 0 (下游忙 / flush 期) 时, 所有推动流水的寄存器全部冻结, 一个像素都不丢
     wire pipe_en;
@@ -120,7 +108,7 @@ module top_threshold_demo (
         .reg_cmd       (reg_cmd),
         .reg_threshold (reg_threshold),
         .host_wr_en    (host_wr_en),
-        .status_in     ({24'd0, threshold}),
+        .status_in     ({24'd0, threshold_out}),
         .reg_video_mode(video_mode_out),
         .lesion_pixels (lesion_pixels_save),
         .reg_mask_transparency(mask_transparency_out),
@@ -132,17 +120,15 @@ module top_threshold_demo (
     wire [7:0] otsu_th;            // Otsu computed threshold
     wire       otsu_done;          // one-cycle pulse when ready
 
-    otsu_core u_otsu (
-        .clk        (clk),
-        .rst        (rst),
-
-        .pix_in     (pix_in),
-        .valid_in   (pix_valid),
-        .en         (pipe_en),        // ★ 同样门控
-        .frame_done (frame_done),
-
-        .otsu_th    (otsu_th),
-        .otsu_done  (otsu_done)
+    otsu_frame_buffer u_frame (
+        .clk(clk), .rst(rst),
+        .s_data(s_axis_tdata), .s_valid(s_axis_tvalid),
+        .s_ready(s_axis_tready), .s_last(s_axis_tlast),
+        .m_data(pix_in), .m_valid(pix_valid), .m_ready(pipe_en), .m_last(frame_done),
+        .host_mode(reg_cmd[0]), .host_threshold(reg_threshold),
+        .output_frame_done(m_axis_tvalid && m_axis_tready && m_axis_tlast),
+        .frame_threshold(frame_threshold), .frame_auto(frame_auto), .frame_busy(frame_busy),
+        .auto_threshold(otsu_th), .auto_done(otsu_done)
     );
 
     // ---- Threshold selector: Otsu auto + host manual ----  ★ 验证重点
@@ -174,7 +160,8 @@ module top_threshold_demo (
 
         .valid_in  (pix_valid),
         .en        (pipe_en),        // ★ 同一使能, 停就一起停
-        .threshold (threshold),  // 这里输入最终的
+        .threshold (frame_threshold),
+        .strict_gt (frame_auto),
         
         .mask_out  (mask_bit),   // 产出
         .valid_out (mask_vld)
@@ -246,17 +233,15 @@ module top_threshold_demo (
     );
 
 
-    // ★ 接回模块自己的 cot_ready_in (= pipe_en)。
-    //   因为它内部已经改成 up_ready = dn_ready (不含 flushing), 不会再死锁。
-    //   这样下游不收时整条链都会停住 => 三路不会相对错位 => 轮廓不会偏。
-    assign s_axis_tready = pipe_en;
+    // Replay, segmenter and contour share pipe_en under downstream backpressure.
+    // The input frame buffer independently controls upstream ready.
 
     assign m_axis_tmask    = cot_mask_out & cot_mask_valid;        
     assign m_axis_tcontour = contour_bit & contour_vld;  
 
     // ---- Status outputs ----    // ★: 上位机应该能够读取这些值, 作为回读状态 
-    assign threshold_out = threshold;   // current threshold
-    assign auto_mode_out = auto_mode;   // auto/manual mode
+    assign threshold_out = frame_busy ? frame_threshold : threshold;
+    assign auto_mode_out = frame_busy ? frame_auto : auto_mode;
     assign frame_done_out= m_axis_tlast;       // frame done forwarded  给下一级的, 所以要用输出的eof
 
     // ★ Prevent unused signal optimization

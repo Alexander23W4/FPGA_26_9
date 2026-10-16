@@ -1,129 +1,170 @@
-//============================================================
-// otsu_core.v  Otsu threshold calculation core
-// - Build histogram from input pixels
-// - After frame_done, compute best threshold
-// - Output otsu_th and one-cycle otsu_done pulse
-//============================================================
 `timescale 1ns / 1ps
 
+// One histogram per frame (at most 65536 pixels). Input is accepted only when
+// ready && en && valid_in; frame_done is meaningful on that same handshake.
+// The result t partitions gray <= t / gray > t. Uniform frames return their gray.
 module otsu_core (
-    input  wire        clk,         // system clock, 50 MHz
-    input  wire        rst,         // reset, active high
-    input  wire [7:0]  pix_in,      // input pixel gray value (0~255)
-    input  wire        valid_in,
-    input  wire        en,          // ★ 全局使能 (0 = 本拍不推进)
-    input  wire        frame_done,  // one-frame-done pulse, triggers Otsu
-    output reg  [7:0]  otsu_th,     // computed threshold (0~255)
-    output reg         otsu_done  // one-cycle pulse when otsu_th is ready
+    input wire clk, input wire rst,
+    input wire [7:0] pix_in, input wire valid_in, input wire en,
+    input wire frame_done,
+    output reg [7:0] otsu_th, output reg otsu_done,
+    output wire ready
 );
-    // Histogram: 256 bins, each bin counts pixels of that gray level
-    reg [31:0] hist [0:255];
-    integer i;                      // loop index for histogram reset
+    localparam [3:0] CLEAR=0, COLLECT=1, BIN=2, MOMENT=3, DIFF=4,
+        SQUARE=5, LEFT_PRODUCT=6, RIGHT_PRODUCT=7, COMPARE=8, NEXT_BIN=9, DONE=10;
+    reg [3:0] state;
+    (* ram_style = "distributed" *) reg [16:0] hist [0:255];
+    reg [7:0] clear_index, t, min_gray, best_t;
+    reg [16:0] total_count, w0, w1;
+    reg [23:0] total_sum, sum0;
+    reg [40:0] moment_total, moment_background;
+    reg [33:0] denominator, best_denominator;
+    reg [81:0] best_numerator, candidate_numerator;
+    reg best_valid;
 
-    // FSM state codes
-    localparam S_WAIT = 2'd0;       // idle, wait for frame_done
-    localparam S_PRE  = 2'd1;       // pre-compute total N and sum_all
-    localparam S_LOOP = 2'd2;       // loop t = 0..255, find best threshold
-    localparam S_DONE = 2'd3;       // latch result, pulse otsu_done
+    // Compare D^2/(w0*w1) exactly by cross multiplication. A shared shift/add
+    // multiplier avoids two large combinational 82x34 multipliers/dividers.
+    // 41-bit moments, 82-bit squares and 116-bit cross products cannot overflow
+    // for a 256x256x8-bit frame. The common total_count^2 factor cancels.
+    reg [115:0] multiply_acc, multiply_shift, left_score, right_score;
+    reg [40:0] multiply_bits;
+    reg [5:0] multiply_left;
+    wire [115:0] multiply_step = multiply_acc +
+        (multiply_bits[0] ? multiply_shift : 116'd0);
+    wire [40:0] difference = moment_total - moment_background;
+    wire [7:0] histogram_address = state == COLLECT ? pix_in : t;
+    wire [16:0] histogram_count = hist[histogram_address];
+    wire [16:0] next_w0 = w0 + histogram_count;
+    wire [23:0] bin_sum = histogram_count * t;
+    wire [23:0] next_sum0 = sum0 + bin_sum;
 
-    reg [1:0]  state;               // FSM current state
-    reg [8:0]  t;                   // threshold loop counter (0~256)
-    reg [31:0] N, sum_all;          // N = total pixel count, sum_all = total gray sum
-    reg [31:0] w0, sum0;            // w0 = background count, sum0 = background gray sum
-    reg [7:0]  best_t;              // best threshold found so far
-    reg [63:0] best_score;          // best score found so far
-    integer k;                      // loop index for S_PRE
+    assign ready = state == COLLECT && total_count < 17'd65536;
 
-    // Combinational: next values if current t is chosen as threshold
-    wire [31:0] w0_next   = w0 + hist[t];           // background count after adding hist[t]
-    wire [31:0] sum0_next = sum0 + hist[t] * t;     // background sum after adding hist[t]*t
-    wire [31:0] w1_next   = N - w0_next;            // foreground count
-    wire [31:0] sum1_next = sum_all - sum0_next;    // foreground sum
-
-    // Score = |sum0*w1 - sum1*w0|, no division needed
-    // This is a division-free approximation of Otsu's between-class variance
-    wire signed [63:0] diff =
-        $signed({32'd0, sum0_next}) * $signed({32'd0, w1_next})
-      - $signed({32'd0, sum1_next}) * $signed({32'd0, w0_next});
-    wire [63:0] score = (diff[63]) ? (~diff + 1'b1) : diff;  // absolute value
+    // A single synchronous write port and no array reset allow LUT RAM
+    // inference. CLEAR writes all bins before ready is asserted.
+    always @(posedge clk) begin
+        if (!rst) begin
+            if (state == CLEAR) hist[clear_index] <= 0;
+            else if (ready && en && valid_in) hist[pix_in] <= histogram_count + 1'b1;
+        end
+    end
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            // Clear histogram and all registers
-            for (i = 0; i < 256; i = i + 1)
-                hist[i] <= 32'd0;
-            state      <= S_WAIT;
-            t          <= 9'd0;
-            N          <= 32'd0;
-            sum_all    <= 32'd0;
-            w0         <= 32'd0;
-            sum0       <= 32'd0;
-            best_t     <= 8'd0;
-            best_score <= 64'd0;
-            otsu_th    <= 8'd128;       // default threshold
-            otsu_done  <= 1'b0;
-            k          <= 0;
+            state <= CLEAR; clear_index <= 0; t <= 0; min_gray <= 255;
+            total_count <= 0; total_sum <= 0; w0 <= 0; w1 <= 0; sum0 <= 0;
+            moment_total <= 0; moment_background <= 0;
+            denominator <= 0; best_denominator <= 0; best_numerator <= 0; candidate_numerator <= 0;
+            best_valid <= 0; best_t <= 0;
+            multiply_acc <= 0; multiply_shift <= 0; multiply_bits <= 0;
+            multiply_left <= 0; left_score <= 0; right_score <= 0;
+            otsu_th <= 128; otsu_done <= 0;
         end else begin
-            otsu_done <= 1'b0;          // default: pulse low
-
-            // Histogram accumulation
-            if (en && valid_in)      // ★ 使能为 0 时不计直方图
-                hist[pix_in] <= hist[pix_in] + 1'b1;
-
-            // FSM
+            otsu_done <= 0;
             case (state)
-                S_WAIT: begin
-                    // Wait for end of frame
-                    if (frame_done) begin
-                        N       <= 32'd0;
-                        sum_all <= 32'd0;
-                        k       <= 0;
-                        state   <= S_PRE;
-                    end
+                CLEAR: begin
+                    if (clear_index == 255) begin
+                        total_count <= 0; total_sum <= 0;
+                        w0 <= 0; sum0 <= 0; t <= 0; min_gray <= 255;
+                        best_valid <= 0; best_t <= 0;
+                        state <= COLLECT;
+                    end else clear_index <= clear_index + 1'b1;
                 end
-
-                S_PRE: begin
-                    // Accumulate total pixel count and total gray sum
-                    if (k < 256) begin
-                        N       <= N + hist[k];
-                        sum_all <= sum_all + hist[k] * k;
-                        k       <= k + 1;
-                    end else begin
-                        t          <= 9'd0;
-                        w0         <= 32'd0;
-                        sum0       <= 32'd0;
-                        best_t     <= 8'd0;
-                        best_score <= 64'd0;
-                        state      <= S_LOOP;
-                    end
+                COLLECT: if (ready && en && valid_in) begin
+                    total_count <= total_count + 1'b1;
+                    total_sum <= total_sum + pix_in;
+                    if (pix_in < min_gray) min_gray <= pix_in;
+                    if (frame_done) state <= BIN;
                 end
-
-                S_LOOP: begin
-                    // Try every threshold t from 0 to 255
-                    if (t < 256) begin
-                        // Only valid if both classes non-empty
-                        if (w0_next != 0 && w1_next != 0) begin
-                            // Use >= to pick the last max (more centered)
-                            if (score >= best_score) begin
-                                best_score <= score;
-                                best_t     <= t[7:0];
-                            end
+                BIN: begin
+                    w0 <= next_w0;
+                    sum0 <= next_sum0;
+                    w1 <= total_count - next_w0;
+                    // Empty bins have the same partition as the previous bin.
+                    // Strict comparison keeps the first maximizing threshold.
+                    if (histogram_count != 0 && next_w0 != 0 && next_w0 < total_count)
+                        state <= MOMENT;
+                    else state <= NEXT_BIN;
+                end
+                MOMENT: begin
+                    moment_total <= total_sum * w0;
+                    moment_background <= sum0 * total_count;
+                    denominator <= w0 * w1;
+                    state <= DIFF;
+                end
+                DIFF: begin
+                    multiply_acc <= 0;
+                    multiply_shift <= {75'd0, difference};
+                    multiply_bits <= difference;
+                    multiply_left <= 41;
+                    state <= SQUARE;
+                end
+                SQUARE: begin
+                    multiply_acc <= multiply_step;
+                    multiply_shift <= multiply_shift << 1;
+                    multiply_bits <= multiply_bits >> 1;
+                    multiply_left <= multiply_left - 1'b1;
+                    if (multiply_left == 1) begin
+                        candidate_numerator <= multiply_step[81:0];
+                        if (!best_valid) begin
+                            best_numerator <= multiply_step[81:0];
+                            best_denominator <= denominator;
+                            best_t <= t; best_valid <= 1;
+                            state <= NEXT_BIN;
+                        end else begin
+                            // Candidate numerator * best denominator.
+                            multiply_acc <= 0;
+                            multiply_shift <= {34'd0, multiply_step[81:0]};
+                            multiply_bits <= {7'd0, best_denominator};
+                            multiply_left <= 34;
+                            state <= LEFT_PRODUCT;
                         end
-                        // Move background accumulator forward
-                        w0   <= w0_next;
-                        sum0 <= sum0_next;
-                        t    <= t + 1;
-                    end else begin
-                        state <= S_DONE;
                     end
                 end
-
-                S_DONE: begin
-                    // Latch result and pulse done
-                    otsu_th   <= best_t;
-                    otsu_done <= 1'b1;
-                    state     <= S_WAIT;
+                LEFT_PRODUCT: begin
+                    multiply_acc <= multiply_step;
+                    multiply_shift <= multiply_shift << 1;
+                    multiply_bits <= multiply_bits >> 1;
+                    multiply_left <= multiply_left - 1'b1;
+                    if (multiply_left == 1) begin
+                        left_score <= multiply_step;
+                        multiply_acc <= 0;
+                        multiply_shift <= {34'd0, best_numerator};
+                        multiply_bits <= {7'd0, denominator};
+                        multiply_left <= 34;
+                        state <= RIGHT_PRODUCT;
+                    end
                 end
+                RIGHT_PRODUCT: begin
+                    multiply_acc <= multiply_step;
+                    multiply_shift <= multiply_shift << 1;
+                    multiply_bits <= multiply_bits >> 1;
+                    multiply_left <= multiply_left - 1'b1;
+                    if (multiply_left == 1) begin
+                        right_score <= multiply_step;
+                        state <= COMPARE;
+                    end
+                end
+                COMPARE: begin
+                    if (left_score > right_score) begin
+                        // Candidate D^2 is retained across both cross products.
+                        best_numerator <= candidate_numerator;
+                        best_denominator <= denominator;
+                        best_t <= t;
+                    end
+                    state <= NEXT_BIN;
+                end
+                NEXT_BIN: begin
+                    if (t == 255) state <= DONE;
+                    else begin t <= t + 1'b1; state <= BIN; end
+                end
+                DONE: begin
+                    otsu_th <= best_valid ? best_t : min_gray;
+                    otsu_done <= 1;
+                    clear_index <= 0;
+                    state <= CLEAR;
+                end
+                default: begin state <= CLEAR; clear_index <= 0; end
             endcase
         end
     end

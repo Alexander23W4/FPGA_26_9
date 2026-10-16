@@ -153,7 +153,7 @@ async function dshTransfer() {
     const result = await response.json();
     if (typeof renderProcessedResults === 'function' && result.results)
       renderProcessedResults(Object.fromEntries(result.results.map(item => [String(item.mode), item])));
-    alert((response.ok && result.ok ? 'FPGA 处理完成，结果已保存到 PC\n\n' : '发送失败\n\n') + result.log);
+    if (!response.ok || !result.ok) alert('发送失败\n\n' + result.log);
   } catch (e) {
     alert('发送失败: ' + e);
   } finally {
@@ -169,7 +169,7 @@ async function dshReadback() {
     const j = await (await fetch('/api/serial/readback')).json();
     if (!j.ok) { alert('readback FAIL\n' + j.log); return; }
     document.getElementById('dshRbMode').textContent = j.mode === 1 ? '手动' : '自动';
-    document.getElementById('dshRbThr').textContent = j.threshold;
+    document.getElementById('dshRbThr').textContent = j.actual_threshold;
     const names = ['去噪处理', '轮廓处理', '二值掩膜处理', '叠加掩膜处理', '伪彩色热力图处理'];
     document.getElementById('dshRbVid').textContent = names[j.video_mode] || ('未知(' + j.video_mode + ')');
     const area = document.getElementById('dshRbLes');

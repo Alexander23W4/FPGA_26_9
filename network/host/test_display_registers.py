@@ -18,7 +18,7 @@ class DisplayRegistersTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'Node.js is needed to execute GUI handlers')
     def test_actual_gui_handlers_through_http_and_uart_bridge(self):
         values = dict(MODE=0, CMD_REG=1, VIDEO_MODE=0, STATUS=120,
-                      DATA_REG=120, LESION=65536, MASK_TRANSP=45)
+                      DATA_REG=37, LESION=65536, MASK_TRANSP=45)
         writes = []
         def uart(payload, **kwargs):
             if payload == b'R':

@@ -9,7 +9,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--vivado-bin', default='E:/Xilinx/Vivado/2023.2/bin')
     parser.add_argument('--out', type=Path, default=ROOT / 'build/tests/display')
+    parser.add_argument('--top', action='append', choices=('tb_back_ack', 'tb_display_regs',
+                        'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr'),
+                        help='Run selected local testbench; may be repeated')
     args = parser.parse_args()
+    args.out = args.out.resolve()
     binary = Path(args.vivado_bin)
     args.out.mkdir(parents=True, exist_ok=True)
     def run(name, *command):
@@ -32,7 +36,7 @@ def main():
         'xil_defaultlib.top1', 'xil_defaultlib.glbl', '-s', 'top1_ports')
     script = args.out / 'run.tcl'
     script.write_text('run all\nquit\n', encoding='ascii')
-    for top in ('tb_back_ack', 'tb_display_regs', 'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr'):
+    for top in (args.top or ('tb_back_ack', 'tb_display_regs', 'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr')):
         run(top+'_elaborate', binary/'xelab.bat', '--relax', 'xil_defaultlib.'+top, '-s', top)
         output = run(top, binary/'xsim.bat', top, '-tclbatch', script, '-onerror', 'quit')
         if '[PASS]' not in output:
