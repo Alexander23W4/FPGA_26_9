@@ -187,7 +187,7 @@ module tb_contour_pos;
         rst_n = 1;
         repeat (10) @(posedge clk);
         axi_wr(32'h04, 32'h1);          // 手动
-        axi_wr(32'h08, 32'h0000_0080);  // 阈值 128 (0xFF -> mask=1, 0x00 -> mask=0)
+        axi_wr(32'h80, 32'h0000_0080);  // 阈值 128 (0xFF -> mask=1, 0x00 -> mask=0)
         repeat (5) @(posedge clk);
 
         // ================= 第 1 轮: 无反压 =================
@@ -218,7 +218,7 @@ module tb_contour_pos;
         rst_n = 1;
         repeat (5) @(posedge clk);
         axi_wr(32'h04, 32'h1);
-        axi_wr(32'h08, 32'h0000_0080);
+        axi_wr(32'h80, 32'h0000_0080);
         repeat (5) @(posedge clk);
 
         out_row = 0; out_col = 0;

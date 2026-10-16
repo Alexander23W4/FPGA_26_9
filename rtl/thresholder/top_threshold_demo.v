@@ -20,7 +20,7 @@ axi_wr(8'h04, 32'd0);
 
 设置手动:
 axi_wr(8'h04, 32'd1);
-axi_wr(8'h08, 32'd200);  // 必须重新写入一次手动值才能改变threshold, 不会默认跟随之前的手动值
+axi_wr(8'h80, 32'd200);  // Byte offset: DATA register index 0x20 << 2.
 
 */
 `timescale 1ns / 1ps
@@ -68,11 +68,11 @@ module top_threshold_demo (
     output wire        auto_mode_out,     // 1 = auto, 0 = manual
     output wire        frame_done_out,     // frame done forwarded
 
-    output wire [31:0] video_mode_out
+    output wire [31:0] video_mode_out,
+    output wire [31:0] mask_transparency_out
 );
-    reg operating;
     reg [16:0] lesion_pixels;        // ★ 17 位: 一帧最多 256*256=65536, 16 位会溢出归零
-    reg [16:0] lesion_pixels_save;   // ★ 同步加宽 (上位机 0x14 读的是这个)   // 上一帧的mask值
+    reg [16:0] lesion_pixels_save;   // Previous completed frame; byte offset 0x84.
     // Internal reset: active high
     wire rst = ~rst_n;
 
@@ -87,7 +87,7 @@ module top_threshold_demo (
     // ---- AXI-Lite slave ----
     wire [31:0] reg_mode;         // mode register  0x00
     wire [31:0] reg_cmd;          // command register   0x04
-    wire [7:0]  reg_threshold;    // threshold register from host   0x08
+    wire [7:0]  reg_threshold;    // threshold register, byte offset 0x80
     wire        host_wr_en;       // pulse when host writes threshold
 
     wire [7:0]  threshold;        // final threshold
@@ -119,7 +119,8 @@ module top_threshold_demo (
         .host_wr_en    (host_wr_en),
         .status_in     ({24'd0, threshold}),
         .reg_video_mode(video_mode_out),
-        .lesion_pixels (lesion_pixels_save)
+        .lesion_pixels (lesion_pixels_save),
+        .reg_mask_transparency(mask_transparency_out)
     );
 
     // ---- Otsu core: auto threshold ----
@@ -177,20 +178,15 @@ module top_threshold_demo (
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             lesion_pixels <= 17'd0;
-            operating <= 1'b0;
             lesion_pixels_save <= 17'd0;
         end else begin
-            if(!operating) begin  // 旧帧结束后的空挡期
-                lesion_pixels_save <= lesion_pixels;
-                if(m_axis_tvalid && m_axis_tready) begin  // 新一帧开始了, 清0 lesion_pixels
-                    lesion_pixels <= m_axis_tmask ? 17'd1 : 17'd0;
-                    operating <= 1'b1;                  
+            if (m_axis_tvalid && m_axis_tready) begin
+                if (m_axis_tlast) begin
+                    lesion_pixels_save <= lesion_pixels + (m_axis_tmask ? 17'd1 : 17'd0);
+                    lesion_pixels <= 17'd0;
+                end else if (m_axis_tmask) begin
+                    lesion_pixels <= lesion_pixels + 17'd1;
                 end
-            end else if(m_axis_tvalid && m_axis_tready && m_axis_tmask) begin
-                lesion_pixels <= lesion_pixels + 17'd1;
-            end
-            if(m_axis_tlast && m_axis_tready) begin
-                operating <= 1'b0;
             end
         end
     end

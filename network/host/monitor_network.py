@@ -161,7 +161,7 @@ async function dshReadback() {
     if (!j.ok) { alert('readback FAIL\n' + j.log); return; }
     document.getElementById('dshRbMode').textContent = j.mode === 1 ? '手动' : '自动';
     document.getElementById('dshRbThr').textContent = j.threshold;
-    const names = ['基础处理', '显示轮廓', '显示二值掩膜处理'];
+    const names = ['基础处理', '显示轮廓', '显示二值掩膜处理', '显示叠加掩膜处理', '显示伪彩色热力图处理'];
     document.getElementById('dshRbVid').textContent = names[j.video_mode] || ('未知(' + j.video_mode + ')');
     const area = document.getElementById('dshRbLes');
     const unit = document.createElement('span');
@@ -169,6 +169,12 @@ async function dshReadback() {
     const pixels = document.createElement('span');
     pixels.className = 'sub-value'; pixels.textContent = j.lesion_pixels + ' px';
     area.replaceChildren(document.createTextNode(j.lesion_mm2), unit, pixels);
+    document.getElementById('dshRbAlpha').textContent = j.mask_transparency + '%';
+    lastConfirmedVideoMode = j.video_mode;
+    document.getElementById('fpgaOutputMode').value = j.video_mode;
+    document.getElementById('maskOpacity').value = j.mask_transparency;
+    document.getElementById('maskOpacityValue').textContent = j.mask_transparency;
+    updateOverlayControls();
   } catch (e) { alert('readback err: ' + e); }
 }
 document.getElementById('request').addEventListener('click', dshReadback);
@@ -186,12 +192,40 @@ document.getElementById('imageFile').addEventListener('change', async e => {
     poll();
   } catch (e) { alert('图像加载失败: ' + e.message); }
 });
+let lastConfirmedVideoMode = 0;
 document.getElementById('fpgaOutputMode').addEventListener('change', async e => {
+    const outputModeNote = document.getElementById('outputModeNote');
+    if (e.target.value === '5') {
+        outputModeNote.textContent = '该选项仅为界面展示，暂未连接FPGA输出';
+        return;
+    }
+    outputModeNote.textContent = '设置开发板 HDMI 的输出内容';
   try {
     const j = await (await fetch('/api/serial/video_mode?mode=' + e.target.value)).json();
-    if (!j.ok) { alert('video mode FAIL\n' + j.log); return; }
+    if (!j.ok) {
+      e.target.value = lastConfirmedVideoMode;
+      updateOverlayControls();
+      alert('video mode FAIL\n' + j.log); return;
+    }
+    lastConfirmedVideoMode = j.video_mode;
     dshReadback();
-  } catch (e) { alert('video mode err: ' + e); }
+  } catch (error) {
+    e.target.value = lastConfirmedVideoMode;
+    updateOverlayControls();
+    alert('video mode err: ' + error);
+  }
+});
+document.getElementById('maskOpacityUpdate').addEventListener('click', async e => {
+  const button = e.currentTarget;
+  button.disabled = true;
+  try {
+    const value = document.getElementById('maskOpacity').value;
+    const result = await (await fetch('/api/serial/mask_transparency?value=' + value)).json();
+    if (!result.ok) throw new Error(result.log);
+    button.textContent = '已更新';
+    await dshReadback();
+  } catch (error) { alert('掩膜透明度更新失败: ' + error.message); }
+  finally { button.disabled = false; }
 });
 </script>"""
 
@@ -214,6 +248,11 @@ def _serial_lock():
     return _SERIAL_LOCK
 # CAMUS 数据集 letterbox 之后每个像素代表的面积 (source: camus_pipeline/convert_camus.py:64)
 PIXEL_AREA_MM2 = 0.436280886141
+
+# WORD indices. PS multiplies these by 4 for aligned MMIO; UART labels use indices.
+PL_REGISTERS = {"MODE": 0x00, "CMD_REG": 0x01, "VIDEO_MODE": 0x02,
+                "STATUS": 0x03, "DATA_REG": 0x20, "LESION": 0x21,
+                "MASK_TRANSP": 0x22}
 
 
 def _board_talk(payload, wait=1.5):
@@ -265,44 +304,64 @@ def _do_threshold(mode, value):
         return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
 
 
+def _parse_pl_registers(text, required):
+    import re
+    values = {}
+    for name, address, value in re.findall(
+            r"^\[PL rdbk\]\s+(\w+)\(0x([0-9a-fA-F]+)\)\s*=\s*(\d+)\s*$",
+            text, re.M):
+        if name in PL_REGISTERS:
+            if int(address, 16) != PL_REGISTERS[name]:
+                raise ValueError("register map mismatch for %s; rebuild/flash matching PS and PL" % name)
+            values[name] = int(value)
+    missing = [name for name in required if name not in values]
+    if missing:
+        raise ValueError("missing register readback: " + ", ".join(missing))
+    return values
+
+
 def _readback_regs():
-    """'R' 只读回读 0x04/0x08/0x10"""
+    """R returns all WORD-indexed registers, including the new overlay opacity."""
     try:
         txt = _board_talk(b"R", wait=2.0)
+        regs = _parse_pl_registers(txt, PL_REGISTERS)
+        lesion = regs["LESION"]
+        return {"ok": True, "mode": regs["CMD_REG"], "system_mode": regs["MODE"],
+                "threshold": regs["DATA_REG"], "actual_threshold": regs["STATUS"],
+                "video_mode": regs["VIDEO_MODE"], "lesion_pixels": lesion,
+                "mask_transparency": regs["MASK_TRANSP"],
+                "lesion_mm2": "%.3f" % (lesion * PIXEL_AREA_MM2), "log": txt}
     except Exception as exc:
         return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
-    import re as _re
-    m = _re.search(r"CMD_REG\(0x04\)\s*=\s*(\d+).*?DATA_REG\(0x08\)\s*=\s*(\d+).*?VIDEO_MODE\(0x10\)\s*=\s*(\d+).*?LESION\(0x14\)\s*=\s*(\d+)", txt, _re.S)
-    if not m:
-        return {"ok": False, "log": "cannot parse readback:" + txt}
-    les = int(m.group(4))
-    return {"ok": True, "mode": int(m.group(1)), "threshold": int(m.group(2)),
-            "video_mode": int(m.group(3)), "lesion_pixels": les,
-            "lesion_mm2": "%.3f" % (les * PIXEL_AREA_MM2), "log": txt}
+
+
+def _write_byte_register(command, value, name, maximum):
+    try:
+        requested = int(value)
+        if not 0 <= requested <= maximum:
+            raise ValueError("%s must be 0..%d" % (name, maximum))
+        txt = _board_talk(command + bytes([requested]))
+        actual = _parse_pl_registers(txt, (name,))[name]
+        if actual != requested:
+            raise ValueError("%s readback mismatch: requested %d, got %d\n%s" %
+                             (name, requested, actual, txt))
+        return {"ok": True, "value": actual, "log": txt}
+    except Exception as exc:
+        return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
 
 
 def _set_video_mode(mode):
-    try:
-        m = int(mode)
-    except (TypeError, ValueError):
-        return {"ok": False, "log": "bad mode"}
-    if m not in (0, 1, 2):
-        return {"ok": False, "log": "mode must be 0, 1 or 2"}
-    try:
-        txt = _board_talk(b"V" + bytes([m]))
-    except Exception as exc:
-        return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
-    import re as _re
-    match = _re.search(
-        r"^\[PL rdbk\] VIDEO_MODE\(0x10\)\s*=\s*(\d+)\s*$",
-        txt, _re.M)
-    if not match:
-        return {"ok": False, "log": "video mode write was not confirmed:\n" + txt}
-    actual = int(match.group(1))
-    if actual != m:
-        return {"ok": False, "log": "video mode readback mismatch: "
-                "requested %d, got %d\n%s" % (m, actual, txt)}
-    return {"ok": True, "mode": m, "video_mode": actual, "log": txt}
+    result = _write_byte_register(b"V", mode, "VIDEO_MODE", 4)
+    if result["ok"]:
+        result.update(mode=result["value"], video_mode=result["value"])
+    return result
+
+
+def _set_mask_transparency(value):
+    result = _write_byte_register(b"P", value, "MASK_TRANSP", 100)
+    if result["ok"]:
+        result["mask_transparency"] = result["value"]
+    return result
 
 
 def load_to_emmc(bin_bytes, emmc_addr):
@@ -400,6 +459,7 @@ def customize_page(page):
         '<div class="metric"><span>分割阈值</span><b id="dshRbThr">—</b></div>'
         '<div class="metric"><span>阈值模式</span><b id="dshRbMode">—</b></div>'
         '<div class="metric"><span>输出显示</span><b id="dshRbVid">—</b></div>'
+        '<div class="metric"><span>掩膜透明度</span><b id="dshRbAlpha">—</b></div>'
         '</div><div id="metrics"')
     return page.replace('</body>', TAIL_SCRIPT + '</body>')
 
@@ -481,6 +541,10 @@ class NetworkHandler(web_common.Handler):
                 self.send_json(_set_video_mode(_q.get('mode', ['0'])[0]))
             except Exception as exc:
                 self.send_json({'ok': False, 'log': '%s: %s' % (type(exc).__name__, exc)})
+            return
+        if parsed.path == '/api/serial/mask_transparency':
+            query = parse_qs(parsed.query)
+            self.send_json(_set_mask_transparency(query.get('value', [''])[0]))
             return
         super().do_GET()
 

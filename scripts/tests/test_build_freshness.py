@@ -181,6 +181,57 @@ done
         self.assertIn('PS output changed', result.stdout + result.stderr)
 
 
+class RtlSourceTests(unittest.TestCase):
+    def tcl(self):
+        import tkinter
+        interpreter = tkinter.Tcl()
+        interpreter.eval((REPO / 'scripts/tcl/build_freshness.tcl').read_text(encoding='utf-8-sig'))
+        return interpreter
+
+    def test_existing_project_adds_new_rtl_once(self):
+        interpreter = self.tcl()
+        interpreter.eval('''
+            set known {}
+            proc get_files {args} {
+                global known
+                set path [lindex $args end]
+                if {[lsearch -exact $known $path] >= 0} {return [list $path]}
+                return {}
+            }
+            proc add_files {args} {global known; lappend known [lindex $args end]}
+        ''')
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root/'nested').mkdir()
+            for name in ('existing.v', 'nested/display_cfg_cdc.v', 'nested/video_colorizer.v'):
+                (root/name).write_text('module stub; endmodule')
+            interpreter.call('lappend', 'known', (root/'existing.v').as_posix())
+            interpreter.call('sync_repo_rtl', root.as_posix())
+            interpreter.call('sync_repo_rtl', root.as_posix())
+            self.assertEqual(int(interpreter.eval('llength $known')), 3)
+
+    def test_register_audit_requires_new_opacity_register(self):
+        interpreter = self.tcl()
+        interpreter.eval('''
+            set opacity_bits 7
+            proc get_cells {args} {
+                global opacity_bits
+                set filter [lindex $args end]
+                if {[string match *reg_video_mode* $filter]} {set n 32} elseif {[string match *lesion_pixels_save* $filter]} {set n 17} else {set n $opacity_bits}
+                set cells {}
+                for {set i 0} {$i < $n} {incr i} {lappend cells cell$i}
+                return $cells
+            }
+        ''')
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp)/'audit.txt'
+            interpreter.call('verify_pl_registers', path.as_posix())
+            self.assertIn('mask_transparency_register_bits=7', path.read_text())
+            interpreter.eval('set opacity_bits 0')
+            with self.assertRaisesRegex(Exception, 'STALE_PL'):
+                interpreter.call('verify_pl_registers', path.as_posix())
+
+
 class VitisTests(unittest.TestCase):
     def exercise(self, platform_status=0, app_status=0, create_elf=True):
         with tempfile.TemporaryDirectory() as temp:

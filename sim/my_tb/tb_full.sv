@@ -386,8 +386,8 @@ initial begin: test_sequence
     for (int i = 0; i < 10; i++) begin
         $display("[RUN] %0d", i);
         set_mode(8'h04, 1);
-        set_mode(8'h08, i * 20);
-        set_mode(8'h10, i % 3);
+        set_mode(8'h80, i * 20);
+        set_mode(8'h08, i % 3);
 
         send_frame();
         // wait_output_frame();
@@ -395,9 +395,9 @@ initial begin: test_sequence
         #2000000;
         $display("[%0t] after delay, frame %0d", $time, i);
         read_mode(8'h04, threshold_set_mode);
-        read_mode(8'h08, threshold);
-        read_mode(8'h10, video_mode);
-        read_mode(8'h14, area_data);
+        read_mode(8'h80, threshold);
+        read_mode(8'h08, video_mode);
+        read_mode(8'h84, area_data);
 
         print_pl_status(threshold_set_mode, threshold, video_mode, area_data);
     end

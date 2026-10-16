@@ -2,9 +2,8 @@
 
 module top1 #(
     parameter integer PIXEL_W = 8,      // 像素位宽: 8bit 灰度
-    // 当前仓库的 denose RTL 固化为 515 像素输入行，而 VDMA 配置为
-    // 256x256。默认直通，先保证帧边界和 HDMI 输出正确；重新生成匹配
-    // 256x256 协议的 HLS 核后，才可设为 0 启用去噪。
+    // Legacy BD parameter retained for project compatibility; the current
+    // 256x256 denoise RTL is enabled in this pipeline.
     parameter integer BYPASS_DENOISE = 1
 )(
 
@@ -38,6 +37,13 @@ module top1 #(
     input  wire [7:0]  s_axis_tkeep,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TUSER" *)
     input  wire        s_axis_tuser,
+
+    output wire [63:0] m_axis_tdata,
+    output wire        m_axis_tvalid,
+    input  wire        m_axis_tready,
+    output wire        m_axis_tlast,
+    output wire [7:0]  m_axis_tkeep,
+    output wire        m_axis_tuser,
 
     // ---------------- AXI-Lite 从口：向上接 PS ----------------
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWADDR" *)
@@ -90,304 +96,122 @@ module top1 #(
     output wire                    tmds_tx_n
 );
 
-    // reg [PIXEL_W-1:0] threshold;
-
-    wire [31:0] dbg_beats;
-    wire [31:0] dbg_pixels;
-    wire [31:0] dbg_frames;
-    wire [31:0] dbg_stat;
-    wire [31:0] dbg_stream;
-
-    reg [31:0] dbg_axis_beats_q;
-    reg [31:0] dbg_input_frames_q;
-    reg [31:0] dbg_output_frames_q;
 
     wire [PIXEL_W-1:0] px_data;
-    wire               px_valid;
-    wire               px_eof;
-    wire               px_sof;
-    wire               px_eol;
-    wire               px_ready;
-
-    axi2px #(
-        .TDATA_W(64),
-        .PIXEL_W(PIXEL_W),
-        .H_PIXELS(256),
-        .V_PIXELS(256)
-    ) u_axi2px (
-        .clk(clk),
-        .rst(rst),
-        .s_axis_tdata(s_axis_tdata),
-        .s_axis_tvalid(s_axis_tvalid),
-        .s_axis_tready(s_axis_tready),
-        .s_axis_tlast(s_axis_tlast),
-        .s_axis_tkeep(s_axis_tkeep),
-        .s_axis_tuser(s_axis_tuser),
-        .px_data(px_data),
-        .px_valid(px_valid),
-        .px_eof(px_eof),   // "my last"  -- end of frame
-        .px_sof(px_sof),
-        .px_eol(px_eol),
-        .px_ready(px_ready)
+    wire px_valid, px_eof, px_sof, px_eol, px_ready;
+    axi2px #(.TDATA_W(64), .PIXEL_W(PIXEL_W), .H_PIXELS(256), .V_PIXELS(256)) u_axi2px (
+        .clk(clk), .rst(rst), .s_axis_tdata(s_axis_tdata),
+        .s_axis_tvalid(s_axis_tvalid), .s_axis_tready(s_axis_tready),
+        .s_axis_tlast(s_axis_tlast), .s_axis_tkeep(s_axis_tkeep), .s_axis_tuser(s_axis_tuser),
+        .px_data(px_data), .px_valid(px_valid), .px_eof(px_eof),
+        .px_sof(px_sof), .px_eol(px_eol), .px_ready(px_ready)
     );
 
-
-    wire [PIXEL_W-1:0] dn_data;    
-    wire               dn_valid;
-    wire               dn_eof;
-    wire               dn_ready;
-
+    wire [7:0] dn_data, ts_data;
+    wire dn_valid, dn_eof, dn_ready;
+    wire ts_contour, ts_mask, hdl_valid, hdl_eof, hdl_ready;
+    wire [31:0] video_mode, mask_transparency;
     denoise u_denoise (
-        .ap_clk    (clk),
-        .ap_rst    (rst),
-
-        .in_data   (px_data[7:0]),
-        .in_valid  (px_valid),
-        .in_last   (px_eof),
-        .in_ready  (px_ready),
-
-        .out_ready (dn_ready),
-        .out_data  (dn_data),
-        .out_valid (dn_valid),
-        .out_last  (dn_eof)
+        .ap_clk(clk), .ap_rst(rst), .in_data(px_data[7:0]),
+        .in_valid(px_valid), .in_last(px_eof), .in_ready(px_ready),
+        .out_ready(dn_ready), .out_data(dn_data), .out_valid(dn_valid), .out_last(dn_eof)
     );
-
-
-    wire [PIXEL_W-1:0] ts_data;
-    wire               ts_contour;
-    wire               ts_mask;
-    wire [31:0]        video_mode;   // 0 去噪 1 轮廓 2 二值掩膜 3 叠加掩膜   4 伪彩色热力图
-
-    reg  [PIXEL_W-1:0] hdl_data;      // ★ 在 always 里过程赋值, 必须是 reg (原来是 wire, 报 VRFC 10-1280)
-    wire               hdl_valid;
-    wire               hdl_eof;
-    wire               hdl_ready;
 
     top_threshold_demo u_top_threshold_demo (
-        .clk(clk),
-        .rst_n(~rst),
-
-        .s_axi_awaddr({23'd0, awaddr}),
-        .s_axi_awvalid(awvalid),
-        .s_axi_awready(awready),
-        .s_axi_wdata(wdata),
-        .s_axi_wstrb(wstrb),
-        .s_axi_wvalid(wvalid),
-        .s_axi_wready(wready),
-        .s_axi_bresp(bresp),
-        .s_axi_bvalid(bvalid),
-        .s_axi_bready(bready),
-        .s_axi_araddr({23'd0, araddr}),
-        .s_axi_arvalid(arvalid),
-        .s_axi_arready(arready),
-        .s_axi_rdata(rdata),
-        .s_axi_rresp(rresp),
-        .s_axi_rvalid(rvalid),
-        .s_axi_rready(rready),
-
-        .s_axis_tdata(dn_data),
-        .s_axis_tvalid(dn_valid),
-        .s_axis_tready(dn_ready),
-        .s_axis_tlast(dn_eof),
-
-        .m_axis_tdata(ts_data),
-        .m_axis_tvalid(hdl_valid),
-        .m_axis_tready(hdl_ready),
-        .m_axis_tlast(hdl_eof),
-
-        .m_axis_tmask(ts_mask),
-        .m_axis_tcontour(ts_contour),
-
-        .threshold_out(),
-        .auto_mode_out(),
-        .frame_done_out(),
-
-        .video_mode_out(video_mode),
-        .mask_transparency_out(mask_transparency)
+        .clk(clk), .rst_n(~rst),
+        .s_axi_awaddr({23'd0, awaddr}), .s_axi_awvalid(awvalid), .s_axi_awready(awready),
+        .s_axi_wdata(wdata), .s_axi_wstrb(wstrb), .s_axi_wvalid(wvalid), .s_axi_wready(wready),
+        .s_axi_bresp(bresp), .s_axi_bvalid(bvalid), .s_axi_bready(bready),
+        .s_axi_araddr({23'd0, araddr}), .s_axi_arvalid(arvalid), .s_axi_arready(arready),
+        .s_axi_rdata(rdata), .s_axi_rresp(rresp), .s_axi_rvalid(rvalid), .s_axi_rready(rready),
+        .s_axis_tdata(dn_data), .s_axis_tvalid(dn_valid),
+        .s_axis_tready(dn_ready), .s_axis_tlast(dn_eof),
+        .m_axis_tdata(ts_data), .m_axis_tvalid(hdl_valid),
+        .m_axis_tready(hdl_ready), .m_axis_tlast(hdl_eof),
+        .m_axis_tmask(ts_mask), .m_axis_tcontour(ts_contour),
+        .threshold_out(), .auto_mode_out(), .frame_done_out(),
+        .video_mode_out(video_mode), .mask_transparency_out(mask_transparency)
     );
 
-    // ---- video_mode 决定显示什么 ----
-    //   0: 只去噪 (直通 threshold 之前的灰度)
-    //   1: 去噪 + 轮廓 (轮廓画白)
-    //   2: 去噪 + 二值掩膜
-    always @(*) begin
-        case (video_mode)
-            32'h0:   hdl_data = ts_data;
-            32'h1:   hdl_data = ts_data | {PIXEL_W{ts_contour}};
-            32'h2:   hdl_data = ts_mask ? {PIXEL_W{1'b1}} : {PIXEL_W{1'b0}};
-            32'h3:   
-            default: hdl_data = ts_data;      // ★ 未定义的模式安全回退 (原来缺 default, 会推锁存器)
-        endcase
-    end
-
-    // assign hdl_data = px_data;
-    // assign hdl_valid = px_valid;
-    // assign hdl_eof = px_eof;
-    // assign px_ready = hdl_ready;
-    // assign dn_ready = 1'b0;
-
-    wire        fb_write_idx;
-    wire        fb_read_idx;
-    wire [15:0] fb_write_addr;
-    wire [15:0] fb_read_addr;
-    wire [7:0]  fb_write_data;
-    wire [7:0]  fb_read_data;
-    wire        fb_write_en;
-
-    wire        frame_ready_toggle;
-
-    // 帧完成标志从写时钟域同步到像素时钟域；bank 选择也分别同步。
-    reg [2:0] frame_ready_sync;
-    reg [1:0] write_idx_sync;
-    reg [1:0] read_idx_sync;
+    // Preserve all three planes. Display selection happens after the frame store,
+    // so switching modes never destroys grayscale or requires another image upload.
+    wire [7:0] hdl_data = ts_data;
+    wire fb_write_idx, fb_read_idx;
+    wire [15:0] fb_write_addr, fb_read_addr;
+    wire [7:0] fb_write_data, fb_read_data;
+    wire fb_write_mask, fb_write_contour, fb_read_mask, fb_read_contour;
+    wire fb_write_en, frame_ready_toggle;
+    (* ASYNC_REG = "TRUE" *) reg [2:0] frame_ready_sync;
+    (* ASYNC_REG = "TRUE" *) reg [1:0] write_idx_sync, read_idx_sync;
 
     always @(posedge clk) begin
-        if (rst)
-            read_idx_sync <= 2'b00;
-        else
-            read_idx_sync <= {read_idx_sync[0], fb_read_idx};
+        if (rst) read_idx_sync <= 0;
+        else read_idx_sync <= {read_idx_sync[0], fb_read_idx};
     end
-
     always @(posedge pclk) begin
-        if (rst) begin
-            frame_ready_sync <= 3'b000;
-            write_idx_sync   <= 2'b00;
-        end else begin
+        if (rst) begin frame_ready_sync <= 0; write_idx_sync <= 0; end
+        else begin
             frame_ready_sync <= {frame_ready_sync[1:0], frame_ready_toggle};
-            write_idx_sync   <= {write_idx_sync[0], fb_write_idx};
+            write_idx_sync <= {write_idx_sync[0], fb_write_idx};
         end
     end
 
+    wire [31:0] video_mode_pclk, mask_transparency_pclk;
+    display_cfg_cdc u_display_cfg_cdc (
+        .clk(clk), .pclk(pclk), .rst(rst),
+        .mode_in(video_mode), .alpha_in(mask_transparency),
+        .mode_out(video_mode_pclk), .alpha_out(mask_transparency_pclk)
+    );
 
     wire [18:0] hdl_dbg_status;
     wire [37:0] hdmi_dbg_status;
-    wire [7:0]  hdmi_vid_r;
-    wire [7:0]  hdmi_vid_g;
-    wire [7:0]  hdmi_vid_b;
-    wire        hdmi_vid_hs;
-    wire        hdmi_vid_vs;
-    wire        hdmi_vid_de;
-    
+    wire [7:0] hdmi_vid_r, hdmi_vid_g, hdmi_vid_b;
+    wire hdmi_vid_hs, hdmi_vid_vs, hdmi_vid_de;
+
     hdl_out u_hdl_out (
-        .clk(clk),
-        .rst(rst),
-
-        .hdl_data(hdl_data),
-        .hdl_mask(ts_mask),
-        .hdl_contour(ts_contour),
-
-        .hdl_valid(hdl_valid),
-        .hdl_eof(hdl_eof),
-        .hdl_ready(hdl_ready),
-
-        .buf_idx(fb_write_idx),
-        .buf_addr(fb_write_addr),
-        .buf_data(fb_write_data),
-        .buf_mask(fb_write_mask),
-        .buf_contour(fab_write_contour),
-        .en(fb_write_en),
-
-        .read_buf_idx(read_idx_sync[1]),
-        .frame_ready_toggle(frame_ready_toggle),
+        .clk(clk), .rst(rst),
+        .hdl_data(hdl_data), .hdl_mask(ts_mask), .hdl_contour(ts_contour),
+        .hdl_valid(hdl_valid), .hdl_eof(hdl_eof), .hdl_ready(hdl_ready),
+        .buf_idx(fb_write_idx), .buf_addr(fb_write_addr), .buf_data(fb_write_data),
+        .buf_mask(fb_write_mask), .buf_contour(fb_write_contour), .en(fb_write_en),
+        .read_buf_idx(read_idx_sync[1]), .frame_ready_toggle(frame_ready_toggle),
         .dbg_status(hdl_dbg_status)
     );
-
     double_buf u_double_buf (
+        .clk(clk), .pclk(pclk), .write_en(fb_write_en),
+        .write_buf_idx(fb_write_idx), .write_addr(fb_write_addr),
+        .write_data(fb_write_data), .write_mask(fb_write_mask), .write_contour(fb_write_contour),
+        .read_buf_idx(fb_read_idx), .read_addr(fb_read_addr),
+        .read_data(fb_read_data), .read_mask(fb_read_mask), .read_contour(fb_read_contour)
+    );
+
+    out_arr u_out_arr (
         .clk(clk),
-        .pclk(pclk),
-
-        .write_en(fb_write_en),
-        .write_buf_idx(fb_write_idx),
-        .write_addr(fb_write_addr),
-        .write_data(fb_write_data),
-        .write_mask(fb_write_mask),
-        .write_contour(fb_write_contour),
-
-        .read_buf_idx(fb_read_idx),
-        .read_addr(fb_read_addr),
-        .read_data(fb_read_data),
-        .read_mask(fb_read_mask),
-        .read_contour(fb_read_contour)
-    );
-
-
-    hdmi_out u_hdmi_out (
-        .pclk(pclk),
         .rst(rst),
-        .buf_idx(fb_read_idx),
-        .buf_addr(fb_read_addr),
-        .buf_data(fb_read_data),
-        .buf_mask(fb_read_mask),
-        .buf_contour(fb_read_contour),
+        .buf_idx(fb_read_idx), .buf_addr(fb_read_addr), .buf_data(fb_read_data),
+        .buf_mask(fb_read_mask), .buf_contour(fb_read_contour),
+        .video_mode(video_mode_pclk), .mask_transparency(mask_transparency_pclk),
 
-        .vid_r(hdmi_vid_r),
-        .vid_g(hdmi_vid_g),
-        .vid_b(hdmi_vid_b),
-        .vid_hs(hdmi_vid_hs),
-        .vid_vs(hdmi_vid_vs),
-        .vid_de(hdmi_vid_de),
-        .frame_ready_toggle(frame_ready_sync[2]),
-        .write_idx_sync(write_idx_sync[1]),
-        .dbg_status(hdmi_dbg_status),
-        .mask_transparency(mask_transparency)
+        .vid_r(hdmi_vid_r), .vid_g(hdmi_vid_g), .vid_b(hdmi_vid_b),   // 输出rgb值
+
     );
 
-//     // -------- 板上观测：可经 AXI-Lite 读取，也会送入 ILA --------
-//     always @(posedge clk) begin
-//         if (rst) begin
-//             dbg_axis_beats_q   <= 32'd0;
-//             dbg_input_frames_q <= 32'd0;
-//             dbg_output_frames_q <= 32'd0;
-//         end else begin
-//             if (s_axis_tvalid && s_axis_tready)
-//                 dbg_axis_beats_q <= dbg_axis_beats_q + 1'b1;
-//             if (px_valid && px_ready && px_eof)
-//                 dbg_input_frames_q <= dbg_input_frames_q + 1'b1;
-//             if (fb_write_en && fb_write_addr == 16'hFFFF)
-//                 dbg_output_frames_q <= dbg_output_frames_q + 1'b1;
-//         end
-//     end
+// hdmi_out只管产生hdmi驱动时序, rgb值直接取 out_arr 的输出
+    hdmi_out u_hdmi_out (
+        .pclk(pclk), .rst(rst),
+        .vid_r(hdmi_vid_r), .vid_g(hdmi_vid_g), .vid_b(hdmi_vid_b),
+        .vid_hs(hdmi_vid_hs), .vid_vs(hdmi_vid_vs), .vid_de(hdmi_vid_de),
+        .frame_ready_toggle(frame_ready_sync[2]), .write_idx_sync(write_idx_sync[1]),
+        .dbg_status(hdmi_dbg_status)
+    );
 
-//     assign dbg_beats  = dbg_axis_beats_q;
-//     assign dbg_pixels = {16'd0, fb_write_addr};
-//     assign dbg_frames = {16'd0, dbg_input_frames_q[7:0],
-//                          dbg_output_frames_q[7:0]};
-//     assign dbg_stat   = {13'd0, hdl_dbg_status};
-//     assign dbg_stream = {22'd0, s_axis_tvalid, s_axis_tready, s_axis_tlast,
-//                          s_axis_tuser, px_eof, hdl_eof, fb_write_en,
-//                          fb_write_idx, fb_read_idx, frame_ready_toggle};
-
-//     // 128-bit 单 probe。当前优先观察 VDMA 的完整 64-bit 流拍、TKEEP 和实际
-//     // 写入帧缓存的单字节数据；用来区分上游高 32bit 为 0、TKEEP 填充和 axi2px
-//     // 展开错误。
-//     // 位定义从高到低：
-//     // [127:119] hdl 状态低 9 位, [118:103] 写地址, [102:95] 写数据,
-//     // [94:87] TKEEP, [86:23] VDMA 64-bit TDATA, [22:16] 标志, [15:0] 保留。
-//     // create_zynq_project.tcl 会把这个 net 接到 BD 内的 u_ila_hdmi。
-//     (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] hdmi_ila_probe;
-//     assign hdmi_ila_probe = {
-//         hdl_dbg_status[8:0], fb_write_addr, fb_write_data, s_axis_tkeep, s_axis_tdata,
-//         s_axis_tvalid, s_axis_tready, s_axis_tlast,
-//         px_eof, hdl_eof, fb_write_en, frame_ready_toggle, 16'd0
-//     };
-// // -------- ★ 128 位观测包 (端口宽度保持 128, 因此不需要同步 mref) --------
-//     //  动端口宽度会让 BD 里的 top1_0 失效 (mref 接口是缓存的), 所以只塞进现有 128 位。
-//     (* MARK_DEBUG = "TRUE", KEEP = "TRUE" *) wire [127:0] dbg_pack;
-//     assign dbg_pack = {
-//         rdata[7:0],                 // [127:120] 回读数据低8位 (看 0x10 读回 0 还是 2)
-//         awaddr[8:0],                // [119:111] ★ 写地址 (PS 送来的是不是 0x10)
-//         wdata[7:0],                 // [110:103] 写数据低8位
-//         awvalid, awready,           // [102][101] ★ 写地址握手
-//         wvalid,  wready,            // [100][ 99] ★ 写数据握手
-//         bvalid,  bready,            // [ 98][ 97] 写响应
-//         rvalid,  rready,            // [ 96][ 95] 读响应
-//         arvalid, arready,           // [ 94][ 93] 读地址握手
-//         bresp[0], rresp[0],         // [ 92][ 91]
-//         fb_write_addr,              // [ 90: 75] ★ 帧缓存写地址
-//         hdl_dbg_status,             // [ 74: 56] ★ {eof_mismatch,state,buf_idx_save,counter}
-//         56'd0
-//     };
-//     assign debug_probe = dbg_pack;
+    // 128-bit ILA: AXI read/write diagnostics and the displayed frame planes.
+    assign debug_probe = {
+        rdata, awaddr, araddr, wdata[7:0], bresp, rresp,
+        awvalid, awready, wvalid, wready, bvalid, bready, arvalid, arready, rvalid, rready,
+        fb_write_addr, fb_read_addr, fb_write_data, video_mode[2:0], mask_transparency[6:0],
+        ts_mask, ts_contour, hdl_valid, hdl_ready, hdl_eof, frame_ready_toggle
+    };
 
     // TMDS 串行位: 来自 hdmi_tx, 在这里紧贴端口做 OBUFDS
     wire tmds_ser_r;

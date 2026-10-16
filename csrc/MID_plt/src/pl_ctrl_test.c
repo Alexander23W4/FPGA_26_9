@@ -71,7 +71,7 @@ const char *const imgs[IMG_COUNT] = { IMG1, IMG2, IMG3 };
 #define AFI0_RDCHAN_CTRL_32BIT_EN    0x00000001u
 
 
-#define PL_WR(off, val)     do { Xil_Out32(PL_CTRL_BASE + (u32)(off), (u32)(val)); dsb(); } while (0)
+#define PL_WR(reg, val)     do { Xil_Out32(PL_REG_ADDRESS(reg), (u32)(val)); dsb(); } while (0)
 // e.g. PL_WR(MODE_ADDR, SINGLE_MODE);
 
 
@@ -149,7 +149,8 @@ static int read_img_to_ddr(u32 start_blk, u32 bytes)
 
 void choose_single_img_proc(void)
 {
-    PL_WR(MODE_ADDR, SINGLE_MODE);
+    PL_WR(MODE_ADDR, PL_SYSTEM_IMAGE);
+    PL_WR(CMD_REG_ADDR, PL_THRESHOLD_MANUAL);
 
     /* ★ 写一次固定阈值, 让 PL 从 Otsu 自动模式切到手动固定阈值 ★
        原因: otsu_core 的直方图只在复位时清零, 跨帧一直累积 =>
@@ -260,7 +261,7 @@ static int start_vdma(void)
 
 void start_analyze(void)
 {
-    PL_WR(CMD_REG_ADDR, REOPERATE);
+    PL_WR(CMD_REG_ADDR, PL_THRESHOLD_MANUAL);
 }
 
 

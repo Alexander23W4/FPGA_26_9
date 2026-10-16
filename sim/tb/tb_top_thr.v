@@ -5,7 +5,7 @@
 //  T2: AXI-Stream 反压 (复位 + 排空之后单独跑, 结果可下结论)
 //  T3: ★ lesion_pixels 多帧测试
 //        - 连送 4 帧, 每帧 mask 个数不同 (11 / 0 / 50 / 200)
-//        - tb 自己数 m_axis_tmask, 和每帧读回 0x14 的值对比
+//        - tb 自己数 m_axis_tmask, 和每帧读回 0x84 的值对比
 //        - 验证它每帧都能被正确清 0 并重新累加 (复位几次都没问题)
 //
 //  握手法 (本工程约定):
@@ -17,7 +17,7 @@
 //      save : 空挡期 (!operating) 每拍锁存 cnt
 //      cnt 清零: 空挡期遇到 m_axis_tvalid (新帧第一拍)
 //      operating 归 0: m_axis_tlast
-//   => 一帧输出完后, 0x14 (读的是 save) 就是这一帧的 mask 总数
+//   => 一帧输出完后, 0x84 (读的是 save) 就是这一帧的 mask 总数
 //============================================================
 `timescale 1ns / 1ps
 
@@ -185,14 +185,14 @@ module tb_top_thr;
         axi_wr(32'h04, 32'h1);
         axi_rd(32'h04, rd);  chk("0x04 reg_cmd", rd, 32'h1);
 
-        axi_wr(32'h08, 32'h0000_0096);
+        axi_wr(32'h80, 32'h0000_0096);
         repeat (5) @(posedge clk);
-        axi_rd(32'h08, rd);  chk("0x08 reg_threshold", rd, 32'h0000_0096);
+        axi_rd(32'h80, rd);  chk("0x80 reg_threshold", rd, 32'h0000_0096);
         chk("  -> threshold_out", {24'd0, threshold_out}, 32'h0000_0096);
         chk("  -> auto_mode_out", {31'd0, auto_mode_out}, 32'h0);
 
-        axi_wr(32'h10, 32'h2);
-        axi_rd(32'h10, rd);  chk("0x10 reg_video_mode", rd, 32'h2);
+        axi_wr(32'h08, 32'h2);
+        axi_rd(32'h08, rd);  chk("0x08 reg_video_mode", rd, 32'h2);
         chk("  -> video_mode_out", video_mode_out, 32'h2);
 
         axi_rd(32'h0C, rd);  chk("0x0C status", rd, 32'h0000_0096);
@@ -204,7 +204,7 @@ module tb_top_thr;
         $display("===== T2: AXI-Stream 反压 =====");
         do_reset;
         axi_wr(32'h04, 32'h1);
-        axi_wr(32'h08, 32'h0000_0080);
+        axi_wr(32'h80, 32'h0000_0080);
         repeat (5) @(posedge clk);
 
         // 先跑一轮无反压
@@ -221,7 +221,7 @@ module tb_top_thr;
         // 干净复位后再跑带反压的
         do_reset;
         axi_wr(32'h04, 32'h1);
-        axi_wr(32'h08, 32'h0000_0080);
+        axi_wr(32'h80, 32'h0000_0080);
         repeat (5) @(posedge clk);
         do_stall = 1;
         n_out = 0; n_mask = 0; n_cont = 0; n_low_ready = 0; seen_low_ready = 0;  err_align = 0; err_badcon = 0;
@@ -247,7 +247,7 @@ module tb_top_thr;
         $display("===== T3: lesion_pixels 多帧测试 (每帧 mask 数不同) =====");
         do_reset;
         axi_wr(32'h04, 32'h1);
-        axi_wr(32'h08, 32'h0000_0080);      // 阈值 128
+        axi_wr(32'h80, 32'h0000_0080);      // 阈值 128
 
         for (f = 0; f < 4; f = f + 1) begin
             exp_c = cs[f];
@@ -258,9 +258,9 @@ module tb_top_thr;
             send_frame(exp_c);
             wait_frame_done;
 
-            axi_rd(32'h14, rd);
+            axi_rd(32'h84, rd);
             got_c = rd;
-            $display("    帧 %0d: 输入 mask=%0d, tb 数到 m_axis_tmask=%0d, 0x14 读回=%0d, 输出像素=%0d",
+            $display("    帧 %0d: 输入 mask=%0d, tb 数到 m_axis_tmask=%0d, 0x84 读回=%0d, 输出像素=%0d",
                      f, exp_c, frame_mask, got_c, n_out);
 
             if (frame_mask != exp_c) begin
@@ -269,7 +269,7 @@ module tb_top_thr;
             end
             if (got_c !== exp_c) begin
                 errors = errors + 1;
-                $display("      FAIL 0x14 不对 (期望 %0d, 实际 %0d)", exp_c, got_c);
+                $display("      FAIL 0x84 不对 (期望 %0d, 实际 %0d)", exp_c, got_c);
             end
             if (n_out != 768) begin
                 errors = errors + 1;
@@ -284,15 +284,15 @@ module tb_top_thr;
         $display("    --- 第二轮: 相同序列再来一遍, 验证能重复 ---");
         do_reset;
         axi_wr(32'h04, 32'h1);
-        axi_wr(32'h08, 32'h0000_0080);
+        axi_wr(32'h80, 32'h0000_0080);
         for (f = 0; f < 4; f = f + 1) begin
             exp_c = cs[f];
             frame_mask = 0; frame_done_cnt = 0; n_out = 0;
             send_frame(exp_c);
             wait_frame_done;
-            axi_rd(32'h14, rd);
+            axi_rd(32'h84, rd);
             got_c = rd;
-            $display("    帧 %0d: 期望 %0d, 0x14=%0d, tb 数到 %0d", f, exp_c, got_c, frame_mask);
+            $display("    帧 %0d: 期望 %0d, 0x84=%0d, tb 数到 %0d", f, exp_c, got_c, frame_mask);
             if (got_c !== exp_c || frame_mask != exp_c) begin
                 errors = errors + 1;
                 $display("      FAIL 第二轮帧 %0d 不一致", f);
@@ -300,8 +300,8 @@ module tb_top_thr;
         end
 
         $display("");
-        if (errors == 0) $display("===== 全部 PASS, errors=0 =====");
-        else             $display("===== 有 %0d 项 FAIL =====", errors);
+        if (errors == 0) $display("[PASS] tb_top_thr errors=0");
+        else $fatal(1,"[FAIL] tb_top_thr errors=%0d", errors);
         $finish;
     end
 

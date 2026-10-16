@@ -16,6 +16,21 @@ for(const id of ['threshold','center','width','alpha']){
   const input=document.getElementById(id);
   input.addEventListener('input',()=>document.getElementById(id+'Value').textContent=input.value);
 }
+const maskOpacity=document.getElementById('maskOpacity');
+const maskOpacityUpdate=document.getElementById('maskOpacityUpdate');
+const maskOpacityUpdateLabel=maskOpacityUpdate.textContent;
+maskOpacity.addEventListener('input',()=>{
+  document.getElementById('maskOpacityValue').textContent=maskOpacity.value;
+  maskOpacityUpdate.textContent=maskOpacityUpdateLabel;
+});
+// The UART handler marks this button updated only after verified register readback.
+function updateOverlayControls(){
+  const mode=document.getElementById('fpgaOutputMode').value;
+  document.getElementById('outputModeNote').textContent=mode==='5'
+    ?'该选项仅为界面展示，暂未连接FPGA输出'
+    :mode==='3'?'红色掩膜叠加，0% 完全透明，100% 实心红色':'设置开发板 HDMI 的输出内容';
+}
+document.getElementById('fpgaOutputMode').addEventListener('change',updateOverlayControls);
 
 function updateThresholdControls(){
   thresholdMode.disabled=simulateOn;

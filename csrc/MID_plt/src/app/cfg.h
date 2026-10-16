@@ -83,8 +83,10 @@
      byte1 = 手动模式下的阈值 (0..255)
    MODE_ADDR 暂不使用。 */
 #define CMD_THRESHOLD       'T'
-#define CMD_READBACK        'R'      /* 只读: 回读 PL 的 0x04/0x08/0x10/0x14 */
-#define CMD_VIDEO_MODE      'V'      /* write PL 0x10: 0 only-denoise / 1 +contour / 2 +mask */
+#define CMD_READBACK        'R'      /* RO: register WORD indices 00/01/02/03/20/21/22 */
+#define CMD_VIDEO_MODE      'V'      /* +1 byte: modes 0..4 */
+#define CMD_MASK_TRANSP     'P'      /* +1 byte: overlay opacity 0..100 */
+#define CMD_SYSTEM_MODE     'M'      /* +1 byte: 0 image, 1 medical (reserved) */
 /* ---- 网口回传已废弃 ----
  * 原来 PL 把结果写回 DDR(VDMA S2MM), 再由 PS 经 ENET0 用 UDP 发给笔记本。
  * 现在结果直接走 HDMI, 这条路连同 feat_net_send.c / net_send.h / net_recv.ps1

@@ -144,13 +144,13 @@ module tb_threshold;
         $display("=====================================");
 
         // ---- Step 4: host writes threshold = 100 ----
-        axi_write(32'h08, 32'd100);     // write DATA_REG = 100
+        axi_write(32'h80, 32'd100);     // write DATA_REG = 100
         repeat(10) @(posedge clk);
         $display("[T2] auto_mode=%b threshold=%d (expect 0,100)",
                  auto_mode_out, threshold_out);
 
         // ---- Step 5: host writes threshold = 150 ----
-        axi_write(32'h08, 32'd150);     // write DATA_REG = 150
+        axi_write(32'h80, 32'd150);     // write DATA_REG = 150
         repeat(10) @(posedge clk);
         $display("[T3] auto_mode=%b threshold=%d (expect 0,150)",
                  auto_mode_out, threshold_out);

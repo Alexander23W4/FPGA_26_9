@@ -5,6 +5,8 @@ module hdl_out(
     input rst,
 
     input [7:0] hdl_data,
+    input hdl_mask,
+    input hdl_contour,
     input hdl_valid,
     input hdl_eof,
     output reg hdl_ready,
@@ -12,6 +14,8 @@ module hdl_out(
     output reg buf_idx,   // 当前整帧的写 bank
     output reg [15:0] buf_addr,
     output reg [7:0]  buf_data,
+    output reg buf_mask,
+    output reg buf_contour,
     output reg en,
 
     input  wire read_buf_idx,          // HDMI 当前读 bank
@@ -76,6 +80,8 @@ module hdl_out(
         hdl_ready = (state == WRITE_FRAME);
         buf_addr  = counter;
         buf_data  = hdl_data;
+        buf_mask = hdl_mask;
+        buf_contour = hdl_contour;
         en        = hdl_valid && hdl_ready;
     end
 

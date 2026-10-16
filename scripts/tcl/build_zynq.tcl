@@ -86,6 +86,7 @@ if {[get_property top [current_fileset]] eq ""} {
         set_property top [file rootname [file tail [lindex $wrapper 0]]] [current_fileset]
     }
 }
+sync_repo_rtl [file normalize [file join $script_dir .. .. rtl]]
 prepare_fresh_bd $bd
 puts "\[build_zynq\] Top module: [get_property top [current_fileset]]"
 

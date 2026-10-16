@@ -165,7 +165,7 @@ module tb_full;
         rst = 0;
         repeat (10) @(posedge clk);
         axi_wr(32'h04, 32'h1);          // 手动
-        axi_wr(32'h08, 32'h0000_0080);  // 阈值 128
+        axi_wr(32'h80, 32'h0000_0080);  // 阈值 128
         repeat (10) @(posedge clk);
 
         $display("===== 全链 5 帧, 逐帧查 hdl_out 收到的像素数 + 写地址 =====");

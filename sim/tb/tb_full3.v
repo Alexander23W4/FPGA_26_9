@@ -231,14 +231,14 @@ module tb_full3;
         rst = 0;
         repeat (10) @(posedge clk);
         axi_wr(32'h04, 32'h1);
-        axi_wr(32'h08, 32'h0000_0080);
+        axi_wr(32'h80, 32'h0000_0080);
         repeat (10) @(posedge clk);
 
         $display("===== 10 frames, manual threshold changed between each =====");
         for (f = 0; f < 10; f = f + 1) begin
             // 帧之前写一次手动阈值 (对应 PS 的 T 1 <thr>)
             axi_wr(32'h04, 32'h1);
-            axi_wr(32'h08, 32'd30 + f*20);
+            axi_wr(32'h80, 32'd30 + f*20);
             $display("      >>> frame %0d : wrote thr = %0d <<<", f, 30 + f*20);
             send_frame;
             repeat (500000) @(posedge clk);

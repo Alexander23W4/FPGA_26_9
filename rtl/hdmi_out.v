@@ -1,169 +1,81 @@
 `timescale 1ns / 1ps
 
-/*
-800 x 525 像素时序，640 x 480 可见区域。
-256 x 256 图像显示在 hcnt=192..447、vcnt=112..367。
-*/
-
-module hdmi_out(
-    input pclk,
-    input rst,
-
-    output wire buf_idx,
-    output reg [15:0] buf_addr,
-    input [7:0] buf_data,
-    input buf_mask,
-    input buf_contour,
-
-    output reg [7:0]  vid_r,
-    output reg [7:0]  vid_g,
-    output reg [7:0]  vid_b,
-    output reg        vid_hs,
-    output reg        vid_vs,
-    output reg        vid_de,
-
-    input frame_ready_toggle, // 已同步到 pclk 的整帧完成翻转信号
-    input write_idx_sync,     // 已同步到 pclk 的已完成帧 bank
-
-    input [31:0] video_mode;
-    input [31:0] mask_transparency;
-
-    // ILA / AXI-Lite 调试状态：{state, read_bank, hcnt, vcnt, read_addr}
+// VGA raster: 800x525 total, 640x480 active, centered 256x256 image.
+// BRAM prefetch is one pixel early. Color and HS/VS/DE share two pipeline stages.
+module hdmi_out (
+    input wire pclk, input wire rst,
+    output wire buf_idx, output wire [15:0] buf_addr,
+    input wire [7:0] buf_data,
+    input wire buf_mask, input wire buf_contour,
+    output wire [7:0] vid_r, output wire [7:0] vid_g, output wire [7:0] vid_b,
+    output wire vid_hs, output wire vid_vs, output wire vid_de,
+    input wire frame_ready_toggle, input wire write_idx_sync,
+    input wire [31:0] video_mode, input wire [31:0] mask_transparency,
     output wire [37:0] dbg_status
 );
-
+    localparam IDLE = 1'b0, BUF = 1'b1;
     reg [9:0] hcnt, vcnt;
-    reg buf_idx_save;
-    reg state;
-    reg frame_ready_seen;
+    reg buf_idx_save, state, frame_ready_seen;
     reg [15:0] counter;
-
-    localparam IDLE = 1'b0;
-    localparam BUF  = 1'b1;
+    reg [31:0] video_mode_active;
+    reg [6:0] mask_transparency_active;
+    wire raster_end = hcnt == 10'd799 && vcnt == 10'd524;
+    wire image_active = state == BUF && vcnt >= 112 && vcnt <= 367 &&
+                        hcnt >= 192 && hcnt <= 447;
+    wire raw_de = state == BUF && vcnt <= 479 && hcnt <= 639;
+    wire raw_hs = !(state == BUF && hcnt >= 656 && hcnt <= 751);
+    wire raw_vs = !(state == BUF && vcnt >= 490 && vcnt <= 491);
 
     assign buf_idx = buf_idx_save;
+    assign buf_addr = counter;
     assign dbg_status = {state, buf_idx_save, hcnt, vcnt, counter};
 
     always @(posedge pclk or posedge rst) begin
         if (rst) begin
-            state            <= IDLE;
-            buf_idx_save     <= 1'b0;
-            frame_ready_seen <= 1'b0;
-            hcnt             <= 10'd0;
-            vcnt             <= 10'd0;
+            state <= IDLE; buf_idx_save <= 0; frame_ready_seen <= 0;
+            hcnt <= 0; vcnt <= 0;
+            video_mode_active <= 0; mask_transparency_active <= 45;
+        end else if (state == IDLE) begin
+            hcnt <= 0; vcnt <= 0;
+            if (frame_ready_toggle != frame_ready_seen) begin
+                buf_idx_save <= write_idx_sync;
+                frame_ready_seen <= frame_ready_toggle;
+                video_mode_active <= video_mode;
+                mask_transparency_active <= mask_transparency > 100 ? 7'd100 : mask_transparency[6:0];
+                state <= BUF;
+            end
         end else begin
-            if (state == IDLE) begin
-                hcnt <= 10'd0;
-                vcnt <= 10'd0;
-                if (frame_ready_toggle != frame_ready_seen) begin
-                    // 首帧完整写好后才开始输出。
-                    buf_idx_save     <= write_idx_sync;
-                    frame_ready_seen <= frame_ready_toggle;
-                    state            <= BUF;
-                end
-            end else begin
-                if (hcnt == 10'd799) begin
-                    hcnt <= 10'd0;
-                    if (vcnt == 10'd524)
-                        vcnt <= 10'd0;
-                    else
-                        vcnt <= vcnt + 1'b1;
-
-                    // 只在 HDMI 帧边界接收新帧，避免一张图显示到一半换 bank。
-                    if (vcnt == 10'd524 &&
-                        frame_ready_toggle != frame_ready_seen) begin
-                        buf_idx_save     <= write_idx_sync;
+            if (hcnt == 799) begin
+                hcnt <= 0;
+                vcnt <= vcnt == 524 ? 10'd0 : vcnt + 1'b1;
+                if (vcnt == 524) begin
+                    // Apply all display settings at a vertical frame boundary.
+                    // A mode change can redraw the current bank without another D.
+                    video_mode_active <= video_mode;
+                    mask_transparency_active <= mask_transparency > 100 ? 7'd100 : mask_transparency[6:0];
+                    if (frame_ready_toggle != frame_ready_seen) begin
+                        buf_idx_save <= write_idx_sync;
                         frame_ready_seen <= frame_ready_toggle;
                     end
-                end else begin
-                    hcnt <= hcnt + 1'b1;
                 end
-            end
+            end else hcnt <= hcnt + 1'b1;
         end
     end
 
-    // 读地址在图像有效区域逐像素递增；BRAM 同步读延迟一拍。
     always @(posedge pclk) begin
-        if (rst) begin
-            counter <= 16'd0;
-        end else if (state == BUF) begin
-            if (hcnt == 10'd799 && vcnt == 10'd524) begin
-                counter <= 16'd0;
-            end else if (vcnt >= 10'd112 && vcnt <= 10'd367 &&
-                         hcnt >= 10'd191 && hcnt <= 10'd446) begin
+        if (rst) counter <= 0;
+        else if (state == BUF) begin
+            if (raster_end) counter <= 0;
+            else if (vcnt >= 112 && vcnt <= 367 && hcnt >= 191 && hcnt <= 446)
                 counter <= counter + 1'b1;
-            end
         end
     end
 
-    always @(*) begin
-        buf_addr = counter;
-        vid_r = 8'd0;
-        vid_g = 8'd0;
-        vid_b = 8'd0;
-        vid_hs = 1'b1;
-        vid_vs = 1'b1;
-        vid_de = 1'b0;
-
-/*
-灰度 \(Y\)	颜色	RGB
-0	深蓝	(0, 0, 128)
-51	蓝	(0, 0, 255)
-102	青	(0, 255, 255)
-153	绿	(0, 255, 0)
-204	黄	(255, 255, 0)
-255	红	(128, 0, 0)
-*/
-        if (state == BUF) begin
-            if (vcnt >= 10'd112 && vcnt <= 10'd367 &&
-                hcnt >= 10'd192 && hcnt <= 10'd447) begin
-                    case(video_mode);
-                        32'd3: begin
-                            vid_r = buf_mask ? ((100 - mask_transparency) * buf_data + mask_transparency * 255) / 100 : buf_data;
-                            vid_g = buf_mask ? (100 - mask_transparency) * buf_data / 100 : buf_data;
-                            vid_b = buf_mask ? (100 - mask_transparency) * buf_data / 100 : buf_data;
-                        end
-                        32'd4: begin
-                            if(buf_data <= 51) begin   // 0-51
-                                vid_r = 0;
-                                vid_g = 0;
-                                vid_b = 127 + buf_data * 2.5;
-                            end
-                            if(buf_data > 51 && buf_data <= 102) begin   // 52-102
-                                vid_r = 0;
-                                vid_g = (buf_data - 51) * 5;
-                                vid_b = 255;
-                            end
-                            if(buf_data > 102 && buf_data <= 153) begin  // 103-153
-                                vid_r = 0;
-                                vid_g = 255;
-                                vid_b = 255 - (buf_data - 102) * 5;
-                            end  
-                            if(buf_data > 153 && buf_data <= 204) begin   // 154-204
-                                vid_r = (buf_data - 153) * 5;
-                                vid_g = 255;
-                                vid_b = 0;
-                            end
-                            else begin  // 205-255
-                                vid_r = 255 - (buf_data - 204) * 2.5;
-                                vid_g = 255 - (buf_data - 204) * 5;
-                                vid_b = 0;
-                            end
-                        end
-                        default: begin
-                            vid_r = buf_data;
-                            vid_g = buf_data;
-                            vid_b = buf_data;
-                        end
-                    endcase
-            end
-            if (vcnt <= 10'd479 && hcnt <= 10'd639)
-                vid_de = 1'b1;
-            if (vcnt >= 10'd490 && vcnt <= 10'd491)
-                vid_vs = 1'b0;
-            if (hcnt >= 10'd656 && hcnt <= 10'd751)
-                vid_hs = 1'b0;
-        end
-    end
-
+    video_colorizer u_colorizer (
+        .pclk(pclk), .rst(rst),
+        .gray(buf_data), .mask(buf_mask), .contour(buf_contour),
+        .mode(video_mode_active), .alpha(mask_transparency_active),
+        .image_active(image_active), .in_hs(raw_hs), .in_vs(raw_vs), .in_de(raw_de),
+        .r(vid_r), .g(vid_g), .b(vid_b), .hs(vid_hs), .vs(vid_vs), .de(vid_de)
+    );
 endmodule

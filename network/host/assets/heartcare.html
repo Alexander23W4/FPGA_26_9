@@ -69,8 +69,8 @@
         <section class="setting-group" data-system-mode="processing">
           <div class="group-heading"><span class="step-number">01</span><h4>输出显示</h4></div>
           <label for="fpgaOutputMode">FPGA 输出显示模式</label>
-          <select id="fpgaOutputMode"><option value="0">基础处理</option><option value="1">显示轮廓</option><option value="2">显示二值掩膜处理</option></select>
-          <p class="field-note">设置开发板 HDMI 的输出内容</p>
+          <select id="fpgaOutputMode"><option value="0">基础处理</option><option value="1">显示轮廓</option><option value="2">显示二值掩膜处理</option><option value="3">显示叠加掩膜处理</option><option value="4">显示伪彩色热力图处理</option><option value="5">全显示模式</option></select>
+          <p class="field-note" id="outputModeNote" aria-live="polite">设置开发板 HDMI 的输出内容</p>
         </section>
         <section class="setting-group" data-system-mode="processing">
           <div class="group-heading"><span class="step-number">02</span><h4>图像分割</h4></div>
@@ -78,6 +78,10 @@
           <div class="range-label"><label for="threshold">分割阈值</label><output id="thresholdValue" for="threshold">128</output></div><input id="threshold" type="range" min="0" max="255" value="128" disabled>
           <div class="range-scale"><span>0</span><span>255</span></div>
           <button id="thresholdUpdate" type="button">阈值更新</button>
+          <div class="range-label"><label for="maskOpacity">掩膜透明度</label><div class="value-unit"><output id="maskOpacityValue" for="maskOpacity">45</output><span>%</span></div></div>
+          <input id="maskOpacity" type="range" min="0" max="100" value="45">
+          <div class="range-scale"><span>0</span><span>100</span></div>
+          <button id="maskOpacityUpdate" type="button">掩膜透明度更新</button>
         </section>
         <section class="setting-group" data-system-mode="simulation" hidden>
           <div class="group-heading"><span class="step-number">01</span><h4>预览显示</h4></div>

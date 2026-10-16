@@ -180,7 +180,7 @@ module tb_bp;
         rst_n = 1;
         repeat (10) @(posedge clk);
         axi_wr(32'h04, 32'h1);        // 手动模式
-        axi_wr(32'h08, 32'h0000_0080); // 阈值 128
+        axi_wr(32'h80, 32'h0000_0080); // 阈值 128
         repeat (5) @(posedge clk);
 
         $display("===== T1: 无反压基准 =====");

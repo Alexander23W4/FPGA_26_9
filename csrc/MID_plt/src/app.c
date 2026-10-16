@@ -55,77 +55,101 @@ static int cmd_help(void)
     return 0;
 }
 
-/* 阈值更新: 收 2 字节 -> 写 PL 的 CMD_REG / DATA_REG
-     byte0 = 模式   0 = 自动 -> 只写 CMD_REG_ADDR = 0
-                    1 = 手动 -> 写 CMD_REG_ADDR = 1, 再写 DATA_REG_ADDR = byte1
-     byte1 = 手动模式下的阈值
-   MODE_ADDR 暂不使用。 */
-static int cmd_threshold_set(void)
+/* Register ids are WORD indices; never add them directly to PL_CTRL_BASE. */
+static int pl_write_checked(unsigned reg, u32 value, const char *name)
 {
-    u8 p[2];
-
-    uartln_get_bytes(p, 2);    // 发p[0]mode & p[1]value
-
-    Xil_Out32(PL_CTRL_BASE + CMD_REG_ADDR, (u32)p[0]);   // 更新 cmd_reg
-    if (p[0] != 0u) {
-        Xil_Out32(PL_CTRL_BASE + DATA_REG_ADDR, (u32)p[1]);   // 如果是手动模式, 附带立即更新一次 data_reg, 符合threshold(pl)的协议要求
-    }
-    dsb();
-
-    xil_printf("[PL reg] CMD_REG(0x%02X) = %d\r\n", (unsigned)CMD_REG_ADDR, (int)p[0]);
-    if (p[0] != 0u) {
-        xil_printf("[PL reg] DATA_REG(0x%02X) = %d\r\n", (unsigned)DATA_REG_ADDR, (int)p[1]);
-    } else {
-        xil_printf("[PL reg] 自动模式, 不写阈值\r\n");
-    }
-    return 0;
-}
-
-/* ★ 只读回读: 不写寄存器, 读取 PL 的阈值、显示模式和上一帧病灶面积。
-   这是 "AXI-Lite 读事务到底通不通 / 写进去的值有没有留住" 的直接探针。 */
-static int cmd_readback(void)
-{
-    u32 cmd = Xil_In32(PL_CTRL_BASE + CMD_REG_ADDR);
-    u32 dat = Xil_In32(PL_CTRL_BASE + DATA_REG_ADDR);
-    u32 vid = Xil_In32(PL_CTRL_BASE + VIDEO_MODE_ADDR);
-    u32 les = Xil_In32(PL_CTRL_BASE + LESION_ADDR);
-    xil_printf("[PL rdbk] CMD_REG(0x%02X) = %u\r\n", (unsigned)CMD_REG_ADDR, (unsigned)(cmd & 0xFFu));
-    xil_printf("[PL rdbk] DATA_REG(0x%02X) = %u\r\n", (unsigned)DATA_REG_ADDR, (unsigned)(dat & 0xFFu));
-    xil_printf("[PL rdbk] VIDEO_MODE(0x%02X) = %u\r\n", (unsigned)VIDEO_MODE_ADDR, (unsigned)(vid & 0xFFu));
-    xil_printf("[PL rdbk] LESION(0x%02X) = %u\r\n", (unsigned)LESION_ADDR, (unsigned)(les & 0x1FFFFu));
-    return 0;
-}
-static int cmd_video_mode(void)
-{
-    u8 m;
     u32 actual;
-
-    uartln_get_bytes(&m, 1);
-    if (m > 2u) {
-        xil_printf("[PL reg] video mode %u invalid (0/1/2)\r\n", (unsigned)m);
-        return 0;
-    }
-    Xil_Out32(PL_CTRL_BASE + VIDEO_MODE_ADDR, (u32)m);
+    Xil_Out32(PL_REG_ADDRESS(reg), value);
     dsb();
-    actual = Xil_In32(PL_CTRL_BASE + VIDEO_MODE_ADDR) & 0xFFu;
-    xil_printf("[PL reg] VIDEO_MODE requested = %u\r\n", (unsigned)m);
-    xil_printf("[PL rdbk] VIDEO_MODE(0x%02X) = %u\r\n",
-               (unsigned)VIDEO_MODE_ADDR, (unsigned)actual);
-    if (actual != (u32)m) {
-        xil_printf("[PL reg] ERROR: video mode write did not stick\r\n");
+    actual = Xil_In32(PL_REG_ADDRESS(reg));
+    xil_printf("[PL reg] %s requested = %u\r\n", name, (unsigned)value);
+    xil_printf("[PL rdbk] %s(0x%02X) = %u\r\n", name, reg, (unsigned)actual);
+    if (actual != value) {
+        xil_printf("[PL reg] ERROR: %s write/readback mismatch\r\n", name);
         return -1;
     }
     return 0;
 }
+
+/* T + threshold mode + manual value. Consumes exactly two payload bytes. */
+static int cmd_threshold_set(void)
+{
+    u8 p[2];
+    uartln_get_bytes(p, 2);
+    if (p[0] > PL_THRESHOLD_MANUAL) {
+        xil_printf("[PL reg] ERROR: threshold mode must be 0 or 1\r\n");
+        return -1;
+    }
+    if (pl_write_checked(CMD_REG_ADDR, p[0], "CMD_REG") != 0)
+        return -1;
+    if (p[0] == PL_THRESHOLD_MANUAL)
+        return pl_write_checked(DATA_REG_ADDR, p[1], "DATA_REG");
+    return 0;
+}
+
+/* R is read-only. Labels contain WORD indices, not physical byte offsets. */
+static int cmd_readback(void)
+{
+    static const struct { const char *name; unsigned reg; } regs[] = {
+        {"MODE", MODE_ADDR}, {"CMD_REG", CMD_REG_ADDR},
+        {"VIDEO_MODE", VIDEO_MODE_ADDR}, {"STATUS", STATUS_ADDR},
+        {"DATA_REG", DATA_REG_ADDR}, {"LESION", LESION_ADDR},
+        {"MASK_TRANSP", MASK_TRANSP_ADDR}
+    };
+    unsigned i;
+    xil_printf("[PL map] word-indexed registers; byte offset = index * 4\r\n");
+    for (i = 0; i < sizeof(regs)/sizeof(regs[0]); ++i) {
+        u32 value = Xil_In32(PL_REG_ADDRESS(regs[i].reg));
+        xil_printf("[PL rdbk] %s(0x%02X) = %u\r\n",
+                   regs[i].name, regs[i].reg, (unsigned)value);
+    }
+    return 0;
+}
+
+static int cmd_video_mode(void)
+{
+    u8 mode;
+    uartln_get_bytes(&mode, 1);
+    if (mode > PL_VIDEO_MODE_MAX) {
+        xil_printf("[PL reg] ERROR: video mode must be 0..4\r\n");
+        return -1;
+    }
+    return pl_write_checked(VIDEO_MODE_ADDR, mode, "VIDEO_MODE");
+}
+
+static int cmd_mask_transparency(void)
+{
+    u8 alpha;
+    uartln_get_bytes(&alpha, 1);
+    if (alpha > 100u) {
+        xil_printf("[PL reg] ERROR: mask opacity must be 0..100\r\n");
+        return -1;
+    }
+    return pl_write_checked(MASK_TRANSP_ADDR, alpha, "MASK_TRANSP");
+}
+
+static int cmd_system_mode(void)
+{
+    u8 mode;
+    uartln_get_bytes(&mode, 1);
+    if (mode > PL_SYSTEM_MEDICAL) {
+        xil_printf("[PL reg] ERROR: system mode must be 0 or 1\r\n");
+        return -1;
+    }
+    return pl_write_checked(MODE_ADDR, mode, "MODE");
+}
+
 static const app_cmd_t cmds[] = {
     { CMD_HELP,        "? help", "list these commands", cmd_help },
-    { CMD_LIST_IMAGES, "I list", "list the images registered in the eMMC catalog", cmd_list_images },
-    { CMD_EMMC_LOAD,   "A add ", "PC -> eMMC  : receive a .bin and verify it on eMMC", feat_emmc_load_run },
-    { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR : load an image, VDMA sends exactly ONE frame", feat_img2ddr_run },
-    { CMD_EMMC_CLEAR,  "E clear","wipe every registered image on the eMMC and reset the catalog", feat_emmc_clear_run },
-    { CMD_THRESHOLD,   "T thr",  "PL threshold: send 2 bytes (mode: 0 auto / 1 manual, value)", cmd_threshold_set },
-    { CMD_READBACK,    "R rdbk", "read back PL regs 0x04/0x08/0x10/0x14", cmd_readback },
-    { CMD_VIDEO_MODE,  "V vmod", "PL 0x10 video mode: 0 only-denoise / 1 +contour / 2 +mask", cmd_video_mode },
+    { CMD_LIST_IMAGES, "I list", "list eMMC images", cmd_list_images },
+    { CMD_EMMC_LOAD,   "A add ", "PC -> eMMC: receive and verify a BIN", feat_emmc_load_run },
+    { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR: VDMA sends exactly ONE frame", feat_img2ddr_run },
+    { CMD_EMMC_CLEAR,  "E clear","clear the eMMC image catalog", feat_emmc_clear_run },
+    { CMD_THRESHOLD,   "T thr",  "2 bytes: mode (0 auto/1 manual), threshold", cmd_threshold_set },
+    { CMD_READBACK,    "R rdbk", "read WORD regs 00/01/02/03/20/21/22", cmd_readback },
+    { CMD_VIDEO_MODE,  "V vmod", "1 byte: 0 gray/1 contour/2 mask/3 overlay/4 heatmap", cmd_video_mode },
+    { CMD_MASK_TRANSP, "P alpha","1 byte: overlay opacity 0 transparent..100 solid", cmd_mask_transparency },
+    { CMD_SYSTEM_MODE, "M mode", "1 byte: 0 image/1 medical (algorithm reserved)", cmd_system_mode },
 };
 #define APP_CMD_COUNT   (sizeof(cmds) / sizeof(cmds[0]))
 

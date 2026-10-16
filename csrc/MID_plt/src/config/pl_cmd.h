@@ -1,37 +1,32 @@
-/*
-选择模式:
-# (单图模式) arm 向 MODE_ADDR 写入 SINGLE_MODE
+#ifndef PL_CMD_H
+#define PL_CMD_H
 
-    载入图片:
-    >> arm 把新图片放到 SINGLE_IMG_ADDR
+#define SINGLE_IMG_ADDR 0x10000000u
+#define SINGLE_IMG_LEN  0x10000u
+#define PL_CTRL_BASE    0x44000000u
 
-    写入阈值:
-    >> arm 把新data值写到 DATA_REG_ADDR, pl 作为slave 自动相应, 更新 
+/* WORD register numbers, not byte offsets. Always use PL_REG_ADDRESS().
+ * Physical byte offsets: 00,04,08,0C,80,84,88 respectively.
+ */
+#define MODE_ADDR        0x00u /* 0 image processing, 1 medical (reserved) */
+#define CMD_REG_ADDR     0x01u /* 0 automatic threshold, 1 manual */
+#define VIDEO_MODE_ADDR  0x02u /* 0 gray, 1 contour, 2 mask, 3 overlay, 4 heatmap */
+#define STATUS_ADDR      0x03u /* RO: actual threshold selected by PL */
+#define DATA_REG_ADDR    0x20u /* Manual threshold, 0..255 */
+#define LESION_ADDR      0x21u /* RO: last complete frame's foreground pixels */
+#define MASK_TRANSP_ADDR 0x22u /* Overlay opacity 0..100; 0 transparent, 100 solid */
 
-    开始分析:
-    >> arm 向 CMD_REG_ADDR 写入 REOPERATE
-    >>> pl 从 SINGLE_IMG_ADDR 读取图片再 operate 一遍, 然后清空 控制寄存器
+#define PL_REG_OFFSET(index)  ((unsigned)(index) << 2u)
+#define PL_REG_ADDRESS(index) (PL_CTRL_BASE + PL_REG_OFFSET(index))
 
+#define PL_SYSTEM_IMAGE      0u
+#define PL_SYSTEM_MEDICAL    1u
+#define PL_THRESHOLD_AUTO    0u
+#define PL_THRESHOLD_MANUAL  1u
+#define PL_VIDEO_MODE_MAX    4u
+#define PL_MASK_ALPHA_DEFAULT 45u
 
-上位机操作大致就是:
-页面1: 先点"选择模式", 选择"单图模式", 然后进入单图模式页面
-页面2(单图模式页面): 先点"载入图片", 选择本地路径(.bin文件).  再点"写入阈值"(后续再加其他数据写入).  最后点"开始分析"
-
-*/
-
-#define SINGLE_IMG_ADDR 0x10000000
-#define SINGLE_IMG_LEN  0x10000      /* 256x256x8bit = 65536 字节 */
-
-#define PL_CTRL_BASE        0x44000000
-
-
-#define MODE_ADDR     0x00     // 0 图像处理模式   1 医学分析模式
-#define CMD_REG_ADDR  0x01     // 0 自动阈值模式(默认)   1 手动阈值模式
-#define VIDEO_MODE_ADDR 0x02  /* PL output mode: 0 only-denoise / 1 +contour / 2 +mask */
-
-#define DATA_REG_ADDR 0x20     // 手动阈值
-#define LESION_ADDR    0x21  /* 上一帧二值掩膜像素数 (病灶面积 = 它 * 0.436280886141 mm^2) */
-#define MASK_TRANSP_ADDR 0x22   // 掩膜透明度
+#endif
 
 
 

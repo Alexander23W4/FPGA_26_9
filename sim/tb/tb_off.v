@@ -124,7 +124,7 @@ module tb_off;
         rst = 0;
         repeat (10) @(posedge clk);
         axi_wr(32'h04, 32'h1);              // manual
-        axi_wr(32'h08, 32'h0000_0080);      // threshold 128
+        axi_wr(32'h80, 32'h0000_0080);      // threshold 128
         repeat (10) @(posedge clk);
 
         send_frame;

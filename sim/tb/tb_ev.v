@@ -203,7 +203,7 @@ module tb_ev;
         rst = 0;
         repeat (20) @(posedge clk);
         axi_wr(32'h04, 32'h1);
-        axi_wr(32'h08, 32'h0000001E);      // thr = 30, like the first PS transfer
+        axi_wr(32'h80, 32'h0000001E);      // thr = 30, like the first PS transfer
 
         $display("");
         $display("========== SEGMENT A: full frame, like the FIRST D command ==========");
@@ -220,7 +220,7 @@ module tb_ev;
 
         $display("");
         $display("========== SEGMENT C: VDMA RESTARTED, full frame (the 2nd D command) ==========");
-        axi_wr(32'h08, 32'h0000003C);      // thr = 60, exactly like the PS script
+        axi_wr(32'h80, 32'h0000003C);      // thr = 60, exactly like the PS script
         send_beats(BEATS_FULL);
         repeat (30000) @(posedge clk);
 

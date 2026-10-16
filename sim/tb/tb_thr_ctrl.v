@@ -93,7 +93,7 @@ module tb_thr_ctrl;
         // ===== T1: 只写 0x08, 还没写过 0x04 => 验证 0x08 任何时候都能写进去 =====
         $display("==== T1: 只写 0x08=90, 不写 0x04 ====");
 
-        axi_wr(8'h08, 32'd90);
+        axi_wr(8'h80, 32'd90);
         contour_cnt = 0; mask_cnt = 0; frame(8'h80);
 
         $display("     mask=%0d  contour=%0d   (auto_mode=%b threshold=%0d)",
@@ -101,7 +101,7 @@ module tb_thr_ctrl;
 
         // ===== T2: 0x04=1 手动, 0x08=60 =====
         $display("==== T2: 0x04=1 (手动) + 0x08=60 ====");
-        // axi_wr(8'h08, 32'd60);
+        // axi_wr(8'h80, 32'd60);
         axi_wr(8'h04, 32'd1);
         contour_cnt = 0; mask_cnt = 0; frame(8'hC0);
         $display("     mask=%0d  contour=%0d   (auto_mode=%b threshold=%0d)",
@@ -117,7 +117,7 @@ module tb_thr_ctrl;
         // ===== T4: 回手动, 0x08=200 =====
         $display("==== T4: 0x04=1 + 0x08=200 ====");
         axi_wr(8'h04, 32'd1);
-        axi_wr(8'h08, 32'd200);
+        axi_wr(8'h80, 32'd200);
         contour_cnt = 0; mask_cnt = 0; frame(8'h40);
         $display("     mask=%0d  contour=%0d   (auto_mode=%b threshold=%0d)",
                  mask_cnt, contour_cnt, auto_out, thr_out);
