@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import secrets
 import socket
 import struct
 import sys
@@ -19,6 +20,8 @@ sys.path.insert(0, str(ROOT))
 import protocol as proto
 import web_common
 from frame_transfer import FrameTransferClient, normalize_result_name
+from queued_stream import QueuedStream, QueueFull
+from frame_pipeline import FramePipeline
 
 
 def load_gray(path):
@@ -139,6 +142,8 @@ function dshResetPerformance(resetFps = false) {
   document.getElementById('streamFps').textContent = '等待首帧回传…';
   document.getElementById('streamFrameTime').textContent = '';
   document.getElementById('streamTiming').textContent = '';
+  for(const id of ['streamPsTiming','streamPcTiming','streamTcpTiming','streamNetConfig'])
+    document.getElementById(id).textContent='';
 }
 function dshRecordFrame(result, frameStarted) {
   const now = dshNow(), t = result.timings_ms || {};
@@ -365,6 +370,8 @@ function dshApplyFastStats(stats) {
   document.getElementById('streamFrameTime').textContent=
     '本帧 '+stats.frameMs.toFixed(0)+' ms · 已回传 '+stats.completed+' 帧';
   const metadata=stats.metadata,t=metadata.timings_ms,p=metadata.readback.ps_timings_ms||{};
+  if(metadata.stream)document.getElementById('streamFrameTime').textContent+=
+    ' · Python 待发 '+metadata.stream.pending+'/'+metadata.stream.capacity+' 帧';
   document.getElementById('streamTiming').textContent=
     '收发 '+t.transfer_ms.toFixed(1)+' ms · 板端收包 '+(p.receive||0).toFixed(1)+
     ' ms · 准备 '+(p.setup||0).toFixed(1)+' ms · PL→DDR '+(p.pl_to_ddr||0).toFixed(1)+' ms';
@@ -372,6 +379,25 @@ function dshApplyFastStats(stats) {
   if(interval&&interval.sequence)document.getElementById('streamTiming').textContent+=
     ' · 回传启动→下一帧写满 '+interval.elapsed_ms.toFixed(2)+' ms'+
     '（写端反压 '+interval.write_stall_ms.toFixed(2)+' ms）';
+  const detail=metadata.readback.ps_detail||{},browser=t.browser||{},server=browser.server||{};
+  const ms=value=>(value||0).toFixed(2);
+  document.getElementById('streamPsTiming').textContent=
+    'PS：输出检查 '+ms(detail.output_check)+' ms · 输出CRC '+ms(detail.output_crc)+
+    ' ms · TCP提交 '+ms(detail.tcp_enqueue)+' ms（写入调用 '+ms(detail.tcp_copy)+
+    ' ms）· 输入CRC '+ms(detail.input_crc)+' ms · 接收复制 '+ms(detail.rx_copy)+' ms';
+  document.getElementById('streamPcTiming').textContent=
+    'PC：预读/补帧 '+ms(browser.source_ms)+' ms · 结果HTTP '+ms(browser.http_ms)+
+    ' ms（等待结果 '+ms(server.preview_wait)+' ms）· Python响应 '+
+    ms(Math.max(0,(server.handler||0)-(server.preview_wait||0)))+
+    ' ms · HTTP/浏览器余量 '+ms(browser.http_overhead_ms)+
+    ' ms · Worker解包 '+ms(browser.decode_ms)+' ms';
+  document.getElementById('streamTcpTiming').textContent=
+    'Python TCP：发送调用 '+ms(t.upload_send_ms)+' ms · 等响应头 '+ms(t.wait_header_ms)+
+    ' ms · 收图 '+ms(t.result_receive_ms)+' ms · 校验 '+ms(t.host_validate_ms)+
+    ' ms · 计时尾包 '+ms(t.perf_receive_ms)+' ms';
+  document.getElementById('streamNetConfig').textContent=
+    'TCP窗口 '+(detail.tcp_window_bytes||0)+' B · 发送缓冲 '+(detail.tcp_send_bytes||0)+
+    ' B · PS优化 '+(detail.optimized?'开启':'关闭')+' · TCP等待轮询 '+(detail.tcp_wait_polls||0);
 }
 function dshDrawBin(canvasId,raw,color) {
   const canvas=document.getElementById(canvasId),context=canvas.getContext('2d');
@@ -856,6 +882,9 @@ class NetworkHandler(web_common.Handler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path.startswith('/api/network/stream/'):
+            self.stream_request(parsed)
+            return
         if parsed.path == '/api/network/frame':
             self.receive_stream_frame(parsed)
             return
@@ -903,10 +932,103 @@ class NetworkHandler(web_common.Handler):
 
     control_worker = None
 
+    def stream_request(self, parsed):
+        """Feed the bounded Python sender independently of result delivery."""
+        try:
+            action = parsed.path.rsplit('/', 1)[-1]
+            if action in ('start', 'control'):
+                size = int(self.headers.get('Content-Length', '0'))
+                if not 0 < size <= 4096:
+                    raise ValueError('invalid stream control length')
+                options = json.loads(self.rfile.read(size))
+                if not isinstance(options, dict):
+                    raise ValueError('invalid stream control')
+                if action == 'start':
+                    token, session = self.server.start_stream(self.state, options)
+                else:
+                    token = options.get('session', '')
+                    session = self.server.get_stream(token)
+                    session.control(options.get('action'), mode=options.get('mode'))
+                self.send_json({'ok': True, 'session': token, **session.snapshot()})
+                return
+            if action != 'enqueue':
+                self.send_json({'ok': False, 'error': 'unknown stream endpoint'}, status=404)
+                return
+            size = int(self.headers.get('Content-Length', '0'))
+            # Consume a bounded submitted frame before reporting query errors.
+            # Closing with unread upload bytes can reset HTTP on Windows.
+            data = self.rfile.read(size) if 0 <= size <= FRAME_BYTES else b''
+            if size != FRAME_BYTES:
+                raise ValueError('BIN 必须恰好为 65536 字节')
+            query = parse_qs(parsed.query)
+            token = query.get('session', [''])[0]
+            session = self.server.get_stream(token)
+            filename = query.get('name', [''])[0]
+            relative = query.get('path', [''])[0]
+            _stream_target(session.folder, relative, filename)
+            _validate_bin_frame(data, filename)
+            frame = {'data': data, 'name': filename, 'path': relative,
+                     'index': int(query.get('index', ['-1'])[0]),
+                     'sequence': int(query.get('sequence', ['-1'])[0])}
+            if frame['index'] < 0:
+                raise ValueError('stream frame index must be nonnegative')
+            status = session.enqueue(frame)
+            self.send_json({'ok': True, **status})
+        except QueueFull as error:
+            self.send_json({'ok': False, 'full': True, 'error': str(error)}, status=409)
+        except Exception as error:
+            self.send_json({'ok': False, 'error': str(error), 'log': str(error)}, status=400)
+
+    def stream_result(self, parsed):
+        started = time.perf_counter()
+        try:
+            token = parse_qs(parsed.query).get('session', [''])[0]
+            session = self.server.get_stream(token)
+            result = session.take_result(timeout=1)
+            received = time.perf_counter()
+            status = session.snapshot()
+            if result is None:
+                if status['stopped']:
+                    self.send_json({'ok': not bool(status['error']), **status})
+                else:
+                    self.send_response(204)
+                    self.send_header('Content-Length', '0')
+                    self.send_header('Cache-Control', 'no-store')
+                    self.end_headers()
+                return
+            frame = result['source']
+            metadata = {key: value for key, value in result.items()
+                        if key not in ('raw', 'source')}
+            metadata['stream'] = {**status, 'index': frame['index'],
+                                  'sequence': frame['sequence'],
+                                  'completed': result['completed'],
+                                  'frame_ms': result['frame_ms'],
+                                  'completed_at': result['completed_at']}
+            header = json.dumps(metadata, ensure_ascii=False).encode('utf-8')
+            body = struct.pack('!I', len(header)) + header + frame['data'] + result['raw']
+        except Exception as error:
+            self.send_json({'ok': False, 'error': str(error)}, status=400)
+            return
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/octet-stream')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Server-Timing', 'handler;dur=%.3f, preview_wait;dur=%.3f' %
+                         ((time.perf_counter()-started)*1000, (received-started)*1000))
+        self.end_headers()
+        self.wfile.write(body)
+
     def receive_stream_frame(self, parsed):
-        """Binary HTTP response: BE JSON length, metadata JSON, then owned RGB/mode BIN."""
+        """Binary HTTP: BE JSON length, metadata, RGBA; HTTP timings in Server-Timing."""
+        handler_started = time.perf_counter()
         acquired = False
         try:
+            size = int(self.headers.get('Content-Length', '0'))
+            body_started = time.perf_counter()
+            data = self.rfile.read(size) if 0 <= size <= FRAME_BYTES else b''
+            body_finished = time.perf_counter()
+            if size != FRAME_BYTES:
+                raise ValueError('BIN 必须恰好为 65536 字节')
             query = parse_qs(parsed.query)
             filename = query.get('name', [''])[0]
             folder, relative = query.get('folder', [''])[0], query.get('path', [''])[0]
@@ -914,9 +1036,6 @@ class NetworkHandler(web_common.Handler):
             mode = int(query.get('mode', ['0'])[0])
             if mode not in range(5):
                 raise ValueError('流模式必须为 0..4')
-            if int(self.headers.get('Content-Length', '0')) != FRAME_BYTES:
-                raise ValueError('BIN 必须恰好为 65536 字节')
-            data = self.rfile.read(FRAME_BYTES)
             _validate_bin_frame(data, filename)
             if not _TRANSFER_LOCK.acquire(blocking=False):
                 raise RuntimeError('another FPGA frame is in progress')
@@ -925,20 +1044,30 @@ class NetworkHandler(web_common.Handler):
                 raise RuntimeError('上一单图任务尚未完成，请先恢复原任务')
             started = time.perf_counter()
             self.state.replace_image(data, filename, preserve_results=True, display_name=folder)
+            network_started = time.perf_counter()
             with _serial_lock():
                 result = _FRAME_CLIENT.receive_frame(data)
                 elapsed = result['timings_ms']['transfer_ms']
                 if result['mode'] != mode:
                     result = _FRAME_CLIENT.receive_frame(mode=mode)
                     elapsed += result['timings_ms']['transfer_ms']
+            network_finished = time.perf_counter()
             raw = result['raw']
             metadata = {key: value for key, value in result.items() if key != 'raw'}
             metadata['timings_ms'].update(transfer_ms=elapsed,
                 service_total_ms=(time.perf_counter() - started)*1000)
             self.state.publish_result(metadata, stream=True)
             metadata.update(_state_versions(self.state))
+            publish_finished = time.perf_counter()
             header = json.dumps(metadata, ensure_ascii=False).encode('utf-8')
             body = struct.pack('!I', len(header)) + header + raw
+            packed = time.perf_counter()
+            server_timings = {'handler': (packed-handler_started)*1000,
+                              'body': (body_finished-body_started)*1000,
+                              'source': (network_started-body_finished)*1000,
+                              'board': (network_finished-network_started)*1000,
+                              'publish': (publish_finished-network_finished)*1000,
+                              'pack': (packed-publish_finished)*1000}
         except Exception as error:
             self.send_json({'ok': False, 'error': str(error), 'log': str(error),
                             'timeout': isinstance(error, TimeoutError)}, status=400)
@@ -950,13 +1079,19 @@ class NetworkHandler(web_common.Handler):
         self.send_header('Content-Type', 'application/octet-stream')
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
+        self.send_header('Server-Timing', ', '.join('%s;dur=%.3f' % pair for pair in server_timings.items()))
         self.end_headers()
         self.wfile.write(body)
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/network/stream/result':
+            self.stream_result(parsed)
+            return
         if parsed.path == '/api/network/state':
             state = self.state.snapshot(0, 128, 255, 50, include_images=False)
+            if self.server.stream is not None:
+                state['stream'] = self.server.stream.snapshot()
             self.send_json(state)
             return
         if parsed.path == '/api/network/render':
@@ -1024,6 +1159,71 @@ class NetworkHandler(web_common.Handler):
 
 class NetworkServer(web_common.ThreadingHTTPServer):
     daemon_threads = True
+
+    def __init__(self, *args, **kwargs):
+        self.stream_lock = threading.Lock()
+        self.stream = None
+        self.stream_token = None
+        super().__init__(*args, **kwargs)
+
+    def get_stream(self, token):
+        with self.stream_lock:
+            if not token or self.stream is None or token != self.stream_token:
+                raise ValueError('流会话已失效，请重新选择流文件夹')
+            return self.stream
+
+    def start_stream(self, state, options):
+        folder = options.get('folder', '')
+        _stream_target(folder, 'frame.bin', 'frame.bin')
+        mode = int(options.get('mode', 0))
+        if mode not in range(5):
+            raise ValueError('流模式必须为 0..4')
+        token = secrets.token_hex(16)
+        with self.stream_lock:
+            if not _TRANSFER_LOCK.acquire(blocking=False):
+                raise RuntimeError('已有图像或流正在传输，请先停止当前任务')
+            try:
+                if _DISPLAY_PENDING is not None or _FRAME_CLIENT.pending is not None:
+                    raise RuntimeError('上一图像任务尚未完成，请先恢复原任务')
+                client = _FRAME_CLIENT
+                # Stream owns a separate full-duplex socket. Close an idle old
+                # transaction socket so it cannot later resume a stale session.
+                client.close()
+                # Cover four input slots, three output slots and TCP transit;
+                # a four-job cap would throttle while board input slots are free.
+                pipeline = FramePipeline(client.host, client.port, client.timeout, capacity=8)
+
+                def publish(source, result):
+                    started = time.perf_counter()
+                    state.replace_image(source['data'], source['name'],
+                                        preserve_results=True, display_name=folder)
+                    state.publish_result({key: value for key, value in result.items() if key != 'raw'},
+                                         stream=True)
+                    result.update(_state_versions(state))
+                    result['timings_ms']['publish_ms'] = (time.perf_counter()-started)*1000
+
+                def release():
+                    try:
+                        pipeline.close()
+                        pending, client.pending = client.pending, None
+                        if pending is not None:
+                            client._cancel_job(pending['job'])
+                    finally:
+                        _TRANSFER_LOCK.release()
+
+                session = QueuedStream(None, release, mode=mode, pipeline=pipeline, on_result=publish)
+                session.folder = folder
+                self.stream = session
+                self.stream_token = token
+                return self.stream_token, session
+            except BaseException:
+                _TRANSFER_LOCK.release()
+                raise
+
+    def server_close(self):
+        if self.stream is not None:
+            self.stream.close(timeout=65)
+        super().server_close()
 
 
 def main():

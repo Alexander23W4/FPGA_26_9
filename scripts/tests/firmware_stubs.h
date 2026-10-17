@@ -9,6 +9,9 @@ typedef int err_t;
 #define ERR_MEM -1
 #define ERR_ABRT -13
 #define TCP_WRITE_FLAG_COPY 1
+#define TCP_WND 65535
+#define TCP_SND_BUF 65535
+#define MEM_SIZE 1048576
 #define XPAR_CPU_CORE_CLOCK_FREQ_HZ 666666666u
 #define XPAR_XEMACPS_0_BASEADDR 0xe000b000u
 #define IP_ADDR_ANY ((const ip_addr_t *)0)

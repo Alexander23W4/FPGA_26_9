@@ -34,7 +34,9 @@
 #define HELLO_FAST 14u
 #define FAST_READY 15u
 #define RESULT_RGBA 16u
-#define META_BYTES 56u /* v3: registers, PS timings, PL return interval/stall/sequence */
+#define PERF_FAST 17u
+#define META_BYTES 56u /* v4: register/timing header, then RGBA, then PERF_FAST */
+#define PERF_BYTES 48u
 #define UPLOAD_REQUIRED 1u
 #define FAILED 2u
 #define BUSY 3u
@@ -52,6 +54,7 @@ static u32 job,upload_crc,result_crc,result_mode,last_done,last_crc,last_mode;
 static u32 received,header_used,discard_remaining;
 static u8 rx_header[HEADER_BYTES],tx_header[HEADER_BYTES];
 static u8 result_meta[META_BYTES];
+static u8 perf_meta[PERF_BYTES];
 static u32 tx_meta_length,tx_meta_offset;
 static const u8 *tx_payload;
 static u32 tx_length,tx_offset,tx_header_used;
@@ -59,6 +62,10 @@ static char error_text[256];
 static u64 job_started,last_tcp,last_arp,last_rx;
 static u64 rx_started,rx_finished,dma_started,dma_finished;
 static int tx_stream;
+static int tx_report;
+static u64 result_check_ticks,result_crc_ticks,input_crc_ticks,rx_copy_ticks;
+static u64 tx_started,tx_copy_ticks;
+static u32 tx_calls,tx_wait_polls;
 extern void tcp_tmr(void);
 extern void xemacpsif_resetrx_on_no_rxdata(struct netif *netif);
 
@@ -73,6 +80,7 @@ static u64 ticks(void)
 static u32 get32(const u8 *p) {return ((u32)p[0]<<24)|((u32)p[1]<<16)|((u32)p[2]<<8)|p[3];}
 static void put32(u8 *p,u32 n) {p[0]=(u8)(n>>24);p[1]=(u8)(n>>16);p[2]=(u8)(n>>8);p[3]=(u8)n;}
 static u32 back_state(void) {return Xil_In32(PL_REG_ADDRESS(BACK_STATUS));}
+static u32 micros(u64 duration) {return (u32)(duration*1000000ull/COUNTS_PER_SECOND);}
 
 static void response(u32 type,u32 id,const void *payload,u32 length,u32 checksum,u32 extra)
 {
@@ -81,6 +89,7 @@ static void response(u32 type,u32 id,const void *payload,u32 length,u32 checksum
     tx_payload=(const u8 *)payload;tx_length=length;tx_offset=0;tx_header_used=0;
     tx_meta_length=tx_meta_offset=0;
     tx_stream=(type==RESULT_FAST);
+    tx_report=(type==PERF_FAST);
 }
 static void error_response(u32 id,u32 code,const char *message)
 {
@@ -90,6 +99,7 @@ static void error_response(u32 id,u32 code,const char *message)
 static void send_result(void)
 {
     if(client&&!cancelled) {
+        tx_started=ticks();tx_copy_ticks=0;tx_calls=0;tx_wait_polls=0;
         response(fast_job?RESULT_FAST:RESULT_RGBA,job,(const void *)IMG_RES_DDR_BASE,
                  IMG_RES_DDR_SIZE,result_crc,result_mode);
         if(fast_job) {put32(tx_header+12,IMG_RES_DDR_SIZE+META_BYTES);tx_meta_length=META_BYTES;}
@@ -99,9 +109,9 @@ static void prepare_result(void)
 {
     static const unsigned regs[]={MODE_ADDR,CMD_REG_ADDR,VIDEO_MODE_ADDR,STATUS_ADDR,
                                   DATA_REG_ADDR,LESION_ADDR,MASK_TRANSP_ADDR};
-    unsigned i;
+    unsigned i;u64 before;
     if(fast_job) {
-        put32(result_meta,3u);
+        put32(result_meta,4u);
         for(i=0;i<7;++i)put32(result_meta+4u*(i+1u),
             i==2?result_mode:Xil_In32(PL_REG_ADDRESS(regs[i])));
         put32(result_meta+32,(u32)((rx_finished-rx_started)*1000000ull/COUNTS_PER_SECOND));
@@ -110,8 +120,38 @@ static void prepare_result(void)
         put32(result_meta+44,Xil_In32(PL_REG_ADDRESS(RETURN_INTERVAL)));
         put32(result_meta+48,Xil_In32(PL_REG_ADDRESS(RETURN_STALL)));
         put32(result_meta+52,Xil_In32(PL_REG_ADDRESS(RETURN_SEQ)));
-        result_crc=crc32_extend(crc32_calc(result_meta,META_BYTES),(const u8 *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);
-    } else result_crc=crc32_calc((const u8 *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);
+    }
+    before=ticks();
+    if(fast_job)result_crc=crc32_extend(crc32_calc(result_meta,META_BYTES),(const u8 *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);
+    else result_crc=crc32_calc((const u8 *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);
+    result_crc_ticks=ticks()-before;
+}
+
+/* Same-job trailer: final CRC/TCP durations are only known after forming the
+ * frame header. A tiny separate CRC avoids a second image pass or a PC ACK. */
+static void send_perf(void)
+{
+    put32(perf_meta,1u);
+    put32(perf_meta+4,micros(result_check_ticks));
+    put32(perf_meta+8,micros(result_crc_ticks));
+    put32(perf_meta+12,micros(ticks()-tx_started));
+    put32(perf_meta+16,micros(tx_copy_ticks));
+    put32(perf_meta+20,tx_calls);put32(perf_meta+24,tx_wait_polls);
+    put32(perf_meta+28,micros(input_crc_ticks));put32(perf_meta+32,micros(rx_copy_ticks));
+    put32(perf_meta+36,TCP_WND);put32(perf_meta+40,TCP_SND_BUF);
+#ifdef __OPTIMIZE__
+    put32(perf_meta+44,1u);
+#else
+    put32(perf_meta+44,0u);
+#endif
+    response(PERF_FAST,job,perf_meta,PERF_BYTES,crc32_calc(perf_meta,PERF_BYTES),0);
+}
+
+static err_t timed_write(const void *bytes,u16_t length)
+{
+    u64 before=ticks();err_t status=tcp_write(client,bytes,length,TCP_WRITE_FLAG_COPY);
+    tx_copy_ticks+=ticks()-before;++tx_calls;
+    return status;
 }
 static void cancel_job(u32 id)
 {
@@ -137,23 +177,23 @@ static void pump_tx(void)
     if(!client)return;
     if(tx_header_used<HEADER_BYTES) {
         amount=HEADER_BYTES-tx_header_used;
-        if(tcp_sndbuf(client)<amount)return;
-        if(tcp_write(client,tx_header+tx_header_used,(u16_t)amount,TCP_WRITE_FLAG_COPY)!=ERR_OK)return;
+        if(tcp_sndbuf(client)<amount) {++tx_wait_polls;return;}
+        if(timed_write(tx_header+tx_header_used,(u16_t)amount)!=ERR_OK) {++tx_wait_polls;return;}
         tx_header_used=HEADER_BYTES;
     }
     while(tx_offset<tx_length) {
         if(tx_meta_offset<tx_meta_length) {
             amount=tx_meta_length-tx_meta_offset;
             if(amount>tcp_sndbuf(client))amount=tcp_sndbuf(client);
-            if(!amount)break;
-            if(tcp_write(client,result_meta+tx_meta_offset,(u16_t)amount,TCP_WRITE_FLAG_COPY)!=ERR_OK)break;
+            if(!amount) {++tx_wait_polls;break;}
+            if(timed_write(result_meta+tx_meta_offset,(u16_t)amount)!=ERR_OK) {++tx_wait_polls;break;}
             tx_meta_offset+=amount;continue;
         }
         amount=tx_length-tx_offset;
         if(amount>4096u)amount=4096u;
         if(amount>tcp_sndbuf(client))amount=tcp_sndbuf(client);
-        if(!amount)break;
-        if(tcp_write(client,tx_payload+tx_offset,(u16_t)amount,TCP_WRITE_FLAG_COPY)!=ERR_OK)break;
+        if(!amount) {++tx_wait_polls;break;}
+        if(timed_write(tx_payload+tx_offset,(u16_t)amount)!=ERR_OK) {++tx_wait_polls;break;}
         tx_offset+=amount;
     }
     (void)tcp_output(client);
@@ -161,19 +201,33 @@ static void pump_tx(void)
        tx_meta_offset==tx_meta_length&&tx_offset==tx_length) {
         /* TCP_WRITE_FLAG_COPY owns all bytes, including retransmission data.
          * No application ACK or GUI paint may hold this DDR buffer hostage. */
+        send_perf();
+        /* Finish the tiny trailer now or on later polls if the window is full.
+         * DDR stays owned until the trailer has also been copied into TCP. */
+        pump_tx();
+    } else if(phase==RESULT_READY&&fast_job&&tx_report&&
+              tx_header_used==HEADER_BYTES&&tx_offset==tx_length) {
         last_done=job;last_crc=result_crc;last_mode=result_mode;last_fast=1;phase=IDLE;
-        tx_stream=0;
+        tx_report=0;
     }
 }
+
+#include "feat/net_pipeline_impl.h"
 
 static void handle_header(void)
 {
     u32 type=get32(rx_header+4),id=get32(rx_header+8),length=get32(rx_header+12);
     u32 checksum=get32(rx_header+16),extra=get32(rx_header+20);
     if(get32(rx_header)!=MAGIC) {error_response(id,FAILED,"unsupported protocol; update host and firmware together");return;}
+    if(type==HELLO_PIPE) {
+        if(!id||length||checksum||extra||phase!=IDLE||pipe_enabled) {
+            error_response(id,BUSY,"pipeline unavailable; finish the current job first");return;
+        }
+        pipe_begin();response(PIPE_READY,id,0,0,0,5u);return;
+    }
     if(type==HELLO_FAST) {
         if(!id||length||checksum||extra) {error_response(id,FAILED,"invalid stream capability request");return;}
-        response(FAST_READY,id,0,0,0,3u);return;
+        response(FAST_READY,id,0,0,0,4u);return;
     }
     if(type==CANCEL) {
         if(!id||length||checksum||extra) {error_response(id,FAILED,"invalid cancel request");return;}
@@ -189,6 +243,7 @@ static void handle_header(void)
         discard_remaining=0;
         job=id;redraw=0;cancelled=0;fast_job=(type==UPLOAD_FAST);
         upload_crc=checksum;received=0;phase=RECEIVING;job_started=ticks();
+        input_crc_ticks=rx_copy_ticks=result_check_ticks=result_crc_ticks=0;
         rx_started=job_started;
         return;
     }
@@ -196,6 +251,9 @@ static void handle_header(void)
         if(!id||length||checksum||extra>4u) {error_response(id,FAILED,"invalid render request");return;}
         if(phase!=IDLE||(back_state()&1u)) {error_response(id,BUSY,"previous frame is unfinished; resume it first");return;}
         if(!has_frame) {
+            if(pipe_pl_frame) {
+                error_response(id,UPLOAD_REQUIRED,"upload a single image after leaving continuous stream mode");return;
+            }
             Xil_Out32(PL_REG_ADDRESS(VIDEO_MODE_ADDR),extra);dsb();
             if(Xil_In32(PL_REG_ADDRESS(VIDEO_MODE_ADDR))!=extra) {
                 error_response(id,FAILED,"display mode register readback mismatch");return;
@@ -203,6 +261,7 @@ static void handle_header(void)
             response(CONFIGURED,id,0,0,0,extra);return;
         }
         job=id;redraw=1;cancelled=0;fast_job=(type==RENDER_FAST);requested_mode=extra;
+        input_crc_ticks=rx_copy_ticks=result_check_ticks=result_crc_ticks=0;
         rx_started=rx_finished=ticks();
         if(Xil_In32(PL_REG_ADDRESS(VIDEO_MODE_ADDR))==extra&&result_mode==extra) {
             dma_started=dma_finished=rx_finished;prepare_result();phase=RESULT_READY;send_result();
@@ -239,18 +298,21 @@ static void handle_header(void)
 }
 static void consume(const u8 *bytes,u32 length)
 {
-    u32 amount;
+    u32 amount,actual_crc;u64 before;
     while(length) {
         if(discard_remaining) {
             amount=discard_remaining;if(amount>length)amount=length;
             discard_remaining-=amount;bytes+=amount;length-=amount;
         } else if(phase==RECEIVING) {
             amount=NET_INPUT_BYTES-received;if(amount>length)amount=length;
-            memcpy((void *)(UINTPTR)(IMG_DDR_BASE+received),bytes,amount);
+            before=ticks();memcpy((void *)(UINTPTR)(IMG_DDR_BASE+received),bytes,amount);
+            rx_copy_ticks+=ticks()-before;
             received+=amount;bytes+=amount;length-=amount;
             if(received==NET_INPUT_BYTES) {
                 rx_finished=ticks();
-                if(crc32_calc((const u8 *)IMG_DDR_BASE,NET_INPUT_BYTES)!=upload_crc) {
+                before=ticks();actual_crc=crc32_calc((const u8 *)IMG_DDR_BASE,NET_INPUT_BYTES);
+                input_crc_ticks=ticks()-before;
+                if(actual_crc!=upload_crc) {
                     phase=IDLE;error_response(job,FAILED,"upload CRC mismatch; PL was not started");
                 } else phase=READY;
             }
@@ -267,12 +329,14 @@ static err_t receive(void *arg,struct tcp_pcb *pcb,struct pbuf *p,err_t err)
     struct pbuf *part;(void)arg;
     if(!p) {
         client=0;
+        if(pipe_enabled)pipe_disconnect();
         if(phase==RECEIVING)phase=IDLE;
         tcp_arg(pcb,0);tcp_err(pcb,0);
         if(tcp_close(pcb)!=ERR_OK) {tcp_abort(pcb);return ERR_ABRT;}
         return ERR_OK;
     }
     if(err!=ERR_OK) {pbuf_free(p);return err;}
+    if(pipe_enabled)return pipe_receive(p);
     for(part=p;part;part=part->next)consume((const u8 *)part->payload,part->len);
     tcp_recved(pcb,p->tot_len);pbuf_free(p);
     return ERR_OK;
@@ -280,20 +344,22 @@ static err_t receive(void *arg,struct tcp_pcb *pcb,struct pbuf *p,err_t err)
 static void disconnected(void *arg,err_t error)
 {
     (void)arg;(void)error;client=0;
+    if(pipe_enabled)pipe_disconnect();
     if(phase==RECEIVING)phase=IDLE;
 }
 static err_t accept_client(void *arg,struct tcp_pcb *pcb,err_t err)
 {
     (void)arg;
     if(err!=ERR_OK)return err;
+    if(pipe_enabled) {tcp_abort(pcb);return ERR_ABRT;}
     if(client) {struct tcp_pcb *old=client;client=0;tcp_arg(old,0);tcp_err(old,0);tcp_abort(old);}
     if(phase==RECEIVING)phase=IDLE;
     client=pcb;header_used=discard_remaining=0;tx_header_used=HEADER_BYTES;tx_length=0;tx_offset=0;
-    tx_stream=0;
+    tx_stream=tx_report=0;
     tcp_arg(pcb,0);tcp_recv(pcb,receive);tcp_err(pcb,disconnected);tcp_nagle_disable(pcb);
     return ERR_OK;
 }
-int net_frame_busy(void) {return phase!=IDLE;}
+int net_frame_busy(void) {return phase!=IDLE||pipe_busy();}
 int net_frame_init(void)
 {
     ip_addr_t ip,mask,gw;struct tcp_pcb *listener,*bound;
@@ -309,16 +375,18 @@ int net_frame_init(void)
     tcp_accept(listener,accept_client);
     phase=IDLE;has_frame=0;cancelled=0;last_tcp=last_arp=last_rx=ticks();started=1;
     xil_printf("[network] DDR frame TCP server 192.168.1.10:%u\r\n",FRAME_TCP_PORT);
+    xil_printf("[network] TCP window=%u send=%u heap=%u; stream protocol=4\r\n",(unsigned)TCP_WND,(unsigned)TCP_SND_BUF,(unsigned)MEM_SIZE);
     return 0;
 }
 void net_frame_poll(void)
 {
-    u64 now;int status;u32 sr,first,i;const u32 *pixels=(const u32 *)IMG_RES_DDR_BASE;
+    u64 now,before;int status;u32 sr,first,i;const u32 *pixels=(const u32 *)IMG_RES_DDR_BASE;
     if(!started)return;
     xemacif_input(&interface);now=ticks();
     if(now-last_tcp>=COUNTS_PER_SECOND/4u) {tcp_tmr();last_tcp=now;}
     if(now-last_arp>=COUNTS_PER_SECOND*5ull) {etharp_tmr();last_arp=now;}
     if(now-last_rx>=COUNTS_PER_SECOND/10u) {xemacpsif_resetrx_on_no_rxdata(&interface);last_rx=now;}
+    if(pipe_enabled) {pipe_poll();return;}
     if(phase==READY) {
         if(redraw) {
             /* Arm the receiver before a mode change can launch a PL packet. */
@@ -345,12 +413,13 @@ void net_frame_poll(void)
             else {
                 Xil_DCacheInvalidateRange(IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);dsb();
                 dma_finished=ticks();
-                first=Xil_In32(PL_REG_ADDRESS(BACK_FRAME_MODE));
+                before=ticks();first=Xil_In32(PL_REG_ADDRESS(BACK_FRAME_MODE));
                 for(i=0;i<65536u&&((pixels[i]>>24)==255u);++i) { }
+                result_check_ticks=ticks()-before;
                 if(first>4u||i!=65536u||(redraw&&first!=requested_mode))fail_job("output RGBA/frame mode mismatch; rebuild PL/PS or reset board");
                 else {
                     result_mode=first;prepare_result();
-                    s2mm_stop();has_frame=1;
+                    s2mm_stop();has_frame=1;pipe_pl_frame=1;
                     if(cancelled) {
                         phase=IDLE;job=0;
                     } else {

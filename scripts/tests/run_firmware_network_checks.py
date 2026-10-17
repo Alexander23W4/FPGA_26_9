@@ -12,7 +12,7 @@ def main():
         path.write_text('#include "'+(ROOT/'scripts/tests/firmware_stubs.h').as_posix()+'"\n')
     compiler=Path('E:/Xilinx/Vivado/2023.2/tps/mingw/9.3.0/win64.o/nt/bin/gcc.exe')
     executable=OUT/'firmware_network_test.exe'
-    command=[str(compiler),'-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-parameter','-static',
+    command=[str(compiler),'-std=c11','-O2','-Wall','-Wextra','-Werror','-Wno-unused-parameter','-static',
              '-I'+str(OUT/'include'),'-I'+str(ROOT/'csrc/MID_plt/src'),
              str(ROOT/'scripts/tests/firmware_network_test.c'),str(ROOT/'csrc/MID_plt/src/drv_s2mm.c'),
              str(ROOT/'csrc/MID_plt/src/crc32.c'),'-o',str(executable)]

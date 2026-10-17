@@ -3,8 +3,8 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('p
 const source=fs.readFileSync(process.argv[2],'utf8');
 const script=source.match(/TAIL_SCRIPT = r"""<script>([\s\S]*?)<\/script>"""/)[1];
 const assets=path.join(path.dirname(process.argv[2]),'assets');
-const elements={},alerts=[],calls=[],paints=[],parameters=[],returned=[];
-let uploads=0,ctx;
+const elements={},alerts=[],calls=[],paints=[],parameters=[],returned=[],accepted=[],delivered=[];
+let uploads=0,ctx,controlsStarted=false,controlsDone=false,stopSent=false;
 const expectFailure=process.argv[4]==='failure';
 function element(){
   const context={createImageData:()=>({data:new Uint8ClampedArray(256*256*4)}),
@@ -26,27 +26,38 @@ class ScriptWorker{
     assert.strictEqual(url,'/assets/stream_worker.js');this.terminated=false;
     const self={postMessage:(message,transfer)=>{
       const copy=structuredClone(message,{transfer:transfer||[]});
+      if(copy.type==='result')delivered.push(copy.metadata);
       queueMicrotask(()=>{if(!this.terminated)this.onmessage({data:copy});});
     }};
-    this.env=vm.createContext({self,URLSearchParams,TextDecoder,DataView,Uint8Array,performance,
+    this.env=vm.createContext({self,URLSearchParams,TextDecoder,DataView,Uint8Array,performance,Date,setTimeout,clearTimeout,
       fetch:async(url,options)=>{
-        calls.push(url);uploads++;
-        const pending=fetch(process.argv[3]+url,options);
-        if(uploads===1&&!expectFailure){
+        calls.push(url);
+        const response=await fetch(process.argv[3]+url,options);
+        if(url.startsWith('/api/network/stream/enqueue')&&response.ok){
+          uploads++;accepted.push(new URL('http://x'+url));
+        }
+        if(!url.startsWith('/api/network/stream/result')||response.status!==200||
+           !response.headers.get('Content-Type').startsWith('application/octet-stream'))return response;
+        const bytes=await response.clone().arrayBuffer();
+        const size=new DataView(bytes).getUint32(0);
+        const metadata=JSON.parse(new TextDecoder().decode(new Uint8Array(bytes,4,size)));
+        returned.push(metadata);
+        if(!controlsStarted&&!expectFailure){
+          controlsStarted=true;
           elements.thresholdMode.setAttribute('aria-checked','true');elements.threshold.value='77';
           parameters.push(ctx.dshThrUpdate());
           elements.maskOpacity.value='35';parameters.push(emit('maskOpacityUpdate','click'));
           elements.fpgaOutputMode.value='3';parameters.push(emit('fpgaOutputMode','change'));
           elements.hdmiOutputToggle.setAttribute('aria-checked','true');
-          parameters.push(emit('hdmiOutputToggle','click'));
+          const hdmiOff=emit('hdmiOutputToggle','click');
+          parameters.push(hdmiOff);
+          parameters.push(hdmiOff.then(()=>emit('hdmiOutputToggle','click')));
+          Promise.all(parameters).then(()=>{controlsDone=true;});
         }
-        if(uploads===2&&!expectFailure)parameters.push(emit('hdmiOutputToggle','click'));
-        const response=await pending;
-        if(!response.ok)return response;
-        const bytes=await response.clone().arrayBuffer();
-        const size=new DataView(bytes).getUint32(0);
-        returned.push(JSON.parse(new TextDecoder().decode(new Uint8Array(bytes,4,size))));
-        if(uploads===3)ctx.dshStopStream();
+        if(!stopSent&&controlsDone&&metadata.stream.completed>=3&&metadata.mode===3&&
+           metadata.readback.actual_threshold===77&&metadata.readback.mask_transparency===35){
+          stopSent=true;ctx.dshStopStream();
+        }
         return response;
       }});
     vm.runInContext(fs.readFileSync(path.join(assets,'stream_worker.js'),'utf8'),this.env);
@@ -66,7 +77,8 @@ function frame(name,value){return {name,size:65536,webkitRelativePath:'CaseA/'+n
 (async()=>{
   await ctx.dshStartStream([frame('002.bin',2),frame('001.bin',1)]);await Promise.all(parameters);
   if(expectFailure){
-    assert.strictEqual(uploads,1);
+    assert(uploads>=1&&uploads<=12,'failure may retain at most four pending and eight in-flight inputs');
+    assert.strictEqual(returned.length,0);
     assert.strictEqual(vm.runInContext('dshStreamCompleted',ctx),0);
     assert.strictEqual(vm.runInContext('dshStreamIndex',ctx),0);
     assert.strictEqual(alerts.length,1);assert.match(alerts[0],/CRC/);
@@ -75,27 +87,39 @@ function frame(name,value){return {name,size:65536,webkitRelativePath:'CaseA/'+n
     console.log('FAST_GUI_FAILURE_OK: no next upload or cached preview after a corrupt return');return;
   }
   assert.deepStrictEqual(alerts,[]);
-  assert.strictEqual(uploads,3);
-  assert.strictEqual(vm.runInContext('dshStreamCompleted',ctx),3);
-  assert.strictEqual(vm.runInContext('dshStreamIndex',ctx),1);
+  assert(uploads>=4,'the initial four frames must be cached before board execution');
+  assert(returned.at(-1).stream.completed>=3);
+  assert.strictEqual(vm.runInContext('dshStreamCompleted',ctx),returned.at(-1).stream.completed);
+  assert.strictEqual(vm.runInContext('dshStreamIndex',ctx),(returned.at(-1).stream.index+1)%2);
   assert.strictEqual(elements.streamProcessedCanvas.getContext('2d').writes,undefined,
-    'all three transfers must finish while GUI repaint is withheld');
+    'queued transfers must finish while GUI repaint is withheld');
   assert(!calls.some(url=>url.startsWith('/api/image')||url.startsWith('/api/network/transfer')));
-  assert.deepStrictEqual(calls.filter(url=>url.startsWith('/api/network/frame')).map(url=>new URL('http://x'+url).searchParams.get('name')),
-    ['001.bin','002.bin','001.bin']);
-  assert.deepStrictEqual(returned.map(item=>item.mode),[0,3,3]);
-  assert.deepStrictEqual(returned.slice(1).map(item=>item.readback.actual_threshold),[77,77]);
-  assert.deepStrictEqual(returned.slice(1).map(item=>item.readback.mask_transparency),[35,35]);
+  assert(!calls.some(url=>url.startsWith('/api/network/frame')));
+  assert.deepStrictEqual(accepted.slice(0,4).map(url=>url.searchParams.get('name')),
+    ['001.bin','002.bin','001.bin','002.bin']);
+  accepted.forEach((url,sequence)=>assert.strictEqual(Number(url.searchParams.get('sequence')),sequence));
+  assert.strictEqual(returned[0].mode,0);
+  assert.strictEqual(returned.at(-1).mode,3);
+  assert.strictEqual(returned.at(-1).readback.actual_threshold,77);
+  assert.strictEqual(returned.at(-1).readback.mask_transparency,35);
   assert.strictEqual(elements.hdmiOutputToggle.getAttribute('aria-checked'),'true');
   assert.deepStrictEqual(calls.filter(url=>url.startsWith('/api/serial/hdmi_enable')),
     ['/api/serial/hdmi_enable?value=0','/api/serial/hdmi_enable?value=1']);
   assert.strictEqual(elements.dshRbThr.textContent,77);
   assert.strictEqual(elements.dshRbAlpha.textContent,'35%');
+  assert.match(elements.streamNetConfig.textContent,/65535 B/);
+  assert.match(elements.streamPsTiming.textContent,/输出CRC 2.50 ms/);
+  assert.match(elements.streamPcTiming.textContent,/结果HTTP/);
+  const browser=delivered.at(-1).timings_ms.browser;
+  for(const key of ['source_ms','http_ms','headers_ms','body_ms','decode_ms','http_overhead_ms'])
+    assert(Number.isFinite(browser[key])&&browser[key]>=0,key+' must remain measured in the worker');
+  assert(browser.server&&typeof browser.server==='object');
+  assert(browser.server.handler>=browser.server.preview_wait&&browser.server.preview_wait>=0);
   while(paints.length)paints.shift()();
   const canvas=elements.streamProcessedCanvas,rendered=canvas.getContext('2d').last;
   assert.strictEqual(canvas.attributes['data-result-job'],String(returned.at(-1).job));
   assert.strictEqual(rendered[3],255);assert.strictEqual(rendered[0],33);
-  assert.strictEqual(elements.streamOriginalCanvas.getContext('2d').last[0],1);
+  assert.strictEqual(elements.streamOriginalCanvas.getContext('2d').last[0],returned.at(-1).stream.index+1);
   assert.strictEqual(elements.comparisonProcessedLabel.textContent,'叠加掩膜流');
   // A later status-only response cannot repaint a cached image or clear either Canvas.
   const writes=canvas.getContext('2d').writes;

@@ -69,7 +69,10 @@ class FastStreamTests(unittest.TestCase):
                                      capture_output=True, text=True, encoding='utf-8', timeout=15)
             self.assertEqual(run.returncode, 0, run.stdout+run.stderr)
             self.assertIn('FAST_GUI_OK', run.stdout)
-            self.assertEqual((board.uploads, board.sent, board.acks, board.connections), (3,4,0,1))
+            self.assertGreaterEqual(board.uploads, 3)
+            self.assertEqual((board.sent, board.acks, board.connections), (board.uploads+board.renders,0,1))
+            self.assertEqual([image[0] for image in board.input_images],
+                             [index%2+1 for index in range(board.uploads)])
             self.assertEqual(hdmi_changes, [0,1])
     def test_full_receive_releases_ddr_without_any_png_or_disk_work(self):
         with running_board() as board, tempfile.TemporaryDirectory() as folder:
@@ -84,6 +87,11 @@ class FastStreamTests(unittest.TestCase):
                 self.assertNotEqual(result['job'], again['job'])
                 self.assertEqual(again['readback']['pl_interval'],
                                  {'sequence': 1, 'elapsed_ms': 20.0, 'write_stall_ms': 5.0})
+                detail=again['readback']['ps_detail']
+                self.assertEqual((detail['output_crc'],detail['tcp_enqueue'],detail['tcp_window_bytes']), (2.5,10.0,65535))
+                self.assertTrue(detail['optimized'])
+                for key in ('upload_send_ms','wait_header_ms','result_receive_ms','host_validate_ms','perf_receive_ms'):
+                    self.assertGreaterEqual(again['timings_ms'][key],0)
                 self.assertEqual((board.uploads, board.sent, board.acks, board.connections), (2, 2, 0, 1))
                 self.assertFalse(list(Path(folder).iterdir()))
             finally:
@@ -112,6 +120,27 @@ class FastStreamTests(unittest.TestCase):
                 self.assertEqual((board.uploads, board.resumes, board.sent, board.acks), (1,1,1,0))
             finally:
                 client.close()
+
+    def test_invalid_performance_crc_is_rejected(self):
+        with running_board() as board, tempfile.TemporaryDirectory() as folder:
+            board.bad_perf_crc=True
+            client=transfer.FrameTransferClient('127.0.0.1',board.server_address[1],folder,2)
+            try:
+                with self.assertRaisesRegex(ValueError,'performance trailer CRC'):
+                    client.receive_frame(INPUT)
+                self.assertEqual(board.acks,0)
+            finally:client.close()
+
+    def test_partial_performance_trailer_resumes_without_reupload(self):
+        with running_board() as board, tempfile.TemporaryDirectory() as folder:
+            board.drop_perf=True
+            client=transfer.FrameTransferClient('127.0.0.1',board.server_address[1],folder,2)
+            try:
+                result=client.receive_frame(INPUT)
+                self.assertEqual(result['raw'],board.raw)
+                self.assertEqual(result['readback']['ps_detail']['tcp_window_bytes'],65535)
+                self.assertEqual((board.uploads,board.resumes,board.acks),(1,1,0))
+            finally:client.close()
 
     def test_http_stream_never_encodes_png_or_saves_any_result(self):
         with fast_server() as (board, client, server, state, base):

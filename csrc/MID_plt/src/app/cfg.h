@@ -33,6 +33,12 @@
 #define IMG_RES_DDR_SIZE     262144u
 #define S2MM_BASEADDR        0x45000000u
 #define FRAME_TCP_PORT       5002u
+/* Continuous streams have separate, bounded DDR ownership. Keep these beyond
+ * the legacy 16 MiB image scratch region. Input: 256 KiB; output: 768 KiB. */
+#define STREAM_INPUT_BASE    0x21000000u
+#define STREAM_INPUT_SLOTS   4u
+#define STREAM_OUTPUT_BASE   0x21040000u
+#define STREAM_OUTPUT_SLOTS  3u
 
 /* ==========================================================================
  *  eMMC 布局

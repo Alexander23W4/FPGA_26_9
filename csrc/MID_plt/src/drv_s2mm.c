@@ -15,7 +15,11 @@ static void wr(u32 r,u32 v) { Xil_Out32(S2MM_BASEADDR+r,v); }
 int s2mm_arm(u32 address,u32 bytes)
 {
     u32 n;
-    if(address!=IMG_RES_DDR_BASE || bytes!=IMG_RES_DDR_SIZE) return -1;
+    if(bytes!=IMG_RES_DDR_SIZE) return -1;
+    if(address!=IMG_RES_DDR_BASE &&
+       (address<STREAM_OUTPUT_BASE ||
+        address>=STREAM_OUTPUT_BASE+STREAM_OUTPUT_SLOTS*IMG_RES_DDR_SIZE ||
+        (address-STREAM_OUTPUT_BASE)%IMG_RES_DDR_SIZE!=0u)) return -1;
     wr(CR,4u);
     for(n=0;n<1000000u && (rd(CR)&4u);++n) { }
     if(rd(CR)&4u) return -1;

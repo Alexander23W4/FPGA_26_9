@@ -2,12 +2,14 @@ import contextlib
 from pathlib import Path
 import socket
 import socketserver
+import queue
 import tempfile
 import threading
 import unittest
 from unittest.mock import patch
 from PIL import Image
 import frame_transfer as transfer
+from frame_pipeline import HELLO_PIPE, PIPE_READY, PIPE_UPLOAD, PIPE_RESULT
 
 INPUT=bytes(range(256))*256
 RAW=bytes([11,22,33,4])*65536
@@ -28,13 +30,52 @@ class MockBoard(socketserver.ThreadingTCPServer):
         # Existing tests retain the original fixed result pixels and event list.
         self.raw_factory=None;self.result_log=[]
         self.connections=0;self.fast=False;self.rgba=False;self.sent=0;self.drop_result=False
+        self.bad_perf_crc=False;self.drop_perf=False
+        self.pipeline_min_before_return=0
+        self.pipeline_received=threading.Event()
+        self.pipeline_first_return=threading.Event()
         self.threshold=128;self.manual=0;self.alpha=45
 
 class MockHandler(socketserver.BaseRequestHandler):
     def handle(self):
         self.server.connections+=1
         self.request.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
-        while self.handle_one():
+        self.pipeline_queue=None
+        try:
+            while self.handle_one():
+                pass
+        finally:
+            if self.pipeline_queue is not None:
+                self.pipeline_queue.put(None)
+                self.pipeline_sender.join(2)
+
+    def pipeline_send(self):
+        board=self.server
+        try:
+            while True:
+                entry=self.pipeline_queue.get()
+                if entry is None:return
+                job,image,mode=entry
+                if board.pipeline_min_before_return:
+                    if not board.pipeline_received.wait(3):raise AssertionError('sender waited for first return before next upload')
+                if board.stall_next:
+                    board.stall_next=False;board.stall_job=job;board.release_late.wait(5)
+                board.mode=mode
+                raw=bytes([33,22,11,255])*65536
+                if board.raw_factory is not None:raw=board.raw_factory(board,image)
+                board.raw=raw
+                if board.error_next:
+                    message=board.error_next.encode();board.error_next=None
+                    self.request.sendall(transfer.packet(transfer.ERROR,job,len(message),0,2)+message);return
+                meta=transfer.META.pack(4,0,board.manual,mode,board.threshold,board.threshold,1234,board.alpha,
+                                       1000,500,25000,504000,126000,board.uploads-1)
+                payload=meta+raw
+                self.request.sendall(transfer.packet(PIPE_RESULT,job,len(payload),transfer.crc(payload)^int(board.bad_crc),mode)+payload)
+                perf=transfer.PERF.pack(1,500,2500,10000,1000,64,2,600,100,65535,65535,1)
+                self.request.sendall(transfer.packet(transfer.PERF_FAST,job,len(perf),transfer.crc(perf)^int(board.bad_perf_crc))+perf)
+                board.result_log.append((job,mode,raw));board.sent+=1
+                board.pipeline_first_return.set()
+        except OSError:
             pass
 
     def handle_one(self):
@@ -42,8 +83,23 @@ class MockHandler(socketserver.BaseRequestHandler):
         try:
             magic,kind,job,length,checksum,extra=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))
             if magic!=transfer.MAGIC:raise AssertionError('magic')
+            if kind==HELLO_PIPE:
+                self.request.sendall(transfer.packet(PIPE_READY,job,extra=5))
+                self.pipeline_queue=queue.Queue()
+                self.pipeline_sender=threading.Thread(target=self.pipeline_send,daemon=True)
+                self.pipeline_sender.start()
+                return True
+            if kind==PIPE_UPLOAD:
+                assert self.pipeline_queue is not None and length==65536 and extra in range(5)
+                image=transfer.recv_exact(self.request,length)
+                assert transfer.crc(image)==checksum
+                board.input_images.append(image);board.uploads+=1;board.has_frame=True
+                board.events.append(('upload',extra))
+                if board.uploads>=board.pipeline_min_before_return:board.pipeline_received.set()
+                self.pipeline_queue.put((job,image,extra))
+                return True
             if kind==transfer.HELLO_FAST:
-                self.request.sendall(transfer.packet(transfer.FAST_READY,job,extra=3))
+                self.request.sendall(transfer.packet(transfer.FAST_READY,job,extra=4))
                 return True
             if kind==transfer.CANCEL:
                 assert length==checksum==extra==0
@@ -99,7 +155,7 @@ class MockHandler(socketserver.BaseRequestHandler):
             if board.stall_next:
                 board.stall_next=False;board.stall_job=job
                 board.release_late.wait(5)
-            meta=transfer.META.pack(3,0,board.manual,result_mode,board.threshold,board.threshold,1234,board.alpha,
+            meta=transfer.META.pack(4,0,board.manual,result_mode,board.threshold,board.threshold,1234,board.alpha,
                                     1000,500,25000,504000,126000,board.uploads-1)
             payload=meta+raw if board.fast else raw
             length=len(payload)-1 if board.bad_length else len(payload)
@@ -109,7 +165,12 @@ class MockHandler(socketserver.BaseRequestHandler):
                 board.drop_result=False;self.request.sendall(header+payload[:100]);return
             self.request.sendall(header[:7]);self.request.sendall(header[7:]+payload)
             if board.fast:
+                perf=transfer.PERF.pack(1,500,2500,10000,1000,64,2,600,100,65535,65535,1)
+                trailer=transfer.packet(transfer.PERF_FAST,job,len(perf),transfer.crc(perf)^int(board.bad_perf_crc))+perf
+                if board.drop_perf:
+                    board.drop_perf=False;self.request.sendall(trailer[:9]);return
                 board.sent+=1;board.done=True;board.last_crc=transfer.crc(payload)
+                self.request.sendall(trailer)
                 board.events.append(('sent',board.mode))
                 return True
             magic,kind,ack_job,ack_len,ack_crc,mode=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))

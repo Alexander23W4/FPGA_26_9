@@ -48,6 +48,9 @@ import os
 import shutil
 import sys
 import hashlib
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from network_bsp import load_profile, patch_inputs, verify_profile, verify_optimization
 
 # ------------------------------- 参数 ----------------------------------------
 if len(sys.argv) < 4:
@@ -428,13 +431,27 @@ else:
     restore_dir(stash, platform_dir)
     need_build = True
 
-# ---- BSP 的库：读 SD 卡要 xilffs + 长文件名（必须在第一次 build 之前配好）----
-if ENABLE_FS:
+# ---- Source-controlled network settings, applied before compiling the BSP. ----
+profile_path = os.path.join(workspace, app_name, "src", "config", "network_bsp.json")
+net_profile = load_profile(profile_path) if os.path.isfile(profile_path) else None
+if ENABLE_FS or net_profile:
     if ensure_net_lib(platform_obj):
         need_build = True
+if ENABLE_FS:
     if ensure_fs_lib(platform_obj):
         print("[build_ps] BSP changed -- platform will be rebuilt")
         need_build = True
+
+if net_profile:
+    domain = get_domain_or_die(platform_obj)
+    for param, setting in sorted(net_profile.items()):
+        if domain.set_config(option="lib", param=param, value=setting["value"], lib_name=NET_LIB) is not True:
+            raise RuntimeError("BSP set_config failed: " + param)
+    # The installed 2023.2 implementation returns None even on success. Verify
+    # generated inputs now, then audit compiled/exported settings after build.
+    domain.regenerate()
+    patch_inputs(os.path.join(platform_dir, CPU, DOMAIN, "bsp"), net_profile)
+    need_build = True
 
 # ---- Ethernet PHY 固定速率（同样必须在 build 之前）----
 if patch_link_speed():
@@ -454,6 +471,11 @@ if need_build:
     print("[build_ps] Platform build done")
 else:
     print("[build_ps] Platform already built -- SKIPPING platform build")
+
+if net_profile:
+    audit = verify_profile(os.path.join(platform_dir, CPU, DOMAIN, "bsp"),
+                           os.path.join(platform_dir, "export", platform_name, "sw", DOMAIN), net_profile)
+    print("NETWORK_BSP_OK " + audit)
 
 # ---------------------------- Application ------------------------------------
 # create_app_component 的 platform 参数要【字符串】(xpfm 路径)
@@ -505,6 +527,9 @@ except Exception as exc:
     print("!!!APP_BUILD_FAILED!!! " + str(exc))
     sys.exit(1)
 print("[build_ps] build status: " + str(status))
+if net_profile:
+    verify_optimization(os.path.join(app_dir, "build", "compile_commands.json"))
+    print("PS_OPTIMIZATION_OK -O2")
 
 # ------------------------------- 找 .elf -------------------------------------
 # 只在应用组件目录里找，避免误抓 platform 的 fsbl.elf

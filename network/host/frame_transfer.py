@@ -22,7 +22,9 @@ CANCEL = 9  # One-way: abandon this job; no result/acknowledgement is awaited.
 UPLOAD_FAST, RESULT_FAST, RENDER_FAST = 10, 11, 13
 HELLO_FAST, FAST_READY = 14, 15
 RESULT_RGBA = 16
-META = struct.Struct('!14I')  # v3: registers, PS timings, PL interval/stall/sequence
+PERF_FAST = 17
+META = struct.Struct('!14I')  # v4: same registers, followed by a PERF_FAST message
+PERF = struct.Struct('!12I')
 INPUT_BYTES = 65536
 OUTPUT_BYTES = 262144
 MODE_NAMES = ('denoise', 'contour', 'mask', 'overlay', 'heat')
@@ -85,7 +87,7 @@ def result_image(raw, mode):
 def decode_frame_metadata(data, mode):
     (version, system, threshold_mode, video, actual, manual, lesion, alpha,
      rx_us, setup_us, pl_us, interval_cycles, stall_cycles, interval_seq) = META.unpack(data)
-    if (version != 3 or system > 1 or threshold_mode > 1 or video != mode or
+    if (version != 4 or system > 1 or threshold_mode > 1 or video != mode or
             actual > 255 or manual > 255 or lesion > 65536 or alpha > 100):
         raise ValueError('invalid FPGA frame register snapshot')
     return {'ok': True, 'system_mode': system, 'mode': threshold_mode,
@@ -96,6 +98,18 @@ def decode_frame_metadata(data, mode):
             'pl_interval': {'sequence': interval_seq, 'elapsed_ms': interval_cycles/25200,
                             'write_stall_ms': stall_cycles/25200},
             'log': 'register snapshot received with frame over TCP'}
+
+
+def decode_frame_performance(data):
+    (version, check, output_crc, tx_queue, tx_copy, calls, waits, input_crc,
+     rx_copy, window, send_buffer, optimized) = PERF.unpack(data)
+    if version != 1 or optimized > 1 or not 0 < window <= 65535 or not 0 < send_buffer <= 65535:
+        raise ValueError('invalid FPGA performance trailer')
+    return {'output_check': check/1000, 'output_crc': output_crc/1000,
+            'tcp_enqueue': tx_queue/1000, 'tcp_copy': tx_copy/1000,
+            'input_crc': input_crc/1000, 'rx_copy': rx_copy/1000,
+            'tcp_write_calls': calls, 'tcp_wait_polls': waits,
+            'tcp_window_bytes': window, 'tcp_send_bytes': send_buffer, 'optimized': bool(optimized)}
 
 
 def saved_result_png(files, mode, checksum):
@@ -240,35 +254,54 @@ class FrameTransferClient:
             job = context['job']
             for attempt in range(3):
                 try:
+                    upload_ms = 0.0
                     with self._session(deadline) as sock:
                         if not self._fast_capable:
                             sock.sendall(packet(HELLO_FAST, job))
                             hello = receive_header(sock, job, deadline)
-                            if hello != (FAST_READY, 0, 0, 3):
+                            if hello != (FAST_READY, 0, 0, 4):
                                 raise ValueError('stream protocol unavailable; rebuild and flash PS firmware')
                             self._fast_capable = True
                         if context['uploaded']:
                             sock.sendall(packet(RESUME, job))
                         else:
                             context['uploaded'] = True
+                            upload_started = time.perf_counter()
                             sock.sendall(packet(operation, job, len(image), crc(image), mode or 0) + image)
+                            upload_ms = (time.perf_counter()-upload_started)*1000
+                        wait_started = time.perf_counter()
                         kind, length, checksum, returned_mode = receive_header(sock, job, deadline)
+                        header_received = time.perf_counter()
                         if kind != RESULT_FAST or length != OUTPUT_BYTES + META.size or returned_mode not in range(5):
                             raise ValueError('unexpected stream protocol; rebuild and flash PL/PS')
                         if mode is not None and returned_mode != mode:
                             raise ValueError('FPGA result mode mismatch')
                         payload = recv_exact(sock, length, deadline)
+                        payload_received = time.perf_counter()
                         if crc(payload) != checksum:
                             raise ValueError('FPGA result CRC mismatch')
                         readback = decode_frame_metadata(payload[:META.size], returned_mode)
                         raw = payload[META.size:]
                         if raw[3::4].count(255) != 65536:
                             raise ValueError('FPGA RGBA alpha must be 255')
+                        validated = time.perf_counter()
+                        kind, perf_length, perf_crc, extra = receive_header(sock, job, deadline)
+                        if kind != PERF_FAST or perf_length != PERF.size or extra:
+                            raise ValueError('missing FPGA performance trailer; rebuild PS')
+                        perf = recv_exact(sock, perf_length, deadline)
+                        if crc(perf) != perf_crc:
+                            raise ValueError('FPGA performance trailer CRC mismatch')
+                        readback['ps_detail'] = decode_frame_performance(perf)
                         context.update(raw=raw, readback=readback, crc=checksum, mode=returned_mode)
                         self.pending = None
                         return {'ok': True, 'job': job, 'mode': context['mode'], 'raw': context['raw'],
                                 'readback': context['readback'], 'frames': 1,
                                 'timings_ms': {'transfer_ms': (time.perf_counter() - started) * 1000,
+                                               'upload_send_ms': upload_ms,
+                                               'wait_header_ms': (header_received-wait_started)*1000,
+                                               'result_receive_ms': (payload_received-header_received)*1000,
+                                               'host_validate_ms': (validated-payload_received)*1000,
+                                               'perf_receive_ms': (time.perf_counter()-validated)*1000,
                                                'readback_ms': 0.0, 'pc_files_ms': 0.0}}
                 except RemoteError as error:
                     if 'timeout' in str(error).lower():

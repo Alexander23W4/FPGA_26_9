@@ -28,7 +28,9 @@ class StreamFolderTests(unittest.TestCase):
                                   capture_output=True, text=True, encoding='utf-8', timeout=15)
             self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
             self.assertIn('FAST_GUI_FAILURE_OK', result.stdout)
-            self.assertEqual((board.uploads, board.acks), (1,0))
+            self.assertGreaterEqual(board.uploads, 1)
+            self.assertLessEqual(board.uploads, 8, 'only the bounded in-flight set may have reached the board')
+            self.assertEqual(board.acks, 0)
             self.assertEqual(stale.read_bytes(), b'old file must not be read or overwritten')
 
 

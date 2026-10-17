@@ -1,0 +1,8 @@
+{
+  "lwip213_tcp_wnd": {"macro": "TCP_WND", "value": 65535},
+  "lwip213_tcp_snd_buf": {"macro": "TCP_SND_BUF", "value": 65535},
+  "lwip213_mem_size": {"macro": "MEM_SIZE", "value": 1048576},
+  "lwip213_memp_n_pbuf": {"macro": "MEMP_NUM_PBUF", "value": 128},
+  "lwip213_memp_n_tcp_seg": {"macro": "MEMP_NUM_TCP_SEG", "value": 1024},
+  "lwip213_pbuf_pool_size": {"macro": "PBUF_POOL_SIZE", "value": 512}
+}

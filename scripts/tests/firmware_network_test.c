@@ -14,7 +14,8 @@
 static u32 dma_regs[32],vdma_status=1,back_flags,video_mode=4,captured_mode=4;
 static unsigned dma_starts,ack_writes,flushes,invalidates,timer_calls;
 static u64 clock_ticks;
-static u8 wire_bytes[600000];static size_t wire_used;
+static u8 wire_bytes[2000000];static size_t wire_used;
+static u32 dma_input_address=IMG_DDR_BASE,window_returned;
 static u16_t credit;
 static struct tcp_pcb listener,peer;
 u32 Xil_In32(UINTPTR address)
@@ -31,7 +32,7 @@ u32 Xil_In32(UINTPTR address)
     if(address==PL_REG_ADDRESS(DATA_REG_ADDR)||address==PL_REG_ADDRESS(STATUS_ADDR))return 123;
     if(address==PL_REG_ADDRESS(LESION_ADDR))return 65432;
     if(address==PL_REG_ADDRESS(MASK_TRANSP_ADDR))return 45;
-    if(address==0xf8f00200u)return (u32)clock_ticks;
+    if(address==0xf8f00200u) {clock_ticks+=1000;return (u32)clock_ticks;}
     if(address==0xf8f00204u)return (u32)(clock_ticks>>32);
     if(address==0xf8f00208u)return 1;
     fprintf(stderr,"unexpected read %p\n",(void *)address);abort();
@@ -40,7 +41,7 @@ void Xil_Out32(UINTPTR address,u32 value)
 {
     if(address==(PL_CTRL_BASE+0xc0u)) {assert(value==1&&phase==RESULT_READY);++ack_writes;return;}
     if(address==PL_REG_ADDRESS(VIDEO_MODE_ADDR)) {
-        if(has_frame)assert(dma_regs[0x30/4]==1&&dma_regs[0x58/4]==IMG_RES_DDR_SIZE);
+        if(has_frame||pipe_pl_frame)assert(dma_regs[0x30/4]==1&&dma_regs[0x58/4]==IMG_RES_DDR_SIZE);
         video_mode=value;return;
     }
     if(address==0xf8f00208u)return;
@@ -50,9 +51,12 @@ void Xil_Out32(UINTPTR address,u32 value)
     dma_regs[(address-S2MM_BASEADDR)/4]=value;
 }
 void Xil_DCacheFlushRange(UINTPTR address,u32 bytes)
-{assert((address==IMG_DDR_BASE&&bytes==NET_INPUT_BYTES)||(address==IMG_RES_DDR_BASE&&bytes==IMG_RES_DDR_SIZE));++flushes;}
+{assert((address==IMG_DDR_BASE&&bytes==NET_INPUT_BYTES)||(address==IMG_RES_DDR_BASE&&bytes==IMG_RES_DDR_SIZE)||
+ (address>=STREAM_INPUT_BASE&&address<STREAM_INPUT_BASE+STREAM_INPUT_SLOTS*NET_INPUT_BYTES&&bytes==NET_INPUT_BYTES)||
+ (address>=STREAM_OUTPUT_BASE&&address<STREAM_OUTPUT_BASE+STREAM_OUTPUT_SLOTS*IMG_RES_DDR_SIZE&&bytes==IMG_RES_DDR_SIZE));++flushes;}
 void Xil_DCacheInvalidateRange(UINTPTR address,u32 bytes)
-{assert(address==IMG_RES_DDR_BASE&&bytes==IMG_RES_DDR_SIZE);++invalidates;}
+{assert(bytes==IMG_RES_DDR_SIZE&&(address==IMG_RES_DDR_BASE||
+ (address>=STREAM_OUTPUT_BASE&&address<STREAM_OUTPUT_BASE+STREAM_OUTPUT_SLOTS*IMG_RES_DDR_SIZE)));++invalidates;}
 void Xil_ExceptionEnable(void) {}
 void xil_printf(const char *format,...) {(void)format;}
 void lwip_init(void) {}void netif_set_default(struct netif *n) {(void)n;}
@@ -74,16 +78,16 @@ u16_t tcp_sndbuf(struct tcp_pcb *p) {(void)p;return credit;}
 err_t tcp_write(struct tcp_pcb *p,const void *bytes,u16_t length,u8 flags)
 {(void)p;assert(flags==TCP_WRITE_FLAG_COPY);if(length>credit)return ERR_MEM;assert(wire_used+length<=sizeof(wire_bytes));memcpy(wire_bytes+wire_used,bytes,length);wire_used+=length;credit-=length;return ERR_OK;}
 err_t tcp_output(struct tcp_pcb *p) {(void)p;return ERR_OK;}
-void tcp_recved(struct tcp_pcb *p,u16_t n) {(void)p;(void)n;}
+void tcp_recved(struct tcp_pcb *p,u16_t n) {(void)p;window_returned+=n;}
 u8 pbuf_free(struct pbuf *p) {(void)p;return 1;}
 err_t tcp_close(struct tcp_pcb *p) {(void)p;return ERR_OK;}
 void tcp_abort(struct tcp_pcb *p) {(void)p;}
 int vdma_alive(void) {return 1;}u32 vdma_mm2s_status(void) {return vdma_status;}
 int vdma_mm2s_reset(void) {vdma_status=1;return 0;}
 int vdma_mm2s_config(u32 address,u32 width,u32 height,u32 stride)
-{assert(address==IMG_DDR_BASE&&width==256&&height==256&&stride==256);return 0;}
+{assert((address==IMG_DDR_BASE||(address>=STREAM_INPUT_BASE&&address<STREAM_OUTPUT_BASE))&&width==256&&height==256&&stride==256);dma_input_address=address;return 0;}
 int vdma_mm2s_start(void)
-{assert(dma_regs[0x30/4]==1&&dma_regs[0x48/4]==IMG_RES_DDR_BASE&&dma_regs[0x58/4]==IMG_RES_DDR_SIZE);++dma_starts;vdma_status=0;return 0;}
+{assert(dma_regs[0x30/4]==1&&(dma_regs[0x48/4]==IMG_RES_DDR_BASE||dma_regs[0x48/4]>=STREAM_OUTPUT_BASE)&&dma_regs[0x58/4]==IMG_RES_DDR_SIZE);++dma_starts;vdma_status=0;return 0;}
 
 static void request(u32 kind,u32 id,u32 length,u32 checksum,u32 mode)
 {
@@ -105,16 +109,85 @@ static void upload(u32 id,int bad_crc)
 }
 static void complete_dma(int short_packet)
 {
-    u32 *output=(u32 *)IMG_RES_DDR_BASE,i;
+    u32 *output=(u32 *)(UINTPTR)dma_regs[0x48/4],i;
     captured_mode=video_mode;
-    for(i=0;i<65536u;++i)output[i]=0xffa50000u|(((i>>8)&255u)<<8)|(i&255u);
+    for(i=0;i<65536u;++i)output[i]=0xffa50000u|(((i>>8)&255u)<<8)|
+        (pipe_enabled?*(u8 *)(UINTPTR)dma_input_address:(i&255u));
     dma_regs[0x34/4]=0x1002u;dma_regs[0x58/4]=IMG_RES_DDR_SIZE-(short_packet?4u:0u);
-    if(!redraw)vdma_status=0x1001u;
+    if(pipe_enabled||!redraw)vdma_status=0x1001u;
     back_flags=0;
 }
 static void drain_result(void)
 {
     while(tx_header_used<24||tx_offset<tx_length) {credit=1024;net_frame_poll();}
+}
+static void test_pipeline(void)
+{
+    static u8 bytes[65536],fifth[124];u8 header[24];u32 i,before,pos;
+    struct pbuf p={0,fifth,sizeof(fifth),sizeof(fifth)},retry={0,bytes,1,1};
+    void *memory=VirtualAlloc((void *)(UINTPTR)STREAM_INPUT_BASE,0x100000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
+    assert(memory==(void *)(UINTPTR)STREAM_INPUT_BASE);
+    connect_host();request(HELLO_PIPE,100,0,0,0);credit=65535;net_frame_poll();
+    assert(pipe_enabled&&get32(wire_bytes+4)==PIPE_READY&&get32(wire_bytes+20)==5);
+    wire_used=0;credit=0;before=dma_starts;
+    for(i=0;i<4;++i) {
+        memset(bytes,10+i,sizeof(bytes));
+        put32(header,MAGIC);put32(header+4,PIPE_UPLOAD);put32(header+8,101+i);
+        put32(header+12,sizeof(bytes));put32(header+16,crc32_calc(bytes,sizeof(bytes)));put32(header+20,video_mode);
+        assert(pipe_consume(header,sizeof(header))==sizeof(header));
+        assert(pipe_consume(bytes,sizeof(bytes))==sizeof(bytes));
+    }
+    memset(bytes,14,sizeof(bytes));
+    memcpy(fifth,header,24);put32(fifth+8,105);put32(fifth+16,crc32_calc(bytes,sizeof(bytes)));
+    memcpy(fifth+24,bytes,100);
+    assert(receive(0,&peer,&p,ERR_OK)==ERR_OK);window_returned=0;
+    net_frame_poll();
+    assert(pipe_active&&dma_starts==before+1&&wire_used==0);
+    assert(pipe_held==&p&&pipe_part_offset==24&&window_returned==24);
+    assert(receive(0,&peer,&retry,ERR_OK)==ERR_MEM);
+    complete_dma(0);net_frame_poll();
+    assert(pipe_active&&dma_starts==before+2&&wire_used==0);
+    assert(pipe_out[0].state==P_RESULT); /* N+1 running before ANY N return bytes. */
+    net_frame_poll();assert(!pipe_held&&window_returned==sizeof(fifth));
+    assert(pipe_consume(bytes+100,sizeof(bytes)-100)==sizeof(bytes)-100);
+    complete_dma(0);net_frame_poll();assert(dma_starts==before+3);
+    complete_dma(0);net_frame_poll();
+    assert(!pipe_active&&dma_starts==before+3); /* Only a full output ring stalls. */
+    assert(*(u8 *)(UINTPTR)STREAM_OUTPUT_BASE==10);
+    assert(*(u8 *)(UINTPTR)(STREAM_OUTPUT_BASE+IMG_RES_DDR_SIZE)==11);
+    for(i=0;i<1000&&pipe_busy();++i) {
+        credit=65535;
+        if(pipe_active)complete_dma(0);
+        net_frame_poll();
+    }
+    assert(i<1000&&dma_starts==before+5);
+    pos=0;
+    for(i=0;i<5;++i) {
+        const u8 *h=wire_bytes+pos,*payload=h+24,*perf;
+        assert(get32(h+4)==PIPE_RESULT&&get32(h+8)==101+i);
+        assert(get32(h+12)==META_BYTES+IMG_RES_DDR_SIZE);
+        assert(get32(h+16)==crc32_calc(payload,META_BYTES+IMG_RES_DDR_SIZE));
+        assert(payload[META_BYTES]==10+i&&payload[META_BYTES+3]==255);
+        pos+=24+META_BYTES+IMG_RES_DDR_SIZE;h=wire_bytes+pos;perf=h+24;
+        assert(get32(h+4)==PERF_FAST&&get32(h+8)==101+i&&get32(h+16)==crc32_calc(perf,PERF_BYTES));
+        pos+=24+PERF_BYTES;
+    }
+    assert(pos==wire_used);
+    /* Changed mode first drains the automatically emitted OLD image, then
+     * launches the new input exactly once and tags only that output. */
+    memset(bytes,19,sizeof(bytes));put32(header+8,106);put32(header+16,crc32_calc(bytes,sizeof(bytes)));
+    put32(header+20,(video_mode+1)%5);pipe_consume(header,24);pipe_consume(bytes,sizeof(bytes));
+    before=dma_starts;net_frame_poll();assert(pipe_redraw&&pipe_active&&dma_starts==before);
+    complete_dma(0);net_frame_poll();assert(pipe_active&&!pipe_redraw&&dma_starts==before+1);
+    /* Disconnect drains the active frame before releasing DMA ownership. */
+    receive(0,&peer,0,ERR_OK);assert(pipe_enabled&&net_frame_busy());
+    complete_dma(0);net_frame_poll();assert(!pipe_enabled&&!net_frame_busy());
+    assert(s2mm_arm(STREAM_OUTPUT_BASE+1,IMG_RES_DDR_SIZE)<0);
+    assert(s2mm_arm(STREAM_OUTPUT_BASE+STREAM_OUTPUT_SLOTS*IMG_RES_DDR_SIZE,IMG_RES_DDR_SIZE)<0);
+    VirtualFree(memory,0,MEM_RELEASE);connect_host();
+    request(RENDER,107,0,0,(video_mode+1)%5);
+    assert(get32(tx_header+4)==ERROR&&get32(tx_header+20)==UPLOAD_REQUIRED);
+    puts("FIRMWARE_PIPELINE_OK: concurrent receive/DMA/TX, full-ring backpressure, pbuf retry, wrap, CRC/IDs, mode-redraw drain, disconnect");
 }
 int main(void)
 {
@@ -188,20 +261,25 @@ int main(void)
         for(i=0;i<sizeof(input);++i)input[i]=(u8)(i*7u);
         wire_used=0;
         request(HELLO_FAST,90,0,0,0);
-        assert(get32(tx_header+4)==FAST_READY&&get32(tx_header+20)==3&&phase==IDLE);
+        assert(get32(tx_header+4)==FAST_READY&&get32(tx_header+20)==4&&phase==IDLE);
         request(UPLOAD_FAST,90,sizeof(input),crc32_calc(input,sizeof(input)),0);
         consume(input,sizeof(input));net_frame_poll();complete_dma(0);net_frame_poll();
         assert(phase==RESULT_READY&&fast_job);
         /* A short TCP send window must retain DDR until the entire frame is copied. */
         credit=64;net_frame_poll();assert(phase==RESULT_READY&&tx_offset<tx_length);
         drain_result();assert(phase==IDLE&&last_done==90&&last_fast);
-        assert(wire_used==24+META_BYTES+IMG_RES_DDR_SIZE&&get32(wire_bytes+4)==RESULT_FAST);
+        assert(wire_used==24+META_BYTES+IMG_RES_DDR_SIZE+24+PERF_BYTES&&get32(wire_bytes+4)==RESULT_FAST);
         assert(get32(wire_bytes+12)==META_BYTES+IMG_RES_DDR_SIZE);
-        assert(get32(wire_bytes+24)==3&&get32(wire_bytes+24+12)==captured_mode);
+        assert(get32(wire_bytes+24)==4&&get32(wire_bytes+24+12)==captured_mode);
         assert(get32(wire_bytes+24+24)==65432&&get32(wire_bytes+24+28)==45);
         assert(get32(wire_bytes+24+44)==504000&&get32(wire_bytes+24+48)==126000&&get32(wire_bytes+24+52)==7);
         checksum=crc32_calc(wire_bytes+24,META_BYTES+IMG_RES_DDR_SIZE);
         assert(checksum==result_crc);
+        {const u8 *header=wire_bytes+24+META_BYTES+IMG_RES_DDR_SIZE,*perf=header+24;
+         assert(get32(header)==MAGIC&&get32(header+4)==PERF_FAST&&get32(header+8)==90);
+         assert(get32(header+12)==PERF_BYTES&&get32(header+16)==crc32_calc(perf,PERF_BYTES));
+         assert(get32(perf)==1&&get32(perf+8)>0&&get32(perf+12)>0&&get32(perf+16)>0);
+         assert(get32(perf+20)>0&&get32(perf+24)>0&&get32(perf+36)==65535&&get32(perf+40)==65535&&get32(perf+44)==1);}
         /* Resume after transmission replays the still-current DDR, with no GUI ACK. */
         wire_used=0;request(RESUME,90,0,0,0);drain_result();
         assert(phase==IDLE&&get32(wire_bytes+4)==RESULT_FAST&&dma_starts==before+1);
@@ -210,6 +288,7 @@ int main(void)
         assert(ack_writes==0);
 
     }
+    test_pipeline();
     before=dma_starts;
     upload(11,0);net_frame_poll();assert(dma_starts==before+1);complete_dma(1);net_frame_poll();
     assert(phase==FAULT&&ack_writes==0&&get32(tx_header+4)==ERROR);

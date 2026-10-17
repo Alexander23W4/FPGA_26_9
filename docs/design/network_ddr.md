@@ -4,14 +4,15 @@
 
 流模式现在由浏览器 Web Worker 独立收发；主线程只绘制 Canvas，不编码预览 PNG。
 原图仅上传一次，直接从本地灰度 BIN 绘制。回传每像素 R、G、B、255 四字节。
-PS 将整帧复制到 TCP 发送缓冲后释放输出 DDR；PC 收齐 RGBA 和随帧状态、校验通过就发送下一帧。
+PS 将整帧复制到 TCP 后释放对应输出 DDR 槽。Python 独立发送与接收线程并行，最多 8 帧在途；
+下一输入不再等待上一输出完整回传，只有有界缓存耗尽才暂停。
 流模式不发送 RECEIVED，不等待 DONE，也不等待 GUI 绘制。TCP 自身仍负责可靠传输。
 流模式完全在内存中收发和显示，不保存 BIN、不编码或保存 PNG，也没有磁盘保存队列。
 浏览器渲染跟不上时只绘制最新的完整帧，收发不等待绘制。原流从本地 BIN 直接绘制。
 单图及“全显示”仍使用落盘后 `SAVED` / `DONE`，保留失败重试和保存成功确认。
 
-正常连续收发复用一个 TCP 连接，断线后仍按 job_id 恢复；连接设置 TCP_NODELAY。
-新连接先以无图像负载的 HELLO_FAST 确认 PS 支持协议版本 3，防止把新协议图像发给旧固件。
+连续流复用一个全双工 TCP 连接，设置 TCP_NODELAY，以 HELLO_PIPE 确认协议 5。
+断线时停止此流并报错；已派发的硬件帧先排空，不自动重放或显示半帧。单图仍支持原任务恢复。
 随帧状态包含七个寄存器的快照并纳入同一 CRC，不再逐帧开串口发送 R。
 阈值/透明度写入与手动“请求FPGA状态”保留 UART，在流的帧间暂停处执行。
 PS CRC32 使用 1 KiB 常量查表，校验值保持 IEEE CRC32，与 Python binascii.crc32 一致；
@@ -20,10 +21,10 @@ PS CRC32 使用 1 KiB 常量查表，校验值保持 IEEE CRC32，与 Python bin
 处理模式的周期轮询只取 `/api/network/state` 元数据。初始页面/选图时才取原图，
 处理图随实际任务返回；流模式直接用回传 BIN 绘制，轮询不会重复编码或发送图像。
 
-本次修改了 PL 像素格式和模式锁存寄存器，需要重新综合 PL、构建 PS 并下载。仓库根目录 Git Bash：
+本次优化需重新构建 BSP/PS 并下载，沿用已有独立回传及 HDMI 开关位流。仓库根目录 Git Bash：
 
 ```bash
-./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
+./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
 ```
 
 然后停止原 GUI、重新运行 `bash ./network/launch_gui.sh` 并刷新网页。
@@ -53,6 +54,8 @@ PS 同时检查 MM2S 已完成且停止、S2MM 接收完成及实际字节数、
 | --- | --- | --- |
 | 输入 DDR | `0x20000000–0x2000FFFF` | 65,536 字节；逐行 256×256 灰度，无文件头 |
 | 输出 DDR | `0x20010000–0x2004FFFF` | 262,144 字节；65,536 个 `{255,B,G,R}` 32 位字（内存字节 RGBA） |
+| 连续流输入 DDR | `0x21000000–0x2103FFFF` | 4 × 64 KiB 输入槽 |
+| 连续流输出 DDR | `0x21040000–0x210FFFFF` | 3 × 256 KiB RGBA 输出槽 |
 | VDMA 控制 | `0x43000000` | 原 MM2S 通道 |
 | PL 控制 | `0x44000000` | 寄存器编号需乘 4 |
 | HDMI_EN | `0x44000010` | 编号 0x04；1 默认开启，0 关闭显示缓存读取及其缓存占用 |
@@ -124,16 +127,18 @@ PS 先启动 S2MM，再写模式寄存器；PL 在帧边界更新配置并回传
 
 “选择流文件夹”读取所选目录及子目录中的 `.bin`，按带数字的文件名顺序循环，
 每个文件仍须为 256×256×8-bit、65,536 字节。非 BIN 文件忽略；不合规格的 BIN 会在启动前报错。
-收发顺序为：本地读取 BIN → 上传一帧 → 收齐本次 BIN 与状态、CRC 校验 →
-下一帧。所有文件发完后从头继续。预览绘制独立执行，不是下一帧的前置条件；流不保存结果文件。
+浏览器向 Python 的 4 帧待发队列持续补帧，Python 允许最多 8 帧在途，独立收发两个方向。
+板端接收、DMA、TCP 发送分别持有 DDR 槽；收到有效输入且有输出槽即可处理，
+不会等待上一结果发送完。输出结果按 job_id 对应原帧；完整收齐并校验后才进入预览。
+所有文件发完后从头继续，流不保存结果文件。
 
 - 流模式禁用“全显示”；从全显示切入流时使用模式 0。
-- 阈值、透明度更新排队到当前帧完成后写寄存器，不额外发图；显示模式在下一帧生效。
+- 阈值、透明度更新先暂停派发并排空所有在途帧，再写寄存器，不额外发图；显示模式在下一帧生效。
 - 左下角只显示流文件夹名称。右侧保留上一次确认的回传，直到新的 BIN 成功接收。
 - 每一轮都实际启动新的上传/处理/回传任务，即使文件名、输入数据及全部参数相同。
   页面按新任务和结果版本更新，文件已经存在不会触发显示。
 - 流结果只显示在处理流黑框，不写入 `E:/fpga_done_img`，也不会读取已有同名文件。
-- 运行时按钮显示“停止流”；停止后等当前帧完整完成，不再发下一帧。
+- 运行时按钮显示“停止流”；停止后丢弃待派发输入，排空已经派发的帧，不再启动新任务。
   回传失败会停止循环并提示错误；状态随图像一并校验。
 
 ### 单帧任务的校验与恢复
@@ -165,8 +170,8 @@ PS 先启动 S2MM，再写模式寄存器；PL 在帧边界更新配置并回传
   未确认前发送不同图或切换任务模式会被拒绝。任务恢复信息保存在 GUI 进程内，等待期间不要重启 GUI。
 - 溢出、短包、DMA 错误或 PL 超时会使任务进入故障态，保留错误，要求复位并重新下载后再试。
   不自动 ACK 一张不完整的图片。普通网络中断和磁盘错误可按上述流程恢复。
-- HDMI 不接受回传分支反压。回传 FIFO 有限（默认 2048 像素），长期 DDR 反压仍可能溢出；
-  此时返回错误，不能把短包当作完整图片。
+- 独立回传读口随 S2MM 反压暂停发出 RAM 读请求，FIFO 预留在途像素空间。
+  DMA 错误、短包和溢出仍会报错，不能把不完整输出当作图片。
 
 ## 网络协议
 
@@ -189,15 +194,23 @@ PS 先启动 S2MM，再写模式寄存器；PL 在帧边界更新配置并回传
 | 11 | RESULT_FAST | 262200 | 56 字节状态/耗时 + 262144 字节 RGBA | mode |
 | 13 | RENDER_FAST | 0 | 无 | 请求 mode 0～4 |
 | 14 | HELLO_FAST | 0 | 无；新连接能力查询 | 0 |
-| 15 | FAST_READY | 0 | 无；支持 RGBA 无应用 ACK 流协议及 PL 区间计时 | 协议版本 3 |
+| 15 | FAST_READY | 0 | 无；串行兼容路径，带计时尾包 | 协议版本 4 |
 | 16 | RESULT_RGBA | 262144 | 单图/全显示 RGBA，落盘后仍用 SAVED/DONE | mode |
+| 17 | PERF_FAST | 48 | 细分计时、TCP 配置快照，独立 CRC | 0 |
+| 18 | HELLO_PIPE | 0 | 无；全双工流能力查询 | 0 |
+| 19 | PIPE_READY | 0 | 无；连续流协议确认 | 版本 5 |
+| 20 | PIPE_UPLOAD | 65536 | 输入灰度 BIN，可连续发送多帧 | 请求 mode 0～4 |
+| 22 | PIPE_RESULT | 262200 | 56 字节状态 + RGBA，后跟同 job 的消息 17 | mode |
 
 RESULT_FAST 的 56 字节状态为十四个大端 u32：
-`version=3, MODE, CMD_REG, FRAME_VIDEO_MODE, STATUS, DATA_REG, LESION, MASK_TRANSP, receive_us, setup_us, pl_to_ddr_us, return_interval_cycles, return_stall_cycles, return_interval_seq`。
+`version=4, MODE, CMD_REG, FRAME_VIDEO_MODE, STATUS, DATA_REG, LESION, MASK_TRANSP, receive_us, setup_us, pl_to_ddr_us, return_interval_cycles, return_stall_cycles, return_interval_seq`。
 CRC 覆盖状态与 RGBA 的拼接字节。接收、准备和 PL 到 DDR 耗时来自 A9 全局计时器。
 后三项来自 PL clk 域；周期数除以 25200 得到毫秒。首帧还没有跨帧区间，sequence 为 0。
 PS 使用 TCP_WRITE_FLAG_COPY；整帧复制成功后 TCP 自己持有发送/重传数据，DDR 才可复用。
-图模式继续等待 SAVED/DONE，流模式收齐并校验后直接开始下一帧；绘制只保留最新完整帧。
+图模式继续等待 SAVED/DONE。连续流输入与输出独立推进，job_id 严格匹配；绘制只保留最新完整帧。
+消息 17 为十二个大端 u32：`version=1, output_check_us, output_crc_us, tcp_enqueue_us,
+tcp_write_us, tcp_write_calls, tcp_wait_polls, input_crc_us, input_copy_us, TCP_WND, TCP_SND_BUF, optimized`。
+TCP 提交时间含发送缓冲/窗口等待，不等于对端收到或最终 ACK 的时间。
 
 SAVED/DONE 携带输出 CRC。RESUME/RENDER/CONFIGURED/CANCEL 的 CRC 为 0；ERROR 不使用 CRC。
 

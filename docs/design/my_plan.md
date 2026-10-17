@@ -5,7 +5,13 @@
 单图及全显示结果保存到 `E:/fpga_done_img`；流模式只在内存显示，不保存 BIN 或 PNG。
 完整地址、协议和重试说明见 [network_ddr.md](network_ddr.md)。
 
-“选择流文件夹”循环发送目录中的 BIN，等每帧完整回传并校验后立即发送下一帧，不等待 GUI 绘制。
+“选择流文件夹”循环发送目录中的 BIN。Python 待发送队列最多 4 帧（256 KiB），
+另允许最多 8 帧已提交任务；发送线程与接收线程并行，不再等待每帧回传后才发下一帧。
+板端使用 4 个输入 DDR 槽、3 个输出 DDR 槽。输入槽满时通过 TCP 接收窗口反压；
+输出槽满时暂停启动 DMA。下一帧 DMA 可以和上一帧 TCP 回传重叠。
+Python 预览队列最多 2 帧；浏览器保留最新待绘制帧，显示速度不会阻塞网络收发。
+暂停会停止派发并等待所有已提交帧完成，再更新参数；停止还会丢弃尚未派发的输入。
+本次需更新 PS 固件、重启 GUI 并刷新页面，连续流使用协议 5；单图保存流程继续使用原协议。
 流模式禁用全显示；阈值和透明度更新仅在帧间写寄存器；指标随每帧网口结果一起回传。
 
 回传已改为独立读取 `double_buf`，HDMI 和回传分别连接自己的 `out_arr`。
@@ -19,10 +25,10 @@ HDMI 关闭后，显示读口停止、显示读锁释放，写端只需保护回
 本次上板在仓库根目录 Git Bash 执行这一条：
 
 ```bash
-./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
+./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
 ```
 
-完成后重启 GUI（`bash ./network/launch_gui.sh`）并刷新网页；PS 与 GUI 流协议均已更新为版本 3。
+完成后重启 GUI（`bash ./network/launch_gui.sh`）并刷新网页；连续流协议为版本 5。本次只改 PS/GUI，已有独立回传和 HDMI 开关位流可继续使用。
 
 已接通叠加掩膜、伪彩色热力图及掩膜透明度。
 寄存器编号、实际 AXI 字节偏移、串口命令和验证方法见 [display_modes.md](display_modes.md)。
@@ -37,6 +43,7 @@ PC 的 Python 接收程序（内存）
 浏览器 Web Worker
     ↓
 Canvas：GUI 处理图的黑框
+
 
 ## 后续方向:
 上位机交互拓展方案: 
