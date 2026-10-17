@@ -6,7 +6,15 @@ validate_bd_design
 set before [get_property CONFIG.NUM_MI [get_bd_cells axi_interconnect_0]]
 ensure_return_dma
 ensure_return_dma
+ensure_processing_clock
+ensure_processing_clock
 validate_bd_design
+set proc_net [get_bd_nets -of_objects [get_bd_pins clk_wiz_proc/clk_out1]]
+foreach pin {top1_0/clk processing_system7_0/M_AXI_GP0_ACLK processing_system7_0/S_AXI_HP0_ACLK axi_dma_return/m_axi_s2mm_aclk axi_vdma_0/m_axis_mm2s_aclk rst_ps7_50M/slowest_sync_clk} {
+    if {[get_bd_nets -of_objects [get_bd_pins $pin]] ne $proc_net} {error "wrong processing clock: $pin"}
+}
+if {[get_bd_nets -of_objects [get_bd_pins top1_0/pclk]] eq $proc_net} {error "pixel clock migrated with processing clock"}
+if {[get_property CONFIG.CLK_HZ [get_bd_cells top1_0]] != 80000000} {error "wrong frequency register parameter"}
 if {[get_property CONFIG.NUM_MI [get_bd_cells axi_interconnect_0]] != $before} {error "DMA migration is not idempotent"}
 if {[get_property CONFIG.c_sg_length_width [get_bd_cells axi_dma_return]] < 19} {error "DMA length too narrow"}
 if {[get_property CONFIG.c_s_axis_s2mm_tdata_width [get_bd_cells axi_dma_return]] != 32} {error "stream width"}

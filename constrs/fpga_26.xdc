@@ -28,8 +28,9 @@ set_property PACKAGE_PIN N6 [get_ports {tmds_data_p[0]}]
 set_property PACKAGE_PIN T2 [get_ports tmds_tx_p]
 
 # HDMI 串行移位寄存器每 5 个 126 MHz 周期才从 25.2 MHz 域重新取数。
-set_multicycle_path -setup 5 -from [get_clocks clk_out1_system_clk_wiz_0_0_1] -to [get_clocks clk_out2_system_clk_wiz_0_0_1]
-set_multicycle_path -hold -end 4 -from [get_clocks clk_out1_system_clk_wiz_0_0_1] -to [get_clocks clk_out2_system_clk_wiz_0_0_1]
+set pixel_clock [get_clocks -quiet -filter {NAME =~ clk_out1*clk_wiz_0*}]
+set serial_clock [get_clocks -quiet -filter {NAME =~ clk_out2*clk_wiz_0*}]
+set_multicycle_path -setup 5 -from $pixel_clock -to $serial_clock
+set_multicycle_path -hold -end 4 -from $pixel_clock -to $serial_clock
 
-# Keep CDC exceptions narrow: missing crossings must remain visible to STA.
-source [file join [file dirname [info script]] processing_cdc.tcl]
+# processing_cdc.xdc is loaded separately, late, by the project scripts.

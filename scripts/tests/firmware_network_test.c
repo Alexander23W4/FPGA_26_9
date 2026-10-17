@@ -12,6 +12,7 @@
 #include "../../csrc/MID_plt/src/net_frame.c"
 
 static u32 dma_regs[32],vdma_status=1,back_flags,video_mode=4,captured_mode=4;
+static u32 processing_hz=100000000;
 static unsigned dma_starts,ack_writes,flushes,invalidates,timer_calls;
 static u64 clock_ticks;
 static u8 wire_bytes[2000000];static size_t wire_used;
@@ -27,6 +28,7 @@ u32 Xil_In32(UINTPTR address)
     if(address==PL_REG_ADDRESS(RETURN_INTERVAL))return 504000;
     if(address==PL_REG_ADDRESS(RETURN_STALL))return 126000;
     if(address==PL_REG_ADDRESS(RETURN_SEQ))return 7;
+    if(address==PL_REG_ADDRESS(CLOCK_HZ))return processing_hz;
     if(address==PL_REG_ADDRESS(MODE_ADDR))return 0;
     if(address==PL_REG_ADDRESS(CMD_REG_ADDR))return 1;
     if(address==PL_REG_ADDRESS(DATA_REG_ADDR)||address==PL_REG_ADDRESS(STATUS_ADDR))return 123;
@@ -346,9 +348,12 @@ int main(void)
         drain_result();assert(phase==IDLE&&last_done==90&&last_fast);
         assert(wire_used==24+META_BYTES+IMG_RES_DDR_SIZE+24+PERF_BYTES&&get32(wire_bytes+4)==RESULT_FAST);
         assert(get32(wire_bytes+12)==META_BYTES+IMG_RES_DDR_SIZE);
-        assert(get32(wire_bytes+24)==4&&get32(wire_bytes+24+12)==captured_mode);
+        assert(get32(wire_bytes+24)==5&&get32(wire_bytes+24+12)==captured_mode);
         assert(get32(wire_bytes+24+24)==65432&&get32(wire_bytes+24+28)==45);
-        assert(get32(wire_bytes+24+44)==504000&&get32(wire_bytes+24+48)==126000&&get32(wire_bytes+24+52)==7);
+        assert(get32(wire_bytes+24+44)==5040&&get32(wire_bytes+24+48)==1260&&get32(wire_bytes+24+52)==7);
+        processing_hz=150000000;assert(pl_micros(504000)==3360);
+        processing_hz=0;assert(pl_micros(504000)==20000);
+        processing_hz=100000000;
         checksum=crc32_calc(wire_bytes+24,META_BYTES+IMG_RES_DDR_SIZE);
         assert(checksum==result_crc);
         {const u8 *header=wire_bytes+24+META_BYTES+IMG_RES_DDR_SIZE,*perf=header+24;

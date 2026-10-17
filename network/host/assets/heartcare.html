@@ -121,5 +121,23 @@
   </div>
   <footer class="workspace-footer"><span>Heartcare <span class="footer-dot">·</span> 心脏超声图像工作台</span><span id="currentModeCaption">图像处理模式</span></footer>
 </main>
+<dialog id="imageViewer" class="image-viewer" aria-labelledby="imageViewerTitle">
+  <header class="image-viewer-header">
+    <h3 id="imageViewerTitle">图像查看</h3>
+    <div class="image-viewer-actions">
+      <button id="imageViewerZoomOut" type="button" aria-label="缩小图像">−</button>
+      <output id="imageViewerScale" aria-label="图像缩放比例">100%</output>
+      <button id="imageViewerZoomIn" type="button" aria-label="放大图像">+</button>
+      <button id="imageViewerFit" type="button">适应窗口</button>
+      <button id="imageViewerActual" type="button">原始大小</button>
+      <button id="imageViewerClose" class="icon-button" type="button" aria-label="关闭图像查看"><svg aria-hidden="true"><use href="#icon-close"/></svg></button>
+    </div>
+  </header>
+  <div id="imageViewerStage" class="image-viewer-stage">
+    <img id="imageViewerImage" alt="" draggable="false">
+  </div>
+  <p class="image-viewer-help">滚轮缩放 · 拖动平移 · 双击适应窗口 · Esc 关闭</p>
+</dialog>
 <script src="/assets/heartcare.js"></script>
+<script src="/assets/image_viewer.js"></script>
 </body></html>

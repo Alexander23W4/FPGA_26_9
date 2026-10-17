@@ -87,6 +87,7 @@ Examples:
 Environment overrides:
   XILINX_ROOT   default /e/Xilinx        e.g. XILINX_ROOT=/d/Xilinx
   VIVADO_VER    default 2023.2
+  PL_CLK_MHZ    default 80             processing/AXI only; HDMI stays 25.2/126 MHz
 
 Outputs are archived under:
   build/out/<YYYY-MM-DD_HHMMSS>_<gitshort>[ -dirty]/

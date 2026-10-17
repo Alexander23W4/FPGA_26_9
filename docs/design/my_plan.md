@@ -1,5 +1,9 @@
 ## 当前显示功能和地址表
 
+**2026-10-17 时钟更新：处理时钟默认候选 80 MHz，HDMI 保持 25.2/126 MHz。**
+已补全换帧确认、配置和复位 CDC，局部布线及异频测试结果见 [processing_clock.md](processing_clock.md)。
+正式上板须同时重建 PL/PS，使用下方命令。
+
 当前发图已改为 `GUI → 网口 → DDR → PL → S2MM → DDR → 网口 → PC`。
 输出为 RGBA（每像素 R、G、B、255），使用 `0x20010000–0x2004FFFF`；真实模式随帧状态回传。
 单图及全显示结果保存到 `E:/fpga_done_img`；流模式只在内存显示，不保存 BIN 或 PNG。
@@ -15,7 +19,7 @@ Python 预览队列最多 2 帧；浏览器保留最新待绘制帧，显示速�
 流模式禁用全显示；阈值和透明度更新仅在帧间写寄存器；指标随每帧网口结果一起回传。
 
 回传已改为独立读取 `double_buf`，HDMI 和回传分别连接自己的 `out_arr`。
-无 S2MM 反压时读完一帧约 2.601 ms，不再等待 HDMI 帧边界或扫描空白。
+无 S2MM 反压时读完一帧约 65541 个处理周期（25.2 MHz 时 2.601 ms、80 MHz 时 0.819 ms），不再等待 HDMI 帧边界或扫描空白。
 仍采用两个 bank；HDMI 开启时，写端等待 HDMI 和回传端释放目标 bank。
 HDMI 关闭后，显示读口停止、显示读锁释放，写端只需保护回传读端，不再等待 HDMI 换帧。
 图像模式重新开启 HDMI 会重发当前图片；流模式在帧间写开关，后续帧继续发送，不额外发图。
@@ -25,10 +29,10 @@ HDMI 关闭后，显示读口停止、显示读锁释放，写端只需保护回
 本次上板在仓库根目录 Git Bash 执行这一条：
 
 ```bash
-./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
+./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
 ```
 
-完成后重启 GUI（`bash ./network/launch_gui.sh`）并刷新网页；连续流协议为版本 6。本次只改 PS/GUI，已有独立回传和 HDMI 开关位流可继续使用。
+完成后重启 GUI（`bash ./network/launch_gui.sh`）并刷新网页；连续流协议为版本 6，计时元数据兼容版本 4/5。本次时钟与 CDC 修改需要更新 PL/PS，不能只烧原位流。
 
 已接通叠加掩膜、伪彩色热力图及掩膜透明度。
 寄存器编号、实际 AXI 字节偏移、串口命令和验证方法见 [display_modes.md](display_modes.md)。

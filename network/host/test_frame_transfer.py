@@ -205,6 +205,14 @@ def running_board():
         board.shutdown();board.server_close();thread.join(2)
 
 class FrameTransferTests(unittest.TestCase):
+    def test_pl_intervals_support_old_ticks_and_new_frequency_independent_units(self):
+        for version, interval, stall in ((4,504000,126000),(5,20000,5000)):
+            metadata = transfer.META.pack(version,0,0,4,128,128,1234,45,
+                                          1000,500,25000,interval,stall,7)
+            result = transfer.decode_frame_metadata(metadata,4)
+            self.assertEqual(result['pl_interval'],
+                             {'sequence':7,'elapsed_ms':20.0,'write_stall_ms':5.0})
+
     def test_timeout_discards_job_without_resume_and_next_image_starts_fresh(self):
         with running_board() as board,tempfile.TemporaryDirectory() as folder:
             board.stall_next=True

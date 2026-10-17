@@ -132,6 +132,14 @@ puts "\[build_zynq\] Bitstream done"
 if {$name eq "fpga_26"} {
     open_run impl_1
     verify_pl_registers [file join $pdir $name register_audit.txt]
+    verify_implemented_timing [file join $pdir $name implemented_timing.rpt]
+    set processing [get_clocks -quiet -filter {NAME =~ clk_out1*clk_wiz_proc*}]
+    set pixel [get_clocks -quiet -filter {NAME =~ clk_out1*clk_wiz_0*}]
+    if {[llength $processing] != 1 || [llength $pixel] != 1} {
+        error "!!!CLOCKS_MISSING!!! Expected separate processing and pixel clocks"
+    }
+    report_cdc -from $processing -to $pixel -details -file [file join $pdir $name cdc_to_pixel.rpt]
+    report_cdc -from $pixel -to $processing -details -file [file join $pdir $name cdc_from_pixel.rpt]
 }
 
 # --------------------------- 4. 导出硬件平台 .xsa ---------------------------

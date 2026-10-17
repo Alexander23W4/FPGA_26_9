@@ -12,7 +12,7 @@
 // automatic mode uses the Otsu partition <= t / > t.
 `timescale 1ns / 1ps
 
-module top_threshold_demo #(parameter integer CLK_HZ = 100000000) (
+module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
     // ---- System ----
     input  wire        clk,               // processing clock
     input  wire        rst_n,             // reset, active low

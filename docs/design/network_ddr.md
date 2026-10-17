@@ -1,5 +1,9 @@
 # GUI 单帧与流网口往返
 
+**当前时钟/CDC 更新需要同时重建 PL 和 PS**，命令和实测见
+[processing_clock.md](processing_clock.md)。下节“沿用已有位流”仅指此前的网络优化。
+元数据版本 5 保持 56 字节长度，interval/stall 两字段改用微秒；版本 4 继续按 25.2 MHz ticks 兼容解析。
+
 ## 连续流优化（2026-10-17）
 
 流模式现在由浏览器 Web Worker 独立收发；主线程只绘制 Canvas，不编码预览 PNG。

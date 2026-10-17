@@ -33,20 +33,20 @@ module tb_hdmi_out;
     reg hold_return=0;
     reg [31:0] mode=3,alpha=50;
     wire [31:0] mode_pclk,alpha_pclk;
-    reg [2:0] done_sync=0;
-    reg [1:0] bank_sync=0;
-    always @(posedge pclk) begin
-        if(rst)begin done_sync<=0;bank_sync<=0;end
-        else begin done_sync<={done_sync[1:0],display_ready};bank_sync<={bank_sync[0],display_bank};end
-    end
+    wire done_sync,bank_sync,accepted_pclk,accepted_clk,display_disabled;
+    display_frame_cdc frame_cdc(.clk(clk),.pclk(pclk),.rst(rst),
+        .publish_toggle(display_ready),.publish_bank(display_bank),
+        .accepted_toggle(accepted_pclk),.display_enable(1'b1),.display_read_lock(display_lock),
+        .frame_toggle(done_sync),.frame_bank(bank_sync),.accepted(accepted_clk),.disabled(display_disabled));
     display_cfg_cdc cdc(.clk(clk),.pclk(pclk),.rst(rst),.mode_in(mode),.alpha_in(alpha),
         .mode_out(mode_pclk),.alpha_out(alpha_pclk));
     hdl_out writer(.clk(clk),.rst(rst),.hdl_data(pixel),.hdl_mask(mask),.hdl_contour(contour),
         .hdl_valid(valid),.hdl_eof(last),.hdl_ready(ready),
         .buf_idx(write_bank),.buf_addr(write_addr),.buf_data(write_data),
         .buf_mask(write_mask),.buf_contour(write_contour),.en(write_en),
-        .read_buf_idx(read_bank),.back_read_lock(1'b0),.back_read_idx(1'b0),
-        .hdmi_enable(1'b1),.display_armed(1'b1),.display_read_lock(display_lock),
+        .display_ack_toggle(accepted_clk),.display_disabled(display_disabled),
+        .back_read_lock(1'b0),.back_read_idx(1'b0),
+        .hdmi_enable(1'b1),.display_armed(1'b1),
         .display_ready_toggle(display_ready),.display_buf_idx(display_bank),
         .frame_ready_toggle(frame_ready),.dbg_status(writer_debug));
     double_buf memory(.clk(clk),.pclk(pclk),.write_en(write_en),.write_buf_idx(write_bank),
@@ -60,7 +60,7 @@ module tb_hdmi_out;
         .vid_r(r),.vid_g(g),.vid_b(b),.vid_hs(hs),.vid_vs(vs),.vid_de(de),
         .frame_start(frame_start),.image_active(image_active),
         .new_frame(new_frame),
-        .frame_ready_toggle(done_sync[2]),.write_idx_sync(bank_sync[1]),.dbg_status(hdmi_debug));
+        .frame_ready_toggle(done_sync),.write_idx_sync(bank_sync),.accepted_toggle(accepted_pclk),.dbg_status(hdmi_debug));
     out_arr formatter(.pclk(pclk),.rst(rst),
         .buf_data(read_data),.buf_mask(read_mask),.buf_contour(read_contour),
         .vid_r(arr_r),.vid_g(arr_g),.vid_b(arr_b),

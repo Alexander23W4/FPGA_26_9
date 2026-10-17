@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module top1 #(
-    parameter integer CLK_HZ = 100000000,
+    parameter integer CLK_HZ = 80000000,
     parameter integer PIXEL_W = 8,      // 像素位宽: 8bit 灰度
     // Legacy BD parameter retained for project compatibility; the current
     // 256x256 denoise RTL is enabled in this pipeline.
@@ -106,6 +106,7 @@ module top1 #(
 );
 
 
+    wire rst_clk, rst_pclk, rst_x5;
     wire [PIXEL_W-1:0] px_data;
     wire px_valid, px_eof, px_sof, px_eol, px_ready;
     axi2px #(.TDATA_W(64), .PIXEL_W(PIXEL_W), .H_PIXELS(256), .V_PIXELS(256)) u_axi2px (
@@ -124,7 +125,6 @@ module top1 #(
     wire [7:0] back_frame_mode;
     (* MARK_DEBUG = "TRUE" *) wire back_busy, back_overflow, back_frame_sent;
     wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq;
-    wire rst_clk, rst_pclk, rst_x5;
     reset_sync u_rst_clk(.clk(clk), .arst(rst), .rst(rst_clk));
     reset_sync u_rst_pclk(.clk(pclk), .arst(rst), .rst(rst_pclk));
     reset_sync u_rst_x5(.clk(pclk_x5), .arst(rst), .rst(rst_x5));

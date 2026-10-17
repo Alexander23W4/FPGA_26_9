@@ -3,7 +3,7 @@
 // Register numbers match config/pl_cmd.h. AXI carries BYTE addresses:
 // MODE=0x00, CMD=0x04, VIDEO=0x08, STATUS=0x0c, HDMI_EN=0x10,
 // DATA=0x80, AREA=0x84, MASK_TRANSP=0x88, BACK_STATUS=0xc4, BACK_FRAME_MODE=0xc8.
-module axi_lite_slave #(parameter integer CLK_HZ = 100000000) (
+module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
     input wire s_axi_aclk, input wire s_axi_aresetn,
     input wire [31:0] s_axi_awaddr, input wire s_axi_awvalid,
     output wire s_axi_awready,
