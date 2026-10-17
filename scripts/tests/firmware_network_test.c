@@ -213,4 +213,9 @@ int main(void)
     before=dma_starts;
     upload(11,0);net_frame_poll();assert(dma_starts==before+1);complete_dma(1);net_frame_poll();
     assert(phase==FAULT&&ack_writes==0&&get32(tx_header+4)==ERROR);
-    request(CANCEL,11,0,0,0);assert(phase==FAULT&
+    request(CANCEL,11,0,0,0);assert(phase==FAULT&&cancelled&&tx_length==0);
+    clock_ticks=COUNTS_PER_SECOND;net_frame_poll();assert(timer_calls>0);
+    VirtualFree(memory,0,MEM_RELEASE);
+    puts("FIRMWARE_NETWORK_OK: upload/render, PC-save ownership, resume, cancel/drain, stale cancel protection, CRC, short DMA");
+    return 0;
+}

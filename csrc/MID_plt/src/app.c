@@ -149,7 +149,7 @@ static const app_cmd_t cmds[] = {
     { CMD_IMG_TO_DDR,  "D ddr",  "eMMC -> DDR: VDMA sends exactly ONE frame", feat_img2ddr_run },
     { CMD_EMMC_CLEAR,  "E clear","clear the eMMC image catalog", feat_emmc_clear_run },
     { CMD_THRESHOLD,   "T thr",  "2 bytes: mode (0 auto/1 manual), threshold", cmd_threshold_set },
-    { CMD_READBACK,    "R rdbk", "read WORD regs 00/01/02/03/20/21/22", cmd_readback },
+    { CMD_READBACK,    "R rdbk", "read control/status regs and return timing 33/34/35", cmd_readback },
     { CMD_VIDEO_MODE,  "V vmod", "1 byte: 0 gray/1 contour/2 mask/3 overlay/4 heatmap", cmd_video_mode },
     { CMD_MASK_TRANSP, "P alpha","1 byte: overlay opacity 0 transparent..100 solid", cmd_mask_transparency },
     { CMD_SYSTEM_MODE, "M mode", "1 byte: 0 image/1 medical (algorithm reserved)", cmd_system_mode },

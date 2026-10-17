@@ -3,8 +3,8 @@
 /*
 读写通道分离
 
-建立两个 256x256x8的 BRAM 存储区
-buf_idx 选择 read/write 的存储区
+建立两个 256x256 的 BRAM 存储区，每个保存灰度、mask、contour
+HDMI 与回传各有独立读地址和 bank 选择；clk 口由写端/回传分时使用
 
 
 */

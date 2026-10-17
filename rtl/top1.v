@@ -120,6 +120,7 @@ module top1 #(
     wire ts_contour, ts_mask, hdl_valid, hdl_eof, hdl_ready;
     wire [31:0] video_mode, mask_transparency;
     wire [7:0] back_frame_mode;
+    (* MARK_DEBUG = "TRUE" *) wire back_busy, back_overflow, back_frame_sent;
     wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq;
     (* ASYNC_REG = "TRUE" *) reg [7:0] back_mode_meta,back_mode_sync;
     (* ASYNC_REG = "TRUE" *) reg [2:0] back_status_meta,back_status_sync;
@@ -196,7 +197,6 @@ module top1 #(
     wire hdmi_image_active, hdmi_frame_start;
     wire hdmi_new_frame, arr_vid_valid, arr_vid_sof;
     wire [31:0] arr_video_mode;
-    (* MARK_DEBUG = "TRUE" *) wire back_busy, back_overflow, back_frame_sent;
     wire back_read_idx, back_read_lock, back_read_en, back_source_ready;
     wire [15:0] back_read_addr;
     wire [7:0] back_read_data, back_r, back_g, back_b;

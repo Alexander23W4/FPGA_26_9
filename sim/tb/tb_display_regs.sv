@@ -22,6 +22,7 @@ module tb_display_regs;
         .status_in(32'd128),.reg_video_mode(video),.lesion_pixels(17'd65536),
         .reg_mask_transparency(alpha),
         .back_frame_mode(8'd4), .back_status(3'b001)
+        ,.return_interval_cycles(32'd504000), .return_stall_cycles(32'd126000), .return_interval_seq(32'd7)
     );
     always @(posedge clk) if(rst_n && host_wr) writes=writes+1;
     task automatic wr(input [31:0] address,value,input [3:0] enables,
@@ -83,6 +84,8 @@ module tb_display_regs;
         rd('hc0,0,2);wr('hc0,1,4'hf,0,4,2);
         rd('hc4,1,0);wr('hc4,0,4'hf,0,0,2);rd('hc4,1,0);
         rd('hc8,4,0);wr('hc8,1,4'hf,4,0,2);rd('hc8,4,0);
+        rd('hcc,504000,0);rd('hd0,126000,0);rd('hd4,7,0);
+        wr('hcc,1,4'hf,0,0,2);wr('hd0,1,4'hf,0,0,2);wr('hd4,1,4'hf,0,0,2);
         wr('h80,99,4'hf,0,3,0);rd('h80,99,0);
         $display("[PASS] tb_display_regs: aligned map, WSTRB, area=65536, removed ACK address, latched mode RO and held responses");
         $finish;

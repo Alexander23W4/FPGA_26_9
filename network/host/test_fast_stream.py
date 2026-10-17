@@ -77,6 +77,8 @@ class FastStreamTests(unittest.TestCase):
                 self.assertEqual(result['readback']['lesion_pixels'], 1234)
                 self.assertEqual(result['readback']['actual_threshold'], 128)
                 self.assertNotEqual(result['job'], again['job'])
+                self.assertEqual(again['readback']['pl_interval'],
+                                 {'sequence': 1, 'elapsed_ms': 20.0, 'write_stall_ms': 5.0})
                 self.assertEqual((board.uploads, board.sent, board.acks, board.connections), (2, 2, 0, 1))
                 self.assertFalse(list(Path(folder).iterdir()))
             finally:

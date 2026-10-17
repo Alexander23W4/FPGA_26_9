@@ -3,7 +3,7 @@
 ## 连续流优化（2026-10-17）
 
 流模式现在由浏览器 Web Worker 独立收发；主线程只绘制 Canvas，不编码预览 PNG。
-原图仅上传一次，直接从本地灰度 BIN 绘制。回传保持每像素 B、G、R、mode 四字节。
+原图仅上传一次，直接从本地灰度 BIN 绘制。回传每像素 R、G、B、255 四字节。
 PS 将整帧复制到 TCP 发送缓冲后释放输出 DDR；PC 收齐 RGBA 和随帧状态、校验通过就发送下一帧。
 流模式不发送 RECEIVED，不等待 DONE，也不等待 GUI 绘制。TCP 自身仍负责可靠传输。
 流模式完全在内存中收发和显示，不保存 BIN、不编码或保存 PNG，也没有磁盘保存队列。
@@ -11,7 +11,7 @@ PS 将整帧复制到 TCP 发送缓冲后释放输出 DDR；PC 收齐 RGBA 和�
 单图及“全显示”仍使用落盘后 `SAVED` / `DONE`，保留失败重试和保存成功确认。
 
 正常连续收发复用一个 TCP 连接，断线后仍按 job_id 恢复；连接设置 TCP_NODELAY。
-新连接先以无图像负载的 HELLO_FAST 确认 PS 支持协议版本 2，防止把新协议图像发给旧固件。
+新连接先以无图像负载的 HELLO_FAST 确认 PS 支持协议版本 3，防止把新协议图像发给旧固件。
 随帧状态包含七个寄存器的快照并纳入同一 CRC，不再逐帧开串口发送 R。
 阈值/透明度写入与手动“请求FPGA状态”保留 UART，在流的帧间暂停处执行。
 PS CRC32 使用 1 KiB 常量查表，校验值保持 IEEE CRC32，与 Python binascii.crc32 一致；
@@ -35,8 +35,8 @@ PS CRC32 使用 1 KiB 常量查表，校验值保持 IEEE CRC32，与 Python bin
 GUI 选择 256×256×8-bit BIN
   → TCP 5002 → PS 直接写输入 DDR
   → VDMA MM2S（64 位）→ axi2px → PL 图像处理
-  → out_arr ─→ hdmi_out → HDMI 持续刷新
-            └→ back_stream（每像素一次 32 位握手）
+  → double_buf HDMI 读口 → out_arr → hdmi_out → HDMI 持续刷新
+               回传读口 → 独立 out_arr → back_stream（每像素一次 32 位握手）
               → AXI DMA S2MM（64 位内存接口）→ 输出 DDR
               → TCP → PC 保存 BIN + PNG → SAVED 确认
               → PS 释放输出 DDR 所有权 → DONE
@@ -59,6 +59,9 @@ PS 同时检查 MM2S 已完成且停止、S2MM 接收完成及实际字节数、
 | 原反馈地址 | `0x440000C0` | 已移除，读写返回 SLVERR |
 | BACK_STATUS | `0x440000C4` | 编号 0x31；只读：bit0 busy、bit1 固定 0、bit2 overflow |
 | BACK_FRAME_MODE | `0x440000C8` | 编号 0x32；只读：PL 在回传 SOF 锁存的真实显示模式 |
+| RETURN_INTERVAL | `0x440000CC` | 编号 0x33；回传启动 N 到下一输入帧写满缓存的周期数 |
+| RETURN_STALL | `0x440000D0` | 编号 0x34；上述区间内 `hdl_valid && !hdl_ready` 的周期数 |
+| RETURN_SEQ | `0x440000D4` | 编号 0x35；已完成的计时区间数量，0 表示尚无有效结果 |
 
 输入 `.bin` 必须恰好 65,536 字节。RAW BIN 没有尺寸元数据，程序固定按 256 行、
 每行 256 个无符号 8 位像素解释，不自动缩放或截断。
@@ -182,15 +185,16 @@ PS 先启动 S2MM，再写模式寄存器；PL 在帧边界更新配置并回传
 | 8 | CONFIGURED | 0 | 无 | 已配置的 mode，无图像时回复 |
 | 9 | CANCEL | 0 | 无 | 0；单向取消对应 job，不等待回复 |
 | 10 | UPLOAD_FAST | 65536 | 输入灰度 BIN | 0 |
-| 11 | RESULT_FAST | 262188 | 44 字节状态/耗时 + 262144 字节 RGBA | mode |
+| 11 | RESULT_FAST | 262200 | 56 字节状态/耗时 + 262144 字节 RGBA | mode |
 | 13 | RENDER_FAST | 0 | 无 | 请求 mode 0～4 |
 | 14 | HELLO_FAST | 0 | 无；新连接能力查询 | 0 |
-| 15 | FAST_READY | 0 | 无；支持 RGBA 无应用 ACK 流协议 | 协议版本 2 |
+| 15 | FAST_READY | 0 | 无；支持 RGBA 无应用 ACK 流协议及 PL 区间计时 | 协议版本 3 |
 | 16 | RESULT_RGBA | 262144 | 单图/全显示 RGBA，落盘后仍用 SAVED/DONE | mode |
 
-RESULT_FAST 的 44 字节状态为十一个大端 u32：
-`version=2, MODE, CMD_REG, FRAME_VIDEO_MODE, STATUS, DATA_REG, LESION, MASK_TRANSP, receive_us, setup_us, pl_to_ddr_us`。
+RESULT_FAST 的 56 字节状态为十四个大端 u32：
+`version=3, MODE, CMD_REG, FRAME_VIDEO_MODE, STATUS, DATA_REG, LESION, MASK_TRANSP, receive_us, setup_us, pl_to_ddr_us, return_interval_cycles, return_stall_cycles, return_interval_seq`。
 CRC 覆盖状态与 RGBA 的拼接字节。接收、准备和 PL 到 DDR 耗时来自 A9 全局计时器。
+后三项来自 PL clk 域；周期数除以 25200 得到毫秒。首帧还没有跨帧区间，sequence 为 0。
 PS 使用 TCP_WRITE_FLAG_COPY；整帧复制成功后 TCP 自己持有发送/重传数据，DDR 才可复用。
 图模式继续等待 SAVED/DONE，流模式收齐并校验后直接开始下一帧；绘制只保留最新完整帧。
 

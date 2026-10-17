@@ -1,12 +1,26 @@
 ## 当前显示功能和地址表
 
 当前发图已改为 `GUI → 网口 → DDR → PL → S2MM → DDR → 网口 → PC`。
-输出保留模式与 RGB，使用 `0x20010000–0x2004FFFF`；文件自动保存到 `E:/fpga_done_img`。
+输出为 RGBA（每像素 R、G、B、255），使用 `0x20010000–0x2004FFFF`；真实模式随帧状态回传。
+单图及全显示结果保存到 `E:/fpga_done_img`；流模式只在内存显示，不保存 BIN 或 PNG。
 完整地址、协议和重试说明见 [network_ddr.md](network_ddr.md)。
 
-“选择流文件夹”可循环发送目录中的 BIN，等每帧回传落盘并回读 FPGA 状态后再发送下一帧。
-流模式禁用全显示；阈值和透明度更新仅在帧间写寄存器。流结果按
-`E:/fpga_done_img/文件夹名/原帧名.bin`（及 PNG）覆盖保存，不添加时间或模式后缀。
+“选择流文件夹”循环发送目录中的 BIN，等每帧完整回传并校验后立即发送下一帧，不等待 GUI 绘制。
+流模式禁用全显示；阈值和透明度更新仅在帧间写寄存器；指标随每帧网口结果一起回传。
+
+回传已改为独立读取 `double_buf`，HDMI 和回传分别连接自己的 `out_arr`。
+无 S2MM 反压时读完一帧约 2.601 ms，不再等待 HDMI 帧边界或扫描空白。
+仍采用两个 bank，写端需要等待 HDMI 和回传端释放目标 bank。
+流状态从第二帧开始显示“回传启动→下一帧写满”与其中的“写端反压”毫秒数。
+计时定义见 [stream_latency.md](stream_latency.md)。
+
+本次上板在仓库根目录 Git Bash 执行这一条：
+
+```bash
+./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
+```
+
+完成后重启 GUI（`bash ./network/launch_gui.sh`）并刷新网页；PS 与 GUI 流协议均已更新为版本 3。
 
 已接通叠加掩膜、伪彩色热力图及掩膜透明度。
 寄存器编号、实际 AXI 字节偏移、串口命令和验证方法见 [display_modes.md](display_modes.md)。

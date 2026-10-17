@@ -44,11 +44,13 @@ module tb_hdmi_out;
         .hdl_valid(valid),.hdl_eof(last),.hdl_ready(ready),
         .buf_idx(write_bank),.buf_addr(write_addr),.buf_data(write_data),
         .buf_mask(write_mask),.buf_contour(write_contour),.en(write_en),
-        .read_buf_idx(read_bank),.frame_ready_toggle(frame_ready),.dbg_status(writer_debug));
+        .read_buf_idx(read_bank),.back_read_lock(1'b0),.back_read_idx(1'b0),
+        .frame_ready_toggle(frame_ready),.dbg_status(writer_debug));
     double_buf memory(.clk(clk),.pclk(pclk),.write_en(write_en),.write_buf_idx(write_bank),
         .write_addr(write_addr),.write_data(write_data),.write_mask(write_mask),
         .write_contour(write_contour),.read_buf_idx(read_bank),.read_addr(read_addr),
-        .read_data(read_data),.read_mask(read_mask),.read_contour(read_contour));
+        .read_data(read_data),.read_mask(read_mask),.read_contour(read_contour),
+        .back_read_en(1'b0),.back_read_idx(1'b0),.back_read_addr(16'd0));
     hdmi_out dut(.pclk(pclk),.rst(rst),.buf_idx(read_bank),.buf_addr(read_addr),
         .in_r(arr_r),.in_g(arr_g),.in_b(arr_b),
         .vid_r(r),.vid_g(g),.vid_b(b),.vid_hs(hs),.vid_vs(vs),.vid_de(de),

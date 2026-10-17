@@ -21,6 +21,7 @@ module back_stream #(
 );
     localparam integer PTR_W = $clog2(FIFO_DEPTH);
     localparam integer PIX_W = FRAME_PIXELS < 2 ? 1 : $clog2(FRAME_PIXELS);
+    localparam integer PIPELINE_RESERVE = FIFO_DEPTH > 8 ? 8 : FIFO_DEPTH-1;
     localparam [2:0] IDLE=0, CAPTURE=1, PUSH_TAIL=2, DRAIN=3;
     reg [2:0] state;
     reg [PIX_W-1:0] pixel_count;
@@ -46,7 +47,7 @@ module back_stream #(
     assign busy = state != IDLE;
     // Reserve eight slots for RAM + out_arr + capture pipeline latency. Only
     // read requests pause; already formatted pixels must still enter this FIFO.
-    assign source_ready = count < FIFO_DEPTH - 8;
+    assign source_ready = count < FIFO_DEPTH - PIPELINE_RESERVE;
 
     // Hold the entire output tuple stable whenever TVALID && !TREADY.
     always @(posedge clk) begin

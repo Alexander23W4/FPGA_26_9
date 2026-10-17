@@ -6,14 +6,21 @@
 ## 数据路径
 
 ```text
-double_buf → out_arr ─→ hdmi_out → hdmi_tx
-                    └→ back_stream → top1.M_AXIS → AXI DMA S2MM → DDR → TCP → PC
+double_buf HDMI 读口(pclk) → out_arr       → hdmi_out → hdmi_tx
+double_buf 回传读口(clk)  → out_arr(独立) → back_stream → M_AXIS → S2MM → DDR → TCP → PC
+                         ↑ back_reader 连续地址读取，独立于 HDMI 扫描
 ```
 
-`out_arr` 的 `vid_valid` 与 RGB 经过相同两级流水线，只标记 256×256 图像窗口。
-`vid_sof` 在换图或显示模式变化后的帧边界产生，普通 HDMI 重复刷新不触发。
-`out_arr` 在回传忙时保留重发请求，空闲后的帧边界回传最新显示内容。
-`back_stream` 在空闲时接收 SOF，并锁存该帧模式；忙碌时忽略新的 SOF。
+两路各自锁存本帧模式、透明度，RGB 与有效标记经过相同的两级计算。
+HDMI 路仍在显示帧边界切换缓存及参数。回传路由 `back_reader` 检测完整新帧，
+立即从地址 0 连续读到 65535，不等待 HDMI 帧边界、不插入扫描空白。
+模式变化可重绘最近的完整帧；忙碌期间的变化在当前包发完后处理，包中途不换图或换参数。
+透明度单独变化在下一次图像任务生效，沿用 GUI 原有重传逻辑。
+
+每块 bank 使用真双口 BRAM：pclk 口只供 HDMI；clk 口由写端和回传读端分时使用。
+写端与回传端必须拥有不同 bank，因此无需复制整套帧缓存。
+写端只有在 HDMI 已接管刚完成的 bank，且回传端也离开另一 bank 后，才会复用另一 bank。
+所以两块缓存仍保留 HDMI 换帧造成的写端节流，不代表处理吞吐已经完全独立于 HDMI。
 
 ## 每个像素一次握手
 
@@ -35,32 +42,34 @@ DMA 接收通道应使用 AXI DMA 的包结束语义；这里不是 VDMA 的行�
 
 ## 反压和完成确认
 
-- 源端是持续运行的视频流，没有 ready 输入，回传分支不会暂停 HDMI。
+- 回传读请求由 `source_ready` 控制，源地址只在实际发起读取时递增。
 - 输出支持 AXI-Stream 反压：阻塞时保持 TVALID、TDATA、TKEEP、TUSER、TLAST 稳定。
-- 默认 FIFO 为 2048 个像素，另外有输出寄存器和一个应急尾拍寄存器。
+- 顶层回传 FIFO 为 32 个像素，预留 8 个位置容纳 RAM 和颜色计算中已在途的像素。
 - 接收完规定数量的源像素后，`back_en` 变为 0；FIFO 中的数据继续发送。
 - 最后一拍 `TVALID && TREADY && TLAST` 后，`frame_sent` 拉高一个周期，立即恢复空闲。
 - 不包含接收确认输入或等待 ACK 状态；模式在 SOF 锁存到独立 `frame_mode` 输出。
 - `frame_sent` 表示 AXI 包传输结束，并不表示 PC 已保存文件。还需结合错误及实际长度判断成功。
 
-有限 FIFO 无法承受无限期反压。若空间耗尽且后续像素将丢失，模块置 `overflow=1`，
-停止本次捕获，将已捕获前缀以 TLAST 结束为短包，避免永久挂住接收 DMA。
+S2MM 长期不接收时，FIFO 接近满就停止新读请求，已在途像素仍可安全入队。
+恢复后从原位置继续，正常独立读路径不会因长期反压而丢像素。
+若错误连接使源端忽略读请求节流、导致空间耗尽，仍保留防御性错误处理：置 `overflow=1`，
+停止本次捕获，将已捕获前缀以 TLAST 结束为短包。
 已向接收端提出的 AXI 拍保持稳定。后续 PS **必须拒绝长度不等于 262,144 字节的包**，
 并将失败报告给 PC。错误在下一次空闲接收 SOF 或复位时清除。
 下游完全不 ready 时，包的发送会等待，但 HDMI 不受影响。
 
 ## 当前顶层接法
 
-所有回传信号属于 **pclk 域**；M_AXIS 的接口属性也绑定 pclk。
+所有独立回传信号属于 **clk 域**；M_AXIS 的接口属性绑定 clk。
 DMA 的 S_AXIS_S2MM 当前使用同一 25.2 MHz 时钟；以后若改成不同时钟，需要时钟转换。
 
 旧反馈寄存器 0x30 / 字节偏移 0xC0 及对应 CDC 已删除。
 `BACK_FRAME_MODE` 为 0x32 / 字节偏移 0xC8，只读真实回传帧模式。
-模式在 SOF 锁存，经两级同步后在 S2MM 完成、busy 清零时读取；不能以像素 Alpha 代替模式。
+模式在 SOF 锁存，经顶层两级寄存后在 S2MM 完成、busy 清零时读取；不能以像素 Alpha 代替模式。
 `BACK_STATUS` 编号 0x31、字节偏移 0xC4；bit0=busy、bit1=0、bit2=overflow，
-状态经两级同步送入 clk 域。PS 确认 S2MM 实际长度正确、busy 清零后发送结果。
+状态经两级寄存送入 AXI-Lite。PS 确认 S2MM 实际长度正确、busy 清零后发送结果。
 单图的 SAVED 在 PC 保存后释放 DDR 并回复 DONE；流模式在整帧复制到 TCP 发送缓冲后自动释放。
-模式更新通过 TCP RENDER：先准备 S2MM，再写显示模式寄存器，防止无人接收时回传溢出。
+模式更新通过 TCP RENDER：先准备 S2MM，再写显示模式寄存器。
 `back_busy`、`back_overflow`、`back_frame_sent` 已标记为调试信号。
 
 ## 局部验证
@@ -74,3 +83,7 @@ FIFO 溢出短包、容量边界及单像素帧。
 `tb_hdmi_out` 核对五帧 HDMI 和三帧 AXI 回传，确认黑边不计入回传、
 反压不暂停 HDMI、模式改变重发、忙时延后、未改变时不重复发送。
 `tb_display_regs` 检查已移除的 0xC0 返回错误、0xC8 模式只读、AW/W 独立握手和 WSTRB。
+`tb_independent_return` 覆盖两读口同时访问、不同 clk/pclk、五种颜色模式、模式中途更新、
+长时间及间歇 S2MM 反压、缓存复用保护和计时周期。无反压回传不等 HDMI 图像窗口。
+
+计时寄存器及 GUI 实测方法见 [stream_latency.md](stream_latency.md)。

@@ -1,13 +1,15 @@
 `timescale 1ns / 1ps
 
-// Display formatting after the frame store, entirely in the pclk domain.
+// Frame-store color formatting. Each instance uses its supplied pclk:
+// HDMI uses the display clock; the independent return instance uses clk.
 // Data path: frame store -> out_arr (two-stage RGB calculation) -> hdmi_out.
 // hdmi_out supplies the read window/frame boundary and owns HDMI control timing.
 module out_arr (
     input wire pclk, input wire rst,
     input wire [7:0] buf_data,
     input wire buf_mask, input wire buf_contour,
-    // These settings have already crossed into pclk through display_cfg_cdc.
+    // Settings must belong to this instance's clock domain. HDMI uses CDC;
+    // the return instance receives the processing-domain registers directly.
     input wire [31:0] video_mode, input wire [31:0] mask_transparency,
     input wire frame_start, input wire image_active, input wire new_frame,
     input wire back_busy,

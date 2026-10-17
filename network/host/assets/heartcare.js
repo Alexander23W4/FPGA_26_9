@@ -1,6 +1,7 @@
 /* UI presentation and mode navigation. UART actions are supplied by monitor_network. */
 const thresholdMode=document.getElementById('thresholdMode');
 const threshold=document.getElementById('threshold');
+const hdmiOutputToggle=document.getElementById('hdmiOutputToggle');
 const systemMode=document.getElementById('systemMode');
 const menuToggle=document.getElementById('menuToggle');
 const systemDrawer=document.getElementById('systemDrawer');
@@ -143,14 +144,11 @@ maskOpacity.addEventListener('input',()=>{
   document.getElementById('maskOpacityValue').textContent=maskOpacity.value;
   maskOpacityUpdate.textContent=maskOpacityUpdateLabel;
 });
-// The UART handler marks this button updated only after verified register readback.
-function updateOverlayControls(){
-  const mode=document.getElementById('fpgaOutputMode').value;
-  document.getElementById('outputModeNote').textContent=mode==='5'
-    ?'依次接收并保存五种模式结果；切换模式复用板上图像'
-    :mode==='3'?'红色掩膜叠加，0% 完全透明，100% 实心红色':'设置开发板 HDMI 的输出内容';
-}
-document.getElementById('fpgaOutputMode').addEventListener('change',updateOverlayControls);
+hdmiOutputToggle.addEventListener('click',()=>{
+  const enabled=hdmiOutputToggle.getAttribute('aria-checked')!=='true';
+  hdmiOutputToggle.setAttribute('aria-checked',String(enabled));
+  document.getElementById('hdmiOutputLabel').textContent='HDMI 输出：'+(enabled?'开':'关');
+});
 
 function updateThresholdControls(){
   const blocked=transferBusy()&&!streamRunning();
