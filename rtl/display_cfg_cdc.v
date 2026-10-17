@@ -9,10 +9,13 @@ module display_cfg_cdc (
 );
     reg [31:0] mode_hold, alpha_hold;
     reg request, acknowledge;
+    wire src_rst, dst_rst;
+    reset_sync src_reset(.clk(clk), .arst(rst), .rst(src_rst));
+    reset_sync dst_reset(.clk(pclk), .arst(rst), .rst(dst_rst));
     (* ASYNC_REG = "TRUE" *) reg [1:0] ack_sync, req_sync;
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or posedge src_rst) begin
+        if (src_rst) begin
             mode_hold <= 0; alpha_hold <= 45;
             request <= 0; ack_sync <= 0;
         end else begin
@@ -24,8 +27,8 @@ module display_cfg_cdc (
             end
         end
     end
-    always @(posedge pclk or posedge rst) begin
-        if (rst) begin
+    always @(posedge pclk or posedge dst_rst) begin
+        if (dst_rst) begin
             req_sync <= 0; acknowledge <= 0;
             mode_out <= 0; alpha_out <= 45;
         end else begin

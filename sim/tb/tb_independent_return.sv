@@ -2,10 +2,13 @@
 
 // Actual writer, dual-read frame RAM, two independent formatters, return FIFO
 // and HDMI raster. Different clocks expose accidental domain/timing coupling.
-module tb_independent_return;
+module tb_independent_return #(
+    parameter real CLK_HALF = 5.0, PCLK_HALF = 19.841,
+    parameter real PCLK_PHASE = 2.137
+);
     reg clk=0,pclk=0,rst=1;
-    always #5 clk=~clk;
-    always #7 pclk=~pclk;
+    always #(CLK_HALF) clk=~clk;
+    initial begin #(PCLK_PHASE); forever #(PCLK_HALF) pclk=~pclk; end
     reg [7:0] pixel=0;
     reg mask=0,contour=0,valid=0,last=0;
     reg [31:0] mode=0,alpha=45;
@@ -17,12 +20,11 @@ module tb_independent_return;
     wire display_ready,display_bank,display_lock,display_read_en,display_enable,display_armed;
     hdmi_enable_cdc enable_cdc(.clk(clk),.pclk(pclk),.rst(rst),.enable_in(hdmi_requested),
         .enable_pclk(display_enable),.armed(display_armed));
-    reg [2:0] pub_sync=0;
-    reg [1:0] wb_sync=0;
-    always @(posedge pclk)begin
-        if(rst)begin pub_sync<=0;wb_sync<=0;end
-        else begin pub_sync<={pub_sync[1:0],display_ready};wb_sync<={wb_sync[0],display_bank};end
-    end
+    wire pub_sync, wb_sync, accepted_pclk, accepted_clk, display_disabled;
+    display_frame_cdc frame_cdc(.clk(clk),.pclk(pclk),.rst(rst),
+        .publish_toggle(display_ready),.publish_bank(display_bank),
+        .accepted_toggle(accepted_pclk),.display_enable(display_enable),.display_read_lock(display_lock),
+        .frame_toggle(pub_sync),.frame_bank(wb_sync),.accepted(accepted_clk),.disabled(display_disabled));
     wire rb,lock,ren,source_ready,start,new_start,pvalid,busy,overflow,sent;
     wire [15:0] ra;
     wire [7:0] rd,rr,rg,rb_rgb,frame_mode;
@@ -44,9 +46,10 @@ module tb_independent_return;
         .mode_out(hmode),.alpha_out(halpha));
     hdl_out writer(.clk(clk),.rst(rst),.hdl_data(pixel),.hdl_mask(mask),.hdl_contour(contour),
         .hdl_valid(valid),.hdl_eof(last),.hdl_ready(ready),.buf_idx(wb),.buf_addr(wa),
-        .buf_data(wd),.buf_mask(wm),.buf_contour(wc),.en(we),.read_buf_idx(hb),
+        .buf_data(wd),.buf_mask(wm),.buf_contour(wc),.en(we),
+        .display_ack_toggle(accepted_clk),.display_disabled(display_disabled),
         .back_read_lock(lock),.back_read_idx(rb),.frame_ready_toggle(published),.dbg_status(),
-        .hdmi_enable(hdmi_requested),.display_armed(display_armed),.display_read_lock(display_lock),
+        .hdmi_enable(hdmi_requested),.display_armed(display_armed),
         .display_ready_toggle(display_ready),.display_buf_idx(display_bank));
     double_buf memory(.clk(clk),.pclk(pclk),.write_en(we),.write_buf_idx(wb),
         .write_addr(wa),.write_data(wd),.write_mask(wm),.write_contour(wc),
@@ -57,7 +60,7 @@ module tb_independent_return;
         .enable(display_enable),.read_lock(display_lock),.read_en(display_read_en),
         .vid_r(unused_r),.vid_g(unused_g),.vid_b(unused_b),.vid_hs(hs),.vid_vs(vs),.vid_de(de),
         .buf_idx(hb),.buf_addr(ha),.image_active(hactive),.frame_start(hstart),.new_frame(hnew),
-        .frame_ready_toggle(pub_sync[2]),.write_idx_sync(wb_sync[1]),.dbg_status());
+        .frame_ready_toggle(pub_sync),.write_idx_sync(wb_sync),.accepted_toggle(accepted_pclk),.dbg_status());
     out_arr hdmi_arr(.pclk(pclk),.rst(rst),.buf_data(hd),.buf_mask(hm),.buf_contour(hc),
         .video_mode(hmode),.mask_transparency(halpha),.frame_start(hstart),.image_active(hactive),
         .new_frame(hnew),.back_busy(1'b0),.vid_r(hr),.vid_g(hg),.vid_b(hblue),
@@ -204,7 +207,7 @@ module tb_independent_return;
             begin send_frame(1);send_frame(2);send_frame(3);end
             begin
                 wait(commits==3);
-                repeat(1300000)@(negedge clk);
+                repeat(3)@(posedge hstart);
                 if(commits!=3||ready||!busy||reader.issued>32)
                     $fatal(1,"stalled bank was reused or reader failed to pause");
                 if(hdmi_pixels<65536)$fatal(1,"HDMI stopped with S2MM");
@@ -255,5 +258,5 @@ module tb_independent_return;
         $display("[PASS] tb_independent_return: 16 complete packets, 10 input frames, all modes, asynchronous clocks, HDMI OFF/ON and rapid toggles, no disabled RAM reads, no HDMI throttling while OFF, long/random stalls, ownership, timing. Unstalled return=%0d cycles",nostall_duration);
         $finish;
     end
-    initial begin #80000000;$fatal(1,"independent return timeout");end
+    initial begin #300000000;$fatal(1,"independent return timeout");end
 endmodule

@@ -80,6 +80,19 @@ err_t tcp_write(struct tcp_pcb *p,const void *bytes,u16_t length,u8 flags)
 err_t tcp_output(struct tcp_pcb *p) {(void)p;return ERR_OK;}
 void tcp_recved(struct tcp_pcb *p,u16_t n) {(void)p;window_returned+=n;}
 u8 pbuf_free(struct pbuf *p) {(void)p;return 1;}
+struct pbuf *pbuf_free_header(struct pbuf *p,u16_t size)
+{
+    while(p&&size>=p->len) {
+        struct pbuf *next=p->next;size-=p->len;p->next=0;pbuf_free(p);p=next;
+    }
+    if(p&&size) {p->payload=(u8 *)p->payload+size;p->len-=size;p->tot_len-=size;}
+    return p;
+}
+void pbuf_cat(struct pbuf *head,struct pbuf *tail)
+{
+    while(head->next) {head->tot_len+=tail->tot_len;head=head->next;}
+    head->tot_len+=tail->tot_len;head->next=tail;
+}
 err_t tcp_close(struct tcp_pcb *p) {(void)p;return ERR_OK;}
 void tcp_abort(struct tcp_pcb *p) {(void)p;}
 int vdma_alive(void) {return 1;}u32 vdma_mm2s_status(void) {return vdma_status;}
@@ -121,6 +134,15 @@ static void drain_result(void)
 {
     while(tx_header_used<24||tx_offset<tx_length) {credit=1024;net_frame_poll();}
 }
+static u32 skip_grants(u32 pos)
+{
+    while(pos+24<=wire_used&&get32(wire_bytes+pos+4)==PIPE_CREDIT) {
+        assert(get32(wire_bytes+pos+8)==0&&get32(wire_bytes+pos+12)==0&&get32(wire_bytes+pos+16)==0);
+        assert(get32(wire_bytes+pos+20)>0&&get32(wire_bytes+pos+20)<=STREAM_INPUT_SLOTS);
+        pos+=24;
+    }
+    return pos;
+}
 static void test_pipeline(void)
 {
     static u8 bytes[65536],fifth[124];u8 header[24];u32 i,before,pos;
@@ -128,7 +150,8 @@ static void test_pipeline(void)
     void *memory=VirtualAlloc((void *)(UINTPTR)STREAM_INPUT_BASE,0x100000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
     assert(memory==(void *)(UINTPTR)STREAM_INPUT_BASE);
     connect_host();request(HELLO_PIPE,100,0,0,0);credit=65535;net_frame_poll();
-    assert(pipe_enabled&&get32(wire_bytes+4)==PIPE_READY&&get32(wire_bytes+20)==5);
+    assert(pipe_enabled&&get32(wire_bytes+4)==PIPE_READY&&get32(wire_bytes+20)==6);
+    net_frame_poll();assert(get32(wire_bytes+24+4)==PIPE_CREDIT&&get32(wire_bytes+24+20)==4);
     wire_used=0;credit=0;before=dma_starts;
     for(i=0;i<4;++i) {
         memset(bytes,10+i,sizeof(bytes));
@@ -140,16 +163,16 @@ static void test_pipeline(void)
     memset(bytes,14,sizeof(bytes));
     memcpy(fifth,header,24);put32(fifth+8,105);put32(fifth+16,crc32_calc(bytes,sizeof(bytes)));
     memcpy(fifth+24,bytes,100);
-    assert(receive(0,&peer,&p,ERR_OK)==ERR_OK);window_returned=0;
+    window_returned=0;assert(receive(0,&peer,&p,ERR_OK)==ERR_OK);
     net_frame_poll();
     assert(pipe_active&&dma_starts==before+1&&wire_used==0);
-    assert(pipe_held==&p&&pipe_part_offset==24&&window_returned==24);
-    assert(receive(0,&peer,&retry,ERR_OK)==ERR_MEM);
+    assert(pipe_held==&p&&pipe_held->len==100&&window_returned==24);
+    assert(receive(0,&peer,&retry,ERR_OK)==ERR_OK);
     complete_dma(0);net_frame_poll();
     assert(pipe_active&&dma_starts==before+2&&wire_used==0);
     assert(pipe_out[0].state==P_RESULT); /* N+1 running before ANY N return bytes. */
-    net_frame_poll();assert(!pipe_held&&window_returned==sizeof(fifth));
-    assert(pipe_consume(bytes+100,sizeof(bytes)-100)==sizeof(bytes)-100);
+    net_frame_poll();assert(!pipe_held&&window_returned==sizeof(fifth)+1);
+    assert(pipe_consume(bytes+101,sizeof(bytes)-101)==sizeof(bytes)-101);
     complete_dma(0);net_frame_poll();assert(dma_starts==before+3);
     complete_dma(0);net_frame_poll();
     assert(!pipe_active&&dma_starts==before+3); /* Only a full output ring stalls. */
@@ -163,6 +186,7 @@ static void test_pipeline(void)
     assert(i<1000&&dma_starts==before+5);
     pos=0;
     for(i=0;i<5;++i) {
+        pos=skip_grants(pos);
         const u8 *h=wire_bytes+pos,*payload=h+24,*perf;
         assert(get32(h+4)==PIPE_RESULT&&get32(h+8)==101+i);
         assert(get32(h+12)==META_BYTES+IMG_RES_DDR_SIZE);
@@ -172,7 +196,7 @@ static void test_pipeline(void)
         assert(get32(h+4)==PERF_FAST&&get32(h+8)==101+i&&get32(h+16)==crc32_calc(perf,PERF_BYTES));
         pos+=24+PERF_BYTES;
     }
-    assert(pos==wire_used);
+    assert(skip_grants(pos)==wire_used);
     /* Changed mode first drains the automatically emitted OLD image, then
      * launches the new input exactly once and tags only that output. */
     memset(bytes,19,sizeof(bytes));put32(header+8,106);put32(header+16,crc32_calc(bytes,sizeof(bytes)));
@@ -187,7 +211,59 @@ static void test_pipeline(void)
     VirtualFree(memory,0,MEM_RELEASE);connect_host();
     request(RENDER,107,0,0,(video_mode+1)%5);
     assert(get32(tx_header+4)==ERROR&&get32(tx_header+20)==UPLOAD_REQUIRED);
-    puts("FIRMWARE_PIPELINE_OK: concurrent receive/DMA/TX, full-ring backpressure, pbuf retry, wrap, CRC/IDs, mode-redraw drain, disconnect");
+    puts("FIRMWARE_PIPELINE_OK: concurrent receive/DMA/TX, full-ring window backpressure, wrap, CRC/IDs, mode-redraw drain, disconnect");
+}
+static void test_pipeline_burst(void)
+{
+    enum {FRAME_PACKET=24+65536,COUNT=5};
+    static u8 stream[COUNT*FRAME_PACKET];
+    static struct pbuf packets[256];
+    void *memory=VirtualAlloc((void *)(UINTPTR)STREAM_INPUT_BASE,0x100000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
+    u32 i,used=0,cut=4u*FRAME_PACKET+65000u,n=0,accepted=0,amount,pos=0;
+    assert(memory==(void *)(UINTPTR)STREAM_INPUT_BASE);
+    connect_host();request(HELLO_PIPE,599,0,0,0);credit=65535;net_frame_poll();
+    net_frame_poll();
+    wire_used=0;credit=0;window_returned=0;
+    for(i=0;i<COUNT;++i) {
+        u8 *h=stream+i*FRAME_PACKET,*data=h+24;memset(data,40+i,65536);
+        put32(h,MAGIC);put32(h+4,PIPE_UPLOAD);put32(h+8,600+i);put32(h+12,65536);
+        put32(h+16,crc32_calc(data,65536));put32(h+20,video_mode);
+    }
+    /* No main-loop tick or TCP timer between callbacks. Buffered in-window
+     * segments must be accepted even after the four DDR input slots fill. */
+    while(used<cut) {
+        struct pbuf *p=&packets[n++];amount=cut-used;if(amount>1460)amount=1460;
+        p->next=0;p->payload=stream+used;p->len=p->tot_len=(u16_t)amount;
+        assert(receive(0,&peer,p,ERR_OK)==ERR_OK);
+        used+=amount;accepted+=amount;
+        assert(accepted-window_returned<=TCP_WND);
+    }
+    assert(pipe_held&&pipe_in[0].state==P_READY&&pipe_in[3].state==P_READY);
+    for(i=0;i<1000&&pipe_held;++i) {
+        credit=65535;if(pipe_active)complete_dma(0);net_frame_poll();
+    }
+    assert(i<1000&&!pipe_held);
+    assert(window_returned==accepted); /* Window opens immediately after space frees. */
+    {
+        struct pbuf *p=&packets[n++];amount=sizeof(stream)-used;
+        p->next=0;p->payload=stream+used;p->len=p->tot_len=(u16_t)amount;
+        assert(receive(0,&peer,p,ERR_OK)==ERR_OK);
+    }
+    for(i=0;i<1000&&pipe_busy();++i) {
+        credit=65535;if(pipe_active)complete_dma(0);net_frame_poll();
+    }
+    assert(i<1000&&!pipe_busy());
+    for(i=0;i<COUNT;++i) {
+        pos=skip_grants(pos);
+        const u8 *h=wire_bytes+pos,*payload=h+24;
+        assert(get32(h+4)==PIPE_RESULT&&get32(h+8)==600+i);
+        assert(get32(h+16)==crc32_calc(payload,META_BYTES+IMG_RES_DDR_SIZE));
+        assert(payload[META_BYTES]==40+i);
+        pos+=24+META_BYTES+IMG_RES_DDR_SIZE+24+PERF_BYTES;
+    }
+    assert(skip_grants(pos)==wire_used);receive(0,&peer,0,ERR_OK);
+    VirtualFree(memory,0,MEM_RELEASE);connect_host();
+    puts("FIRMWARE_BURST_OK: 225+ callbacks, full DDR ring, bounded TCP-window queue, immediate resume, no timer/retry, exact IDs/CRC");
 }
 int main(void)
 {
@@ -289,6 +365,7 @@ int main(void)
 
     }
     test_pipeline();
+    test_pipeline_burst();
     before=dma_starts;
     upload(11,0);net_frame_poll();assert(dma_starts==before+1);complete_dma(1);net_frame_poll();
     assert(phase==FAULT&&ack_writes==0&&get32(tx_header+4)==ERROR);

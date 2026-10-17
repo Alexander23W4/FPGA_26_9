@@ -29,7 +29,8 @@
 module hdmi_tx (
     input  wire        pclk,        // 像素时钟 (CLKDIV)
     input  wire        pclk_x5,     // 5x 像素时钟 (串化 CLK)
-    input  wire        rst,         // 高有效复位
+    input  wire        rst,
+    input  wire        rst_x5,         // 高有效复位
 
     // ---------------- 视频输入 ----------------
     input  wire [7:0]  vid_r,
@@ -167,7 +168,8 @@ module hdmi_tx (
     // -------------------------------------------------------------------------
     reg [2:0] tmds_mod5;
     always @(posedge pclk_x5)
-        tmds_mod5 <= tmds_mod5[2] ? 3'd0 : tmds_mod5 + 3'd1;
+        if (rst_x5) tmds_mod5 <= 0;
+        else tmds_mod5 <= tmds_mod5[2] ? 3'd0 : tmds_mod5 + 3'd1;
 
     // 偶位走"高"半拍, 奇位走"低"半拍 (与官方 serdes_4b_10to1 一致)
     wire [4:0] tmds_r_h = {tmds_r[8],tmds_r[6],tmds_r[4],tmds_r[2],tmds_r[0]};
@@ -184,6 +186,10 @@ module hdmi_tx (
 
     reg [4:0] sh_r_h, sh_r_l, sh_g_h, sh_g_l, sh_b_h, sh_b_l, sh_c_h, sh_c_l;
     always @(posedge pclk_x5) begin
+        if (rst_x5) begin
+            sh_r_h <= 0; sh_r_l <= 0; sh_g_h <= 0; sh_g_l <= 0;
+            sh_b_h <= 0; sh_b_l <= 0; sh_c_h <= 0; sh_c_l <= 0;
+        end else begin
         sh_r_h <= tmds_mod5[2] ? tmds_r_h : sh_r_h[4:1];
         sh_r_l <= tmds_mod5[2] ? tmds_r_l : sh_r_l[4:1];
         sh_g_h <= tmds_mod5[2] ? tmds_g_h : sh_g_h[4:1];
@@ -192,6 +198,7 @@ module hdmi_tx (
         sh_b_l <= tmds_mod5[2] ? tmds_b_l : sh_b_l[4:1];
         sh_c_h <= tmds_mod5[2] ? tmds_c_h : sh_c_h[4:1];
         sh_c_l <= tmds_mod5[2] ? tmds_c_l : sh_c_l[4:1];
+        end
     end
 
     wire ser_r, ser_g, ser_b, ser_c;

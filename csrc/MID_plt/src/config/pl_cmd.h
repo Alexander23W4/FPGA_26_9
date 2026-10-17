@@ -18,7 +18,8 @@
 #define MASK_TRANSP_ADDR 0x22u /* Overlay opacity 0..100; 0 transparent, 100 solid */
 #define BACK_STATUS      0x31u /* RO byte 0xC4: bit0 busy, bit1 reserved zero, bit2 overflow */
 #define BACK_FRAME_MODE  0x32u /* RO byte 0xC8: mode latched at return SOF, stable after busy clears */
-#define RETURN_INTERVAL  0x33u /* RO byte 0xCC: return start N -> frame commit N+1, 25.2 MHz ticks */
+#define RETURN_INTERVAL  0x33u /* RO byte 0xCC: return start N -> frame commit N+1, processing clk ticks */
+#define CLOCK_HZ         0x36u /* RO byte 0xD8: processing clock frequency */
 #define RETURN_STALL     0x34u /* RO byte 0xD0: output valid && !ready ticks within that interval */
 #define RETURN_SEQ       0x35u /* RO byte 0xD4: completed timing interval count; 0 means not ready */
 

@@ -81,6 +81,14 @@ static u32 get32(const u8 *p) {return ((u32)p[0]<<24)|((u32)p[1]<<16)|((u32)p[2]
 static void put32(u8 *p,u32 n) {p[0]=(u8)(n>>24);p[1]=(u8)(n>>16);p[2]=(u8)(n>>8);p[3]=(u8)n;}
 static u32 back_state(void) {return Xil_In32(PL_REG_ADDRESS(BACK_STATUS));}
 static u32 micros(u64 duration) {return (u32)(duration*1000000ull/COUNTS_PER_SECOND);}
+/* Metadata v5 carries PL durations in microseconds, independent of PL frequency.
+ * Old hardware returns zero for the unknown register; retain its 25.2 MHz rate. */
+static u32 pl_micros(u32 cycles)
+{
+    u32 hz=Xil_In32(PL_REG_ADDRESS(CLOCK_HZ));
+    if(hz<1000000u || hz>500000000u)hz=25200000u;
+    return (u32)((u64)cycles*1000000ull/hz);
+}
 
 static void response(u32 type,u32 id,const void *payload,u32 length,u32 checksum,u32 extra)
 {
@@ -111,14 +119,14 @@ static void prepare_result(void)
                                   DATA_REG_ADDR,LESION_ADDR,MASK_TRANSP_ADDR};
     unsigned i;u64 before;
     if(fast_job) {
-        put32(result_meta,4u);
+        put32(result_meta,5u);
         for(i=0;i<7;++i)put32(result_meta+4u*(i+1u),
             i==2?result_mode:Xil_In32(PL_REG_ADDRESS(regs[i])));
         put32(result_meta+32,(u32)((rx_finished-rx_started)*1000000ull/COUNTS_PER_SECOND));
         put32(result_meta+36,(u32)((dma_started-rx_finished)*1000000ull/COUNTS_PER_SECOND));
         put32(result_meta+40,(u32)((dma_finished-dma_started)*1000000ull/COUNTS_PER_SECOND));
-        put32(result_meta+44,Xil_In32(PL_REG_ADDRESS(RETURN_INTERVAL)));
-        put32(result_meta+48,Xil_In32(PL_REG_ADDRESS(RETURN_STALL)));
+        put32(result_meta+44,pl_micros(Xil_In32(PL_REG_ADDRESS(RETURN_INTERVAL))));
+        put32(result_meta+48,pl_micros(Xil_In32(PL_REG_ADDRESS(RETURN_STALL))));
         put32(result_meta+52,Xil_In32(PL_REG_ADDRESS(RETURN_SEQ)));
     }
     before=ticks();
@@ -223,7 +231,7 @@ static void handle_header(void)
         if(!id||length||checksum||extra||phase!=IDLE||pipe_enabled) {
             error_response(id,BUSY,"pipeline unavailable; finish the current job first");return;
         }
-        pipe_begin();response(PIPE_READY,id,0,0,0,5u);return;
+        pipe_begin();response(PIPE_READY,id,0,0,0,6u);return;
     }
     if(type==HELLO_FAST) {
         if(!id||length||checksum||extra) {error_response(id,FAILED,"invalid stream capability request");return;}

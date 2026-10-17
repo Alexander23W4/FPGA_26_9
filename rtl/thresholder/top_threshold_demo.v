@@ -12,9 +12,9 @@
 // automatic mode uses the Otsu partition <= t / > t.
 `timescale 1ns / 1ps
 
-module top_threshold_demo (
+module top_threshold_demo #(parameter integer CLK_HZ = 100000000) (
     // ---- System ----
-    input  wire        clk,               // system clock, currently 25.2 MHz
+    input  wire        clk,               // processing clock
     input  wire        rst_n,             // reset, active low
 
     // ---- AXI-Lite slave (host control) ----
@@ -84,7 +84,7 @@ module top_threshold_demo (
 
     wire [7:0]  threshold;        // final threshold
 
-    axi_lite_slave u_axi_slv (
+    axi_lite_slave #(.CLK_HZ(CLK_HZ)) u_axi_slv (
         .s_axi_aclk    (clk),
         .s_axi_aresetn (rst_n),
         .s_axi_awaddr  (s_axi_awaddr),

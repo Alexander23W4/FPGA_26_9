@@ -392,7 +392,8 @@ function dshApplyFastStats(stats) {
     ' ms · HTTP/浏览器余量 '+ms(browser.http_overhead_ms)+
     ' ms · Worker解包 '+ms(browser.decode_ms)+' ms';
   document.getElementById('streamTcpTiming').textContent=
-    'Python TCP：发送调用 '+ms(t.upload_send_ms)+' ms · 等响应头 '+ms(t.wait_header_ms)+
+    'Python TCP：写队列等待 '+ms(t.upload_queue_ms)+' ms · 发送调用 '+ms(t.upload_send_ms)+
+    ' ms · 等响应头 '+ms(t.wait_header_ms)+
     ' ms · 收图 '+ms(t.result_receive_ms)+' ms · 校验 '+ms(t.host_validate_ms)+
     ' ms · 计时尾包 '+ms(t.perf_receive_ms)+' ms';
   document.getElementById('streamNetConfig').textContent=
@@ -1191,7 +1192,11 @@ class NetworkServer(web_common.ThreadingHTTPServer):
                 client.close()
                 # Cover four input slots, three output slots and TCP transit;
                 # a four-job cap would throttle while board input slots are free.
-                pipeline = FramePipeline(client.host, client.port, client.timeout, capacity=8)
+                # Bound upload bursts while the GEM is also transmitting results.
+                # On this Windows/board pair, 3 KiB batches eliminated RX overruns
+                # and retransmission timeouts in a 1000-frame full-duplex run.
+                pipeline = FramePipeline(client.host, client.port, client.timeout,
+                                         capacity=8, send_chunk=3072, send_pause=.0001)
 
                 def publish(source, result):
                     started = time.perf_counter()

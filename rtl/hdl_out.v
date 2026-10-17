@@ -18,10 +18,10 @@ module hdl_out(
     output reg buf_contour,
     output reg en,
 
-    input  wire read_buf_idx,          // HDMI 当前读 bank
+    input  wire display_ack_toggle,   // clk-domain confirmation of actual switch
+    input  wire display_disabled,     // HDMI has stopped all BRAM reads
     input  wire hdmi_enable,
     input  wire display_armed,
-    input  wire display_read_lock,
     input  wire back_read_lock,
     input  wire back_read_idx,
     output reg  frame_ready_toggle,    // 每完成一帧翻转，保持到下一帧完成
@@ -39,15 +39,11 @@ module hdl_out(
     reg [15:0] counter;
     reg eof_mismatch;
 
-    // read_buf_idx 来自 HDMI 像素时钟域。同步后再判断显示端是否已经
-    // 接管刚写完的 bank，避免跨时钟域直接采样。
-    reg read_idx_meta;
-    reg read_idx_sync;
-    (* ASYNC_REG = "TRUE" *) reg [1:0] display_lock_sync;
     reg display_sent;
+    wire publication_acked = display_ack_toggle == display_ready_toggle;
     wire display_released = hdmi_enable ?
-        (display_sent && display_lock_sync[1] && read_idx_sync == buf_idx) :
-        !display_lock_sync[1];
+        (display_sent && publication_acked) :
+        (display_disabled && publication_acked);
 
     assign dbg_status = {eof_mismatch, state, buf_idx, counter};
 
@@ -58,16 +54,10 @@ module hdl_out(
             counter            <= 16'd0;
             frame_ready_toggle <= 1'b0;
             eof_mismatch       <= 1'b0;
-            read_idx_meta      <= 1'b0;
-            read_idx_sync      <= 1'b0;
-            display_lock_sync  <= 0;
             display_sent       <= 0;
             display_ready_toggle <= 0;
             display_buf_idx    <= 0;
         end else begin
-            read_idx_meta <= read_buf_idx;
-            read_idx_sync <= read_idx_meta;
-            display_lock_sync <= {display_lock_sync[0],display_read_lock};
             if(!hdmi_enable) display_sent <= 0;
 
             if (state == WRITE_FRAME) begin
@@ -89,7 +79,7 @@ module hdl_out(
                 // Announce only complete, pinned banks after the display domain
                 // has accepted ON. Off-screen processing toggles cannot leak
                 // into a later display session or select a partially written bank.
-                if(hdmi_enable && display_armed && !display_sent)begin
+                if(hdmi_enable && display_armed && !display_sent && publication_acked)begin
                     display_buf_idx <= buf_idx;
                     display_ready_toggle <= ~display_ready_toggle;
                     display_sent <= 1;

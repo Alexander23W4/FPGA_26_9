@@ -37,4 +37,6 @@ void tcp_nagle_disable(struct tcp_pcb *);
 u16_t tcp_sndbuf(struct tcp_pcb *);err_t tcp_write(struct tcp_pcb *,const void *,u16_t,u8);
 err_t tcp_output(struct tcp_pcb *);void tcp_recved(struct tcp_pcb *,u16_t);
 u8 pbuf_free(struct pbuf *);err_t tcp_close(struct tcp_pcb *);void tcp_abort(struct tcp_pcb *);
+struct pbuf *pbuf_free_header(struct pbuf *,u16_t);
+void pbuf_cat(struct pbuf *,struct pbuf *);
 #endif

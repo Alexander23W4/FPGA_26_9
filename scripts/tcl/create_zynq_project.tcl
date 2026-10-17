@@ -711,6 +711,8 @@ if {$want_axi_infra} {
 if {$want_hp} {
     source [file join [file dirname [info script]] s2mm_return.tcl]
     ensure_return_dma
+    source [file join [file dirname [info script]] processing_clock.tcl]
+    ensure_processing_clock
 }
 # ---- 保存并校验 ----
 regenerate_bd_layout

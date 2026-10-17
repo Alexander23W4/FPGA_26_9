@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 from PIL import Image
 import frame_transfer as transfer
-from frame_pipeline import HELLO_PIPE, PIPE_READY, PIPE_UPLOAD, PIPE_RESULT
+from frame_pipeline import HELLO_PIPE, PIPE_READY, PIPE_UPLOAD, PIPE_RESULT, PIPE_CREDIT
 
 INPUT=bytes(range(256))*256
 RAW=bytes([11,22,33,4])*65536
@@ -34,6 +34,9 @@ class MockBoard(socketserver.ThreadingTCPServer):
         self.pipeline_min_before_return=0
         self.pipeline_received=threading.Event()
         self.pipeline_first_return=threading.Event()
+        self.pipeline_stall_after_credit=False
+        self.pipeline_credit_sent=threading.Event()
+        self.pipeline_credit_release=threading.Event()
         self.threshold=128;self.manual=0;self.alpha=45
 
 class MockHandler(socketserver.BaseRequestHandler):
@@ -60,6 +63,10 @@ class MockHandler(socketserver.BaseRequestHandler):
                     if not board.pipeline_received.wait(3):raise AssertionError('sender waited for first return before next upload')
                 if board.stall_next:
                     board.stall_next=False;board.stall_job=job;board.release_late.wait(5)
+                self.request.sendall(transfer.packet(PIPE_CREDIT,0,extra=1))
+                if board.pipeline_stall_after_credit:
+                    board.pipeline_stall_after_credit=False;board.pipeline_credit_sent.set()
+                    board.pipeline_credit_release.wait(5)
                 board.mode=mode
                 raw=bytes([33,22,11,255])*65536
                 if board.raw_factory is not None:raw=board.raw_factory(board,image)
@@ -84,7 +91,7 @@ class MockHandler(socketserver.BaseRequestHandler):
             magic,kind,job,length,checksum,extra=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))
             if magic!=transfer.MAGIC:raise AssertionError('magic')
             if kind==HELLO_PIPE:
-                self.request.sendall(transfer.packet(PIPE_READY,job,extra=5))
+                self.request.sendall(transfer.packet(PIPE_READY,job,extra=6)+transfer.packet(PIPE_CREDIT,0,extra=4))
                 self.pipeline_queue=queue.Queue()
                 self.pipeline_sender=threading.Thread(target=self.pipeline_send,daemon=True)
                 self.pipeline_sender.start()
@@ -193,7 +200,9 @@ def running_board():
     board=MockBoard()
     thread=threading.Thread(target=board.serve_forever,daemon=True);thread.start()
     try:yield board
-    finally:board.release_late.set();board.shutdown();board.server_close();thread.join(2)
+    finally:
+        board.release_late.set();board.pipeline_credit_release.set()
+        board.shutdown();board.server_close();thread.join(2)
 
 class FrameTransferTests(unittest.TestCase):
     def test_timeout_discards_job_without_resume_and_next_image_starts_fresh(self):

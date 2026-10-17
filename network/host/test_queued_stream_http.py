@@ -129,7 +129,7 @@ class QueuedStreamHTTPTests(unittest.TestCase):
     def test_stop_discards_waiting_inputs_and_drains_all_dispatched_frames(self):
         with queued_server() as (board, client, server, state, base, token, started):
             board.stall_next = True
-            board.pipeline_min_before_return = 8
+            board.pipeline_min_before_return = 4
             for sequence in range(4):
                 self.assertEqual(enqueue(base, token, sequence)[0], 200)
             request(base, 'control', {'session': token, 'action': 'resume'})
@@ -139,6 +139,7 @@ class QueuedStreamHTTPTests(unittest.TestCase):
             self.assertTrue(board.pipeline_received.wait(2))
             for sequence in range(8, 12):
                 self.assertEqual(enqueue(base, token, sequence)[0], 200)
+            self.assertEqual(board.uploads,4,'only four granted input slots may be sent while DMA is stalled')
             status, stopped, _ = request(base, 'control', {'session': token, 'action': 'stop'})
             self.assertEqual(status, 200, stopped)
             board.release_late.set()

@@ -9,11 +9,14 @@ module hdmi_enable_cdc (
     output wire enable_pclk, output wire armed
 );
     reg run_request, stopping;
+    wire src_rst, dst_rst;
+    reset_sync src_reset(.clk(clk), .arst(rst), .rst(src_rst));
+    reset_sync dst_reset(.clk(pclk), .arst(rst), .rst(dst_rst));
     (* ASYNC_REG = "TRUE" *) reg [1:0] run_sync, ack_sync;
     assign enable_pclk = run_sync[1];
     assign armed = ack_sync[1] && run_request && !stopping;
-    always @(posedge clk or posedge rst) begin
-        if(rst)begin run_request<=1;stopping<=0;ack_sync<=2'b11;end
+    always @(posedge clk or posedge src_rst) begin
+        if(src_rst)begin run_request<=1;stopping<=0;ack_sync<=2'b11;end
         else begin
             ack_sync<={ack_sync[0],enable_pclk};
             if(!enable_in)begin run_request<=0;stopping<=1;end
@@ -22,8 +25,8 @@ module hdmi_enable_cdc (
             end else run_request<=1;
         end
     end
-    always @(posedge pclk or posedge rst) begin
-        if(rst)run_sync<=2'b11;
+    always @(posedge pclk or posedge dst_rst) begin
+        if(dst_rst)run_sync<=2'b11;
         else run_sync<={run_sync[0],run_request};
     end
 endmodule

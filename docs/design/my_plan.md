@@ -11,7 +11,7 @@
 输出槽满时暂停启动 DMA。下一帧 DMA 可以和上一帧 TCP 回传重叠。
 Python 预览队列最多 2 帧；浏览器保留最新待绘制帧，显示速度不会阻塞网络收发。
 暂停会停止派发并等待所有已提交帧完成，再更新参数；停止还会丢弃尚未派发的输入。
-本次需更新 PS 固件、重启 GUI 并刷新页面，连续流使用协议 5；单图保存流程继续使用原协议。
+本次需更新 PS 固件、重启 GUI 并刷新页面，连续流使用协议 6；单图保存流程继续使用原协议。
 流模式禁用全显示；阈值和透明度更新仅在帧间写寄存器；指标随每帧网口结果一起回传。
 
 回传已改为独立读取 `double_buf`，HDMI 和回传分别连接自己的 `out_arr`。
@@ -28,7 +28,7 @@ HDMI 关闭后，显示读口停止、显示读锁释放，写端只需保护回
 ./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
 ```
 
-完成后重启 GUI（`bash ./network/launch_gui.sh`）并刷新网页；连续流协议为版本 5。本次只改 PS/GUI，已有独立回传和 HDMI 开关位流可继续使用。
+完成后重启 GUI（`bash ./network/launch_gui.sh`）并刷新网页；连续流协议为版本 6。本次只改 PS/GUI，已有独立回传和 HDMI 开关位流可继续使用。
 
 已接通叠加掩膜、伪彩色热力图及掩膜透明度。
 寄存器编号、实际 AXI 字节偏移、串口命令和验证方法见 [display_modes.md](display_modes.md)。

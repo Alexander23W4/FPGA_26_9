@@ -34,6 +34,7 @@ if {$name eq "" || $pdir eq ""} {
 set script_dir [file normalize [file dirname [info script]]]
 source [file join $script_dir build_freshness.tcl]
 source [file join $script_dir s2mm_return.tcl]
+source [file join $script_dir processing_clock.tcl]
 set xpr        [file join $pdir $name "${name}.xpr"]
 set want_hp    [expr {[lsearch -exact $pass "-hp"] >= 0 ? 1 : 0}]
 

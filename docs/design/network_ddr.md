@@ -5,13 +5,14 @@
 流模式现在由浏览器 Web Worker 独立收发；主线程只绘制 Canvas，不编码预览 PNG。
 原图仅上传一次，直接从本地灰度 BIN 绘制。回传每像素 R、G、B、255 四字节。
 PS 将整帧复制到 TCP 后释放对应输出 DDR 槽。Python 独立发送与接收线程并行，最多 8 帧在途；
-下一输入不再等待上一输出完整回传，只有有界缓存耗尽才暂停。
+下一输入不再等待上一输出完整回传。板端初始授予 4 个输入槽名额，每个槽在 S2MM 完成后释放，
+在结果像素之前发送 PIPE_CREDIT，PC 写线程收到名额便继续发送。名额用尽才等待；TCP 窗口作为安全兜底。
 流模式不发送 RECEIVED，不等待 DONE，也不等待 GUI 绘制。TCP 自身仍负责可靠传输。
 流模式完全在内存中收发和显示，不保存 BIN、不编码或保存 PNG，也没有磁盘保存队列。
 浏览器渲染跟不上时只绘制最新的完整帧，收发不等待绘制。原流从本地 BIN 直接绘制。
 单图及“全显示”仍使用落盘后 `SAVED` / `DONE`，保留失败重试和保存成功确认。
 
-连续流复用一个全双工 TCP 连接，设置 TCP_NODELAY，以 HELLO_PIPE 确认协议 5。
+连续流复用一个全双工 TCP 连接，设置 TCP_NODELAY，以 HELLO_PIPE 确认协议 6。
 断线时停止此流并报错；已派发的硬件帧先排空，不自动重放或显示半帧。单图仍支持原任务恢复。
 随帧状态包含七个寄存器的快照并纳入同一 CRC，不再逐帧开串口发送 R。
 阈值/透明度写入与手动“请求FPGA状态”保留 UART，在流的帧间暂停处执行。
@@ -198,9 +199,10 @@ PS 先启动 S2MM，再写模式寄存器；PL 在帧边界更新配置并回传
 | 16 | RESULT_RGBA | 262144 | 单图/全显示 RGBA，落盘后仍用 SAVED/DONE | mode |
 | 17 | PERF_FAST | 48 | 细分计时、TCP 配置快照，独立 CRC | 0 |
 | 18 | HELLO_PIPE | 0 | 无；全双工流能力查询 | 0 |
-| 19 | PIPE_READY | 0 | 无；连续流协议确认 | 版本 5 |
+| 19 | PIPE_READY | 0 | 无；连续流协议确认 | 版本 6 |
 | 20 | PIPE_UPLOAD | 65536 | 输入灰度 BIN，可连续发送多帧 | 请求 mode 0～4 |
 | 22 | PIPE_RESULT | 262200 | 56 字节状态 + RGBA，后跟同 job 的消息 17 | mode |
+| 23 | PIPE_CREDIT | 0 | 无；job_id、CRC 均为 0 | 新增空闲输入槽数 1～4 |
 
 RESULT_FAST 的 56 字节状态为十四个大端 u32：
 `version=4, MODE, CMD_REG, FRAME_VIDEO_MODE, STATUS, DATA_REG, LESION, MASK_TRANSP, receive_us, setup_us, pl_to_ddr_us, return_interval_cycles, return_stall_cycles, return_interval_seq`。

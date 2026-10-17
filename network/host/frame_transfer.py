@@ -87,7 +87,7 @@ def result_image(raw, mode):
 def decode_frame_metadata(data, mode):
     (version, system, threshold_mode, video, actual, manual, lesion, alpha,
      rx_us, setup_us, pl_us, interval_cycles, stall_cycles, interval_seq) = META.unpack(data)
-    if (version != 4 or system > 1 or threshold_mode > 1 or video != mode or
+    if (version not in (4, 5) or system > 1 or threshold_mode > 1 or video != mode or
             actual > 255 or manual > 255 or lesion > 65536 or alpha > 100):
         raise ValueError('invalid FPGA frame register snapshot')
     return {'ok': True, 'system_mode': system, 'mode': threshold_mode,
@@ -95,8 +95,8 @@ def decode_frame_metadata(data, mode):
             'lesion_pixels': lesion, 'lesion_mm2': '%.3f' % (lesion * 0.436280886141),
             'mask_transparency': alpha,
             'ps_timings_ms': {'receive': rx_us/1000, 'setup': setup_us/1000, 'pl_to_ddr': pl_us/1000},
-            'pl_interval': {'sequence': interval_seq, 'elapsed_ms': interval_cycles/25200,
-                            'write_stall_ms': stall_cycles/25200},
+            'pl_interval': {'sequence': interval_seq, 'elapsed_ms': interval_cycles/(1000 if version == 5 else 25200),
+                            'write_stall_ms': stall_cycles/(1000 if version == 5 else 25200)},
             'log': 'register snapshot received with frame over TCP'}
 
 

@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 
 // Same-clock measurement: new-image return start N -> frame-store commit N+1.
-// Config-only redraws do not restart the interval. Counts are at 25.2 MHz.
+// Config-only redraws do not restart the interval. Counts use processing clk;
+// the host reads its frequency from CLOCK_HZ (word 0x36).
 module return_timing (
     input wire clk, input wire rst,
     input wire new_image_start, input wire frame_commit,

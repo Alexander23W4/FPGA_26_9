@@ -24,6 +24,7 @@ proc prepare_fresh_bd {bd} {
         update_module_reference $ref
     }
     if {[llength [info commands ensure_return_dma]]} {ensure_return_dma}
+    if {[llength [info commands ensure_processing_clock]]} {ensure_processing_clock}
     validate_bd_design
     save_bd_design
     reset_target all $bd

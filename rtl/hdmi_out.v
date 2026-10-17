@@ -13,6 +13,7 @@ module hdmi_out (
     output reg vid_hs, output reg vid_vs, output reg vid_de,
     output wire image_active, output wire frame_start, output wire new_frame,
     input wire frame_ready_toggle, input wire write_idx_sync,
+    output wire accepted_toggle,
     output wire [37:0] dbg_status
 );
     localparam IDLE = 1'b0, BUF = 1'b1;
@@ -21,6 +22,7 @@ module hdmi_out (
     reg [15:0] counter;
     wire raster_end = hcnt == 10'd799 && vcnt == 10'd524;
     assign read_lock = state == BUF;
+    assign accepted_toggle = frame_ready_seen;
     assign read_en = enable && state == BUF;
     assign image_active = enable && state == BUF && vcnt >= 112 && vcnt <= 367 &&
                           hcnt >= 192 && hcnt <= 447;

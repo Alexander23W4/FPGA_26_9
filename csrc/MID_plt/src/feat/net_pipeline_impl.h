@@ -6,6 +6,7 @@
 #define PIPE_READY 19u
 #define PIPE_UPLOAD 20u
 #define PIPE_RESULT 22u
+#define PIPE_CREDIT 23u
 
 enum pipe_state {P_FREE, P_RECEIVE, P_READY, P_DMA, P_RESULT};
 struct pipe_input {
@@ -26,12 +27,12 @@ static int pipe_pl_frame;
 static u32 pipe_in_read, pipe_in_write, pipe_out_read, pipe_out_write;
 static u32 pipe_hused, pipe_used;
 static u8 pipe_header[HEADER_BYTES], pipe_txheader[HEADER_BYTES];
-static struct pbuf *pipe_held, *pipe_part;
-static u32 pipe_part_offset;
+static struct pbuf *pipe_held;
 static u64 pipe_dma_started;
 static int pipe_tx_stage=-1;
 static u32 pipe_tx_offset, pipe_tx_calls, pipe_tx_waits;
 static u64 pipe_tx_started, pipe_tx_copy;
+static u32 pipe_credit_pending;
 
 static u32 pipe_input_address(u32 slot) {return STREAM_INPUT_BASE+slot*NET_INPUT_BYTES;}
 static u32 pipe_output_address(u32 slot) {return STREAM_OUTPUT_BASE+slot*IMG_RES_DDR_SIZE;}
@@ -46,7 +47,7 @@ static int pipe_busy(void)
 static void pipe_release_pbuf(void)
 {
     if(pipe_held)pbuf_free(pipe_held);
-    pipe_held=pipe_part=0;pipe_part_offset=0;
+    pipe_held=0;
 }
 static void pipe_disconnect(void)
 {
@@ -73,12 +74,13 @@ static void pipe_begin(void)
     pipe_in_read=pipe_in_write=pipe_out_read=pipe_out_write=0;
     pipe_hused=pipe_used=0;pipe_rx_slot=-1;pipe_active=pipe_abandoned=0;
     pipe_tx_stage=-1;pipe_enabled=1;
+    pipe_credit_pending=STREAM_INPUT_SLOTS;
     /* Single-image result reuse is no longer valid after a streaming session. */
     pipe_pl_frame=pipe_pl_frame||has_frame;has_frame=0;
 }
-/* Consume only bytes for which application storage exists. Leave the remaining
- * pbuf owned by us and withhold tcp_recved; further callbacks return ERR_MEM.
- * lwIP then closes the receive window instead of dropping or overwriting frames. */
+/* Consume only bytes for which application storage exists. Accepted in-window
+ * data stays in a bounded pbuf chain until DDR has space. Withhold tcp_recved
+ * for those bytes so TCP closes its window without rejecting valid segments. */
 static u32 pipe_consume(const u8 *bytes,u32 length)
 {
     u32 initial=length,amount,actual;u64 before;
@@ -120,22 +122,30 @@ static u32 pipe_consume(const u8 *bytes,u32 length)
 }
 static void pipe_receive_poll(void)
 {
-    while(pipe_part&&client&&!pipe_abandoned) {
-        struct pbuf *part=pipe_part;
-        u32 used=pipe_consume((const u8 *)part->payload+pipe_part_offset,part->len-pipe_part_offset);
+    while(pipe_held&&client&&!pipe_abandoned) {
+        u32 used=pipe_consume((const u8 *)pipe_held->payload,pipe_held->len);
         if(pipe_abandoned)return; /* Error handling released the held chain. */
-        pipe_part_offset+=used;
-        if(used)tcp_recved(client,(u16_t)used);
-        if(pipe_part_offset!=part->len)break;
-        pipe_part=part->next;pipe_part_offset=0;
+        if(!used)break;
+        /* Release consumed prefix buffers BEFORE returning window credit.
+         * The chain contains only unconsumed bytes and remains <= TCP_WND. */
+        pipe_held=pbuf_free_header(pipe_held,(u16_t)used);
+        tcp_recved(client,(u16_t)used);
     }
-    if(pipe_held&&!pipe_part)pipe_release_pbuf();
 }
 static err_t pipe_receive(struct pbuf *p)
 {
-    if(pipe_held)return ERR_MEM; /* lwIP retains this new chain for retry. */
-    pipe_held=pipe_part=p;pipe_part_offset=0;
-    return ERR_OK;
+    if(pipe_held) {
+        if((u32)pipe_held->tot_len+p->tot_len>TCP_WND) {
+            pbuf_free(p);pipe_fail("pipeline pending bytes exceed TCP receive window",0);
+            return ERR_ABRT;
+        }
+        pbuf_cat(pipe_held,p); /* Transfer ownership; do not increment references. */
+    } else pipe_held=p;
+    /* Consume immediately: the next callback can be another segment in the
+     * same TCP input call. Deferring consumption falsely created refused_data,
+     * dropped subsequent segments and caused timer/retransmission-sized stalls. */
+    pipe_receive_poll();
+    return pipe_abandoned?ERR_ABRT:ERR_OK;
 }
 static void pipe_finish(void)
 {
@@ -159,17 +169,18 @@ static void pipe_finish(void)
     if(mode!=input->mode||i<IMG_RES_DDR_SIZE) {pipe_fail("pipeline RGBA/frame mode mismatch",1);return;}
     output->id=input->id;output->mode=mode;
     output->input_crc_ticks=input->crc_ticks;output->copy_ticks=input->copy_ticks;
-    put32(output->meta,4u);
+    put32(output->meta,5u);
     for(i=0;i<7;++i)put32(output->meta+4u*(i+1u),i==2?mode:Xil_In32(PL_REG_ADDRESS(regs[i])));
     put32(output->meta+32,micros(input->finished-input->started));
     put32(output->meta+36,micros(pipe_dma_started-input->finished));
     put32(output->meta+40,micros(ended-pipe_dma_started));
-    put32(output->meta+44,Xil_In32(PL_REG_ADDRESS(RETURN_INTERVAL)));
-    put32(output->meta+48,Xil_In32(PL_REG_ADDRESS(RETURN_STALL)));
+    put32(output->meta+44,pl_micros(Xil_In32(PL_REG_ADDRESS(RETURN_INTERVAL))));
+    put32(output->meta+48,pl_micros(Xil_In32(PL_REG_ADDRESS(RETURN_STALL))));
     put32(output->meta+52,Xil_In32(PL_REG_ADDRESS(RETURN_SEQ)));
     before=ticks();output->checksum=crc32_extend(crc32_calc(output->meta,META_BYTES),raw,IMG_RES_DDR_SIZE);
     output->crc_ticks=ticks()-before;
     s2mm_stop();output->state=P_RESULT;input->state=P_FREE;
+    ++pipe_credit_pending;
     pipe_in_read=(pipe_in_read+1u)%STREAM_INPUT_SLOTS;
     pipe_out_write=(pipe_out_write+1u)%STREAM_OUTPUT_SLOTS;
     pipe_active=0;pipe_pl_frame=1;
@@ -229,7 +240,19 @@ static void pipe_send_poll(void)
 {
     struct pipe_output *output=&pipe_out[pipe_out_read];
     const u8 *bytes;u32 size,amount,budget=32768u;u64 before;err_t status;
-    if(!client||output->state!=P_RESULT)return;
+    if(!client)return;
+    /* Grant only real free input slots. Send at a message boundary, before
+     * result pixels, so the next upload need not wait for this image return.
+     * TCP window backpressure remains a safety net, not the frame scheduler. */
+    if(pipe_tx_stage<0&&pipe_credit_pending) {
+        u8 grant[HEADER_BYTES];
+        put32(grant,MAGIC);put32(grant+4,PIPE_CREDIT);put32(grant+8,0);
+        put32(grant+12,0);put32(grant+16,0);put32(grant+20,pipe_credit_pending);
+        if(tcp_sndbuf(client)<HEADER_BYTES||
+           tcp_write(client,grant,HEADER_BYTES,TCP_WRITE_FLAG_COPY)!=ERR_OK)return;
+        pipe_credit_pending=0;(void)tcp_output(client);
+    }
+    if(output->state!=P_RESULT)return;
     if(pipe_tx_stage<0) {
         pipe_make_header(PIPE_RESULT,output->id,IMG_RES_DDR_SIZE+META_BYTES,output->checksum,output->mode);
         pipe_tx_stage=0;pipe_tx_offset=pipe_tx_calls=pipe_tx_waits=0;

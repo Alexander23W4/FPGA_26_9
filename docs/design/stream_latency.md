@@ -126,3 +126,72 @@ Python 响应准备、HTTP/浏览器余量和 Worker 解包。实际 TCP 配置�
 TCP 提交耗时含缓冲等待，只表示复制到 lwIP，不代表屏幕显示或最后的网络 ACK。
 
 本次无需修改 PL。重新构建、烧录 PS 后重启 GUI 并刷新；实际提升幅度需上板测量。
+
+## 周期性几百毫秒停顿：TCP 接收回调（2026-10-17）
+
+输入 DDR 满时，旧实现保留一个 pbuf，再对后续接收回调返回 ERR_MEM。
+lwIP 把拒收数据存为 refused_data；尚未重交成功时，后续带数据的段可能被丢弃，
+需要等待新包、TCP 定时器重试或发送端重传。这与只降低接收窗口的正常反压不同。
+旧版原生测试未覆盖这种真实 TCP 行为。
+
+修复后回调立即尝试消费；DDR 满时接受并串接已在接收窗口内的数据，暂不归还窗口额度。
+消费多少字节就先释放对应 pbuf 前缀，再 tcp_recved 归还多少额度，待处理链受 65535 字节窗口限制。
+空间释放后由主循环立即继续，不依赖 TCP 重试定时器。
+
+`scripts/tests/run_lwip_receive_checks.py` 编译实际 lwIP 核心，以合成 TCP 包复现旧策略丢包，
+验证新策略满窗口后可直接恢复。`run_firmware_network_checks.py` 另覆盖真实固件的连续突发回调、
+输入槽满/释放、CRC、帧编号及缓存环绕。
+Python 计时新增 upload_queue_ms，区分派发后等待写线程和 sendall 调用耗时。
+transfer_ms 是该任务从提交到完整回传的延迟，包含排队；它的倒数不是多帧流水的实际 FPS。
+
+## 多帧突发压力与输入槽调度实测（2026-10-17）
+
+HDMI 关闭，同一幅 256×256 灰度梯度，模式 4，每组 40 帧，直接运行真实 Python TCP 客户端：
+
+| 在途上限 | 回传 FPS | 最大相邻回传间隔 | 超过 100 ms 次数 | PC 重传超时 | PC 重传字节 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 47.96 | 21.51 ms | 0 | 0 | 0 |
+| 4 | 67.64 | 15.23 ms | 0 | 0 | 0 |
+| 8（旧调度） | 13.12 | 506.40 ms | 7 | 7 | 416174 |
+
+数据在 `build/tests/stream_network_baseline/capacity_*.json`，包含 Windows SIO_TCP_INFO 采样。
+这证明过量在途下存在 TCP 丢包/重传停顿。后续读取 PS GEM 接收计数器进一步发现：
+4 帧在途运行 80 帧，RX overrun 为 0；8 帧在途运行 40 帧，RX overrun 为 60。
+该组 FCS、符号及校验和错误为 0，GEM 配置为全双工。接收溢出发生在数据交给应用层之前，
+但尚未定位驱动内部具体是哪段服务时间造成瞬时处理不及，不能据此归咎于网线或 PL。
+
+协议 6 增加 PIPE_CREDIT（类型 23）：初始可发 4 帧；输入槽在 S2MM 完成时释放并积累名额，
+发送器在 TCP 消息边界、结果像素之前通知 PC。PC 收到名额后立即发送下一输入，保持 8 个任务的
+在途上限，避免把超过板端可接收的帧持续塞入 TCP。输出 DDR 仍独立持有到复制进 TCP，绘制不阻塞收发。
+此通知早于上一张结果收齐，不是恢复“一帧完整回传后才能发下一帧”。
+`test_free_slot_grant_sends_next_input_before_previous_result_returns` 故意扣留结果，验证下一输入已到板。
+
+仅增加名额通知未能解决网口突发：120 帧、8 在途仍只有 14.73 FPS，最大间隔 502.19 ms，
+出现 20 次重传超时。这是排除“只要限制 DDR 输入槽就能解决”的板测反证。
+
+### GUI 当前修复与复测
+
+GUI 连续流使用 8 在途、输入槽通知，并将每帧上传拆成 3072 字节小批次，批次之间
+`time.sleep(0.0001)`，让正在全双工收发的 PS 网口得到处理间隙。Windows 实际调度等待可能
+长于 100 微秒；此参数依据本机实测，不等同于严格的硬件速率限制，也不是每帧等待回传。
+单图/全显示的事务与保存路径保持原有流程。
+
+| 实测路径 | 帧数 | 回传 FPS | 最大相邻回传间隔 | 超过 100 ms 次数 | PC 重传超时 | GEM 接收溢出 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| TCP 直接收发，小批次上传 | 1000 | 66.49 | 33.78 ms | 0 | 0 | 0 |
+| GUI HTTP 入队、独立读取预览 | 500 | 67.08 | 16.54 ms | 0 | 未采集 | 0 |
+
+1000 帧测试仍记录到 195210 字节 TCP 重传（总输入约 65.8 MB），因此不宣称网络完全无重传。
+该次没有重传超时，也没有原先数百毫秒停顿。500 帧 HTTP 测试逐一检查原图匹配及结果长度/
+Alpha，全部 500 个预览收到，Python 预览淘汰为 0；该测试不包含屏幕实际呈现计时。
+原始数据分别在 `build/tests/stream_network_paced3k_long/capacity_8.json`、
+`build/tests/stream_network_paced_http.json`；GEM 计数在 `build/tests/network_app/gem_after_paced*.out`。
+
+PS 已构建并烧入：`build/out/2026-10-17_160306_4bda58e-dirty_xgrHvi`。
+本次未修改 RTL，沿用已验证的 PL 位流。GUI 服务需要重启、网页需要刷新以加载配套代码。
+Python 回归 80 项，79 通过、1 跳过；真实 lwIP 核心复现测试和固件原生测试均通过。
+
+无批次限制的复现：`python scripts/tests/measure_stream_network.py --capacities 1 4 8`。
+当前 GUI 参数的复测：
+`python scripts/tests/measure_stream_network.py --capacities 8 --frames 1000 --send-chunk 3072 --send-pause 0.0001 --out build/tests/stream_network_verify`。
+请先停止 GUI 流，避免两个客户端同时占用板端连接；该脚本不修改 PL、寄存器或保存图像。

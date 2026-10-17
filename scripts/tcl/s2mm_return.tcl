@@ -1,5 +1,8 @@
 # Idempotent migration for both a fresh BD and existing projects. No synthesis.
 proc return_connect {source target} {
+    if {$source eq "clk_wiz_0/clk_out1" && [get_bd_cells -quiet clk_wiz_proc] ne ""} {
+        set source clk_wiz_proc/clk_out1
+    }
     set src [get_bd_pins $source];set dst [get_bd_pins $target]
     set old [get_bd_nets -quiet -of_objects $dst]
     if {[llength $old]==0} {connect_bd_net $src $dst} elseif {$old ne [get_bd_nets -quiet -of_objects $src]} {

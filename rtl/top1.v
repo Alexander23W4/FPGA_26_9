@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 module top1 #(
+    parameter integer CLK_HZ = 100000000,
     parameter integer PIXEL_W = 8,      // 像素位宽: 8bit 灰度
     // Legacy BD parameter retained for project compatibility; the current
     // 256x256 denoise RTL is enabled in this pipeline.
@@ -8,7 +9,7 @@ module top1 #(
 )(
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS:M_AXIS, ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS:M_AXIS, ASSOCIATED_RESET rst" *)
     input  wire        clk,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
@@ -16,7 +17,7 @@ module top1 #(
     input  wire        rst,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 pclk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
+    (* X_INTERFACE_PARAMETER = "FREQ_HZ 25200000" *)
     input  wire                    pclk,        // 像素时钟 25.2MHz (clk_wiz clk_out1)
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 pclk_x5 CLK" *)
@@ -25,7 +26,7 @@ module top1 #(
 
     // ---------------- AXI4-Stream 从端：向上接 VDMA MM2S ----------------
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TDATA" *)
-    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXIS, TDATA_NUM_BYTES 8, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 25200000, PHASE 0.0, INSERT_VIP 0" *)
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXIS, TDATA_NUM_BYTES 8, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, PHASE 0.0, INSERT_VIP 0" *)
     input  wire [63:0] s_axis_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TVALID" *)
     input  wire        s_axis_tvalid,
@@ -40,7 +41,7 @@ module top1 #(
 
     // Return channel: one {255,B,G,R} word per handshake, little-endian RGBA.
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TDATA" *)
-    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME M_AXIS, TDATA_NUM_BYTES 4, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 25200000" *)
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME M_AXIS, TDATA_NUM_BYTES 4, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1" *)
     output wire [31:0] m_axis_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TVALID" *)
     output wire        m_axis_tvalid,
@@ -55,7 +56,7 @@ module top1 #(
 
     // ---------------- AXI-Lite 从口：向上接 PS ----------------
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWADDR" *)
-    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXI, PROTOCOL AXI4LITE, ADDR_WIDTH 9, DATA_WIDTH 32, FREQ_HZ 25200000, ID_WIDTH 0, AWUSER_WIDTH 0, ARUSER_WIDTH 0, WUSER_WIDTH 0, RUSER_WIDTH 0, BUSER_WIDTH 0, READ_WRITE_MODE READ_WRITE, HAS_BURST 0, HAS_LOCK 0, HAS_PROT 0, HAS_CACHE 0, HAS_QOS 0, HAS_REGION 0, HAS_WSTRB 1, HAS_BRESP 1, HAS_RRESP 1, SUPPORTS_NARROW_BURST 0, NUM_READ_OUTSTANDING 1, NUM_WRITE_OUTSTANDING 1, MAX_BURST_LENGTH 1, PHASE 0.0, NUM_READ_THREADS 1, NUM_WRITE_THREADS 1, RUSER_BITS_PER_BYTE 0, WUSER_BITS_PER_BYTE 0, INSERT_VIP 0" *)
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXI, PROTOCOL AXI4LITE, ADDR_WIDTH 9, DATA_WIDTH 32, ID_WIDTH 0, AWUSER_WIDTH 0, ARUSER_WIDTH 0, WUSER_WIDTH 0, RUSER_WIDTH 0, BUSER_WIDTH 0, READ_WRITE_MODE READ_WRITE, HAS_BURST 0, HAS_LOCK 0, HAS_PROT 0, HAS_CACHE 0, HAS_QOS 0, HAS_REGION 0, HAS_WSTRB 1, HAS_BRESP 1, HAS_RRESP 1, SUPPORTS_NARROW_BURST 0, NUM_READ_OUTSTANDING 1, NUM_WRITE_OUTSTANDING 1, MAX_BURST_LENGTH 1, PHASE 0.0, NUM_READ_THREADS 1, NUM_WRITE_THREADS 1, RUSER_BITS_PER_BYTE 0, WUSER_BITS_PER_BYTE 0, INSERT_VIP 0" *)
     input  wire [8:0]  awaddr,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWVALID" *)
     input  wire        awvalid,
@@ -108,7 +109,7 @@ module top1 #(
     wire [PIXEL_W-1:0] px_data;
     wire px_valid, px_eof, px_sof, px_eol, px_ready;
     axi2px #(.TDATA_W(64), .PIXEL_W(PIXEL_W), .H_PIXELS(256), .V_PIXELS(256)) u_axi2px (
-        .clk(clk), .rst(rst), .s_axis_tdata(s_axis_tdata),
+        .clk(clk), .rst(rst_clk), .s_axis_tdata(s_axis_tdata),
         .s_axis_tvalid(s_axis_tvalid), .s_axis_tready(s_axis_tready),
         .s_axis_tlast(s_axis_tlast), .s_axis_tkeep(s_axis_tkeep), .s_axis_tuser(s_axis_tuser),
         .px_data(px_data), .px_valid(px_valid), .px_eof(px_eof),
@@ -123,25 +124,18 @@ module top1 #(
     wire [7:0] back_frame_mode;
     (* MARK_DEBUG = "TRUE" *) wire back_busy, back_overflow, back_frame_sent;
     wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq;
-    (* ASYNC_REG = "TRUE" *) reg [7:0] back_mode_meta,back_mode_sync;
-    (* ASYNC_REG = "TRUE" *) reg [2:0] back_status_meta,back_status_sync;
-    always @(posedge clk)begin
-        if(rst)begin back_status_meta<=0;back_status_sync<=0;back_mode_meta<=0;back_mode_sync<=0;end
-        else begin
-            back_status_meta<={back_overflow,1'b0,back_busy};
-            back_status_sync<=back_status_meta;
-            // Mode is latched at SOF and remains stable long before busy falls.
-            back_mode_meta<=back_frame_mode;back_mode_sync<=back_mode_meta;
-        end
-    end
+    wire rst_clk, rst_pclk, rst_x5;
+    reset_sync u_rst_clk(.clk(clk), .arst(rst), .rst(rst_clk));
+    reset_sync u_rst_pclk(.clk(pclk), .arst(rst), .rst(rst_pclk));
+    reset_sync u_rst_x5(.clk(pclk_x5), .arst(rst), .rst(rst_x5));
     denoise u_denoise (
-        .ap_clk(clk), .ap_rst(rst), .in_data(px_data[7:0]),
+        .ap_clk(clk), .ap_rst(rst_clk), .in_data(px_data[7:0]),
         .in_valid(px_valid), .in_last(px_eof), .in_ready(px_ready),
         .out_ready(dn_ready), .out_data(dn_data), .out_valid(dn_valid), .out_last(dn_eof)
     );
 
-    top_threshold_demo u_top_threshold_demo (
-        .clk(clk), .rst_n(~rst),
+    top_threshold_demo #(.CLK_HZ(CLK_HZ)) u_top_threshold_demo (
+        .clk(clk), .rst_n(~rst_clk),
         .s_axi_awaddr({23'd0, awaddr}), .s_axi_awvalid(awvalid), .s_axi_awready(awready),
         .s_axi_wdata(wdata), .s_axi_wstrb(wstrb), .s_axi_wvalid(wvalid), .s_axi_wready(wready),
         .s_axi_bresp(bresp), .s_axi_bvalid(bvalid), .s_axi_bready(bready),
@@ -155,10 +149,10 @@ module top1 #(
         .threshold_out(), .auto_mode_out(), .frame_done_out(),
         .video_mode_out(video_mode), .mask_transparency_out(mask_transparency),
         .hdmi_enable_out(hdmi_enable),
-        .back_frame_mode(back_mode_sync),
+        .back_frame_mode(back_frame_mode),
         .return_interval_cycles(return_interval_cycles),
         .return_stall_cycles(return_stall_cycles), .return_interval_seq(return_interval_seq),
-        .back_status(back_status_sync)
+        .back_status({back_overflow, 1'b0, back_busy})
     );
 
     // Preserve all three planes. Display selection happens after the frame store,
@@ -170,20 +164,15 @@ module top1 #(
     wire fb_write_mask, fb_write_contour, fb_read_mask, fb_read_contour;
     wire fb_write_en, frame_ready_toggle;
     wire display_ready_toggle, display_buf_idx;
-    (* ASYNC_REG = "TRUE" *) reg [2:0] frame_ready_sync;
-    (* ASYNC_REG = "TRUE" *) reg [1:0] write_idx_sync, read_idx_sync;
-
-    always @(posedge clk) begin
-        if (rst) read_idx_sync <= 0;
-        else read_idx_sync <= {read_idx_sync[0], fb_read_idx};
-    end
-    always @(posedge pclk) begin
-        if (rst) begin frame_ready_sync <= 0; write_idx_sync <= 0; end
-        else begin
-            frame_ready_sync <= {frame_ready_sync[1:0], display_ready_toggle};
-            write_idx_sync <= {write_idx_sync[0], display_buf_idx};
-        end
-    end
+    wire display_frame_toggle, display_frame_bank, display_ack_pclk;
+    wire display_ack_clk, display_disabled;
+    display_frame_cdc u_display_frame_cdc (
+        .clk(clk), .pclk(pclk), .rst(rst),
+        .publish_toggle(display_ready_toggle), .publish_bank(display_buf_idx),
+        .accepted_toggle(display_ack_pclk), .display_enable(hdmi_enable_pclk),
+        .display_read_lock(hdmi_read_lock), .frame_toggle(display_frame_toggle),
+        .frame_bank(display_frame_bank), .accepted(display_ack_clk), .disabled(display_disabled)
+    );
 
     wire [31:0] video_mode_pclk, mask_transparency_pclk;
     display_cfg_cdc u_display_cfg_cdc (
@@ -212,13 +201,13 @@ module top1 #(
     wire [31:0] back_video_mode;
 
     hdl_out u_hdl_out (
-        .clk(clk), .rst(rst),
+        .clk(clk), .rst(rst_clk),
         .hdl_data(hdl_data), .hdl_mask(ts_mask), .hdl_contour(ts_contour),
         .hdl_valid(hdl_valid), .hdl_eof(hdl_eof), .hdl_ready(hdl_ready),
         .buf_idx(fb_write_idx), .buf_addr(fb_write_addr), .buf_data(fb_write_data),
         .buf_mask(fb_write_mask), .buf_contour(fb_write_contour), .en(fb_write_en),
-        .read_buf_idx(read_idx_sync[1]), .frame_ready_toggle(frame_ready_toggle),
-        .hdmi_enable(hdmi_enable), .display_armed(display_armed), .display_read_lock(hdmi_read_lock),
+        .display_ack_toggle(display_ack_clk), .display_disabled(display_disabled), .frame_ready_toggle(frame_ready_toggle),
+        .hdmi_enable(hdmi_enable), .display_armed(display_armed),
         .display_ready_toggle(display_ready_toggle), .display_buf_idx(display_buf_idx),
         .back_read_lock(back_read_lock), .back_read_idx(back_read_idx),
         .dbg_status(hdl_dbg_status)
@@ -234,7 +223,7 @@ module top1 #(
     );
 
     out_arr u_out_arr (
-        .pclk(pclk), .rst(rst),
+        .pclk(pclk), .rst(rst_pclk),
         .buf_data(fb_read_data),
         .buf_mask(fb_read_mask), .buf_contour(fb_read_contour),
         .video_mode(video_mode_pclk), .mask_transparency(mask_transparency_pclk),
@@ -246,14 +235,14 @@ module top1 #(
 
 
     back_reader u_back_reader (
-        .clk(clk), .rst(rst), .frame_ready_toggle(frame_ready_toggle), .write_buf_idx(fb_write_idx),
+        .clk(clk), .rst(rst_clk), .frame_ready_toggle(frame_ready_toggle), .write_buf_idx(fb_write_idx),
         .video_mode(video_mode), .packet_busy(back_busy), .source_ready(back_source_ready),
         .read_buf_idx(back_read_idx), .read_lock(back_read_lock),
         .read_addr(back_read_addr), .read_en(back_read_en),
         .job_start(back_job_start), .new_image_start(back_new_image_start), .pixel_valid(back_pixel_valid)
     );
     out_arr u_back_out_arr (
-        .pclk(clk), .rst(rst), .buf_data(back_read_data),
+        .pclk(clk), .rst(rst_clk), .buf_data(back_read_data),
         .buf_mask(back_read_mask), .buf_contour(back_read_contour),
         .video_mode(video_mode), .mask_transparency(mask_transparency),
         .frame_start(back_job_start), .image_active(back_pixel_valid),
@@ -262,7 +251,7 @@ module top1 #(
         .vid_valid(back_valid), .vid_sof(back_sof), .video_mode_out(back_video_mode)
     );
     back_stream #(.FIFO_DEPTH(32)) u_back_stream (
-        .clk(clk), .rst(rst), .sof(back_sof), .valid(back_valid),
+        .clk(clk), .rst(rst_clk), .sof(back_sof), .valid(back_valid),
         .R(back_r), .G(back_g), .B(back_b), .video_mode(back_video_mode),
         .tdata(m_axis_tdata), .tvalid(m_axis_tvalid), .tready(m_axis_tready),
         .tkeep(m_axis_tkeep), .tlast(m_axis_tlast), .tuser(m_axis_tuser),
@@ -271,7 +260,7 @@ module top1 #(
     );
 
     return_timing u_return_timing (
-        .clk(clk), .rst(rst), .new_image_start(back_new_image_start),
+        .clk(clk), .rst(rst_clk), .new_image_start(back_new_image_start),
         .frame_commit(fb_write_en && fb_write_addr == 16'hffff),
         .write_blocked(hdl_valid && !hdl_ready),
         .interval_cycles(return_interval_cycles), .stall_cycles(return_stall_cycles),
@@ -279,7 +268,7 @@ module top1 #(
     );
 
     hdmi_out u_hdmi_out (
-        .pclk(pclk), .rst(rst), .enable(hdmi_enable_pclk),
+        .pclk(pclk), .rst(rst_pclk), .enable(hdmi_enable_pclk),
         .in_r(arr_vid_r), .in_g(arr_vid_g), .in_b(arr_vid_b),
         .vid_r(hdmi_vid_r), .vid_g(hdmi_vid_g), .vid_b(hdmi_vid_b),
         .buf_idx(fb_read_idx), .buf_addr(fb_read_addr),
@@ -287,7 +276,8 @@ module top1 #(
         .vid_hs(hdmi_vid_hs), .vid_vs(hdmi_vid_vs), .vid_de(hdmi_vid_de),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
         .new_frame(hdmi_new_frame),
-        .frame_ready_toggle(frame_ready_sync[2]), .write_idx_sync(write_idx_sync[1]),
+        .frame_ready_toggle(display_frame_toggle), .write_idx_sync(display_frame_bank),
+        .accepted_toggle(display_ack_pclk),
         .dbg_status(hdmi_dbg_status)
     );
 
@@ -295,7 +285,7 @@ module top1 #(
     assign debug_probe = {
         rdata, awaddr, araddr, wdata[7:0], bresp, rresp,
         awvalid, awready, wvalid, wready, bvalid, bready, arvalid, arready, rvalid, rready,
-        fb_write_addr, fb_read_addr, fb_write_data, video_mode[2:0], mask_transparency[6:0],
+        fb_write_addr, back_read_addr, fb_write_data, video_mode[2:0], mask_transparency[6:0],
         ts_mask, ts_contour, hdl_valid, hdl_ready, hdl_eof, frame_ready_toggle
     };
 
@@ -308,7 +298,7 @@ module top1 #(
     hdmi_tx u_hdmi_tx (
         .pclk(pclk),         
         .pclk_x5(pclk_x5),  
-        .rst(rst),
+        .rst(rst_pclk), .rst_x5(rst_x5),
         .vid_r(hdmi_vid_r),
         .vid_g(hdmi_vid_g),
         .vid_b(hdmi_vid_b),

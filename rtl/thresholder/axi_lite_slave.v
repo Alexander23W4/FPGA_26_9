@@ -3,7 +3,7 @@
 // Register numbers match config/pl_cmd.h. AXI carries BYTE addresses:
 // MODE=0x00, CMD=0x04, VIDEO=0x08, STATUS=0x0c, HDMI_EN=0x10,
 // DATA=0x80, AREA=0x84, MASK_TRANSP=0x88, BACK_STATUS=0xc4, BACK_FRAME_MODE=0xc8.
-module axi_lite_slave (
+module axi_lite_slave #(parameter integer CLK_HZ = 100000000) (
     input wire s_axi_aclk, input wire s_axi_aresetn,
     input wire [31:0] s_axi_awaddr, input wire s_axi_awvalid,
     output wire s_axi_awready,
@@ -31,7 +31,8 @@ module axi_lite_slave (
         ADDR_VIDEO_MODE = 7'h02, ADDR_STATUS = 7'h03, ADDR_HDMI_EN = 7'h04,
         ADDR_DATA = 7'h20, ADDR_AREA_DATA = 7'h21,
         ADDR_MASK_TRANSP = 7'h22, ADDR_BACK_STATUS = 7'h31, ADDR_BACK_FRAME_MODE = 7'h32,
-        ADDR_RETURN_INTERVAL = 7'h33, ADDR_RETURN_STALL = 7'h34, ADDR_RETURN_SEQ = 7'h35;
+        ADDR_RETURN_INTERVAL = 7'h33, ADDR_RETURN_STALL = 7'h34, ADDR_RETURN_SEQ = 7'h35,
+        ADDR_CLOCK_HZ = 7'h36;
 
     reg aw_pending, w_pending;
     reg [31:0] aw_saved, w_saved;
@@ -121,6 +122,7 @@ module axi_lite_slave (
                         ADDR_RETURN_INTERVAL: s_axi_rdata <= return_interval_cycles;
                         ADDR_RETURN_STALL: s_axi_rdata <= return_stall_cycles;
                         ADDR_RETURN_SEQ: s_axi_rdata <= return_interval_seq;
+                        ADDR_CLOCK_HZ: s_axi_rdata <= CLK_HZ;
                         default: s_axi_rresp <= 2'b10;
                     endcase
                 end

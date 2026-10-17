@@ -1,5 +1,6 @@
 """Full-duplex transport checks with a peer withholding all results until full."""
 import threading
+import time
 import unittest
 
 from frame_pipeline import FramePipeline
@@ -8,11 +9,28 @@ from test_frame_transfer import running_board
 
 
 class FramePipelineTests(unittest.TestCase):
+    def test_free_slot_grant_sends_next_input_before_previous_result_returns(self):
+        with running_board() as board:
+            board.pipeline_min_before_return=4
+            board.pipeline_stall_after_credit=True
+            pipe=FramePipeline('127.0.0.1',board.server_address[1],3,capacity=8,
+                               send_chunk=3072,send_pause=.0001)
+            self.addCleanup(pipe.close)
+            futures=[pipe.submit({'data':bytes([i])*65536},0) for i in range(8)]
+            self.assertTrue(board.pipeline_credit_sent.wait(2))
+            deadline=time.monotonic()+2
+            while board.uploads<5 and time.monotonic()<deadline:time.sleep(.005)
+            self.assertEqual(board.uploads,5,'one free-slot grant must send exactly one new input')
+            self.assertFalse(futures[0].done(),'the previous result is deliberately still withheld')
+            board.pipeline_credit_release.set()
+            for future in futures:self.assertTrue(future.result(3)['ok'])
+
     def test_four_uploads_arrive_before_first_result_without_waiting_for_gui(self):
         with running_board() as board:
             board.pipeline_min_before_return=4
             board.raw_factory=lambda b,image: bytes([image[0],22,33,255])*65536
-            pipe=FramePipeline('127.0.0.1',board.server_address[1],3)
+            pipe=FramePipeline('127.0.0.1',board.server_address[1],3,
+                               send_chunk=3072,send_pause=.0001)
             self.addCleanup(pipe.close)
             futures=[pipe.submit({'data':bytes([value])*65536},value%5) for value in range(4)]
             self.assertTrue(board.pipeline_received.wait(2), 'all four uploads must precede any result')
@@ -21,6 +39,9 @@ class FramePipelineTests(unittest.TestCase):
                 self.assertEqual(result['mode'],value%5)
                 self.assertEqual(result['raw'],bytes([value,22,33,255])*65536)
                 self.assertEqual(result['readback']['ps_detail']['tcp_window_bytes'],65535)
+                timing=result['timings_ms']
+                self.assertGreaterEqual(timing['upload_queue_ms'],0)
+                self.assertGreaterEqual(timing['transfer_ms'],timing['upload_queue_ms']+timing['upload_send_ms'])
             self.assertEqual((board.uploads,board.acks,board.connections),(4,0,1))
 
     def test_scheduler_pause_drains_all_dispatched_frames_before_control(self):
