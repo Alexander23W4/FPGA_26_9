@@ -24,6 +24,7 @@ let frameRatePaused=false;
 const streamModeLabels=['去噪流','轮廓流','二值掩膜流','叠加掩膜流','伪彩色映射流'];
 
 function isStreamMode(){return typeof dshStreamMode!=='undefined'&&dshStreamMode;}
+function fastStreamMode(){return isStreamMode()&&typeof dshFastStream!=='undefined'&&dshFastStream;}
 function streamRunning(){return typeof dshStreamRunning!=='undefined'&&dshStreamRunning;}
 function transferBusy(){return (typeof dshTransferBusy!=='undefined'&&dshTransferBusy)||streamRunning();}
 function refreshFrameRate(now=performance.now()){
@@ -68,11 +69,12 @@ function showOriginalFrame(imageBase64,name,revision=null){
   return true;
 }
 function renderProcessedResults(results,revision=null){
+  if(fastStreamMode())return false; // Stream BIN goes directly to Canvas; never repaint disk/poll caches.
   if(Number.isFinite(revision)){
     if(revision<resultsRevision)return false;
     resultsRevision=revision;
   }
-  processedResults=results||{};
+  processedResults=Object.fromEntries(Object.entries(results||{}).filter(([,result])=>result&&result.image));
   function show(id,result){
     const image=document.getElementById(id);
     image.hidden=!result;
@@ -116,6 +118,13 @@ function updatePreviewLayout(){
   singlePreview.hidden=processing;
   comparisonPreview.hidden=!showComparison;
   fullPreview.hidden=!showAll;
+  const fast=fastStreamMode();
+  document.getElementById('streamOriginalCanvas').hidden=!fast;
+  document.getElementById('streamProcessedCanvas').hidden=!fast;
+  if(fast){
+    document.getElementById('comparisonOriginal').hidden=true;
+    document.getElementById('comparisonProcessed').hidden=true;
+  }else document.getElementById('comparisonOriginal').hidden=false;
   document.getElementById('comparisonOriginalLabel').textContent=stream?'原流':'原图';
   document.getElementById('comparisonOriginal').alt=stream?'原流':'原图';
   document.getElementById('comparisonProcessed').alt=stream?'FPGA 回传处理流':'FPGA 回传处理图';
@@ -279,12 +288,15 @@ async function poll(){
   const revision=systemModeRevision;
   try{
     const query=new URLSearchParams({mode:document.getElementById('mode').value,center:document.getElementById('center').value,width:document.getElementById('width').value,alpha:document.getElementById('alpha').value});
-    const response=await fetch('/api/state?'+query);
+    const includeImages=!fastStreamMode()&&(simulateOn||sourceRevision<0);
+    const response=await fetch(includeImages?'/api/state?'+query:'/api/network/state');
     const state=await response.json();
     if(systemModePending||revision!==systemModeRevision)return;
     setSimulateState(Boolean(state.simulate));
-    showOriginalFrame(state.image,state.image_name,state.source_revision);
-    renderProcessedResults(state.processed_results,state.results_revision);
+    if(!fastStreamMode()&&state.image){
+      showOriginalFrame(state.image,state.image_name,state.source_revision);
+      if(state.processed_results)renderProcessedResults(state.processed_results,state.results_revision);
+    }
     renderMetrics(state.status||{},state);
     document.getElementById('logs').textContent=(state.logs||[]).join('\n');
   }catch(e){/* Keep the last complete preview while reconnecting. */}

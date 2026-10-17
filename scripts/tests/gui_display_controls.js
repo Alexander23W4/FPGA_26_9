@@ -12,7 +12,7 @@ const document = {
   getElementById(id) {return elements[id] ||= element();},
   createElement: element, createTextNode: text => ({textContent: text})
 };
-const ctx = vm.createContext({document, updateOverlayControls() {}, updatePreviewLayout() {},
+const ctx = vm.createContext({document, setInterval() {}, updateOverlayControls() {}, updatePreviewLayout() {},
   poll: async () => {},
   fetch: path => fetch(process.argv[3] + path), alert: text => alerts.push(text)});
 vm.runInContext(script, ctx);

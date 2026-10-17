@@ -179,21 +179,27 @@ class WebState:
                 "results_revision": results_revision, "source_kind": source_kind,
                 "stream_folder": stream_folder}
 
-    def snapshot(self, mode: int, center: int, width: int, alpha: int) -> dict[str, object]:
+    def snapshot(self, mode: int, center: int, width: int, alpha: int, *, include_images=True) -> dict[str, object]:
         with self.lock:
             status = dict(self.status)
             logs = list(self.logs)
             simulate = self.simulate
             connected = self.serial_connected
             image_name = self.image_name
-            processed_results = dict(self.processed_results)
+            processed_results = dict(self.processed_results) if include_images else None
             transfer_status = dict(self.transfer_status)
             source_revision = self.source_revision
             results_revision = self.results_revision
             source_kind = self.source_kind
             stream_folder = self.stream_folder
-            original = self.image.copy() if not simulate else None
+            original = self.image.copy() if include_images and not simulate else None
         status["mode_name"] = MODE_NAMES[status.get("mode", mode)] if int(status.get("mode", mode)) < len(MODE_NAMES) else str(status.get("mode", mode))
+        if not include_images:
+            return {"status": status, "logs": logs, "simulate": simulate,
+                    "serial_connected": connected, "transfer_status": transfer_status,
+                    "image_name": image_name, "source_revision": source_revision,
+                    "results_revision": results_revision, "source_kind": source_kind,
+                    "stream_folder": stream_folder}
         if original is not None:
             output = io.BytesIO()
             Image.fromarray(original).save(output, format="PNG")
@@ -305,6 +311,7 @@ GUI_ASSET_DIR = Path(__file__).resolve().parent / "assets"
 GUI_STATIC_FILES = {
     "/assets/heartcare.css": ("heartcare.css", "text/css; charset=utf-8"),
     "/assets/heartcare.js": ("heartcare.js", "text/javascript; charset=utf-8"),
+    "/assets/stream_worker.js": ("stream_worker.js", "text/javascript; charset=utf-8"),
     "/assets/InterVariable.woff2": ("InterVariable.woff2", "font/woff2"),
     "/assets/ManropeVariable.ttf": ("ManropeVariable.ttf", "font/ttf"),
     "/assets/heart-pulse.svg": ("heart-pulse.svg", "image/svg+xml"),

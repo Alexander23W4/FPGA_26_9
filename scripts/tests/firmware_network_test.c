@@ -22,6 +22,11 @@ u32 Xil_In32(UINTPTR address)
     if(address>=S2MM_BASEADDR&&address<S2MM_BASEADDR+128)return dma_regs[(address-S2MM_BASEADDR)/4];
     if(address==PL_REG_ADDRESS(BACK_STATUS))return back_flags;
     if(address==PL_REG_ADDRESS(VIDEO_MODE_ADDR))return video_mode;
+    if(address==PL_REG_ADDRESS(MODE_ADDR))return 0;
+    if(address==PL_REG_ADDRESS(CMD_REG_ADDR))return 1;
+    if(address==PL_REG_ADDRESS(DATA_REG_ADDR)||address==PL_REG_ADDRESS(STATUS_ADDR))return 123;
+    if(address==PL_REG_ADDRESS(LESION_ADDR))return 65432;
+    if(address==PL_REG_ADDRESS(MASK_TRANSP_ADDR))return 45;
     if(address==0xf8f00200u)return (u32)clock_ticks;
     if(address==0xf8f00204u)return (u32)(clock_ticks>>32);
     if(address==0xf8f00208u)return 1;
@@ -161,6 +166,43 @@ int main(void)
     request(CANCEL,81,0,0,0);assert(phase==IDLE&&job==0&&tx_length==0);
     upload(82,0);assert(phase==READY);
     request(CANCEL,82,0,0,0);assert(phase==IDLE&&job==0&&dma_starts==before+2);
+    before=dma_starts;
+    /* Fast receive ACK is distinct from durable save. Metadata belongs to this
+     * frame and is covered by the same CRC as the 256 KiB pixel payload. */
+    assert(crc32_calc((const u8 *)"123456789",9)==0xcbf43926u);
+    assert(crc32_calc((const u8 *)"",0)==0);
+    assert(crc32_extend(crc32_calc((const u8 *)"1234",4),(const u8 *)"56789",5)==0xcbf43926u);
+    {static u8 vector[262144];unsigned i;
+     for(i=0;i<sizeof(vector);++i)vector[i]=(u8)i;
+     assert(crc32_calc(vector,sizeof(vector))==0xc790bff6u);
+     assert(crc32_extend(crc32_calc(vector,12345),vector+12345,sizeof(vector)-12345)==0xc790bff6u);}
+    {
+        static u8 input[65536];unsigned i;
+        for(i=0;i<sizeof(input);++i)input[i]=(u8)(i*7u);
+        wire_used=0;
+        request(HELLO_FAST,90,0,0,0);
+        assert(get32(tx_header+4)==FAST_READY&&get32(tx_header+20)==1&&phase==IDLE);
+        request(UPLOAD_FAST,90,sizeof(input),crc32_calc(input,sizeof(input)),0);
+        consume(input,sizeof(input));net_frame_poll();complete_dma(0);net_frame_poll();
+        assert(phase==RESULT_READY&&fast_job);drain_result();
+        assert(wire_used==24+META_BYTES+IMG_RES_DDR_SIZE&&get32(wire_bytes+4)==RESULT_FAST);
+        assert(get32(wire_bytes+12)==META_BYTES+IMG_RES_DDR_SIZE);
+        assert(get32(wire_bytes+24)==1&&get32(wire_bytes+24+12)==video_mode);
+        assert(get32(wire_bytes+24+24)==65432&&get32(wire_bytes+24+28)==45);
+        checksum=crc32_calc(wire_bytes+24,META_BYTES+IMG_RES_DDR_SIZE);
+        assert(checksum==result_crc);
+        request(SAVED,90,IMG_RES_DDR_SIZE+META_BYTES,checksum,video_mode);
+        assert(phase==RESULT_READY); /* Wrong completion semantics cannot release DDR. */
+        request(RECEIVED,90,IMG_RES_DDR_SIZE+META_BYTES,checksum^1u,video_mode);
+        assert(phase==RESULT_READY);
+        request(RECEIVED,90,IMG_RES_DDR_SIZE+META_BYTES,checksum,video_mode);
+        assert(phase==IDLE&&last_done==90&&last_fast);
+        /* Same connection, no new accept: another job is now permitted. */
+        wire_used=0;request(RENDER_FAST,91,0,0,video_mode);drain_result();
+        assert(phase==RESULT_READY&&get32(wire_bytes+4)==RESULT_FAST);
+        request(RECEIVED,91,IMG_RES_DDR_SIZE+META_BYTES,result_crc,video_mode);
+        assert(phase==IDLE&&ack_writes==0);
+    }
     before=dma_starts;
     upload(11,0);net_frame_poll();assert(dma_starts==before+1);complete_dma(1);net_frame_poll();
     assert(phase==FAULT&&ack_writes==0&&get32(tx_header+4)==ERROR);

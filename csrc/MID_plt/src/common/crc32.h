@@ -11,5 +11,7 @@
  * 校验值必须和 scripts/pc 下的 .ps1 里的 Get-Crc32 一致，
  * 否则 PC 算出来和板子对不上。 */
 u32 crc32_calc(const u8 *p, u32 n);
+/* Continue from a finalized CRC, allowing metadata + DDR without copying. */
+u32 crc32_extend(u32 previous, const u8 *p, u32 n);
 
 #endif /* COMMON_CRC32_H */

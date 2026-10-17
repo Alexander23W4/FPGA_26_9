@@ -93,7 +93,8 @@
 #define CMD_MASK_TRANSP     'P'      /* +1 byte: overlay opacity 0..100 */
 #define CMD_SYSTEM_MODE     'M'      /* +1 byte: 0 image, 1 medical (reserved) */
 /* GUI 图像通过 TCP 5002 直接写输入 DDR；回传通过独立 AXI DMA S2MM 写输出
- * DDR，再经同一 TCP 连接发往 PC。PC 保存成功后才写 BACK_RECEIVE。
+ * DDR，再经同一 TCP 连接发往 PC。PC 以 TCP 确认接收/保存后释放 DDR；
+ * 不再写旧的 BACK_RECEIVE。流模式在 PC 内存中直接显示，不保存 BIN/PNG。
  * 实现见 net_frame.c；不使用旧 UDP 接收脚本。 */
 
 /* 单次传输上限（DDR 缓冲减去 TOC 空间，保守取 16MB 里的一大半） */

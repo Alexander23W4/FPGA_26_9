@@ -12,6 +12,16 @@
 寄存器编号、实际 AXI 字节偏移、串口命令和验证方法见 [display_modes.md](display_modes.md)。
 本次更改需要同时重新构建并下载 PS 和 PL；下面的统一构建下载命令仍适用。
 
+板端输出 DDR
+    ↓ PS 读取
+TCP 网口
+    ↓
+PC 的 Python 接收程序（内存）
+    ↓ 二进制数据
+浏览器 Web Worker
+    ↓
+Canvas：GUI 处理图的黑框
+
 ## 后续方向:
 上位机交互拓展方案: 
 

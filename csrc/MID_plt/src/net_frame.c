@@ -1,5 +1,5 @@
 /* Heartcare TCP frame service. Raw lwIP callbacks and all DMA polling run in
- * the main loop. DDR ownership remains with one job until PC SAVED is accepted. */
+ * the main loop. Stream jobs release DDR after CRC-checked PC reception. */
 #include "feat/net_frame.h"
 #include "app/cfg.h"
 #include "config/pl_cmd.h"
@@ -28,6 +28,13 @@
 #define RENDER 7u
 #define CONFIGURED 8u
 #define CANCEL 9u
+#define UPLOAD_FAST 10u
+#define RESULT_FAST 11u
+#define RECEIVED 12u
+#define RENDER_FAST 13u
+#define HELLO_FAST 14u
+#define FAST_READY 15u
+#define META_BYTES 32u /* version + seven register snapshots, all big endian */
 #define UPLOAD_REQUIRED 1u
 #define FAILED 2u
 #define BUSY 3u
@@ -39,10 +46,13 @@ static struct netif interface;
 static struct tcp_pcb *client;
 static int started;
 static int has_frame,redraw,cancelled;
+static int fast_job,last_fast;
 static u32 requested_mode;
 static u32 job,upload_crc,result_crc,result_mode,last_done,last_crc,last_mode;
 static u32 received,header_used,discard_remaining;
 static u8 rx_header[HEADER_BYTES],tx_header[HEADER_BYTES];
+static u8 result_meta[META_BYTES];
+static u32 tx_meta_length,tx_meta_offset;
 static const u8 *tx_payload;
 static u32 tx_length,tx_offset,tx_header_used;
 static char error_text[256];
@@ -67,6 +77,7 @@ static void response(u32 type,u32 id,const void *payload,u32 length,u32 checksum
     put32(tx_header,MAGIC);put32(tx_header+4,type);put32(tx_header+8,id);
     put32(tx_header+12,length);put32(tx_header+16,checksum);put32(tx_header+20,extra);
     tx_payload=(const u8 *)payload;tx_length=length;tx_offset=0;tx_header_used=0;
+    tx_meta_length=tx_meta_offset=0;
 }
 static void error_response(u32 id,u32 code,const char *message)
 {
@@ -75,14 +86,29 @@ static void error_response(u32 id,u32 code,const char *message)
 }
 static void send_result(void)
 {
-    if(client&&!cancelled)response(RESULT,job,(const void *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE,result_crc,result_mode);
+    if(client&&!cancelled) {
+        response(fast_job?RESULT_FAST:RESULT,job,(const void *)IMG_RES_DDR_BASE,
+                 IMG_RES_DDR_SIZE,result_crc,result_mode);
+        if(fast_job) {put32(tx_header+12,IMG_RES_DDR_SIZE+META_BYTES);tx_meta_length=META_BYTES;}
+    }
+}
+static void prepare_result(void)
+{
+    static const unsigned regs[]={MODE_ADDR,CMD_REG_ADDR,VIDEO_MODE_ADDR,STATUS_ADDR,
+                                  DATA_REG_ADDR,LESION_ADDR,MASK_TRANSP_ADDR};
+    unsigned i;
+    if(fast_job) {
+        put32(result_meta,1u);
+        for(i=0;i<7;++i)put32(result_meta+4u*(i+1u),Xil_In32(PL_REG_ADDRESS(regs[i])));
+        result_crc=crc32_extend(crc32_calc(result_meta,META_BYTES),(const u8 *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);
+    } else result_crc=crc32_calc((const u8 *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);
 }
 static void cancel_job(u32 id)
 {
     if(id==last_done)last_done=0;
     if(id!=job)return; /* A late cancellation must not discard a newer job. */
     cancelled=1;
-    tx_header_used=HEADER_BYTES;tx_length=tx_offset=0;tx_payload=0;
+    tx_header_used=HEADER_BYTES;tx_length=tx_offset=0;tx_payload=0;tx_meta_length=tx_meta_offset=0;
     /* In-flight DMA must drain before DDR can be reused. It will not send a
      * result or wait for SAVED. Real DMA/PL faults still require board reset. */
     if(phase!=RUNNING&&phase!=FAULT) {
@@ -106,6 +132,13 @@ static void pump_tx(void)
         tx_header_used=HEADER_BYTES;
     }
     while(tx_offset<tx_length) {
+        if(tx_meta_offset<tx_meta_length) {
+            amount=tx_meta_length-tx_meta_offset;
+            if(amount>tcp_sndbuf(client))amount=tcp_sndbuf(client);
+            if(!amount)break;
+            if(tcp_write(client,result_meta+tx_meta_offset,(u16_t)amount,TCP_WRITE_FLAG_COPY)!=ERR_OK)break;
+            tx_meta_offset+=amount;continue;
+        }
         amount=tx_length-tx_offset;
         if(amount>4096u)amount=4096u;
         if(amount>tcp_sndbuf(client))amount=tcp_sndbuf(client);
@@ -121,11 +154,15 @@ static void handle_header(void)
     u32 type=get32(rx_header+4),id=get32(rx_header+8),length=get32(rx_header+12);
     u32 checksum=get32(rx_header+16),extra=get32(rx_header+20);
     if(get32(rx_header)!=MAGIC) {error_response(id,FAILED,"unsupported protocol; update host and firmware together");return;}
+    if(type==HELLO_FAST) {
+        if(!id||length||checksum||extra) {error_response(id,FAILED,"invalid stream capability request");return;}
+        response(FAST_READY,id,0,0,0,1u);return;
+    }
     if(type==CANCEL) {
         if(!id||length||checksum||extra) {error_response(id,FAILED,"invalid cancel request");return;}
         cancel_job(id);return; /* One-way: PC has already stopped waiting. */
     }
-    if(type==UPLOAD) {
+    if(type==UPLOAD||type==UPLOAD_FAST) {
         /* A rejected upload still has a TCP payload. Drain it without treating
          * image bytes as more command headers or overwriting the error reply. */
         discard_remaining=length;
@@ -133,10 +170,11 @@ static void handle_header(void)
         if(!id||length!=NET_INPUT_BYTES||extra!=0) {error_response(id,FAILED,"input must be 256x256x8-bit, 65536 bytes");return;}
         if((back_state()&1u)!=0u) {error_response(id,BUSY,"PL return branch is not idle");return;}
         discard_remaining=0;
-        job=id;redraw=0;cancelled=0;upload_crc=checksum;received=0;phase=RECEIVING;job_started=ticks();
+        job=id;redraw=0;cancelled=0;fast_job=(type==UPLOAD_FAST);
+        upload_crc=checksum;received=0;phase=RECEIVING;job_started=ticks();
         return;
     }
-    if(type==RENDER) {
+    if(type==RENDER||type==RENDER_FAST) {
         if(!id||length||checksum||extra>4u) {error_response(id,FAILED,"invalid render request");return;}
         if(phase!=IDLE||(back_state()&1u)) {error_response(id,BUSY,"previous frame is unfinished; resume it first");return;}
         if(!has_frame) {
@@ -146,9 +184,9 @@ static void handle_header(void)
             }
             response(CONFIGURED,id,0,0,0,extra);return;
         }
-        job=id;redraw=1;cancelled=0;requested_mode=extra;
+        job=id;redraw=1;cancelled=0;fast_job=(type==RENDER_FAST);requested_mode=extra;
         if(Xil_In32(PL_REG_ADDRESS(VIDEO_MODE_ADDR))==extra&&result_mode==extra) {
-            phase=RESULT_READY;send_result();
+            prepare_result();phase=RESULT_READY;send_result();
         } else phase=READY;
         return;
     }
@@ -161,14 +199,18 @@ static void handle_header(void)
         /* READY/RUNNING: the main loop will reply when that phase ends. */
         return;
     }
-    if(type==SAVED) {
-        if(id==last_done&&last_done&&checksum==last_crc&&length==IMG_RES_DDR_SIZE&&extra==last_mode) {
+    if(type==SAVED||type==RECEIVED) {
+        u32 expected_length=IMG_RES_DDR_SIZE+(fast_job?META_BYTES:0u);
+        if(id==last_done&&last_done&&checksum==last_crc&&
+           length==IMG_RES_DDR_SIZE+(last_fast?META_BYTES:0u)&&extra==last_mode&&
+           type==(last_fast?RECEIVED:SAVED)) {
             response(DONE,id,0,0,last_crc,last_mode);return;
         }
-        if(id!=job||phase!=RESULT_READY||length!=IMG_RES_DDR_SIZE||
-           checksum!=result_crc||extra!=result_mode) {error_response(id,FAILED,"save acknowledgement does not match the completed result");return;}
+        if(id!=job||phase!=RESULT_READY||length!=expected_length||
+           checksum!=result_crc||extra!=result_mode||type!=(fast_job?RECEIVED:SAVED)) {
+            error_response(id,FAILED,"acknowledgement does not match completed result");return;}
         /* PC acknowledgement protects DDR ownership only. PL rearms at TLAST. */
-        last_done=job;last_crc=result_crc;last_mode=result_mode;phase=IDLE;
+        last_done=job;last_crc=result_crc;last_mode=result_mode;last_fast=fast_job;phase=IDLE;
         response(DONE,last_done,0,0,last_crc,last_mode);
         return;
     }
@@ -283,13 +325,13 @@ void net_frame_poll(void)
                 for(i=0;i<65536u&&((pixels[i]>>24)==first);++i) { }
                 if(first>4u||i!=65536u||(redraw&&first!=requested_mode))fail_job("output mode/pixel framing mismatch; reset board");
                 else {
-                    result_mode=first;result_crc=crc32_calc((const u8 *)pixels,IMG_RES_DDR_SIZE);
+                    result_mode=first;prepare_result();
                     s2mm_stop();has_frame=1;
                     if(cancelled) {
                         phase=IDLE;job=0;
                     } else {
                         phase=RESULT_READY;send_result();
-                        xil_printf("[network] result ready job=%u bytes=%u CRC=0x%08x\r\n",job,IMG_RES_DDR_SIZE,result_crc);
+                        /* Per-frame UART logging blocks this polling TCP loop. */
                     }
                 }
             }

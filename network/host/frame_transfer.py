@@ -1,6 +1,7 @@
-"""Upload or redraw one FPGA frame, durably save its result, then acknowledge."""
+"""FPGA TCP frames: durable single-image jobs and memory-only stream reception."""
 from __future__ import annotations
 import binascii
+import contextlib
 import base64
 from datetime import datetime
 import hashlib
@@ -18,6 +19,9 @@ MAGIC = 0x48434631  # HCF1, network byte order
 HEADER = struct.Struct('!6I')
 UPLOAD, RESULT, SAVED, DONE, ERROR, RESUME, RENDER, CONFIGURED = range(1, 9)
 CANCEL = 9  # One-way: abandon this job; no result/acknowledgement is awaited.
+UPLOAD_FAST, RESULT_FAST, RECEIVED, RENDER_FAST = 10, 11, 12, 13
+HELLO_FAST, FAST_READY = 14, 15
+META = struct.Struct('!8I')  # version, MODE, CMD, VIDEO, STATUS, DATA, LESION, ALPHA
 INPUT_BYTES = 65536
 OUTPUT_BYTES = 262144
 MODE_NAMES = ('denoise', 'contour', 'mask', 'overlay', 'heat')
@@ -65,7 +69,7 @@ def receive_header(sock, job, deadline=None):
     return kind, length, checksum, extra
 
 def result_image(raw, mode):
-    if len(raw) != OUTPUT_BYTES or mode not in range(5) or any(m != mode for m in raw[3::4]):
+    if len(raw) != OUTPUT_BYTES or mode not in range(5) or raw[3::4].count(mode) != 65536:
         raise ValueError('FPGA result length/mode is invalid')
     # DDR words are little endian: bytes B,G,R,mode for every pixel.
     rgb = bytearray(256*256*3)
@@ -73,14 +77,24 @@ def result_image(raw, mode):
     return Image.frombytes('RGB', (256, 256), bytes(rgb))
 
 
+def decode_frame_metadata(data, mode):
+    version, system, threshold_mode, video, actual, manual, lesion, alpha = META.unpack(data)
+    if (version != 1 or system > 1 or threshold_mode > 1 or video != mode or
+            actual > 255 or manual > 255 or lesion > 65536 or alpha > 100):
+        raise ValueError('invalid FPGA frame register snapshot')
+    return {'ok': True, 'system_mode': system, 'mode': threshold_mode,
+            'video_mode': video, 'actual_threshold': actual, 'threshold': manual,
+            'lesion_pixels': lesion, 'lesion_mm2': '%.3f' % (lesion * 0.436280886141),
+            'mask_transparency': alpha, 'log': 'register snapshot received with frame over TCP'}
+
+
 def saved_result_png(files, mode, checksum):
     """Read this job's exact BIN, never an older file matching the input stem."""
     raw = Path(files['bin']).read_bytes()
     if crc(raw) != checksum or not Path(files['png']).is_file():
         raise ValueError('saved FPGA result is missing or has an invalid CRC')
-    output = io.BytesIO()
-    result_image(raw, mode).save(output, format='PNG')
-    return base64.b64encode(output.getvalue()).decode('ascii')
+    result_image(raw, mode)  # Validate actual pixels before the save acknowledgement.
+    return base64.b64encode(Path(files['png']).read_bytes()).decode('ascii')
 
 
 def normalize_result_name(result_name):
@@ -141,7 +155,7 @@ def save_result(raw, filename, mode, job, folder, *, result_name=None):
         with temps[0].open('xb') as output:
             output.write(raw); output.flush(); os.fsync(output.fileno())
         with temps[1].open('xb') as output:
-            image.save(output, format='PNG')
+            image.save(output, format='PNG', compress_level=1)
             output.flush(); os.fsync(output.fileno())
         os.replace(temps[0], binary)
         os.replace(temps[1], png)
@@ -155,6 +169,30 @@ class FrameTransferClient:
         self.host, self.port, self.folder, self.timeout = host, port, folder, timeout
         self.pending = None
         self.lock = threading.Lock()
+        self._socket = None
+        self._fast_capable = False
+
+    def close(self):
+        sock, self._socket = getattr(self, '_socket', None), None
+        self._fast_capable = False
+        if sock is not None:
+            sock.close()
+
+    def __del__(self):
+        self.close()
+
+    @contextlib.contextmanager
+    def _session(self, deadline):
+        try:
+            if self._socket is None:
+                self._socket = socket.create_connection((self.host, self.port),
+                    timeout=min(5, remaining_time(deadline)))
+                self._socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self._socket.settimeout(remaining_time(deadline))
+            yield self._socket
+        except BaseException:
+            self.close()
+            raise
 
     def transfer(self, image, filename, expected_mode=None, *, result_name=None):
         if len(image) != INPUT_BYTES or Path(filename).suffix.lower() != '.bin':
@@ -169,9 +207,96 @@ class FrameTransferClient:
             raise ValueError('processing mode must be 0..4')
         return self._transaction(RENDER, b'', filename, mode, result_name)
 
+    def receive_frame(self, image=None, mode=None):
+        """Return owned immutable BIN + metrics, acknowledging reception, with no disk/PNG work."""
+        if image is not None and len(image) != INPUT_BYTES:
+            raise ValueError('input must contain exactly 65536 bytes')
+        if image is None and mode not in range(5):
+            raise ValueError('render mode must be 0..4')
+        operation = UPLOAD_FAST if image is not None else RENDER_FAST
+        image = b'' if image is None else image
+        if not self.lock.acquire(blocking=False):
+            raise RuntimeError('another FPGA transaction is in progress')
+        started = time.perf_counter()
+        deadline = time.monotonic() + self.timeout
+        try:
+            key = (operation, hashlib.sha256(image).digest(), mode)
+            if self.pending is not None and self.pending.get('fast_key') != key:
+                raise RuntimeError('上一帧尚未确认，请先重试原图及模式')
+            if self.pending is None:
+                self.pending = {'fast_key': key, 'job': secrets.randbits(32) or 1,
+                                'uploaded': False, 'raw': None}
+            context = self.pending
+            job = context['job']
+            for attempt in range(3):
+                try:
+                    with self._session(deadline) as sock:
+                        if not self._fast_capable:
+                            sock.sendall(packet(HELLO_FAST, job))
+                            hello = receive_header(sock, job, deadline)
+                            if hello != (FAST_READY, 0, 0, 1):
+                                raise ValueError('stream protocol unavailable; rebuild and flash PS firmware')
+                            self._fast_capable = True
+                        if context['uploaded']:
+                            sock.sendall(packet(RESUME, job))
+                        else:
+                            context['uploaded'] = True
+                            sock.sendall(packet(operation, job, len(image), crc(image), mode or 0) + image)
+                        kind, length, checksum, returned_mode = receive_header(sock, job, deadline)
+                        if kind == DONE:
+                            if (context['raw'] is None or length or checksum != context['crc'] or
+                                    returned_mode != context['mode']):
+                                raise ValueError('FPGA confirmed a frame not owned by PC')
+                        else:
+                            if kind != RESULT_FAST or length != OUTPUT_BYTES + META.size or returned_mode not in range(5):
+                                raise ValueError('unexpected stream protocol; rebuild and flash PS firmware')
+                            if mode is not None and returned_mode != mode:
+                                raise ValueError('FPGA result mode mismatch')
+                            payload = recv_exact(sock, length, deadline)
+                            if crc(payload) != checksum:
+                                raise ValueError('FPGA result CRC mismatch')
+                            readback = decode_frame_metadata(payload[:META.size], returned_mode)
+                            raw = payload[META.size:]
+                            if raw[3::4].count(returned_mode) != 65536:
+                                raise ValueError('FPGA pixel mode mismatch')
+                            context.update(raw=raw, readback=readback, crc=checksum, mode=returned_mode)
+                            sock.settimeout(remaining_time(deadline))
+                            sock.sendall(packet(RECEIVED, job, length, checksum, returned_mode))
+                            kind, done_len, done_crc, done_mode = receive_header(sock, job, deadline)
+                            if kind != DONE or done_len or done_crc != checksum or done_mode != returned_mode:
+                                raise ValueError('FPGA did not confirm PC reception')
+                        self.pending = None
+                        return {'ok': True, 'job': job, 'mode': context['mode'], 'raw': context['raw'],
+                                'readback': context['readback'], 'frames': 1,
+                                'timings_ms': {'transfer_ms': (time.perf_counter() - started) * 1000,
+                                               'readback_ms': 0.0, 'pc_files_ms': 0.0}}
+                except RemoteError as error:
+                    if 'timeout' in str(error).lower():
+                        raise TimeoutError(str(error)) from error
+                    if error.code == 1 and attempt < 2:
+                        context.update(uploaded=False, raw=None)
+                        continue
+                    if error.code == 2:
+                        self.pending = None
+                    raise
+                except TimeoutError:
+                    raise
+                except (OSError, ConnectionError):
+                    if attempt == 2:
+                        raise
+            raise RuntimeError('unreachable')
+        except TimeoutError as error:
+            abandoned, self.pending = self.pending, None
+            if abandoned is not None and abandoned['uploaded']:
+                self._cancel_job(abandoned['job'])
+            raise TimeoutError('等待 FPGA 回传超时，本次任务已取消，请重新操作') from error
+        finally:
+            self.lock.release()
+
     def _cancel_job(self, job):
         # A fresh connection also drops a partially uploaded body at the PS.
         # This is best-effort cleanup; never wait for the abandoned result.
+        self.close()
         try:
             with socket.create_connection((self.host, self.port), timeout=1) as sock:
                 sock.settimeout(1)
@@ -205,7 +330,7 @@ class FrameTransferClient:
             deadline = time.monotonic() + self.timeout
             for attempt in range(3):
                 try:
-                    with socket.create_connection((self.host, self.port), timeout=min(5, remaining_time(deadline))) as sock:
+                    with self._session(deadline) as sock:
                         sock.settimeout(remaining_time(deadline))
                         if context['uploaded']:
                             sock.sendall(packet(RESUME, job))

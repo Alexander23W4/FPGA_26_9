@@ -2,7 +2,9 @@
 from __future__ import annotations
 import argparse
 import hashlib
+import json
 import socket
+import struct
 import sys
 import threading
 import time
@@ -124,6 +126,7 @@ let dshCurrentFile = null;
 let dshNeedsUpload = false;
 let dshStreamMode = false;
 let dshStreamRunning = false;
+let dshFastStream = false, dshStreamWorker = null, dshPreviewGeneration = 0;
 let dshFpsPaused = false;
 let dshStreamFiles = [], dshStreamIndex = 0, dshStreamFolder = '';
 let dshStreamSignature = '', dshStreamQueue = [];
@@ -214,7 +217,10 @@ async function dshTransfer() { return dshRun(() => dshProcess(true)); }
 async function dshParameter(action) {
   if (!dshStreamRunning) return dshRun(action);
   try {
-    await new Promise((resolve, reject) => dshStreamQueue.push({action, resolve, reject}));
+    await new Promise((resolve, reject) => {
+      dshStreamQueue.push({action, resolve, reject});
+      if(dshStreamWorker)dshStreamWorker.postMessage({type:'pause'});
+    });
   } catch (error) { alert('参数更新失败: ' + error.message); }
 }
 async function dshThrUpdate() {
@@ -272,10 +278,12 @@ document.getElementById('imageFile').addEventListener('change', async e => {
     const j = await response.json();
     if (!response.ok || !j.ok) throw new Error(j.error || j.log);
     dshStreamMode = false;
+    dshFastStream = false; dshPreviewGeneration++;
     document.getElementById('streamPerformance').hidden = true;
     document.getElementById('fullDisplayOption').disabled = false;
     updatePreviewLayout();
     dshCurrentFile = file;
+    if(j.image)showOriginalFrame(j.image,j.name,j.source_revision);
     document.getElementById('imageName').textContent = '当前图像: ' + j.name;
     renderProcessedResults({});
     await poll();
@@ -284,7 +292,10 @@ document.getElementById('imageFile').addEventListener('change', async e => {
 });
 let lastConfirmedVideoMode = 0;
 document.getElementById('fpgaOutputMode').addEventListener('change', async e => {
-  if (dshStreamMode) return; // The next input frame carries the requested mode.
+  if (dshStreamMode) {
+    if(dshStreamWorker)dshStreamWorker.postMessage({type:'mode',mode:e.target.value});
+    return; // The next input frame carries the requested mode.
+  }
   await dshRun(async () => {
     const message = await dshProcess(false); await dshReadback(); return message;
   });
@@ -313,6 +324,7 @@ function dshStreamControls() {
 }
 function dshStopStream() {
   dshStreamRunning = false; // Let the current frame finish; never truncate MM2S.
+  if(dshStreamWorker)dshStreamWorker.postMessage({type:'stop'});
     dshFpsPaused = true; dshStreamSamples = []; resetFrameRate(true); dshUpdateStreamFps();
   dshStreamControls();
   document.getElementById('chooseStream').disabled = true;
@@ -324,6 +336,77 @@ async function dshDrainStreamControls() {
     try { await request.action(); request.resolve(); }
     catch (error) { request.reject(error); dshStreamRunning = false; return; }
   }
+}
+function dshApplyFastStats(stats) {
+  if(!stats)return;
+  dshStreamCompleted=stats.completed;dshStreamIndex=stats.index;
+  if(!dshFpsPaused){
+    const offset=dshNow()-Date.now();
+    dshStreamSamples=stats.times.map(time=>time+offset);dshUpdateStreamFps();
+  }
+  document.getElementById('streamFrameTime').textContent=
+    '本帧 '+stats.frameMs.toFixed(0)+' ms · 已回传 '+stats.completed+' 帧';
+  const metadata=stats.metadata,t=metadata.timings_ms;
+  document.getElementById('streamTiming').textContent=
+    '网口/板端 '+t.transfer_ms.toFixed(0)+' ms · 实时预览';
+}
+function dshDrawBin(canvasId,raw,color) {
+  const canvas=document.getElementById(canvasId),context=canvas.getContext('2d');
+  const pixels=context.createImageData(256,256),source=new Uint8Array(raw),target=pixels.data;
+  for(let i=0;i<65536;i++){
+    const at=i*4;
+    target[at]=source[color?at+2:i];target[at+1]=source[color?at+1:i];
+    target[at+2]=source[color?at:i];target[at+3]=255;
+  }
+  context.putImageData(pixels,0,0);
+}
+function dshRunStreamWorker(entries,streamChanged) {
+  const worker=new Worker('/assets/stream_worker.js');
+  const generation=++dshPreviewGeneration;
+  let original=null,processed=null,paintPending=false,error=null;
+  dshStreamWorker=worker;
+  if(streamChanged)for(const id of ['streamOriginalCanvas','streamProcessedCanvas'])
+    document.getElementById(id).getContext('2d').clearRect(0,0,256,256);
+  function schedulePaint(){
+    if(paintPending)return;paintPending=true;
+    requestAnimationFrame(()=>{
+      paintPending=false;if(generation!==dshPreviewGeneration)return;
+      if(original){dshDrawBin('streamOriginalCanvas',original.raw,false);original=null;}
+      if(processed){
+        dshDrawBin('streamProcessedCanvas',processed.raw,true);
+        const result=processed.metadata;
+        document.getElementById('streamProcessedCanvas').setAttribute('data-result-job',String(result.job));
+        document.getElementById('comparisonProcessedLabel').textContent=streamModeLabels[result.mode];
+        updateFrameRate();processed=null;
+      }
+    });
+  }
+  return new Promise((resolve,reject)=>{
+    worker.onerror=event=>{worker.terminate();dshStreamWorker=null;reject(new Error(event.message));};
+    worker.onmessage=async event=>{
+      const message=event.data;
+      try{
+        if(message.type==='source'){
+          original=message;document.getElementById('imageName').textContent=dshStreamFolder;
+          schedulePaint();worker.postMessage({type:'preview_consumed',kind:'source'});
+        }else if(message.type==='result'){
+          processed=message;dshApplyFastStats(message);dshApplyReadback(message.metadata.readback);
+          dshNeedsUpload=false;schedulePaint();
+          worker.postMessage({type:'preview_consumed',kind:'result'});
+        }else if(message.type==='paused'){
+          await dshDrainStreamControls();
+          worker.postMessage({type:dshStreamRunning?'resume':'stop'});
+        }else if(message.type==='error')error=new Error(message.message);
+        else if(message.type==='stopped'){
+          dshApplyFastStats(message.last);worker.terminate();dshStreamWorker=null;
+          if(error)reject(error);else resolve();
+        }
+      }catch(cause){error=cause;worker.postMessage({type:'stop'});}
+    };
+    const offset=Date.now()-dshNow();
+    worker.postMessage({type:'start',files:entries,index:dshStreamIndex,folder:dshStreamFolder,
+      mode:document.getElementById('fpgaOutputMode').value,times:dshStreamSamples.map(t=>t+offset)});
+  });
 }
 async function dshStartStream(files) {
   if (dshTransferBusy || dshStreamRunning || systemModePending) return;
@@ -356,46 +439,14 @@ async function dshStartStream(files) {
       } finally { systemModePending = false; }
     }
     dshStreamMode = true;
+    if(typeof Worker === 'undefined')throw new Error('流模式需要支持 Web Worker 的浏览器');
+    dshFastStream = true;
     if (document.getElementById('fpgaOutputMode').value === '5') document.getElementById('fpgaOutputMode').value = '0';
     dshFpsPaused = false; resumeFrameRate();
     dshStreamRunning = true; dshStreamControls();
     dshResetPerformance(streamChanged);
     performanceStarted = true;
-    while (dshStreamRunning) {
-      await dshDrainStreamControls();
-      if (!dshStreamRunning) break;
-      const entry = dshStreamFiles[dshStreamIndex];
-      const frameStarted = dshNow();
-      dshTransferBusy = true;
-      const data = await entry.file.arrayBuffer();
-      if (!dshStreamRunning) break;
-      const query = '?name=' + encodeURIComponent(entry.file.name) + '&stream=1&folder=' +
-        encodeURIComponent(dshStreamFolder) + '&path=' + encodeURIComponent(entry.path);
-      // Update raw preview at read time, retaining the previous confirmed output.
-      const originalResponse = await fetch('/api/image' + query,
-        {method:'POST', headers:{'Content-Type':'application/octet-stream'}, body:data});
-      const original = await originalResponse.json();
-      if (!originalResponse.ok || !original.ok) throw new Error(original.error || original.log);
-      showOriginalFrame(original.image, original.name, original.source_revision);
-      if (!dshStreamRunning) break;
-      const mode = document.getElementById('fpgaOutputMode').value;
-      const response = await fetch('/api/network/transfer' + query + '&index=0&mode=' + mode,
-        {method:'POST', headers:{'Content-Type':'application/octet-stream'}, body:data});
-      const result = await response.json();
-      if (result.timeout) dshNeedsUpload = true;
-      if (!response.ok || !result.ok) throw new Error(result.log || result.error);
-      if (result.frames !== 1 || !result.results || result.results.length !== 1)
-        throw new Error('本帧没有收到完整的 FPGA 回传');
-      renderProcessedResults(Object.fromEntries(result.results.map(item => [String(item.mode), item])), result.results_revision);
-      dshApplyReadback(result.readback);
-      dshRecordFrame(result, frameStarted);
-      dshNeedsUpload = false;
-      dshStreamIndex = (dshStreamIndex + 1) % dshStreamFiles.length;
-      dshTransferBusy = false;
-      await dshDrainStreamControls();
-      // Yield between frames so stop/parameter clicks can run even on localhost.
-      await new Promise(resolve => setTimeout(resolve, 0));
-    }
+    await dshRunStreamWorker(entries,streamChanged);
   } catch (error) { alert('流处理失败: ' + error.message); }
   finally {
     dshStreamRunning = false; dshTransferBusy = false;
@@ -768,6 +819,9 @@ class NetworkHandler(web_common.Handler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/network/frame':
+            self.receive_stream_frame(parsed)
+            return
         if parsed.path not in ('/api/network/transfer', '/api/serial/transfer', '/api/image'):
             super().do_POST()
             return
@@ -799,7 +853,7 @@ class NetworkHandler(web_common.Handler):
                     self.state.replace_image(data, filename, preserve_results=stream, display_name=folder)
                 finally:
                     _TRANSFER_LOCK.release()
-                extra = self.state.original_snapshot() if stream else {}
+                extra = self.state.original_snapshot()
                 self.send_json({'ok': True, 'name': self.state.image_name, **extra})
             else:
                 index = query.get('index', ['0'])[0]
@@ -812,8 +866,62 @@ class NetworkHandler(web_common.Handler):
 
     control_worker = None
 
+    def receive_stream_frame(self, parsed):
+        """Binary HTTP response: BE JSON length, metadata JSON, then owned RGB/mode BIN."""
+        acquired = False
+        try:
+            query = parse_qs(parsed.query)
+            filename = query.get('name', [''])[0]
+            folder, relative = query.get('folder', [''])[0], query.get('path', [''])[0]
+            _stream_target(folder, relative, filename)
+            mode = int(query.get('mode', ['0'])[0])
+            if mode not in range(5):
+                raise ValueError('流模式必须为 0..4')
+            if int(self.headers.get('Content-Length', '0')) != FRAME_BYTES:
+                raise ValueError('BIN 必须恰好为 65536 字节')
+            data = self.rfile.read(FRAME_BYTES)
+            _validate_bin_frame(data, filename)
+            if not _TRANSFER_LOCK.acquire(blocking=False):
+                raise RuntimeError('another FPGA frame is in progress')
+            acquired = True
+            if _DISPLAY_PENDING is not None:
+                raise RuntimeError('上一单图任务尚未完成，请先恢复原任务')
+            started = time.perf_counter()
+            self.state.replace_image(data, filename, preserve_results=True, display_name=folder)
+            with _serial_lock():
+                result = _FRAME_CLIENT.receive_frame(data)
+                elapsed = result['timings_ms']['transfer_ms']
+                if result['mode'] != mode:
+                    result = _FRAME_CLIENT.receive_frame(mode=mode)
+                    elapsed += result['timings_ms']['transfer_ms']
+            raw = result['raw']
+            metadata = {key: value for key, value in result.items() if key != 'raw'}
+            metadata['timings_ms'].update(transfer_ms=elapsed,
+                service_total_ms=(time.perf_counter() - started)*1000)
+            self.state.publish_result(metadata, stream=True)
+            metadata.update(_state_versions(self.state))
+            header = json.dumps(metadata, ensure_ascii=False).encode('utf-8')
+            body = struct.pack('!I', len(header)) + header + raw
+        except Exception as error:
+            self.send_json({'ok': False, 'error': str(error), 'log': str(error),
+                            'timeout': isinstance(error, TimeoutError)}, status=400)
+            return
+        finally:
+            if acquired:
+                _TRANSFER_LOCK.release()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/octet-stream')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/network/state':
+            state = self.state.snapshot(0, 128, 255, 50, include_images=False)
+            self.send_json(state)
+            return
         if parsed.path == '/api/network/render':
             query = parse_qs(parsed.query)
             self.send_json(_do_render(query.get('mode', ['0'])[0], self.state))
@@ -945,6 +1053,7 @@ def main():
         if control_worker is not None:
             control_worker.stop()
         server.server_close()
+        _FRAME_CLIENT.close()
     return 0
 
 

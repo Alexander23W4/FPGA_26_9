@@ -26,7 +26,7 @@ document.getElementById('center').value = '128';
 const ctx = vm.createContext({document, URLSearchParams, performance, setInterval() {},
   window: {matchMedia: () => ({matches: false, addEventListener() {}})},
   alert: value => alerts.push(value), fetch: (url, options) => {
-    if (url.startsWith('/api/network/')) {
+    if (url.startsWith('/api/network/') && url !== '/api/network/state') {
       calls.push(url);
       for (const id of ['imageFile', 'chooseImage', 'fpgaOutputMode', 'maskOpacityUpdate'])
         assert.strictEqual(elements[id].disabled, true);
