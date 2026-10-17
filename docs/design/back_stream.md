@@ -1,6 +1,6 @@
 # PL 图像回传接口
 
-已接通 PL 像素回传、AXI DMA S2MM、DDR、PS 网络发送和 PC 文件保存确认。
+已接通 PL 像素回传、AXI DMA S2MM、DDR、PS 网络发送和 PC 显示。单图仍保存文件，流模式只在内存显示。
 地址、GUI 使用及失败恢复见 [network_ddr.md](network_ddr.md)。
 
 ## 数据路径
@@ -21,16 +21,16 @@ double_buf → out_arr ─→ hdmi_out → hdmi_tx
 
 | 位段/信号 | 内容 |
 | --- | --- |
-| TDATA[31:24] | 锁存的显示模式，0～4 |
-| TDATA[23:16] | R |
+| TDATA[31:24] | Alpha，固定 255 |
+| TDATA[23:16] | B |
 | TDATA[15:8] | G |
-| TDATA[7:0] | B |
+| TDATA[7:0] | R |
 | TKEEP | 固定 0xF，四个字节均有效 |
 | TUSER | 仅第一个像素为 1 |
 | TLAST | 正常情况下仅第 65,536 个像素为 1，表示整帧结束 |
 
 正常帧长为 **65,536 次握手、262,144 字节**。这与输入的 65,536 字节灰度 BIN 不同。
-后续按小端方式读取 DDR 中的字节时，每个像素顺序为 B、G、R、模式。
+后续按小端方式读取 DDR 中的字节时，每个像素顺序为 R、G、B、255。
 DMA 接收通道应使用 AXI DMA 的包结束语义；这里不是 VDMA 的行尾 TLAST 协议。
 
 ## 反压和完成确认
@@ -40,7 +40,7 @@ DMA 接收通道应使用 AXI DMA 的包结束语义；这里不是 VDMA 的行�
 - 默认 FIFO 为 2048 个像素，另外有输出寄存器和一个应急尾拍寄存器。
 - 接收完规定数量的源像素后，`back_en` 变为 0；FIFO 中的数据继续发送。
 - 最后一拍 `TVALID && TREADY && TLAST` 后，`frame_sent` 拉高一个周期，立即恢复空闲。
-- `waiting_ack` 固定为 0；保留的 `back_receive_done` 输入不再控制重启。
+- 不包含接收确认输入或等待 ACK 状态；模式在 SOF 锁存到独立 `frame_mode` 输出。
 - `frame_sent` 表示 AXI 包传输结束，并不表示 PC 已保存文件。还需结合错误及实际长度判断成功。
 
 有限 FIFO 无法承受无限期反压。若空间耗尽且后续像素将丢失，模块置 `overflow=1`，
@@ -54,13 +54,14 @@ DMA 接收通道应使用 AXI DMA 的包结束语义；这里不是 VDMA 的行�
 所有回传信号属于 **pclk 域**；M_AXIS 的接口属性也绑定 pclk。
 DMA 的 S_AXIS_S2MM 当前使用同一 25.2 MHz 时钟；以后若改成不同时钟，需要时钟转换。
 
-旧反馈寄存器 `BACK_RECEIVE`（0x30 / 字节偏移 0xC0）及其 ACK CDC 保留兼容，
-当前 PS 网络流程不再写它，`back_stream` 也不依赖它。
+旧反馈寄存器 0x30 / 字节偏移 0xC0 及对应 CDC 已删除。
+`BACK_FRAME_MODE` 为 0x32 / 字节偏移 0xC8，只读真实回传帧模式。
+模式在 SOF 锁存，经两级同步后在 S2MM 完成、busy 清零时读取；不能以像素 Alpha 代替模式。
 `BACK_STATUS` 编号 0x31、字节偏移 0xC4；bit0=busy、bit1=0、bit2=overflow，
 状态经两级同步送入 clk 域。PS 确认 S2MM 实际长度正确、busy 清零后发送结果。
-PC 保存后的 SAVED 只释放 PS 输出 DDR 所有权，PS 校验匹配后直接回复 DONE。
+单图的 SAVED 在 PC 保存后释放 DDR 并回复 DONE；流模式在整帧复制到 TCP 发送缓冲后自动释放。
 模式更新通过 TCP RENDER：先准备 S2MM，再写显示模式寄存器，防止无人接收时回传溢出。
-`back_busy`、`back_waiting_ack`、`back_overflow`、`back_frame_sent` 已标记为调试信号。
+`back_busy`、`back_overflow`、`back_frame_sent` 已标记为调试信号。
 
 ## 局部验证
 
@@ -72,5 +73,4 @@ python scripts/tests/run_display_checks.py
 FIFO 溢出短包、容量边界及单像素帧。
 `tb_hdmi_out` 核对五帧 HDMI 和三帧 AXI 回传，确认黑边不计入回传、
 反压不暂停 HDMI、模式改变重发、忙时延后、未改变时不重复发送。
-`tb_back_ack` 使用不同时钟，检查旧 AXI ACK 路径及不依赖 ACK 的自动空闲、连续写入排队、
-零值/WSTRB 屏蔽、复位时清除未送达事件以及复位后重新确认。
+`tb_display_regs` 检查已移除的 0xC0 返回错误、0xC8 模式只读、AW/W 独立握手和 WSTRB。

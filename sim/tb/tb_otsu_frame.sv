@@ -26,7 +26,7 @@ module tb_otsu_frame;
         .m_axis_tdata(out_data),.m_axis_tvalid(out_valid),.m_axis_tready(down_ready),
         .m_axis_tlast(out_last),.m_axis_tmask(out_mask),.m_axis_tcontour(out_contour),
         .threshold_out(threshold),.auto_mode_out(auto_mode),
-        .back_receive_ready(1'b1),.back_status(3'd0));
+        .back_frame_mode(8'd0),.back_status(3'd0));
 
     task axi_write(input [31:0] address,input [31:0] value);
         begin

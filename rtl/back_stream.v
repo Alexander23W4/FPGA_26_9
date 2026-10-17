@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
-// One {mode,R,G,B} pixel per beat; the video producer never waits for this tap.
-// All ports belong to clk (pclk in top1). The legacy ACK port is ignored.
+// One little-endian RGBA pixel per beat, from the independent frame-store reader.
+// All ports belong to clk. Completion is the final AXI handshake.
 module back_stream #(
     parameter integer FRAME_PIXELS = 256 * 256,
     parameter integer FIFO_DEPTH = 2048
@@ -10,23 +10,23 @@ module back_stream #(
     input wire sof, input wire valid,
     input wire [7:0] R, input wire [7:0] G, input wire [7:0] B,
     input wire [31:0] video_mode,
-    input wire back_receive_done, // retained for existing wrappers; no rearm ACK
     output reg [31:0] tdata,
     output reg tvalid, input wire tready,
     output wire [3:0] tkeep,
     output reg tlast, output reg tuser,
-    output wire back_en, output wire busy, output wire waiting_ack,
+    output wire back_en, output wire busy,
+    output wire source_ready,
+    output reg [7:0] frame_mode,
     output reg frame_sent, output reg overflow
 );
     localparam integer PTR_W = $clog2(FIFO_DEPTH);
     localparam integer PIX_W = FRAME_PIXELS < 2 ? 1 : $clog2(FRAME_PIXELS);
     localparam [2:0] IDLE=0, CAPTURE=1, PUSH_TAIL=2, DRAIN=3;
     reg [2:0] state;
-    reg [7:0] frame_mode;
     reg [PIX_W-1:0] pixel_count;
 
     // Synchronous BRAM FIFO plus a separate AXI output register.
-    // Store {TLAST,TUSER,mode,R,G,B}; TKEEP is always four valid bytes.
+    // Store {TLAST,TUSER,Alpha,B,G,R}; memory bytes are R,G,B,255.
     (* ram_style = "block" *) reg [33:0] fifo [0:FIFO_DEPTH-1];
     reg [PTR_W-1:0] write_ptr, read_ptr;
     reg [PTR_W:0] count;
@@ -36,8 +36,7 @@ module back_stream #(
     wire capture = state == CAPTURE || (state == IDLE && sof);
     wire [PIX_W-1:0] index = state == IDLE ? {PIX_W{1'b0}} : pixel_count;
     wire last_pixel = index == FRAME_PIXELS-1;
-    wire [7:0] selected_mode = state == IDLE ? video_mode[7:0] : frame_mode;
-    wire [33:0] incoming = {last_pixel, (index == 0), selected_mode, R, G, B};
+    wire [33:0] incoming = {last_pixel, (index == 0), 8'hff, B, G, R};
     wire source_write = capture && valid;
     wire fifo_push = fifo_space && (source_write || state == PUSH_TAIL);
     wire [33:0] push_data = state == PUSH_TAIL ? pending_tail : incoming;
@@ -45,7 +44,9 @@ module back_stream #(
     assign tkeep = 4'hf;
     assign back_en = state == CAPTURE;
     assign busy = state != IDLE;
-    assign waiting_ack = 1'b0; // compatibility status: never waits for PS
+    // Reserve eight slots for RAM + out_arr + capture pipeline latency. Only
+    // read requests pause; already formatted pixels must still enter this FIFO.
+    assign source_ready = count < FIFO_DEPTH - 8;
 
     // Hold the entire output tuple stable whenever TVALID && !TREADY.
     always @(posedge clk) begin
@@ -84,11 +85,12 @@ module back_stream #(
             end
             if (source_write) begin
                 if (!fifo_space) begin
-                    // HDMI cannot stop. Preserve this pixel as a terminal beat,
+                    // Defensive fault path if a producer ignores source_ready.
+                    // Preserve this pixel as a terminal beat,
                     // stop capture and mark this packet short if pixels are lost.
                     // Future PS code MUST reject lengths other than FRAME_PIXELS*4.
                     // A previously asserted AXI beat is never changed or withdrawn.
-                    pending_tail <= {1'b1, (index == 0), selected_mode, R, G, B};
+                    pending_tail <= {1'b1, (index == 0), 8'hff, B, G, R};
                     overflow <= !last_pixel;
                     state <= PUSH_TAIL;
                 end else if (last_pixel) begin

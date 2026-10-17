@@ -19,6 +19,8 @@ module hdl_out(
     output reg en,
 
     input  wire read_buf_idx,          // HDMI 当前读 bank
+    input  wire back_read_lock,
+    input  wire back_read_idx,
     output reg  frame_ready_toggle,    // 每完成一帧翻转，保持到下一帧完成
 
     // ILA / AXI-Lite 调试状态：{eof_mismatch, state, write_bank, write_addr}
@@ -66,9 +68,10 @@ module hdl_out(
                         counter <= counter + 1'b1;
                     end
                 end
-            end else if (read_idx_sync == buf_idx) begin
+            end else if (read_idx_sync == buf_idx &&
+                         !(back_read_lock && back_read_idx == !buf_idx)) begin
                 // HDMI 已在帧边界切到刚完成的 bank。另一 bank 此时空闲，
-                // 可以开始接收下一帧。
+                // 回传端也已离开另一 bank，才可以开始接收下一帧。
                 buf_idx <= ~buf_idx;
                 counter <= 16'd0;
                 state <= WRITE_FRAME;

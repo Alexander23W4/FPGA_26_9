@@ -22,12 +22,12 @@ module tb_back_stream;
     end
     back_stream #(.FIFO_DEPTH(64)) dut(
         .clk(clk),.rst(rst),.sof(sof),.valid(valid),.R(r),.G(g),.B(b),
-        .video_mode(mode),.back_receive_done(ack),.tdata(data),.tvalid(v),
+        .video_mode(mode),.tdata(data),.tvalid(v),
         .tready(ready),.tkeep(keep),.tlast(last),.tuser(user),
-        .back_en(en),.busy(busy),.waiting_ack(wait_ack),.frame_sent(sent),.overflow(overflow));
+        .back_en(en),.busy(busy),.frame_sent(sent),.overflow(overflow));
 
     function automatic [31:0] pixel(input integer m,i);
-        pixel={8'(m),8'(i),8'(i>>8),8'(i^8'ha5)};
+        pixel={8'hff,8'(i^8'ha5),8'(i>>8),8'(i)};
     endfunction
     reg was_stalled=0;
     reg [37:0] held;
@@ -72,18 +72,18 @@ module tb_back_stream;
         repeat(4)@(negedge clk);rst=0;
         send_frame(3);
         wait(packets==1);@(negedge clk);
-        if(overflow||en||busy||wait_ack||!sent)$fatal(1,"first frame did not return directly to idle");
+        if(dut.frame_mode!==3||overflow||en||busy||!sent)$fatal(1,"first frame did not return directly to idle");
         repeat(12)@(negedge clk);
         if(packets!=1||v||busy||sent)$fatal(1,"ordinary refresh repeated a completed packet");
         // No ACK between complete frames; the next SOF must start immediately.
         send_frame(4);wait(packets==2);@(negedge clk);
-        if(overflow||busy||wait_ack)$fatal(1,"second frame without ACK failed");
+        if(dut.frame_mode!==4||overflow||busy)$fatal(1,"second frame without ACK failed");
         // Reset while TVALID is blocked: no old FIFO words may leak afterward.
         @(negedge clk);enable_ready=0;sof=1;valid=1;
         @(negedge clk);sof=0;repeat(8)@(negedge clk);
         rst=1;valid=0;repeat(3)@(negedge clk);rst=0;enable_ready=1;
         send_frame(2);wait(packets==1);@(negedge clk);
-        if(overflow||busy||wait_ack)$fatal(1,"reset left stale words");
+        if(overflow||busy)$fatal(1,"reset left stale words");
         normal_done=1;
     end
 
@@ -97,9 +97,9 @@ module tb_back_stream;
     integer ecount=0,eterm=0;
     back_stream #(.FRAME_PIXELS(16),.FIFO_DEPTH(4)) overflow_dut(
         .clk(clk),.rst(er),.sof(esof),.valid(ev),.R(ep),.G(ep),.B(ep),
-        .video_mode(32'd1),.back_receive_done(eack),.tdata(edata),.tvalid(evalid),
+        .video_mode(32'd1),.tdata(edata),.tvalid(evalid),
         .tready(erready),.tkeep(ekeep),.tlast(elast),.tuser(euser),
-        .back_en(),.busy(),.waiting_ack(ewait),.frame_sent(),.overflow(eoverflow));
+        .back_en(),.busy(),.frame_sent(),.overflow(eoverflow));
     reg eheld_valid=0;
     reg [37:0] eheld;
     always @(posedge clk)begin
@@ -109,7 +109,7 @@ module tb_back_stream;
                 $fatal(1,"overflow changed a blocked output beat");
             eheld_valid=evalid&&!erready;eheld={elast,euser,ekeep,edata};
             if(evalid&&erready)begin
-                if(edata!=={8'd1,8'(ecount),8'(ecount),8'(ecount)}||ekeep!==4'hf)
+                if(edata!=={8'hff,8'(ecount),8'(ecount),8'(ecount)}||ekeep!==4'hf)
                     $fatal(1,"overflow packet prefix corrupted");
                 if(euser!==(ecount==0))$fatal(1,"overflow packet SOF");
                 ecount=ecount+1;
@@ -148,11 +148,11 @@ module back_stream_capacity_case #(parameter integer N=6)(input wire clk,output 
     integer got=0,ends=0,i;
     back_stream #(.FRAME_PIXELS(N),.FIFO_DEPTH(4)) dut(
         .clk(clk),.rst(rst),.sof(sof),.valid(valid),.R(p),.G(p),.B(p),
-        .video_mode(32'd2),.back_receive_done(1'b0),.tdata(data),.tvalid(v),
+        .video_mode(32'd2),.tdata(data),.tvalid(v),
         .tready(ready),.tkeep(keep),.tlast(last),.tuser(user),
-        .back_en(),.busy(),.waiting_ack(wait_ack),.frame_sent(),.overflow(overflow));
+        .back_en(),.busy(),.frame_sent(),.overflow(overflow));
     always @(posedge clk)if(!rst&&v&&ready)begin
-        if(data!=={8'd2,8'(got),8'(got),8'(got)}||keep!==4'hf||
+        if(data!=={8'hff,8'(got),8'(got),8'(got)}||keep!==4'hf||
            user!==(got==0)||last!==(got==N-1))$fatal(1,"capacity case N=%0d corrupted",N);
         got=got+1;if(last)ends=ends+1;
     end

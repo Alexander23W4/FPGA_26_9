@@ -27,7 +27,7 @@
 #define IMG_DDR_BASE        0x20000000u
 #define IMG_DDR_SIZE        (16u * 1024u * 1024u)
 /* Network input: 0x20000000..0x2000ffff (one 8-bit grayscale image).
- * S2MM output: 0x20010000..0x2004ffff (one {mode,R,G,B} image). */
+ * S2MM output: 0x20010000..0x2004ffff (little-endian R,G,B,255 bytes). */
 #define NET_INPUT_BYTES      65536u
 #define IMG_RES_DDR_BASE     0x20010000u
 #define IMG_RES_DDR_SIZE     262144u
@@ -93,8 +93,8 @@
 #define CMD_MASK_TRANSP     'P'      /* +1 byte: overlay opacity 0..100 */
 #define CMD_SYSTEM_MODE     'M'      /* +1 byte: 0 image, 1 medical (reserved) */
 /* GUI 图像通过 TCP 5002 直接写输入 DDR；回传通过独立 AXI DMA S2MM 写输出
- * DDR，再经同一 TCP 连接发往 PC。PC 以 TCP 确认接收/保存后释放 DDR；
- * 不再写旧的 BACK_RECEIVE。流模式在 PC 内存中直接显示，不保存 BIN/PNG。
+ * DDR，再经同一 TCP 连接发往 PC。流在整帧复制到 TCP 发送缓冲后释放 DDR；
+ * 单图仍等待 PC 保存确认。流模式在 PC 内存中直接显示，不保存 BIN/PNG。
  * 实现见 net_frame.c；不使用旧 UDP 接收脚本。 */
 
 /* 单次传输上限（DDR 缓冲减去 TOC 空间，保守取 16MB 里的一大半） */

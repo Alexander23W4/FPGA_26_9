@@ -40,15 +40,18 @@ proc verify_pl_registers {report_path} {
         NAME =~ */lesion_pixels_save_reg* && IS_SEQUENTIAL == 1}]
     set alpha [get_cells -quiet -hier -filter {
         NAME =~ */u_axi_slv/reg_mask_transparency_reg* && IS_SEQUENTIAL == 1}]
+    set return_mode [get_cells -quiet -hier -filter {
+        NAME =~ */u_back_stream/frame_mode_reg* && IS_SEQUENTIAL == 1}]
     set fp [open $report_path w]
     puts $fp "video_mode_register_bits=[llength $video]"
     puts $fp "area_saved_register_bits=[llength $area]"
     puts $fp "mask_transparency_register_bits=[llength $alpha]"
+    puts $fp "return_frame_mode_bits=[llength $return_mode]"
     puts $fp "video_cells=$video"
     puts $fp "area_cells=$area"
     close $fp
-    if {[llength $video] == 0 || [llength $area] < 17 || [llength $alpha] < 7} {
-        error "!!!STALE_PL!!! Implemented top1 is missing video_mode, saved area, or mask transparency. See $report_path"
+    if {[llength $video] == 0 || [llength $area] < 17 || [llength $alpha] < 7 || [llength $return_mode] < 3} {
+        error "!!!STALE_PL!!! Implemented top1 is missing video_mode, saved area, mask transparency or RGBA return frame mode. See $report_path"
     }
     puts "PL_REGISTERS_OK video_bits=[llength $video] area_bits=[llength $area] alpha_bits=[llength $alpha]"
 }

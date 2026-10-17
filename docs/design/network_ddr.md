@@ -4,13 +4,14 @@
 
 流模式现在由浏览器 Web Worker 独立收发；主线程只绘制 Canvas，不编码预览 PNG。
 原图仅上传一次，直接从本地灰度 BIN 绘制。回传保持每像素 B、G、R、mode 四字节。
-PC 收齐 BIN 和随帧寄存器快照、校验通过后发送 TCP `RECEIVED`，收到 `DONE` 就发下一帧。
+PS 将整帧复制到 TCP 发送缓冲后释放输出 DDR；PC 收齐 RGBA 和随帧状态、校验通过就发送下一帧。
+流模式不发送 RECEIVED，不等待 DONE，也不等待 GUI 绘制。TCP 自身仍负责可靠传输。
 流模式完全在内存中收发和显示，不保存 BIN、不编码或保存 PNG，也没有磁盘保存队列。
 浏览器渲染跟不上时只绘制最新的完整帧，收发不等待绘制。原流从本地 BIN 直接绘制。
-`RECEIVED` 表示 PC 内存已持有校验通过的数据；单图及“全显示”仍使用落盘后 `SAVED`。
+单图及“全显示”仍使用落盘后 `SAVED` / `DONE`，保留失败重试和保存成功确认。
 
 正常连续收发复用一个 TCP 连接，断线后仍按 job_id 恢复；连接设置 TCP_NODELAY。
-新连接先以无图像负载的 HELLO_FAST 确认 PS 支持新协议，防止把新协议图像发给旧固件。
+新连接先以无图像负载的 HELLO_FAST 确认 PS 支持协议版本 2，防止把新协议图像发给旧固件。
 随帧状态包含七个寄存器的快照并纳入同一 CRC，不再逐帧开串口发送 R。
 阈值/透明度写入与手动“请求FPGA状态”保留 UART，在流的帧间暂停处执行。
 PS CRC32 使用 1 KiB 常量查表，校验值保持 IEEE CRC32，与 Python binascii.crc32 一致；
@@ -19,10 +20,10 @@ PS CRC32 使用 1 KiB 常量查表，校验值保持 IEEE CRC32，与 Python bin
 处理模式的周期轮询只取 `/api/network/state` 元数据。初始页面/选图时才取原图，
 处理图随实际任务返回；流模式直接用回传 BIN 绘制，轮询不会重复编码或发送图像。
 
-本次仅改 PS 和 PC，已有 PL 位流无需重新综合。仓库根目录 Git Bash：
+本次修改了 PL 像素格式和模式锁存寄存器，需要重新综合 PL、构建 PS 并下载。仓库根目录 Git Bash：
 
 ```bash
-./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
+./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f && bash ./scripts/flash_current.sh init
 ```
 
 然后停止原 GUI、重新运行 `bash ./network/launch_gui.sh` 并刷新网页。
@@ -51,18 +52,19 @@ PS 同时检查 MM2S 已完成且停止、S2MM 接收完成及实际字节数、
 | 用途 | 地址范围 | 大小 / 格式 |
 | --- | --- | --- |
 | 输入 DDR | `0x20000000–0x2000FFFF` | 65,536 字节；逐行 256×256 灰度，无文件头 |
-| 输出 DDR | `0x20010000–0x2004FFFF` | 262,144 字节；65,536 个 `{mode,R,G,B}` 32 位字 |
+| 输出 DDR | `0x20010000–0x2004FFFF` | 262,144 字节；65,536 个 `{255,B,G,R}` 32 位字（内存字节 RGBA） |
 | VDMA 控制 | `0x43000000` | 原 MM2S 通道 |
 | PL 控制 | `0x44000000` | 寄存器编号需乘 4 |
 | AXI DMA 控制 | `0x45000000` | 独立 AXI DMA，仅启用 simple S2MM |
-| BACK_RECEIVE | `0x440000C0` | 编号 0x30；保留旧 ACK，当前流程不使用 |
+| 原反馈地址 | `0x440000C0` | 已移除，读写返回 SLVERR |
 | BACK_STATUS | `0x440000C4` | 编号 0x31；只读：bit0 busy、bit1 固定 0、bit2 overflow |
+| BACK_FRAME_MODE | `0x440000C8` | 编号 0x32；只读：PL 在回传 SOF 锁存的真实显示模式 |
 
 输入 `.bin` 必须恰好 65,536 字节。RAW BIN 没有尺寸元数据，程序固定按 256 行、
 每行 256 个无符号 8 位像素解释，不自动缩放或截断。
 
-回传 `.bin` 在小端 DDR/文件中的字节顺序为 **B、G、R、mode**，每像素四字节。
-mode 为 0～4，整帧保持一致。输出 PNG 为普通 256×256 RGB 图片，方便直接查看。
+回传 `.bin` 在小端 DDR/文件中的字节顺序为 **R、G、B、255**，每像素四字节。
+Alpha 固定 255。模式由 PL 在 SOF 锁存，经独立只读寄存器交给 PS，放在回传消息头中。输出 PNG 为普通 256×256 RGB 图片，方便直接查看。
 S2MM 的 TLAST 表示整帧包结束；输入 VDMA 的 TLAST 表示行尾，两者语义不同。
 DMA 的长度寄存器配置为 23 位，能够容纳 256 KiB，不能沿用默认 14 位长度。
 长度写入是启动接收的最后一步，完成后读取实际接收字节数，依据
@@ -96,7 +98,7 @@ bash ./network/launch_gui.sh
 
 文件名格式为 `<原图名>_<denoise|contour|mask|overlay|heat>_<年月日_时分秒_微秒>_<8位十六进制任务号>.bin`，
 PNG 使用相同主文件名。GUI 根据本次任务返回的准确路径检查 BIN，不扫描同名历史结果。
-回传 BIN 为 256×256×4 字节，每像素按 B、G、R、mode 排列；它不能按输入的 8-bit 灰度 BIN 加载。
+回传 BIN 为 256×256×4 字节，每像素按 R、G、B、255 排列；它不能按输入的 8-bit 灰度 BIN 加载。
 
 “全显示”只上传原图一次，先接收新图在当前 PL 模式下的结果，再逐一请求剩余模式，
 显示原图及五张处理图。每张都先完成回传、落盘校验、SAVED、DONE，才切换下一模式。
@@ -118,7 +120,7 @@ PS 先启动 S2MM，再写模式寄存器；PL 在帧边界更新配置并回传
 
 “选择流文件夹”读取所选目录及子目录中的 `.bin`，按带数字的文件名顺序循环，
 每个文件仍须为 256×256×8-bit、65,536 字节。非 BIN 文件忽略；不合规格的 BIN 会在启动前报错。
-收发顺序为：本地读取 BIN → 上传一帧 → 收齐本次 BIN 与状态、CRC 校验 → RECEIVED/DONE →
+收发顺序为：本地读取 BIN → 上传一帧 → 收齐本次 BIN 与状态、CRC 校验 →
 下一帧。所有文件发完后从头继续。预览绘制独立执行，不是下一帧的前置条件；流不保存结果文件。
 
 - 流模式禁用“全显示”；从全显示切入流时使用模式 0。
@@ -171,7 +173,7 @@ PS 先启动 S2MM，再写模式寄存器；PL 在帧边界更新配置并回传
 | type | 消息 | length | 后续 payload | extra |
 | --- | --- | --- | --- | --- |
 | 1 | UPLOAD | 65536 | 输入灰度图 | 0 |
-| 2 | RESULT | 262144 | 输出 BGRmode 数据 | mode |
+| 2 | 旧 RESULT（主机兼容旧固件） | 262144 | 旧 BGRmode 数据 | mode |
 | 3 | SAVED | 262144 | 无 | mode |
 | 4 | DONE | 0 | 无 | mode |
 | 5 | ERROR | 文本字节数 | UTF-8 错误文本 | 1 需上传、2 失败、3 忙 |
@@ -180,17 +182,17 @@ PS 先启动 S2MM，再写模式寄存器；PL 在帧边界更新配置并回传
 | 8 | CONFIGURED | 0 | 无 | 已配置的 mode，无图像时回复 |
 | 9 | CANCEL | 0 | 无 | 0；单向取消对应 job，不等待回复 |
 | 10 | UPLOAD_FAST | 65536 | 输入灰度 BIN | 0 |
-| 11 | RESULT_FAST | 262176 | 32 字节状态 + 262144 字节 BIN | mode |
-| 12 | RECEIVED | 262176 | 无；PC 已收齐且校验通过 | mode |
+| 11 | RESULT_FAST | 262188 | 44 字节状态/耗时 + 262144 字节 RGBA | mode |
 | 13 | RENDER_FAST | 0 | 无 | 请求 mode 0～4 |
 | 14 | HELLO_FAST | 0 | 无；新连接能力查询 | 0 |
-| 15 | FAST_READY | 0 | 无；支持快流协议 | 元数据版本 1 |
+| 15 | FAST_READY | 0 | 无；支持 RGBA 无应用 ACK 流协议 | 协议版本 2 |
+| 16 | RESULT_RGBA | 262144 | 单图/全显示 RGBA，落盘后仍用 SAVED/DONE | mode |
 
-RESULT_FAST 的 32 字节状态为八个大端 u32：
-`version=1, MODE, CMD_REG, VIDEO_MODE, STATUS, DATA_REG, LESION, MASK_TRANSP`。
-其 CRC 覆盖状态与 BIN 的拼接字节；接收确认的 CRC 和长度与 RESULT_FAST 完全一致。
-原类型 1～9 继续兼容单图的落盘确认；两种 ACK 不能互换来释放 DDR。
-TCP 长连接逐包解析，只有 DONE 后才启动下一帧，避免覆盖板端唯一输出缓存。
+RESULT_FAST 的 44 字节状态为十一个大端 u32：
+`version=2, MODE, CMD_REG, FRAME_VIDEO_MODE, STATUS, DATA_REG, LESION, MASK_TRANSP, receive_us, setup_us, pl_to_ddr_us`。
+CRC 覆盖状态与 RGBA 的拼接字节。接收、准备和 PL 到 DDR 耗时来自 A9 全局计时器。
+PS 使用 TCP_WRITE_FLAG_COPY；整帧复制成功后 TCP 自己持有发送/重传数据，DDR 才可复用。
+图模式继续等待 SAVED/DONE，流模式收齐并校验后直接开始下一帧；绘制只保留最新完整帧。
 
 SAVED/DONE 携带输出 CRC。RESUME/RENDER/CONFIGURED/CANCEL 的 CRC 为 0；ERROR 不使用 CRC。
 
@@ -228,3 +230,5 @@ ARM 检查使用已安装 BSP 编译链接至 `build/tests/network_app`，不发
 `sim/tb/tb_s2mm_dma.sv`。通过标记 `S2MM_DMA_OK` 在 `build/s2mm_dma_check.log`。
 网口客户端与 GUI 原单帧路径通过过 24 项本地测试。GUI 或多模式流程修改后，应重新运行
 host 测试，以确认当前按钮、参数设置、回传和文件保存的完整行为。
+
+耗时估算和测量边界见 [stream_latency.md](stream_latency.md)。

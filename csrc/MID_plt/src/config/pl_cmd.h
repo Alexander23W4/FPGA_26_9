@@ -6,7 +6,7 @@
 #define PL_CTRL_BASE    0x44000000u
 
 /* WORD register numbers, not byte offsets. Always use PL_REG_ADDRESS().
- * Physical byte offsets: 00,04,08,0C,80,84,88,C0 respectively.
+ * Physical byte offsets: 00,04,08,0C,80,84,88,C4,C8 respectively.
  */
 #define MODE_ADDR        0x00u /* 0 image processing, 1 medical (reserved) */
 #define CMD_REG_ADDR     0x01u /* 0 automatic threshold, 1 manual */
@@ -15,8 +15,11 @@
 #define DATA_REG_ADDR    0x20u /* Manual threshold, 0..255 */
 #define LESION_ADDR      0x21u /* RO: last complete frame's foreground pixels */
 #define MASK_TRANSP_ADDR 0x22u /* Overlay opacity 0..100; 0 transparent, 100 solid */
-#define BACK_RECEIVE     0x30u /* Legacy ACK, no longer required; reads as 0 */
 #define BACK_STATUS      0x31u /* RO byte 0xC4: bit0 busy, bit1 reserved zero, bit2 overflow */
+#define BACK_FRAME_MODE  0x32u /* RO byte 0xC8: mode latched at return SOF, stable after busy clears */
+#define RETURN_INTERVAL  0x33u /* RO byte 0xCC: return start N -> frame commit N+1, 25.2 MHz ticks */
+#define RETURN_STALL     0x34u /* RO byte 0xD0: output valid && !ready ticks within that interval */
+#define RETURN_SEQ       0x35u /* RO byte 0xD4: completed timing interval count; 0 means not ready */
 
 #define PL_REG_OFFSET(index)  ((unsigned)(index) << 2u)
 #define PL_REG_ADDRESS(index) (PL_CTRL_BASE + PL_REG_OFFSET(index))

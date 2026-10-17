@@ -19,9 +19,10 @@ MAGIC = 0x48434631  # HCF1, network byte order
 HEADER = struct.Struct('!6I')
 UPLOAD, RESULT, SAVED, DONE, ERROR, RESUME, RENDER, CONFIGURED = range(1, 9)
 CANCEL = 9  # One-way: abandon this job; no result/acknowledgement is awaited.
-UPLOAD_FAST, RESULT_FAST, RECEIVED, RENDER_FAST = 10, 11, 12, 13
+UPLOAD_FAST, RESULT_FAST, RENDER_FAST = 10, 11, 13
 HELLO_FAST, FAST_READY = 14, 15
-META = struct.Struct('!8I')  # version, MODE, CMD, VIDEO, STATUS, DATA, LESION, ALPHA
+RESULT_RGBA = 16
+META = struct.Struct('!14I')  # v3: registers, PS timings, PL interval/stall/sequence
 INPUT_BYTES = 65536
 OUTPUT_BYTES = 262144
 MODE_NAMES = ('denoise', 'contour', 'mask', 'overlay', 'heat')
@@ -69,7 +70,11 @@ def receive_header(sock, job, deadline=None):
     return kind, length, checksum, extra
 
 def result_image(raw, mode):
-    if len(raw) != OUTPUT_BYTES or mode not in range(5) or raw[3::4].count(mode) != 65536:
+    if len(raw) != OUTPUT_BYTES or mode not in range(5):
+        raise ValueError('FPGA result length/mode is invalid')
+    if raw[3::4].count(255) == 65536:
+        return Image.frombytes('RGBA', (256, 256), raw).convert('RGB')
+    if raw[3::4].count(mode) != 65536:
         raise ValueError('FPGA result length/mode is invalid')
     # DDR words are little endian: bytes B,G,R,mode for every pixel.
     rgb = bytearray(256*256*3)
@@ -78,14 +83,19 @@ def result_image(raw, mode):
 
 
 def decode_frame_metadata(data, mode):
-    version, system, threshold_mode, video, actual, manual, lesion, alpha = META.unpack(data)
-    if (version != 1 or system > 1 or threshold_mode > 1 or video != mode or
+    (version, system, threshold_mode, video, actual, manual, lesion, alpha,
+     rx_us, setup_us, pl_us, interval_cycles, stall_cycles, interval_seq) = META.unpack(data)
+    if (version != 3 or system > 1 or threshold_mode > 1 or video != mode or
             actual > 255 or manual > 255 or lesion > 65536 or alpha > 100):
         raise ValueError('invalid FPGA frame register snapshot')
     return {'ok': True, 'system_mode': system, 'mode': threshold_mode,
             'video_mode': video, 'actual_threshold': actual, 'threshold': manual,
             'lesion_pixels': lesion, 'lesion_mm2': '%.3f' % (lesion * 0.436280886141),
-            'mask_transparency': alpha, 'log': 'register snapshot received with frame over TCP'}
+            'mask_transparency': alpha,
+            'ps_timings_ms': {'receive': rx_us/1000, 'setup': setup_us/1000, 'pl_to_ddr': pl_us/1000},
+            'pl_interval': {'sequence': interval_seq, 'elapsed_ms': interval_cycles/25200,
+                            'write_stall_ms': stall_cycles/25200},
+            'log': 'register snapshot received with frame over TCP'}
 
 
 def saved_result_png(files, mode, checksum):
@@ -208,7 +218,7 @@ class FrameTransferClient:
         return self._transaction(RENDER, b'', filename, mode, result_name)
 
     def receive_frame(self, image=None, mode=None):
-        """Return owned immutable BIN + metrics, acknowledging reception, with no disk/PNG work."""
+        """Return owned RGBA + metrics; no application ACK, disk work or PNG encoding."""
         if image is not None and len(image) != INPUT_BYTES:
             raise ValueError('input must contain exactly 65536 bytes')
         if image is None and mode not in range(5):
@@ -234,7 +244,7 @@ class FrameTransferClient:
                         if not self._fast_capable:
                             sock.sendall(packet(HELLO_FAST, job))
                             hello = receive_header(sock, job, deadline)
-                            if hello != (FAST_READY, 0, 0, 1):
+                            if hello != (FAST_READY, 0, 0, 3):
                                 raise ValueError('stream protocol unavailable; rebuild and flash PS firmware')
                             self._fast_capable = True
                         if context['uploaded']:
@@ -243,28 +253,18 @@ class FrameTransferClient:
                             context['uploaded'] = True
                             sock.sendall(packet(operation, job, len(image), crc(image), mode or 0) + image)
                         kind, length, checksum, returned_mode = receive_header(sock, job, deadline)
-                        if kind == DONE:
-                            if (context['raw'] is None or length or checksum != context['crc'] or
-                                    returned_mode != context['mode']):
-                                raise ValueError('FPGA confirmed a frame not owned by PC')
-                        else:
-                            if kind != RESULT_FAST or length != OUTPUT_BYTES + META.size or returned_mode not in range(5):
-                                raise ValueError('unexpected stream protocol; rebuild and flash PS firmware')
-                            if mode is not None and returned_mode != mode:
-                                raise ValueError('FPGA result mode mismatch')
-                            payload = recv_exact(sock, length, deadline)
-                            if crc(payload) != checksum:
-                                raise ValueError('FPGA result CRC mismatch')
-                            readback = decode_frame_metadata(payload[:META.size], returned_mode)
-                            raw = payload[META.size:]
-                            if raw[3::4].count(returned_mode) != 65536:
-                                raise ValueError('FPGA pixel mode mismatch')
-                            context.update(raw=raw, readback=readback, crc=checksum, mode=returned_mode)
-                            sock.settimeout(remaining_time(deadline))
-                            sock.sendall(packet(RECEIVED, job, length, checksum, returned_mode))
-                            kind, done_len, done_crc, done_mode = receive_header(sock, job, deadline)
-                            if kind != DONE or done_len or done_crc != checksum or done_mode != returned_mode:
-                                raise ValueError('FPGA did not confirm PC reception')
+                        if kind != RESULT_FAST or length != OUTPUT_BYTES + META.size or returned_mode not in range(5):
+                            raise ValueError('unexpected stream protocol; rebuild and flash PL/PS')
+                        if mode is not None and returned_mode != mode:
+                            raise ValueError('FPGA result mode mismatch')
+                        payload = recv_exact(sock, length, deadline)
+                        if crc(payload) != checksum:
+                            raise ValueError('FPGA result CRC mismatch')
+                        readback = decode_frame_metadata(payload[:META.size], returned_mode)
+                        raw = payload[META.size:]
+                        if raw[3::4].count(255) != 65536:
+                            raise ValueError('FPGA RGBA alpha must be 255')
+                        context.update(raw=raw, readback=readback, crc=checksum, mode=returned_mode)
                         self.pending = None
                         return {'ok': True, 'job': job, 'mode': context['mode'], 'raw': context['raw'],
                                 'readback': context['readback'], 'frames': 1,
@@ -355,13 +355,15 @@ class FrameTransferClient:
                                 checksum != context.get('crc') or mode != context.get('mode')):
                                 raise ValueError('FPGA confirmed a job without locally saved files')
                         else:
-                            if kind != RESULT or length != OUTPUT_BYTES or mode not in range(5):
+                            if kind not in (RESULT, RESULT_RGBA) or length != OUTPUT_BYTES or mode not in range(5):
                                 raise ValueError('unexpected FPGA result header')
                             if expected_mode is not None and mode != expected_mode:
                                 raise ValueError('FPGA result mode mismatch: requested %d, got %d' % (expected_mode, mode))
                             raw = recv_exact(sock, length, deadline)
                             if crc(raw) != checksum:
                                 raise ValueError('FPGA result CRC mismatch')
+                            if kind == RESULT_RGBA and raw[3::4].count(255) != 65536:
+                                raise ValueError('FPGA RGBA alpha must be 255')
                             before_save = time.perf_counter()
                             files = context['files']
                             if (files is None or not Path(files['png']).is_file() or

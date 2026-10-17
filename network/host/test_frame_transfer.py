@@ -27,7 +27,7 @@ class MockBoard(socketserver.ThreadingTCPServer):
         # Optional fresh hardware result generator for stream integration tests.
         # Existing tests retain the original fixed result pixels and event list.
         self.raw_factory=None;self.result_log=[]
-        self.connections=0;self.fast=False
+        self.connections=0;self.fast=False;self.rgba=False;self.sent=0;self.drop_result=False
         self.threshold=128;self.manual=0;self.alpha=45
 
 class MockHandler(socketserver.BaseRequestHandler):
@@ -43,7 +43,7 @@ class MockHandler(socketserver.BaseRequestHandler):
             magic,kind,job,length,checksum,extra=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))
             if magic!=transfer.MAGIC:raise AssertionError('magic')
             if kind==transfer.HELLO_FAST:
-                self.request.sendall(transfer.packet(transfer.FAST_READY,job,extra=1))
+                self.request.sendall(transfer.packet(transfer.FAST_READY,job,extra=3))
                 return True
             if kind==transfer.CANCEL:
                 assert length==checksum==extra==0
@@ -60,7 +60,7 @@ class MockHandler(socketserver.BaseRequestHandler):
                 if len(image)!=transfer.INPUT_BYTES or checksum!=transfer.crc(image):raise AssertionError('upload bytes/CRC')
                 board.input_images.append(image)
                 board.uploads+=1;board.job=job;board.has_frame=True
-                board.done=False;board.raw=bytes([11,22,33,board.mode])*65536
+                board.done=False;board.raw=bytes([33,22,11,255] if board.fast or board.rgba else [11,22,33,board.mode])*65536
                 if board.raw_factory is not None:
                     board.raw=board.raw_factory(board, image)
                 board.events.append(('upload',board.mode))
@@ -75,7 +75,7 @@ class MockHandler(socketserver.BaseRequestHandler):
                     self.request.sendall(transfer.packet(transfer.CONFIGURED,job,extra=extra))
                     return True
                 board.renders+=1;board.job=job;board.done=False
-                board.raw=bytes([11,22,33,board.mode])*65536
+                board.raw=bytes([33,22,11,255] if board.fast or board.rgba else [11,22,33,board.mode])*65536
                 if board.raw_factory is not None:
                     board.raw=board.raw_factory(board, board.input_images[-1])
                 board.events.append(('render',extra))
@@ -85,7 +85,7 @@ class MockHandler(socketserver.BaseRequestHandler):
                     message=b'upload required'
                     self.request.sendall(transfer.packet(transfer.ERROR,job,len(message),0,1)+message)
                     return
-                if board.done:
+                if board.done and not board.fast:
                     self.request.sendall(transfer.packet(transfer.DONE,job,0,board.last_crc,board.mode))
                     return True
             else:raise AssertionError('unexpected request')
@@ -99,14 +99,21 @@ class MockHandler(socketserver.BaseRequestHandler):
             if board.stall_next:
                 board.stall_next=False;board.stall_job=job
                 board.release_late.wait(5)
-            meta=transfer.META.pack(1,0,board.manual,result_mode,board.threshold,board.threshold,1234,board.alpha)
+            meta=transfer.META.pack(3,0,board.manual,result_mode,board.threshold,board.threshold,1234,board.alpha,
+                                    1000,500,25000,504000,126000,board.uploads-1)
             payload=meta+raw if board.fast else raw
             length=len(payload)-1 if board.bad_length else len(payload)
             checksum=transfer.crc(payload)^(1 if board.bad_crc else 0)
-            header=transfer.packet(transfer.RESULT_FAST if board.fast else transfer.RESULT,job,length,checksum,result_mode)
+            header=transfer.packet(transfer.RESULT_FAST if board.fast else transfer.RESULT_RGBA if board.rgba else transfer.RESULT,job,length,checksum,result_mode)
+            if board.drop_result:
+                board.drop_result=False;self.request.sendall(header+payload[:100]);return
             self.request.sendall(header[:7]);self.request.sendall(header[7:]+payload)
+            if board.fast:
+                board.sent+=1;board.done=True;board.last_crc=transfer.crc(payload)
+                board.events.append(('sent',board.mode))
+                return True
             magic,kind,ack_job,ack_len,ack_crc,mode=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))
-            if (magic,kind,ack_job,ack_len,ack_crc,mode)!=(transfer.MAGIC,transfer.RECEIVED if board.fast else transfer.SAVED,job,len(payload),transfer.crc(payload),result_mode):
+            if (magic,kind,ack_job,ack_len,ack_crc,mode)!=(transfer.MAGIC,transfer.SAVED,job,len(payload),transfer.crc(payload),result_mode):
                 raise AssertionError('invalid save ACK')
             board.check_saved()
             board.acks+=1;board.done=True

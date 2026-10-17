@@ -62,10 +62,10 @@ module tb_hdmi_out;
         .new_frame(new_frame),.back_busy(return_busy||hold_return),.vid_valid(arr_valid),.vid_sof(arr_sof),.video_mode_out(arr_mode),
         .video_mode(mode_pclk),.mask_transparency(alpha_pclk));
     back_stream return_path(.clk(pclk),.rst(rst),.sof(arr_sof),.valid(arr_valid),
-        .R(arr_r),.G(arr_g),.B(arr_b),.video_mode(arr_mode),.back_receive_done(return_ack),
+        .R(arr_r),.G(arr_g),.B(arr_b),.video_mode(arr_mode),
         .tdata(return_data),.tvalid(return_valid),.tready(return_ready),
         .tkeep(return_keep),.tlast(return_last),.tuser(return_user),
-        .back_en(),.busy(return_busy),.waiting_ack(return_wait),.frame_sent(),.overflow(return_overflow));
+        .back_en(),.busy(return_busy),.frame_sent(),.overflow(return_overflow));
 
     integer written=0,pixels_checked=0,scan=0,displayed=0;
     task send_frame;
@@ -106,7 +106,6 @@ module tb_hdmi_out;
             return_pixels=0;return_packets=0;new_jobs=0;
             return_ack<=0;return_was_stalled=0;
         end else begin
-            if(return_wait)$fatal(1,"return path still waits for ACK");
             if(arr_sof)new_jobs=new_jobs+1;
             if(return_overflow)$fatal(1,"return FIFO overflow with bounded stalls");
             if(return_was_stalled&&(!return_valid||{return_last,return_user,return_keep,return_data}!==return_held))
@@ -126,7 +125,7 @@ module tb_hdmi_out;
                     return_green=return_pixels%256>=128?0:return_gray;
                     return_expected={return_red[7:0],return_green[7:0],return_green[7:0]};
                 end
-                if(return_data!=={8'(return_packets==1?4:3),return_expected}||return_keep!==4'hf||
+                if(return_data!=={8'hff,return_expected[7:0],return_expected[15:8],return_expected[23:16]}||return_keep!==4'hf||
                    return_user!==(return_pixels==0)||return_last!==(return_pixels==65535))
                     $fatal(1,"return frame/pixel/mode mismatch frame=%0d pixel=%0d data=%h",return_packets,return_pixels,return_data);
                 if(return_last)begin return_pixels=0;return_packets=return_packets+1;end

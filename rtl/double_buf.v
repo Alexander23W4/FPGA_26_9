@@ -25,7 +25,15 @@ module double_buf (
     input              write_mask,
     input              write_contour,
     output             read_mask,
-    output             read_contour
+    output             read_contour,
+
+    // Independent sequential return reader, synchronous to clk.
+    input               back_read_en,
+    input               back_read_idx,
+    input      [15:0]    back_read_addr,
+    output     [7:0]     back_read_data,
+    output              back_read_mask,
+    output              back_read_contour
 );
 
     localparam integer DEPTH = 65536;
@@ -39,19 +47,41 @@ module double_buf (
     (* ram_style = "block" *) reg mem1_contour [0:DEPTH-1];
 
 
+    // Each bank uses true dual-port RAM: HDMI owns the pclk port; the clk
+    // port is shared by the writer and return reader, which own DIFFERENT
+    // banks. Sharing this port avoids replicating the whole frame store.
+    wire wr0 = write_en && !write_buf_idx;
+    wire wr1 = write_en && write_buf_idx;
+    wire rd0 = back_read_en && !back_read_idx;
+    wire rd1 = back_read_en && back_read_idx;
+    wire [15:0] addr0 = wr0 ? write_addr : back_read_addr;
+    wire [15:0] addr1 = wr1 ? write_addr : back_read_addr;
+    reg [7:0] back_q0, back_q1;
+    reg back_mask0, back_mask1, back_contour0, back_contour1;
+
     always @(posedge clk) begin
         if (write_en && !write_buf_idx) begin
-            mem0[write_addr] <= write_data;
-            mem0_mask[write_addr] <= write_mask;
-            mem0_contour[write_addr] <= write_contour;
+            mem0[addr0] <= write_data;
+            mem0_mask[addr0] <= write_mask;
+            mem0_contour[addr0] <= write_contour;
+        end
+        if (rd0) begin
+            back_q0 <= mem0[addr0];
+            back_mask0 <= mem0_mask[addr0];
+            back_contour0 <= mem0_contour[addr0];
         end
     end
 
     always @(posedge clk) begin
         if (write_en && write_buf_idx) begin
-            mem1[write_addr] <= write_data;
-            mem1_mask[write_addr] <= write_mask;
-            mem1_contour[write_addr] <= write_contour;
+            mem1[addr1] <= write_data;
+            mem1_mask[addr1] <= write_mask;
+            mem1_contour[addr1] <= write_contour;
+        end
+        if (rd1) begin
+            back_q1 <= mem1[addr1];
+            back_mask1 <= mem1_mask[addr1];
+            back_contour1 <= mem1_contour[addr1];
         end
     end
 
@@ -72,5 +102,14 @@ module double_buf (
     assign read_data = read_buf_idx ? q1 : q0;
     assign read_mask = read_buf_idx ? q1_mask : q0_mask;
     assign read_contour = read_buf_idx ? q1_contour : q0_contour;
+    assign back_read_data = back_read_idx ? back_q1 : back_q0;
+    assign back_read_mask = back_read_idx ? back_mask1 : back_mask0;
+    assign back_read_contour = back_read_idx ? back_contour1 : back_contour0;
+
+    // synthesis translate_off
+    always @(posedge clk)
+        if (write_en && back_read_en && write_buf_idx == back_read_idx)
+            $fatal(1, "double_buf: writer and return reader own the same bank");
+    // synthesis translate_on
 
 endmodule

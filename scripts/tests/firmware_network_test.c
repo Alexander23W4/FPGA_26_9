@@ -11,7 +11,7 @@
 #include <stdarg.h>
 #include "../../csrc/MID_plt/src/net_frame.c"
 
-static u32 dma_regs[32],vdma_status=1,back_flags,video_mode=4;
+static u32 dma_regs[32],vdma_status=1,back_flags,video_mode=4,captured_mode=4;
 static unsigned dma_starts,ack_writes,flushes,invalidates,timer_calls;
 static u64 clock_ticks;
 static u8 wire_bytes[600000];static size_t wire_used;
@@ -22,6 +22,10 @@ u32 Xil_In32(UINTPTR address)
     if(address>=S2MM_BASEADDR&&address<S2MM_BASEADDR+128)return dma_regs[(address-S2MM_BASEADDR)/4];
     if(address==PL_REG_ADDRESS(BACK_STATUS))return back_flags;
     if(address==PL_REG_ADDRESS(VIDEO_MODE_ADDR))return video_mode;
+    if(address==PL_REG_ADDRESS(BACK_FRAME_MODE))return captured_mode;
+    if(address==PL_REG_ADDRESS(RETURN_INTERVAL))return 504000;
+    if(address==PL_REG_ADDRESS(RETURN_STALL))return 126000;
+    if(address==PL_REG_ADDRESS(RETURN_SEQ))return 7;
     if(address==PL_REG_ADDRESS(MODE_ADDR))return 0;
     if(address==PL_REG_ADDRESS(CMD_REG_ADDR))return 1;
     if(address==PL_REG_ADDRESS(DATA_REG_ADDR)||address==PL_REG_ADDRESS(STATUS_ADDR))return 123;
@@ -34,7 +38,7 @@ u32 Xil_In32(UINTPTR address)
 }
 void Xil_Out32(UINTPTR address,u32 value)
 {
-    if(address==PL_REG_ADDRESS(BACK_RECEIVE)) {assert(value==1&&phase==RESULT_READY);++ack_writes;return;}
+    if(address==(PL_CTRL_BASE+0xc0u)) {assert(value==1&&phase==RESULT_READY);++ack_writes;return;}
     if(address==PL_REG_ADDRESS(VIDEO_MODE_ADDR)) {
         if(has_frame)assert(dma_regs[0x30/4]==1&&dma_regs[0x58/4]==IMG_RES_DDR_SIZE);
         video_mode=value;return;
@@ -102,7 +106,8 @@ static void upload(u32 id,int bad_crc)
 static void complete_dma(int short_packet)
 {
     u32 *output=(u32 *)IMG_RES_DDR_BASE,i;
-    for(i=0;i<65536u;++i)output[i]=(video_mode<<24)|((i&255u)<<16)|(((i>>8)&255u)<<8)|0xa5u;
+    captured_mode=video_mode;
+    for(i=0;i<65536u;++i)output[i]=0xffa50000u|(((i>>8)&255u)<<8)|(i&255u);
     dma_regs[0x34/4]=0x1002u;dma_regs[0x58/4]=IMG_RES_DDR_SIZE-(short_packet?4u:0u);
     if(!redraw)vdma_status=0x1001u;
     back_flags=0;
@@ -123,9 +128,11 @@ int main(void)
     assert(phase==RUNNING&&dma_starts==1&&flushes==2);
     /* Reconnection while processing resumes the same job, never starts it again. */
     connect_host();request(RESUME,7,0,0,0);assert(phase==RUNNING&&dma_starts==1);
-    complete_dma(0);net_frame_poll();assert(phase==RESULT_READY&&invalidates==2&&ack_writes==0);
+    complete_dma(0);video_mode=2;net_frame_poll();
+    assert(result_mode==4); /* Actual PL frame mode, not a newer CPU request. */
+    video_mode=4;assert(phase==RESULT_READY&&invalidates==2&&ack_writes==0);
     checksum=result_crc;drain_result();
-    assert(wire_used==24+IMG_RES_DDR_SIZE&&get32(wire_bytes+4)==RESULT&&get32(wire_bytes+12)==IMG_RES_DDR_SIZE);
+    assert(wire_used==24+IMG_RES_DDR_SIZE&&get32(wire_bytes+4)==RESULT_RGBA&&get32(wire_bytes+12)==IMG_RES_DDR_SIZE);
     assert(memcmp(wire_bytes+24,(void *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE)==0);
     request(SAVED,7,IMG_RES_DDR_SIZE,checksum^1u,4);assert(ack_writes==0&&phase==RESULT_READY);
     connect_host();request(RESUME,7,0,0,0);drain_result();assert(dma_starts==1);
@@ -181,34 +188,29 @@ int main(void)
         for(i=0;i<sizeof(input);++i)input[i]=(u8)(i*7u);
         wire_used=0;
         request(HELLO_FAST,90,0,0,0);
-        assert(get32(tx_header+4)==FAST_READY&&get32(tx_header+20)==1&&phase==IDLE);
+        assert(get32(tx_header+4)==FAST_READY&&get32(tx_header+20)==3&&phase==IDLE);
         request(UPLOAD_FAST,90,sizeof(input),crc32_calc(input,sizeof(input)),0);
         consume(input,sizeof(input));net_frame_poll();complete_dma(0);net_frame_poll();
-        assert(phase==RESULT_READY&&fast_job);drain_result();
+        assert(phase==RESULT_READY&&fast_job);
+        /* A short TCP send window must retain DDR until the entire frame is copied. */
+        credit=64;net_frame_poll();assert(phase==RESULT_READY&&tx_offset<tx_length);
+        drain_result();assert(phase==IDLE&&last_done==90&&last_fast);
         assert(wire_used==24+META_BYTES+IMG_RES_DDR_SIZE&&get32(wire_bytes+4)==RESULT_FAST);
         assert(get32(wire_bytes+12)==META_BYTES+IMG_RES_DDR_SIZE);
-        assert(get32(wire_bytes+24)==1&&get32(wire_bytes+24+12)==video_mode);
+        assert(get32(wire_bytes+24)==3&&get32(wire_bytes+24+12)==captured_mode);
         assert(get32(wire_bytes+24+24)==65432&&get32(wire_bytes+24+28)==45);
+        assert(get32(wire_bytes+24+44)==504000&&get32(wire_bytes+24+48)==126000&&get32(wire_bytes+24+52)==7);
         checksum=crc32_calc(wire_bytes+24,META_BYTES+IMG_RES_DDR_SIZE);
         assert(checksum==result_crc);
-        request(SAVED,90,IMG_RES_DDR_SIZE+META_BYTES,checksum,video_mode);
-        assert(phase==RESULT_READY); /* Wrong completion semantics cannot release DDR. */
-        request(RECEIVED,90,IMG_RES_DDR_SIZE+META_BYTES,checksum^1u,video_mode);
-        assert(phase==RESULT_READY);
-        request(RECEIVED,90,IMG_RES_DDR_SIZE+META_BYTES,checksum,video_mode);
-        assert(phase==IDLE&&last_done==90&&last_fast);
-        /* Same connection, no new accept: another job is now permitted. */
+        /* Resume after transmission replays the still-current DDR, with no GUI ACK. */
+        wire_used=0;request(RESUME,90,0,0,0);drain_result();
+        assert(phase==IDLE&&get32(wire_bytes+4)==RESULT_FAST&&dma_starts==before+1);
         wire_used=0;request(RENDER_FAST,91,0,0,video_mode);drain_result();
-        assert(phase==RESULT_READY&&get32(wire_bytes+4)==RESULT_FAST);
-        request(RECEIVED,91,IMG_RES_DDR_SIZE+META_BYTES,result_crc,video_mode);
-        assert(phase==IDLE&&ack_writes==0);
+        assert(phase==IDLE&&get32(wire_bytes+4)==RESULT_FAST&&last_done==91);
+        assert(ack_writes==0);
+
     }
     before=dma_starts;
     upload(11,0);net_frame_poll();assert(dma_starts==before+1);complete_dma(1);net_frame_poll();
     assert(phase==FAULT&&ack_writes==0&&get32(tx_header+4)==ERROR);
-    request(CANCEL,11,0,0,0);assert(phase==FAULT&&cancelled&&tx_length==0);
-    clock_ticks=COUNTS_PER_SECOND;net_frame_poll();assert(timer_calls>0);
-    VirtualFree(memory,0,MEM_RELEASE);
-    puts("FIRMWARE_NETWORK_OK: upload/render, PC-save ownership, resume, cancel/drain, stale cancel protection, CRC, short DMA");
-    return 0;
-}
+    request(CANCEL,11,0,0,0);assert(phase==FAULT&

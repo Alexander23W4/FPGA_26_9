@@ -14,7 +14,7 @@
 
 module top_threshold_demo (
     // ---- System ----
-    input  wire        clk,               // system clock, 50 MHz
+    input  wire        clk,               // system clock, currently 25.2 MHz
     input  wire        rst_n,             // reset, active low
 
     // ---- AXI-Lite slave (host control) ----
@@ -57,8 +57,8 @@ module top_threshold_demo (
 
     output wire [31:0] video_mode_out,
     output wire [31:0] mask_transparency_out,
-    output wire back_receive_done_out,
-    input wire back_receive_ready,
+    input wire [7:0] back_frame_mode,
+    input wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq,
     input wire [2:0] back_status
 );
     reg [16:0] lesion_pixels;        // ★ 17 位: 一帧最多 256*256=65536, 16 位会溢出归零
@@ -112,7 +112,9 @@ module top_threshold_demo (
         .reg_video_mode(video_mode_out),
         .lesion_pixels (lesion_pixels_save),
         .reg_mask_transparency(mask_transparency_out),
-        .reg_back_receive(back_receive_done_out), .back_receive_ready(back_receive_ready),
+        .back_frame_mode(back_frame_mode),
+        .return_interval_cycles(return_interval_cycles), .return_stall_cycles(return_stall_cycles),
+        .return_interval_seq(return_interval_seq),
         .back_status(back_status)
     );
 

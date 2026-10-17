@@ -51,7 +51,8 @@ class ScriptWorker{
   postMessage(message){queueMicrotask(()=>{if(!this.terminated)this.env.self.onmessage({data:message});});}
   terminate(){this.terminated=true;}
 }
-ctx=vm.createContext({document,URLSearchParams,performance,Worker:ScriptWorker,Uint8Array,Date,
+ctx=vm.createContext({document,URLSearchParams,performance,Worker:ScriptWorker,Uint8Array,Uint8ClampedArray,Date,
+  ImageData:class{constructor(data,width,height){this.data=data;this.width=width;this.height=height;}},
   setInterval(){},setTimeout,requestAnimationFrame:fn=>paints.push(fn),
   window:{matchMedia:()=>({matches:false,addEventListener(){}})},
   alert:text=>alerts.push(text),fetch:(url,options)=>{calls.push(url);return fetch(process.argv[3]+url,options);}});

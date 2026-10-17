@@ -24,6 +24,7 @@ class GuiFrameTransferTests(unittest.TestCase):
 
     def run_button(self, mode, handler):
         with running_board() as board, tempfile.TemporaryDirectory() as folder:
+            board.rgba = True
             original = Path(folder)/'original.bin'
             original.write_bytes(INPUT)
             state = gui.web_common.WebState(str(original), False)
@@ -72,7 +73,7 @@ class GuiFrameTransferTests(unittest.TestCase):
                 self.assertEqual(sorted(state.processed_results), ['3'])
                 for m in (3,):
                     raw = Path(state.processed_results[str(m)]['files']['bin']).read_bytes()
-                    self.assertEqual(raw, bytes([11,22,33,m])*65536)
+                    self.assertEqual(raw, bytes([33,22,11,255])*65536)
             finally:
                 server.shutdown()
                 server.server_close()

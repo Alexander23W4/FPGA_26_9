@@ -95,7 +95,9 @@ static int cmd_readback(void)
         {"MODE", MODE_ADDR}, {"CMD_REG", CMD_REG_ADDR},
         {"VIDEO_MODE", VIDEO_MODE_ADDR}, {"STATUS", STATUS_ADDR},
         {"DATA_REG", DATA_REG_ADDR}, {"LESION", LESION_ADDR},
-        {"MASK_TRANSP", MASK_TRANSP_ADDR}
+        {"MASK_TRANSP", MASK_TRANSP_ADDR},
+        {"RETURN_INTERVAL", RETURN_INTERVAL}, {"RETURN_STALL", RETURN_STALL},
+        {"RETURN_SEQ", RETURN_SEQ}
     };
     unsigned i;
     xil_printf("[PL map] word-indexed registers; byte offset = index * 4\r\n");

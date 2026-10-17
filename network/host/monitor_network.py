@@ -346,12 +346,18 @@ function dshApplyFastStats(stats) {
   }
   document.getElementById('streamFrameTime').textContent=
     '本帧 '+stats.frameMs.toFixed(0)+' ms · 已回传 '+stats.completed+' 帧';
-  const metadata=stats.metadata,t=metadata.timings_ms;
+  const metadata=stats.metadata,t=metadata.timings_ms,p=metadata.readback.ps_timings_ms||{};
   document.getElementById('streamTiming').textContent=
-    '网口/板端 '+t.transfer_ms.toFixed(0)+' ms · 实时预览';
+    '收发 '+t.transfer_ms.toFixed(1)+' ms · 板端收包 '+(p.receive||0).toFixed(1)+
+    ' ms · 准备 '+(p.setup||0).toFixed(1)+' ms · PL→DDR '+(p.pl_to_ddr||0).toFixed(1)+' ms';
+  const interval=metadata.readback.pl_interval;
+  if(interval&&interval.sequence)document.getElementById('streamTiming').textContent+=
+    ' · 回传启动→下一帧写满 '+interval.elapsed_ms.toFixed(2)+' ms'+
+    '（写端反压 '+interval.write_stall_ms.toFixed(2)+' ms）';
 }
 function dshDrawBin(canvasId,raw,color) {
   const canvas=document.getElementById(canvasId),context=canvas.getContext('2d');
+  if(color){context.putImageData(new ImageData(new Uint8ClampedArray(raw),256,256),0,0);return;}
   const pixels=context.createImageData(256,256),source=new Uint8Array(raw),target=pixels.data;
   for(let i=0;i<65536;i++){
     const at=i*4;
@@ -373,7 +379,11 @@ function dshRunStreamWorker(entries,streamChanged) {
       paintPending=false;if(generation!==dshPreviewGeneration)return;
       if(original){dshDrawBin('streamOriginalCanvas',original.raw,false);original=null;}
       if(processed){
+        const paintStarted=dshNow();
         dshDrawBin('streamProcessedCanvas',processed.raw,true);
+        document.getElementById('streamPaintTiming').textContent=
+          '最近绘制：等待 '+(paintStarted-processed.queuedAt).toFixed(1)+
+          ' ms · Canvas 提交 '+(dshNow()-paintStarted).toFixed(2)+' ms';
         const result=processed.metadata;
         document.getElementById('streamProcessedCanvas').setAttribute('data-result-job',String(result.job));
         document.getElementById('comparisonProcessedLabel').textContent=streamModeLabels[result.mode];
@@ -390,7 +400,7 @@ function dshRunStreamWorker(entries,streamChanged) {
           original=message;document.getElementById('imageName').textContent=dshStreamFolder;
           schedulePaint();worker.postMessage({type:'preview_consumed',kind:'source'});
         }else if(message.type==='result'){
-          processed=message;dshApplyFastStats(message);dshApplyReadback(message.metadata.readback);
+          processed=message;processed.queuedAt=dshNow();dshApplyFastStats(message);dshApplyReadback(message.metadata.readback);
           dshNeedsUpload=false;schedulePaint();
           worker.postMessage({type:'preview_consumed',kind:'result'});
         }else if(message.type==='paused'){

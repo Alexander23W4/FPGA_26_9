@@ -33,6 +33,23 @@ def display_board():
 
 
 class DisplayTransferTests(unittest.TestCase):
+    def test_new_rgba_image_and_all_modes_still_save_before_ack(self):
+        with display_board() as (board, state, client):
+            board.rgba = True
+            def saved():
+                matches=[path for path in Path(client.folder).glob('*.bin')
+                         if path.read_bytes()==board.raw]
+                self.assertTrue(matches)
+                for binary in matches:
+                    with Image.open(binary.with_suffix('.png')) as image:
+                        self.assertEqual(image.getpixel((0,0)), (33,22,11))
+            board.check_saved=saved
+            result=gui._do_transfer(INPUT,filename='rgba.bin',mode=5,state=state)
+            self.assertTrue(result['ok'],result)
+            self.assertEqual((board.uploads,board.acks),(1,5))
+            self.assertEqual([item['mode'] for item in result['results']],list(range(5)))
+            self.assertEqual(len(list(Path(client.folder).glob('*.bin'))),5)
+            self.assertEqual(len(list(Path(client.folder).glob('*.png'))),5)
     def test_timeout_discards_partial_batch_and_allows_different_input(self):
         with display_board() as (board, state, client):
             with patch.object(client,'render',side_effect=TimeoutError('等待 FPGA 回传超时')):

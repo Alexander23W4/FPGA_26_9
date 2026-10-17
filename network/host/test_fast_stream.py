@@ -1,4 +1,4 @@
-"""Real TCP/HTTP pipeline: receive ACK precedes PNG/save, bounded queues and metadata CRC."""
+"""Real TCP/HTTP pipeline: RGBA, no application ACK, no disk, fresh metadata and Canvas."""
 import contextlib
 import json
 import shutil
@@ -65,7 +65,7 @@ class FastStreamTests(unittest.TestCase):
                                      capture_output=True, text=True, encoding='utf-8', timeout=15)
             self.assertEqual(run.returncode, 0, run.stdout+run.stderr)
             self.assertIn('FAST_GUI_OK', run.stdout)
-            self.assertEqual((board.uploads, board.acks, board.connections), (3,4,1))
+            self.assertEqual((board.uploads, board.sent, board.acks, board.connections), (3,4,0,1))
     def test_full_receive_releases_ddr_without_any_png_or_disk_work(self):
         with running_board() as board, tempfile.TemporaryDirectory() as folder:
             client = transfer.FrameTransferClient('127.0.0.1', board.server_address[1], folder, 2)
@@ -77,7 +77,7 @@ class FastStreamTests(unittest.TestCase):
                 self.assertEqual(result['readback']['lesion_pixels'], 1234)
                 self.assertEqual(result['readback']['actual_threshold'], 128)
                 self.assertNotEqual(result['job'], again['job'])
-                self.assertEqual((board.uploads, board.acks, board.connections), (2, 2, 1))
+                self.assertEqual((board.uploads, board.sent, board.acks, board.connections), (2, 2, 0, 1))
                 self.assertFalse(list(Path(folder).iterdir()))
             finally:
                 client.close()
@@ -95,14 +95,14 @@ class FastStreamTests(unittest.TestCase):
                 finally:
                     client.close()
 
-    def test_lost_done_resumes_owned_bin_without_reuploading(self):
+    def test_partial_receive_resumes_rgba_without_reuploading(self):
         with running_board() as board, tempfile.TemporaryDirectory() as folder:
-            board.lose_done = True
+            board.drop_result = True
             client = transfer.FrameTransferClient('127.0.0.1', board.server_address[1], folder, 2)
             try:
                 result = client.receive_frame(INPUT)
                 self.assertEqual(result['raw'], board.raw)
-                self.assertEqual((board.uploads, board.resumes, board.acks), (1,1,1))
+                self.assertEqual((board.uploads, board.resumes, board.sent, board.acks), (1,1,1,0))
             finally:
                 client.close()
 
@@ -113,9 +113,9 @@ class FastStreamTests(unittest.TestCase):
                  patch.object(gui, '_readback_regs', side_effect=AssertionError('no per-frame UART')):
                 first, raw = post_frame(base)
                 second, raw2 = post_frame(base, image=INPUT[::-1], mode=3)
-                self.assertEqual((board.uploads, board.renders, board.acks, board.connections), (2,1,3,1))
+                self.assertEqual((board.uploads, board.renders, board.sent, board.acks, board.connections), (2,1,3,0,1))
                 self.assertEqual(second['readback']['video_mode'], 3)
-                self.assertEqual(raw2[3::4], bytes([3])*65536)
+                self.assertEqual(raw2[3::4], bytes([255])*65536)
                 self.assertNotIn('files', first)
                 self.assertNotIn('files', second)
                 with urlopen(base+'/api/network/state') as response: status=json.load(response)

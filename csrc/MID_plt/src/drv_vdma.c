@@ -208,8 +208,8 @@ int vdma_mm2s_config(u32 ddr_addr, u32 hsize_bytes,
         vdma_wr(VDMA_MM2S_REG_OFF + VDMA_MM2S_STARTADDR_OFF + (i * 4u), ddr_addr);
     }
 
-    xil_printf("vdma: cfg addr=0x%08X hsize=%d vsize=%d stride=%d\r\n",
-               (s32)ddr_addr, (s32)hsize_bytes, (s32)vsize_lines, (s32)stride_bytes);
+    /* Successful per-frame configuration stays silent: UART output blocks the
+     * polling network loop. Validation/fault messages above remain enabled. */
     return 0;
 }
 

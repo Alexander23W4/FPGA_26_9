@@ -8,7 +8,7 @@ module top1 #(
 )(
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS, ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS:M_AXIS, ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
     input  wire        clk,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
@@ -16,7 +16,7 @@ module top1 #(
     input  wire        rst,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 pclk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF M_AXIS, ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_RESET rst, FREQ_HZ 25200000" *)
     input  wire                    pclk,        // 像素时钟 25.2MHz (clk_wiz clk_out1)
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 pclk_x5 CLK" *)
@@ -38,7 +38,7 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS TUSER" *)
     input  wire        s_axis_tuser,
 
-    // Return channel: exactly one {mode,R,G,B} pixel per handshake, pclk domain.
+    // Return channel: one {255,B,G,R} word per handshake, little-endian RGBA.
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS TDATA" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME M_AXIS, TDATA_NUM_BYTES 4, TUSER_WIDTH 1, HAS_TKEEP 1, HAS_TSTRB 0, HAS_TLAST 1, FREQ_HZ 25200000" *)
     output wire [31:0] m_axis_tdata,
@@ -119,13 +119,17 @@ module top1 #(
     wire dn_valid, dn_eof, dn_ready;
     wire ts_contour, ts_mask, hdl_valid, hdl_eof, hdl_ready;
     wire [31:0] video_mode, mask_transparency;
-    wire back_ack_src, back_ack_ready, back_receive_done;
+    wire [7:0] back_frame_mode;
+    wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq;
+    (* ASYNC_REG = "TRUE" *) reg [7:0] back_mode_meta,back_mode_sync;
     (* ASYNC_REG = "TRUE" *) reg [2:0] back_status_meta,back_status_sync;
     always @(posedge clk)begin
-        if(rst)begin back_status_meta<=0;back_status_sync<=0;end
+        if(rst)begin back_status_meta<=0;back_status_sync<=0;back_mode_meta<=0;back_mode_sync<=0;end
         else begin
-            back_status_meta<={back_overflow,back_waiting_ack,back_busy};
+            back_status_meta<={back_overflow,1'b0,back_busy};
             back_status_sync<=back_status_meta;
+            // Mode is latched at SOF and remains stable long before busy falls.
+            back_mode_meta<=back_frame_mode;back_mode_sync<=back_mode_meta;
         end
     end
     denoise u_denoise (
@@ -148,7 +152,9 @@ module top1 #(
         .m_axis_tmask(ts_mask), .m_axis_tcontour(ts_contour),
         .threshold_out(), .auto_mode_out(), .frame_done_out(),
         .video_mode_out(video_mode), .mask_transparency_out(mask_transparency),
-        .back_receive_done_out(back_ack_src), .back_receive_ready(back_ack_ready),
+        .back_frame_mode(back_mode_sync),
+        .return_interval_cycles(return_interval_cycles),
+        .return_stall_cycles(return_stall_cycles), .return_interval_seq(return_interval_seq),
         .back_status(back_status_sync)
     );
 
@@ -181,10 +187,6 @@ module top1 #(
         .mode_in(video_mode), .alpha_in(mask_transparency),
         .mode_out(video_mode_pclk), .alpha_out(mask_transparency_pclk)
     );
-    back_ack_cdc u_back_ack_cdc (
-        .src_clk(clk), .dst_clk(pclk), .rst(rst),
-        .src_pulse(back_ack_src), .src_ready(back_ack_ready), .dst_pulse(back_receive_done)
-    );
 
     wire [18:0] hdl_dbg_status;
     wire [37:0] hdmi_dbg_status;
@@ -194,7 +196,13 @@ module top1 #(
     wire hdmi_image_active, hdmi_frame_start;
     wire hdmi_new_frame, arr_vid_valid, arr_vid_sof;
     wire [31:0] arr_video_mode;
-    (* MARK_DEBUG = "TRUE" *) wire back_busy, back_waiting_ack, back_overflow, back_frame_sent;
+    (* MARK_DEBUG = "TRUE" *) wire back_busy, back_overflow, back_frame_sent;
+    wire back_read_idx, back_read_lock, back_read_en, back_source_ready;
+    wire [15:0] back_read_addr;
+    wire [7:0] back_read_data, back_r, back_g, back_b;
+    wire back_read_mask, back_read_contour;
+    wire back_job_start, back_new_image_start, back_pixel_valid, back_valid, back_sof;
+    wire [31:0] back_video_mode;
 
     hdl_out u_hdl_out (
         .clk(clk), .rst(rst),
@@ -203,6 +211,7 @@ module top1 #(
         .buf_idx(fb_write_idx), .buf_addr(fb_write_addr), .buf_data(fb_write_data),
         .buf_mask(fb_write_mask), .buf_contour(fb_write_contour), .en(fb_write_en),
         .read_buf_idx(read_idx_sync[1]), .frame_ready_toggle(frame_ready_toggle),
+        .back_read_lock(back_read_lock), .back_read_idx(back_read_idx),
         .dbg_status(hdl_dbg_status)
     );
     double_buf u_double_buf (
@@ -210,7 +219,9 @@ module top1 #(
         .write_buf_idx(fb_write_idx), .write_addr(fb_write_addr),
         .write_data(fb_write_data), .write_mask(fb_write_mask), .write_contour(fb_write_contour),
         .read_buf_idx(fb_read_idx), .read_addr(fb_read_addr),
-        .read_data(fb_read_data), .read_mask(fb_read_mask), .read_contour(fb_read_contour)
+        .read_data(fb_read_data), .read_mask(fb_read_mask), .read_contour(fb_read_contour),
+        .back_read_en(back_read_en), .back_read_idx(back_read_idx), .back_read_addr(back_read_addr),
+        .back_read_data(back_read_data), .back_read_mask(back_read_mask), .back_read_contour(back_read_contour)
     );
 
     out_arr u_out_arr (
@@ -219,20 +230,43 @@ module top1 #(
         .buf_mask(fb_read_mask), .buf_contour(fb_read_contour),
         .video_mode(video_mode_pclk), .mask_transparency(mask_transparency_pclk),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
-        .new_frame(hdmi_new_frame), .back_busy(back_busy),
+        .new_frame(hdmi_new_frame), .back_busy(1'b0),
         .vid_r(arr_vid_r), .vid_g(arr_vid_g), .vid_b(arr_vid_b),
         .vid_valid(arr_vid_valid), .vid_sof(arr_vid_sof), .video_mode_out(arr_video_mode)
     );
 
 
-    back_stream u_back_stream (
-        .clk(pclk), .rst(rst), .sof(arr_vid_sof), .valid(arr_vid_valid),
-        .R(arr_vid_r), .G(arr_vid_g), .B(arr_vid_b), .video_mode(arr_video_mode),
-        .back_receive_done(back_receive_done),
+    back_reader u_back_reader (
+        .clk(clk), .rst(rst), .frame_ready_toggle(frame_ready_toggle), .write_buf_idx(fb_write_idx),
+        .video_mode(video_mode), .packet_busy(back_busy), .source_ready(back_source_ready),
+        .read_buf_idx(back_read_idx), .read_lock(back_read_lock),
+        .read_addr(back_read_addr), .read_en(back_read_en),
+        .job_start(back_job_start), .new_image_start(back_new_image_start), .pixel_valid(back_pixel_valid)
+    );
+    out_arr u_back_out_arr (
+        .pclk(clk), .rst(rst), .buf_data(back_read_data),
+        .buf_mask(back_read_mask), .buf_contour(back_read_contour),
+        .video_mode(video_mode), .mask_transparency(mask_transparency),
+        .frame_start(back_job_start), .image_active(back_pixel_valid),
+        .new_frame(1'b1), .back_busy(1'b0),
+        .vid_r(back_r), .vid_g(back_g), .vid_b(back_b),
+        .vid_valid(back_valid), .vid_sof(back_sof), .video_mode_out(back_video_mode)
+    );
+    back_stream #(.FIFO_DEPTH(32)) u_back_stream (
+        .clk(clk), .rst(rst), .sof(back_sof), .valid(back_valid),
+        .R(back_r), .G(back_g), .B(back_b), .video_mode(back_video_mode),
         .tdata(m_axis_tdata), .tvalid(m_axis_tvalid), .tready(m_axis_tready),
         .tkeep(m_axis_tkeep), .tlast(m_axis_tlast), .tuser(m_axis_tuser),
-        .back_en(), .busy(back_busy), .waiting_ack(back_waiting_ack),
+        .back_en(), .busy(back_busy), .frame_mode(back_frame_mode), .source_ready(back_source_ready),
         .frame_sent(back_frame_sent), .overflow(back_overflow)
+    );
+
+    return_timing u_return_timing (
+        .clk(clk), .rst(rst), .new_image_start(back_new_image_start),
+        .frame_commit(fb_write_en && fb_write_addr == 16'hffff),
+        .write_blocked(hdl_valid && !hdl_ready),
+        .interval_cycles(return_interval_cycles), .stall_cycles(return_stall_cycles),
+        .sequence_id(return_interval_seq)
     );
 
     hdmi_out u_hdmi_out (
