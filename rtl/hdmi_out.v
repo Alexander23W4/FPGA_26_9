@@ -5,9 +5,11 @@
 // BRAM prefetch is one pixel early; HS/VS/DE match out_arr's two-stage RGB path.
 module hdmi_out (
     input wire pclk, input wire rst,
+    input wire enable,
     input wire [7:0] in_r, input wire [7:0] in_g, input wire [7:0] in_b,
     output wire [7:0] vid_r, output wire [7:0] vid_g, output wire [7:0] vid_b,
     output wire buf_idx, output wire [15:0] buf_addr,
+    output wire read_lock, output wire read_en,
     output reg vid_hs, output reg vid_vs, output reg vid_de,
     output wire image_active, output wire frame_start, output wire new_frame,
     input wire frame_ready_toggle, input wire write_idx_sync,
@@ -18,9 +20,11 @@ module hdmi_out (
     reg buf_idx_save, state, frame_ready_seen;
     reg [15:0] counter;
     wire raster_end = hcnt == 10'd799 && vcnt == 10'd524;
-    assign image_active = state == BUF && vcnt >= 112 && vcnt <= 367 &&
+    assign read_lock = state == BUF;
+    assign read_en = enable && state == BUF;
+    assign image_active = enable && state == BUF && vcnt >= 112 && vcnt <= 367 &&
                           hcnt >= 192 && hcnt <= 447;
-    wire raw_de = state == BUF && vcnt <= 479 && hcnt <= 639;
+    wire raw_de = enable && state == BUF && vcnt <= 479 && hcnt <= 639;
     wire raw_hs = !(state == BUF && hcnt >= 656 && hcnt <= 751);
     wire raw_vs = !(state == BUF && vcnt >= 490 && vcnt <= 491);
     reg hs_d1, vs_d1, de_d1;
@@ -41,7 +45,7 @@ module hdmi_out (
     end
     // Sample display settings on the same edge as the initial bank selection,
     // then once per raster even when there is no newly received image.
-    assign frame_start = !rst && ((state == IDLE && frame_ready_toggle != frame_ready_seen) ||
+    assign frame_start = !rst && enable && ((state == IDLE && frame_ready_toggle != frame_ready_seen) ||
                                   (state == BUF && raster_end));
     // New input image only: ordinary refreshes/config-only redraws are excluded.
     assign new_frame = frame_start && frame_ready_toggle != frame_ready_seen;
@@ -53,6 +57,10 @@ module hdmi_out (
     always @(posedge pclk or posedge rst) begin
         if (rst) begin
             state <= IDLE; buf_idx_save <= 0; frame_ready_seen <= 0;
+            hcnt <= 0; vcnt <= 0;
+        end else if(!enable)begin
+            state <= IDLE;
+            frame_ready_seen <= frame_ready_toggle;
             hcnt <= 0; vcnt <= 0;
         end else if (state == IDLE) begin
             hcnt <= 0; vcnt <= 0;
@@ -76,7 +84,7 @@ module hdmi_out (
     end
 
     always @(posedge pclk) begin
-        if (rst) counter <= 0;
+        if (rst || !enable) counter <= 0;
         else if (state == BUF) begin
             if (raster_end) counter <= 0;
             else if (vcnt >= 112 && vcnt <= 367 && hcnt >= 191 && hcnt <= 446)

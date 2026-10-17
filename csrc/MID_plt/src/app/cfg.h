@@ -91,6 +91,7 @@
 #define CMD_READBACK        'R'      /* RO: register WORD indices 00/01/02/03/20/21/22 */
 #define CMD_VIDEO_MODE      'V'      /* +1 byte: modes 0..4 */
 #define CMD_MASK_TRANSP     'P'      /* +1 byte: overlay opacity 0..100 */
+#define CMD_HDMI_ENABLE     'H'      /* +1 byte: 0 stop HDMI reads, 1 enable */
 #define CMD_SYSTEM_MODE     'M'      /* +1 byte: 0 image, 1 medical (reserved) */
 /* GUI 图像通过 TCP 5002 直接写输入 DDR；回传通过独立 AXI DMA S2MM 写输出
  * DDR，再经同一 TCP 连接发往 PC。流在整帧复制到 TCP 发送缓冲后释放 DDR；

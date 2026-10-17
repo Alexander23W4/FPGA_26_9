@@ -132,5 +132,19 @@ async function emit(id, event) {
   assert.strictEqual(alerts.length, 3);
   assert.strictEqual(elements.processingStatus.textContent, '');
   ctx.fetch = originalFetch;
+  // HDMI OFF is just a checked register write; ON resends exactly one image.
+  alerts.length=0;
+  const beforeHdmi=calls.length;
+  await emit('hdmiOutputToggle','click');
+  assert.strictEqual(elements.hdmiOutputToggle.getAttribute('aria-checked'),'false');
+  assert.strictEqual(calls.length,beforeHdmi,'HDMI OFF must not upload');
+  await emit('hdmiOutputToggle','click');
+  assert.strictEqual(elements.hdmiOutputToggle.getAttribute('aria-checked'),'true');
+  assert.strictEqual(calls.length,beforeHdmi+1,'HDMI ON must upload exactly one image');
+  assert.strictEqual(calls.at(-1),'/api/network/transfer?index=0&name=gui_input.bin&mode=3');
+  await emit('hdmiOutputToggle','click');
+  assert.strictEqual(elements.hdmiOutputToggle.getAttribute('aria-checked'),'true','failed write keeps confirmed state');
+  assert.strictEqual(calls.length,beforeHdmi+1,'failed write must not upload');
+  assert.strictEqual(alerts.length,1);assert.match(alerts[0],/HDMI/);
   console.log('GUI_FRAME_HTTP_OK: selection auto upload, opacity/threshold reupload after verified write, mode-only render, durable save, no success modal');
 })().catch(error => {console.error(error); process.exitCode = 1;});

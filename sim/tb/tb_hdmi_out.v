@@ -10,6 +10,7 @@ module tb_hdmi_out;
     reg [7:0] pixel=0;
     reg mask=0,contour=0,valid=0,last=0;
     wire ready,write_bank,read_bank,write_en,frame_ready;
+    wire display_ready, display_bank, display_lock, display_read_en;
     wire [15:0] write_addr,read_addr;
     wire [7:0] write_data,read_data;
     wire write_mask,write_contour,read_mask,read_contour;
@@ -36,7 +37,7 @@ module tb_hdmi_out;
     reg [1:0] bank_sync=0;
     always @(posedge pclk) begin
         if(rst)begin done_sync<=0;bank_sync<=0;end
-        else begin done_sync<={done_sync[1:0],frame_ready};bank_sync<={bank_sync[0],write_bank};end
+        else begin done_sync<={done_sync[1:0],display_ready};bank_sync<={bank_sync[0],display_bank};end
     end
     display_cfg_cdc cdc(.clk(clk),.pclk(pclk),.rst(rst),.mode_in(mode),.alpha_in(alpha),
         .mode_out(mode_pclk),.alpha_out(alpha_pclk));
@@ -45,13 +46,16 @@ module tb_hdmi_out;
         .buf_idx(write_bank),.buf_addr(write_addr),.buf_data(write_data),
         .buf_mask(write_mask),.buf_contour(write_contour),.en(write_en),
         .read_buf_idx(read_bank),.back_read_lock(1'b0),.back_read_idx(1'b0),
+        .hdmi_enable(1'b1),.display_armed(1'b1),.display_read_lock(display_lock),
+        .display_ready_toggle(display_ready),.display_buf_idx(display_bank),
         .frame_ready_toggle(frame_ready),.dbg_status(writer_debug));
     double_buf memory(.clk(clk),.pclk(pclk),.write_en(write_en),.write_buf_idx(write_bank),
         .write_addr(write_addr),.write_data(write_data),.write_mask(write_mask),
-        .write_contour(write_contour),.read_buf_idx(read_bank),.read_addr(read_addr),
+        .write_contour(write_contour),.read_buf_idx(read_bank),.read_addr(read_addr),.read_en(display_read_en),
         .read_data(read_data),.read_mask(read_mask),.read_contour(read_contour),
         .back_read_en(1'b0),.back_read_idx(1'b0),.back_read_addr(16'd0));
     hdmi_out dut(.pclk(pclk),.rst(rst),.buf_idx(read_bank),.buf_addr(read_addr),
+        .enable(1'b1),.read_lock(display_lock),.read_en(display_read_en),
         .in_r(arr_r),.in_g(arr_g),.in_b(arr_b),
         .vid_r(r),.vid_g(g),.vid_b(b),.vid_hs(hs),.vid_vs(vs),.vid_de(de),
         .frame_start(frame_start),.image_active(image_active),

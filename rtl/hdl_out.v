@@ -19,9 +19,14 @@ module hdl_out(
     output reg en,
 
     input  wire read_buf_idx,          // HDMI 当前读 bank
+    input  wire hdmi_enable,
+    input  wire display_armed,
+    input  wire display_read_lock,
     input  wire back_read_lock,
     input  wire back_read_idx,
     output reg  frame_ready_toggle,    // 每完成一帧翻转，保持到下一帧完成
+    output reg display_ready_toggle,
+    output reg display_buf_idx,
 
     // ILA / AXI-Lite 调试状态：{eof_mismatch, state, write_bank, write_addr}
     output wire [18:0] dbg_status
@@ -38,6 +43,11 @@ module hdl_out(
     // 接管刚写完的 bank，避免跨时钟域直接采样。
     reg read_idx_meta;
     reg read_idx_sync;
+    (* ASYNC_REG = "TRUE" *) reg [1:0] display_lock_sync;
+    reg display_sent;
+    wire display_released = hdmi_enable ?
+        (display_sent && display_lock_sync[1] && read_idx_sync == buf_idx) :
+        !display_lock_sync[1];
 
     assign dbg_status = {eof_mismatch, state, buf_idx, counter};
 
@@ -50,31 +60,48 @@ module hdl_out(
             eof_mismatch       <= 1'b0;
             read_idx_meta      <= 1'b0;
             read_idx_sync      <= 1'b0;
+            display_lock_sync  <= 0;
+            display_sent       <= 0;
+            display_ready_toggle <= 0;
+            display_buf_idx    <= 0;
         end else begin
             read_idx_meta <= read_buf_idx;
             read_idx_sync <= read_idx_meta;
+            display_lock_sync <= {display_lock_sync[0],display_read_lock};
+            if(!hdmi_enable) display_sent <= 0;
 
             if (state == WRITE_FRAME) begin
+                display_sent <= 0;
                 if (hdl_valid && hdl_ready) begin
                     if (hdl_eof != (counter == 16'hFFFF))
                         eof_mismatch <= 1'b1;
 
                     if (counter == 16'hFFFF) begin
                         // 只在完整的 65536 个像素写入后发布新帧。
-                        // 写 bank 在 HDMI 接管前保持不变，期间 ready 拉低。
+                        // 保持完整 bank，等启用的读端允许复用另一 bank。
                         frame_ready_toggle <= ~frame_ready_toggle;
                         state <= WAIT_FOR_DISPLAY;
                     end else begin
                         counter <= counter + 1'b1;
                     end
                 end
-            end else if (read_idx_sync == buf_idx &&
-                         !(back_read_lock && back_read_idx == !buf_idx)) begin
-                // HDMI 已在帧边界切到刚完成的 bank。另一 bank 此时空闲，
-                // 回传端也已离开另一 bank，才可以开始接收下一帧。
-                buf_idx <= ~buf_idx;
-                counter <= 16'd0;
-                state <= WRITE_FRAME;
+            end else begin
+                // Announce only complete, pinned banks after the display domain
+                // has accepted ON. Off-screen processing toggles cannot leak
+                // into a later display session or select a partially written bank.
+                if(hdmi_enable && display_armed && !display_sent)begin
+                    display_buf_idx <= buf_idx;
+                    display_ready_toggle <= ~display_ready_toggle;
+                    display_sent <= 1;
+                end
+                if (display_released &&
+                    !(back_read_lock && back_read_idx == !buf_idx)) begin
+                    // HDMI ON waits for its bank switch; OFF waits only for
+                    // read-lock release. In either case protect the return reader.
+                    buf_idx <= ~buf_idx;
+                    counter <= 16'd0;
+                    state <= WRITE_FRAME;
+                end
             end
         end
     end

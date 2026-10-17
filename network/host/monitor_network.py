@@ -171,7 +171,7 @@ async function dshRun(action) {
     }
   const status = document.getElementById('processingStatus');
   const controls = ['imageFile', 'chooseImage', 'chooseStream', 'streamFolder', 'fpgaOutputMode', 'thresholdMode',
-    'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'request'];
+    'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'request'];
   const disabled = controls.map(id => document.getElementById(id).disabled);
   dshTransferBusy = true;
   controls.forEach(id => { document.getElementById(id).disabled = true; });
@@ -246,6 +246,7 @@ function dshApplyReadback(j) {
     pixels.className = 'sub-value'; pixels.textContent = j.lesion_pixels + ' px';
     area.replaceChildren(document.createTextNode(j.lesion_mm2), unit, pixels);
     document.getElementById('dshRbAlpha').textContent = j.mask_transparency + '%';
+    if (j.hdmi_enabled !== undefined) dshSetHdmiState(j.hdmi_enabled === 1);
     lastConfirmedVideoMode = j.video_mode;
     if (!dshStreamMode && !dshTransferBusy && document.getElementById('fpgaOutputMode').value !== '5')
       document.getElementById('fpgaOutputMode').value = j.video_mode;
@@ -253,7 +254,7 @@ function dshApplyReadback(j) {
       document.getElementById('maskOpacity').value = j.mask_transparency;
       document.getElementById('maskOpacityValue').textContent = j.mask_transparency;
     }
-    updateOverlayControls();
+    if (typeof updateOverlayControls === 'function') updateOverlayControls();
     updatePreviewLayout();
 }
 async function dshReadback(queued = false) {
@@ -312,12 +313,29 @@ document.getElementById('maskOpacityUpdate').addEventListener('click', async e =
   });
 });
 
+function dshSetHdmiState(enabled) {
+  document.getElementById('hdmiOutputToggle').setAttribute('aria-checked', String(enabled));
+  document.getElementById('hdmiOutputLabel').textContent = 'HDMI 输出：' + (enabled ? '开' : '关');
+}
+document.getElementById('hdmiOutputToggle').addEventListener('click', async () => {
+  const enabled = document.getElementById('hdmiOutputToggle').getAttribute('aria-checked') !== 'true';
+  await dshParameter(async () => {
+    const result = await (await fetch('/api/serial/hdmi_enable?value=' + (enabled ? 1 : 0))).json();
+    if (!result.ok) throw new Error('HDMI 开关更新失败: ' + result.log);
+    dshSetHdmiState(result.hdmi_enabled === 1);
+    // A single image needs a fresh upload when HDMI is re-enabled. Streaming
+    // already supplies the next frame; never insert an extra upload there.
+    if (enabled && !dshStreamMode && (dshCurrentFile || document.getElementById('imageFile').files[0]))
+      await dshProcess(true);
+  });
+});
+
 function dshStreamControls() {
   const stopping = !dshStreamRunning && dshTransferBusy;
   document.getElementById('chooseImage').disabled = dshStreamRunning || dshTransferBusy;
   document.getElementById('chooseStream').textContent = dshStreamRunning ? '停止流' : '选择流文件夹';
   document.getElementById('chooseStream').disabled = !dshStreamRunning && dshTransferBusy;
-  for (const id of ['fpgaOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'request'])
+  for (const id of ['fpgaOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'request'])
     document.getElementById(id).disabled = stopping;
   document.getElementById('fullDisplayOption').disabled = dshStreamMode;
   updateModeMenu(); updateThresholdControls(); updatePreviewLayout();
@@ -501,6 +519,7 @@ PIXEL_AREA_MM2 = 0.436280886141
 
 # WORD indices. PS multiplies these by 4 for aligned MMIO; UART labels use indices.
 PL_REGISTERS = {"MODE": 0x00, "CMD_REG": 0x01, "VIDEO_MODE": 0x02,
+                "HDMI_EN": 0x04,
                 "STATUS": 0x03, "DATA_REG": 0x20, "LESION": 0x21,
                 "MASK_TRANSP": 0x22}
 
@@ -590,6 +609,7 @@ def _readback_regs():
                 "threshold": regs["DATA_REG"], "actual_threshold": regs["STATUS"],
                 "video_mode": regs["VIDEO_MODE"], "lesion_pixels": lesion,
                 "mask_transparency": regs["MASK_TRANSP"],
+                "hdmi_enabled": regs["HDMI_EN"],
                 "lesion_mm2": "%.3f" % (lesion * PIXEL_AREA_MM2), "log": txt}
     except Exception as exc:
         return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
@@ -621,6 +641,13 @@ def _set_mask_transparency(value):
     result = _write_byte_register(b"P", value, "MASK_TRANSP", 100)
     if result["ok"]:
         result["mask_transparency"] = result["value"]
+    return result
+
+
+def _set_hdmi_enable(value):
+    result = _write_byte_register(b"H", value, "HDMI_EN", 1)
+    if result["ok"]:
+        result["hdmi_enabled"] = result["value"]
     return result
 
 
@@ -986,6 +1013,10 @@ class NetworkHandler(web_common.Handler):
         if parsed.path == '/api/serial/mask_transparency':
             query = parse_qs(parsed.query)
             self.send_json(_set_mask_transparency(query.get('value', [''])[0]))
+            return
+        if parsed.path == '/api/serial/hdmi_enable':
+            query = parse_qs(parsed.query)
+            self.send_json(_set_hdmi_enable(query.get('value', [''])[0]))
             return
         super().do_GET()
 

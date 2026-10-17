@@ -16,6 +16,7 @@ module double_buf (
     input               write_en,       
 
     input               read_buf_idx,   // 读 bank 选择：0 -> bank0, 1 -> bank1
+    input               read_en,        // HDMI OFF: both display BRAM ports stop reading
     input               write_buf_idx,  // 写 bank 选择：0 -> bank0, 1 -> bank1
     input      [15:0]   read_addr,      // 读地址 0..65535
     input      [15:0]   write_addr,     // 写地址 0..65535
@@ -90,13 +91,15 @@ module double_buf (
     reg [7:0] q1;
     reg q0_mask, q1_mask, q0_contour, q1_contour;
 
-    always @(posedge pclk) q0 <= mem0[read_addr];
-    always @(posedge pclk) q1 <= mem1[read_addr];
+    always @(posedge pclk) if(read_en) q0 <= mem0[read_addr];
+    always @(posedge pclk) if(read_en) q1 <= mem1[read_addr];
     always @(posedge pclk) begin
-        q0_mask <= mem0_mask[read_addr];
-        q1_mask <= mem1_mask[read_addr];
-        q0_contour <= mem0_contour[read_addr];
-        q1_contour <= mem1_contour[read_addr];
+        if(read_en)begin
+            q0_mask <= mem0_mask[read_addr];
+            q1_mask <= mem1_mask[read_addr];
+            q0_contour <= mem0_contour[read_addr];
+            q1_contour <= mem1_contour[read_addr];
+        end
     end
 
     assign read_data = read_buf_idx ? q1 : q0;

@@ -1,7 +1,6 @@
 /* UI presentation and mode navigation. UART actions are supplied by monitor_network. */
 const thresholdMode=document.getElementById('thresholdMode');
 const threshold=document.getElementById('threshold');
-const hdmiOutputToggle=document.getElementById('hdmiOutputToggle');
 const systemMode=document.getElementById('systemMode');
 const menuToggle=document.getElementById('menuToggle');
 const systemDrawer=document.getElementById('systemDrawer');
@@ -144,11 +143,7 @@ maskOpacity.addEventListener('input',()=>{
   document.getElementById('maskOpacityValue').textContent=maskOpacity.value;
   maskOpacityUpdate.textContent=maskOpacityUpdateLabel;
 });
-hdmiOutputToggle.addEventListener('click',()=>{
-  const enabled=hdmiOutputToggle.getAttribute('aria-checked')!=='true';
-  hdmiOutputToggle.setAttribute('aria-checked',String(enabled));
-  document.getElementById('hdmiOutputLabel').textContent='HDMI 输出：'+(enabled?'开':'关');
-});
+// The network handler changes HDMI state only after a verified register reply.
 
 function updateThresholdControls(){
   const blocked=transferBusy()&&!streamRunning();

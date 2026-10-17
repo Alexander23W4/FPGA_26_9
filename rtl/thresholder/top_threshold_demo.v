@@ -56,6 +56,7 @@ module top_threshold_demo (
     output wire        frame_done_out,     // frame done forwarded
 
     output wire [31:0] video_mode_out,
+    output wire hdmi_enable_out,
     output wire [31:0] mask_transparency_out,
     input wire [7:0] back_frame_mode,
     input wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq,
@@ -110,6 +111,7 @@ module top_threshold_demo (
         .host_wr_en    (host_wr_en),
         .status_in     ({24'd0, threshold_out}),
         .reg_video_mode(video_mode_out),
+        .reg_hdmi_en(hdmi_enable_out),
         .lesion_pixels (lesion_pixels_save),
         .reg_mask_transparency(mask_transparency_out),
         .back_frame_mode(back_frame_mode),

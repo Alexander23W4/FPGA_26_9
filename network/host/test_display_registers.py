@@ -18,12 +18,12 @@ class DisplayRegistersTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'Node.js is needed to execute GUI handlers')
     def test_actual_gui_handlers_through_http_and_uart_bridge(self):
         values = dict(MODE=0, CMD_REG=1, VIDEO_MODE=0, STATUS=120,
-                      DATA_REG=37, LESION=65536, MASK_TRANSP=45)
+                      DATA_REG=37, LESION=65536, MASK_TRANSP=45, HDMI_EN=1)
         writes = []
         def uart(payload, **kwargs):
             if payload == b'R':
                 return ''.join(line(name, value) for name, value in values.items())
-            name = {ord('V'): 'VIDEO_MODE', ord('P'): 'MASK_TRANSP'}[payload[0]]
+            name = {ord('V'): 'VIDEO_MODE', ord('P'): 'MASK_TRANSP', ord('H'): 'HDMI_EN'}[payload[0]]
             values[name] = payload[1]
             writes.append(payload)
             return line(name, payload[1])
@@ -47,7 +47,7 @@ class DisplayRegistersTests(unittest.TestCase):
                     capture_output=True, text=True, encoding='utf-8', timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('GUI_DISPLAY_HTTP_OK', result.stdout)
-            self.assertEqual(writes, [b'P'+bytes([a]) for a in (0,45,100)])
+            self.assertEqual(writes, [b'P'+bytes([a]) for a in (0,45,100)] + [b'H\x00', b'H\x01'])
         finally:
             server.shutdown()
             server.server_close()
@@ -71,7 +71,8 @@ class DisplayRegistersTests(unittest.TestCase):
 
     def test_invalid_values_never_touch_uart(self):
         for function, values in ((gui._set_video_mode, (-1, 5, 256)),
-                                 (gui._set_mask_transparency, (-1, 101, 256))):
+                                 (gui._set_mask_transparency, (-1, 101, 256)),
+                                 (gui._set_hdmi_enable, (-1, 2, 256))):
             for value in values:
                 with self.subTest(value=value), patch.object(gui, '_board_talk') as talk:
                     self.assertFalse(function(value)['ok'])
@@ -85,7 +86,7 @@ class DisplayRegistersTests(unittest.TestCase):
 
     def test_full_readback_preserves_17_bit_area_and_new_fields(self):
         values = dict(MODE=0, CMD_REG=1, VIDEO_MODE=3, STATUS=120,
-                      DATA_REG=120, LESION=65536, MASK_TRANSP=45)
+                      DATA_REG=120, LESION=65536, MASK_TRANSP=45, HDMI_EN=0)
         response = ''.join(line(name, value) for name, value in values.items())
         with patch.object(gui, '_board_talk', return_value=response) as talk:
             result = gui._readback_regs()
@@ -93,12 +94,22 @@ class DisplayRegistersTests(unittest.TestCase):
             self.assertEqual(result['lesion_pixels'], 65536)
             self.assertEqual(result['actual_threshold'], 120)
             self.assertEqual(result['mask_transparency'], 45)
+            self.assertEqual(result['hdmi_enabled'], 0)
             talk.assert_called_once_with(b'R', wait=2.0)
 
     def test_missing_register_is_not_silently_shown_as_zero(self):
         response = ''.join(line(name, 0) for name in gui.PL_REGISTERS if name != 'MASK_TRANSP')
         with patch.object(gui, '_board_talk', return_value=response):
             self.assertFalse(gui._readback_regs()['ok'])
+
+    def test_hdmi_command_and_verified_readback(self):
+        for enabled in (0, 1):
+            with patch.object(gui, '_board_talk', return_value=line('HDMI_EN', enabled)) as talk:
+                self.assertEqual(gui._set_hdmi_enable(enabled)['hdmi_enabled'], enabled)
+                talk.assert_called_once_with(b'H' + bytes([enabled]))
+        for bad in (line('HDMI_EN', 0), line('HDMI_EN', 1, 0x10), 'RESULT: OK\r\n'):
+            with patch.object(gui, '_board_talk', return_value=bad):
+                self.assertFalse(gui._set_hdmi_enable(1)['ok'])
 
 
 if __name__ == '__main__':

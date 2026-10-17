@@ -119,6 +119,7 @@ module top1 #(
     wire dn_valid, dn_eof, dn_ready;
     wire ts_contour, ts_mask, hdl_valid, hdl_eof, hdl_ready;
     wire [31:0] video_mode, mask_transparency;
+    wire hdmi_enable, hdmi_enable_pclk, display_armed, hdmi_read_lock, hdmi_read_en;
     wire [7:0] back_frame_mode;
     (* MARK_DEBUG = "TRUE" *) wire back_busy, back_overflow, back_frame_sent;
     wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq;
@@ -153,6 +154,7 @@ module top1 #(
         .m_axis_tmask(ts_mask), .m_axis_tcontour(ts_contour),
         .threshold_out(), .auto_mode_out(), .frame_done_out(),
         .video_mode_out(video_mode), .mask_transparency_out(mask_transparency),
+        .hdmi_enable_out(hdmi_enable),
         .back_frame_mode(back_mode_sync),
         .return_interval_cycles(return_interval_cycles),
         .return_stall_cycles(return_stall_cycles), .return_interval_seq(return_interval_seq),
@@ -167,6 +169,7 @@ module top1 #(
     wire [7:0] fb_write_data, fb_read_data;
     wire fb_write_mask, fb_write_contour, fb_read_mask, fb_read_contour;
     wire fb_write_en, frame_ready_toggle;
+    wire display_ready_toggle, display_buf_idx;
     (* ASYNC_REG = "TRUE" *) reg [2:0] frame_ready_sync;
     (* ASYNC_REG = "TRUE" *) reg [1:0] write_idx_sync, read_idx_sync;
 
@@ -177,8 +180,8 @@ module top1 #(
     always @(posedge pclk) begin
         if (rst) begin frame_ready_sync <= 0; write_idx_sync <= 0; end
         else begin
-            frame_ready_sync <= {frame_ready_sync[1:0], frame_ready_toggle};
-            write_idx_sync <= {write_idx_sync[0], fb_write_idx};
+            frame_ready_sync <= {frame_ready_sync[1:0], display_ready_toggle};
+            write_idx_sync <= {write_idx_sync[0], display_buf_idx};
         end
     end
 
@@ -187,6 +190,10 @@ module top1 #(
         .clk(clk), .pclk(pclk), .rst(rst),
         .mode_in(video_mode), .alpha_in(mask_transparency),
         .mode_out(video_mode_pclk), .alpha_out(mask_transparency_pclk)
+    );
+    hdmi_enable_cdc u_hdmi_enable_cdc (
+        .clk(clk), .pclk(pclk), .rst(rst), .enable_in(hdmi_enable),
+        .enable_pclk(hdmi_enable_pclk), .armed(display_armed)
     );
 
     wire [18:0] hdl_dbg_status;
@@ -211,6 +218,8 @@ module top1 #(
         .buf_idx(fb_write_idx), .buf_addr(fb_write_addr), .buf_data(fb_write_data),
         .buf_mask(fb_write_mask), .buf_contour(fb_write_contour), .en(fb_write_en),
         .read_buf_idx(read_idx_sync[1]), .frame_ready_toggle(frame_ready_toggle),
+        .hdmi_enable(hdmi_enable), .display_armed(display_armed), .display_read_lock(hdmi_read_lock),
+        .display_ready_toggle(display_ready_toggle), .display_buf_idx(display_buf_idx),
         .back_read_lock(back_read_lock), .back_read_idx(back_read_idx),
         .dbg_status(hdl_dbg_status)
     );
@@ -218,7 +227,7 @@ module top1 #(
         .clk(clk), .pclk(pclk), .write_en(fb_write_en),
         .write_buf_idx(fb_write_idx), .write_addr(fb_write_addr),
         .write_data(fb_write_data), .write_mask(fb_write_mask), .write_contour(fb_write_contour),
-        .read_buf_idx(fb_read_idx), .read_addr(fb_read_addr),
+        .read_buf_idx(fb_read_idx), .read_addr(fb_read_addr), .read_en(hdmi_read_en),
         .read_data(fb_read_data), .read_mask(fb_read_mask), .read_contour(fb_read_contour),
         .back_read_en(back_read_en), .back_read_idx(back_read_idx), .back_read_addr(back_read_addr),
         .back_read_data(back_read_data), .back_read_mask(back_read_mask), .back_read_contour(back_read_contour)
@@ -270,10 +279,11 @@ module top1 #(
     );
 
     hdmi_out u_hdmi_out (
-        .pclk(pclk), .rst(rst),
+        .pclk(pclk), .rst(rst), .enable(hdmi_enable_pclk),
         .in_r(arr_vid_r), .in_g(arr_vid_g), .in_b(arr_vid_b),
         .vid_r(hdmi_vid_r), .vid_g(hdmi_vid_g), .vid_b(hdmi_vid_b),
         .buf_idx(fb_read_idx), .buf_addr(fb_read_addr),
+        .read_lock(hdmi_read_lock), .read_en(hdmi_read_en),
         .vid_hs(hdmi_vid_hs), .vid_vs(hdmi_vid_vs), .vid_de(hdmi_vid_de),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
         .new_frame(hdmi_new_frame),

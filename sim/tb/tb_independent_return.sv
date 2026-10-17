@@ -13,11 +13,15 @@ module tb_independent_return;
     wire [15:0] wa,ha;
     wire [7:0] wd,hd;
     wire wm,wc,hm,hc,published;
+    reg hdmi_requested=1;
+    wire display_ready,display_bank,display_lock,display_read_en,display_enable,display_armed;
+    hdmi_enable_cdc enable_cdc(.clk(clk),.pclk(pclk),.rst(rst),.enable_in(hdmi_requested),
+        .enable_pclk(display_enable),.armed(display_armed));
     reg [2:0] pub_sync=0;
     reg [1:0] wb_sync=0;
     always @(posedge pclk)begin
         if(rst)begin pub_sync<=0;wb_sync<=0;end
-        else begin pub_sync<={pub_sync[1:0],published};wb_sync<={wb_sync[0],wb};end
+        else begin pub_sync<={pub_sync[1:0],display_ready};wb_sync<={wb_sync[0],display_bank};end
     end
     wire rb,lock,ren,source_ready,start,new_start,pvalid,busy,overflow,sent;
     wire [15:0] ra;
@@ -41,13 +45,16 @@ module tb_independent_return;
     hdl_out writer(.clk(clk),.rst(rst),.hdl_data(pixel),.hdl_mask(mask),.hdl_contour(contour),
         .hdl_valid(valid),.hdl_eof(last),.hdl_ready(ready),.buf_idx(wb),.buf_addr(wa),
         .buf_data(wd),.buf_mask(wm),.buf_contour(wc),.en(we),.read_buf_idx(hb),
-        .back_read_lock(lock),.back_read_idx(rb),.frame_ready_toggle(published),.dbg_status());
+        .back_read_lock(lock),.back_read_idx(rb),.frame_ready_toggle(published),.dbg_status(),
+        .hdmi_enable(hdmi_requested),.display_armed(display_armed),.display_read_lock(display_lock),
+        .display_ready_toggle(display_ready),.display_buf_idx(display_bank));
     double_buf memory(.clk(clk),.pclk(pclk),.write_en(we),.write_buf_idx(wb),
         .write_addr(wa),.write_data(wd),.write_mask(wm),.write_contour(wc),
-        .read_buf_idx(hb),.read_addr(ha),.read_data(hd),.read_mask(hm),.read_contour(hc),
+        .read_buf_idx(hb),.read_addr(ha),.read_en(display_read_en),.read_data(hd),.read_mask(hm),.read_contour(hc),
         .back_read_en(ren),.back_read_idx(rb),.back_read_addr(ra),
         .back_read_data(rd),.back_read_mask(rm),.back_read_contour(rc));
     hdmi_out hdmi(.pclk(pclk),.rst(rst),.in_r(hr),.in_g(hg),.in_b(hblue),
+        .enable(display_enable),.read_lock(display_lock),.read_en(display_read_en),
         .vid_r(unused_r),.vid_g(unused_g),.vid_b(unused_b),.vid_hs(hs),.vid_vs(vs),.vid_de(de),
         .buf_idx(hb),.buf_addr(ha),.image_active(hactive),.frame_start(hstart),.new_frame(hnew),
         .frame_ready_toggle(pub_sync[2]),.write_idx_sync(wb_sync[1]),.dbg_status());
@@ -154,8 +161,12 @@ module tb_independent_return;
         check_timer=0;
     end
     reg [23:0] previous_rgb=0,next_rgb;
+    reg [19:0] held_ram;
+    reg check_ram;
     integer hindex;
     always @(posedge pclk)if(!rst)begin
+        check_ram=!display_read_en;
+        held_ram={memory.q0,memory.q1,memory.q0_mask,memory.q1_mask,memory.q0_contour,memory.q1_contour};
         next_rgb=0;
         if(hactive)begin
             hindex=(hdmi.vcnt-112)*256+hdmi.hcnt-192;
@@ -165,6 +176,8 @@ module tb_independent_return;
             hdmi_pixels=hdmi_pixels+1;
         end
         #1;
+        if(check_ram && {memory.q0,memory.q1,memory.q0_mask,memory.q1_mask,memory.q0_contour,memory.q1_contour}!==held_ram)
+            $fatal(1,"disabled HDMI still read frame RAM");
         if({hr,hg,hblue}!==previous_rgb)$fatal(1,"HDMI output disturbed by return backpressure");
         previous_rgb=next_rgb;
     end
@@ -179,7 +192,7 @@ module tb_independent_return;
             @(negedge clk);valid=0;last=0;
         end
     endtask
-    integer n,before_packets;
+    integer n,before_packets,off_started,displayed_before;
     initial begin
         bank_frame[0]=-1;bank_frame[1]=-1;
         repeat(8)@(negedge clk);rst=0;
@@ -211,8 +224,36 @@ module tb_independent_return;
         wait(packets==before_packets+2);wait(!reader.active);
         repeat(100)@(negedge clk);
         if(jobs!=10||packets!=10||seq!=3)$fatal(1,"duplicate/missing jobs or mode redraw restarted timer");
-        $display("[PASS] tb_independent_return: 10 complete packets, 4 input frames, all modes, independent clocks, HDMI continuous, long/random stalls, bank ownership, timing. Unstalled return=%0d cycles",nostall_duration);
+        // OFF disconnects both display RAM reads and its bank ownership. Four
+        // new frames must complete sooner than one HDMI raster, without tearing.
+        wait(hactive);@(negedge clk);hdmi_requested=0;
+        wait(!display_enable && !display_lock);repeat(8)@(negedge clk);
+        patterned=0;off_started=cycles;
+        for(n=4;n<8;n=n+1)send_frame(n);
+        wait(packets==14);wait(!reader.active);
+        if(cycles-off_started>=400000 || display_read_en || seq!=7)
+            $fatal(1,"HDMI OFF still throttled input: %0d cycles",cycles-off_started);
+        $display("HDMI OFF: four full input/return frames in %0d cycles",cycles-off_started);
+        // Re-enable while writing: no stale off-screen event may claim an
+        // incomplete bank. The next complete image restarts the HDMI raster.
+        @(negedge clk);hdmi_requested=1;
+        fork
+            send_frame(8);
+            begin
+                wait(wa==1000);if(display_lock)$fatal(1,"HDMI acquired an incomplete frame on enable");
+            end
+        join
+        wait(packets==15);wait(!reader.active);wait(hactive);
+        displayed_before=hdmi_pixels;
+        wait(hdmi_pixels>=displayed_before+65536);
+        // Even a one-clk OFF request is acknowledged before the following ON.
+        @(negedge clk);hdmi_requested=0;
+        @(negedge clk);hdmi_requested=1;
+        wait(!display_enable);wait(display_enable);
+        send_frame(9);wait(packets==16);wait(!reader.active);wait(hactive);
+        if(seq!=9)$fatal(1,"HDMI toggles changed return interval accounting");
+        $display("[PASS] tb_independent_return: 16 complete packets, 10 input frames, all modes, asynchronous clocks, HDMI OFF/ON and rapid toggles, no disabled RAM reads, no HDMI throttling while OFF, long/random stalls, ownership, timing. Unstalled return=%0d cycles",nostall_duration);
         $finish;
     end
-    initial begin #40000000;$fatal(1,"independent return timeout");end
+    initial begin #80000000;$fatal(1,"independent return timeout");end
 endmodule

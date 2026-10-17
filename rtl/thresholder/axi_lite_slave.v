@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Register numbers match config/pl_cmd.h. AXI carries BYTE addresses:
-// MODE=0x00, CMD=0x04, VIDEO=0x08, STATUS=0x0c,
+// MODE=0x00, CMD=0x04, VIDEO=0x08, STATUS=0x0c, HDMI_EN=0x10,
 // DATA=0x80, AREA=0x84, MASK_TRANSP=0x88, BACK_STATUS=0xc4, BACK_FRAME_MODE=0xc8.
 module axi_lite_slave (
     input wire s_axi_aclk, input wire s_axi_aresetn,
@@ -20,6 +20,7 @@ module axi_lite_slave (
     output reg [7:0] reg_threshold, output reg host_wr_en,
     input wire [31:0] status_in,
     output reg [31:0] reg_video_mode,
+    output reg reg_hdmi_en,
     input wire [16:0] lesion_pixels,
     output reg [31:0] reg_mask_transparency,
     input wire [7:0] back_frame_mode,
@@ -27,7 +28,7 @@ module axi_lite_slave (
     input wire [2:0] back_status
 );
     localparam [6:0] ADDR_MODE = 7'h00, ADDR_CMD = 7'h01,
-        ADDR_VIDEO_MODE = 7'h02, ADDR_STATUS = 7'h03,
+        ADDR_VIDEO_MODE = 7'h02, ADDR_STATUS = 7'h03, ADDR_HDMI_EN = 7'h04,
         ADDR_DATA = 7'h20, ADDR_AREA_DATA = 7'h21,
         ADDR_MASK_TRANSP = 7'h22, ADDR_BACK_STATUS = 7'h31, ADDR_BACK_FRAME_MODE = 7'h32,
         ADDR_RETURN_INTERVAL = 7'h33, ADDR_RETURN_STALL = 7'h34, ADDR_RETURN_SEQ = 7'h35;
@@ -67,6 +68,7 @@ module axi_lite_slave (
             s_axi_bvalid <= 0; s_axi_bresp <= 0;
             reg_mode <= 0; reg_cmd <= 0; reg_threshold <= 0;
             reg_video_mode <= 0; reg_mask_transparency <= 32'd45;
+            reg_hdmi_en <= 1;
             host_wr_en <= 0;
         end else begin
             host_wr_en <= 0;
@@ -84,6 +86,7 @@ module axi_lite_slave (
                         ADDR_MODE: reg_mode <= merge_bytes(reg_mode, write_data, write_strb);
                         ADDR_CMD: reg_cmd <= merge_bytes(reg_cmd, write_data, write_strb);
                         ADDR_VIDEO_MODE: reg_video_mode <= merge_bytes(reg_video_mode, write_data, write_strb);
+                        ADDR_HDMI_EN: if(write_strb[0]) reg_hdmi_en <= write_data[0];
                         ADDR_DATA: if (write_strb[0]) begin
                             reg_threshold <= write_data[7:0]; host_wr_en <= 1;
                         end
@@ -109,6 +112,7 @@ module axi_lite_slave (
                         ADDR_CMD: s_axi_rdata <= reg_cmd;
                         ADDR_VIDEO_MODE: s_axi_rdata <= reg_video_mode;
                         ADDR_STATUS: s_axi_rdata <= status_in;
+                        ADDR_HDMI_EN: s_axi_rdata <= {31'd0,reg_hdmi_en};
                         ADDR_DATA: s_axi_rdata <= {24'd0, reg_threshold};
                         ADDR_AREA_DATA: s_axi_rdata <= {15'd0, lesion_pixels};
                         ADDR_MASK_TRANSP: s_axi_rdata <= reg_mask_transparency;

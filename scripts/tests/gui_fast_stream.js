@@ -37,7 +37,10 @@ class ScriptWorker{
           parameters.push(ctx.dshThrUpdate());
           elements.maskOpacity.value='35';parameters.push(emit('maskOpacityUpdate','click'));
           elements.fpgaOutputMode.value='3';parameters.push(emit('fpgaOutputMode','change'));
+          elements.hdmiOutputToggle.setAttribute('aria-checked','true');
+          parameters.push(emit('hdmiOutputToggle','click'));
         }
+        if(uploads===2&&!expectFailure)parameters.push(emit('hdmiOutputToggle','click'));
         const response=await pending;
         if(!response.ok)return response;
         const bytes=await response.clone().arrayBuffer();
@@ -83,6 +86,9 @@ function frame(name,value){return {name,size:65536,webkitRelativePath:'CaseA/'+n
   assert.deepStrictEqual(returned.map(item=>item.mode),[0,3,3]);
   assert.deepStrictEqual(returned.slice(1).map(item=>item.readback.actual_threshold),[77,77]);
   assert.deepStrictEqual(returned.slice(1).map(item=>item.readback.mask_transparency),[35,35]);
+  assert.strictEqual(elements.hdmiOutputToggle.getAttribute('aria-checked'),'true');
+  assert.deepStrictEqual(calls.filter(url=>url.startsWith('/api/serial/hdmi_enable')),
+    ['/api/serial/hdmi_enable?value=0','/api/serial/hdmi_enable?value=1']);
   assert.strictEqual(elements.dshRbThr.textContent,77);
   assert.strictEqual(elements.dshRbAlpha.textContent,'35%');
   while(paints.length)paints.shift()();

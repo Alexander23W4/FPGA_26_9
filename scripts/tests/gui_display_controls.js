@@ -4,7 +4,8 @@ const source = fs.readFileSync(process.argv[2], 'utf8');
 const script = source.match(/TAIL_SCRIPT = r"""<script>([\s\S]*?)<\/script>"""/)[1];
 const elements = {}, pending = new Set(), alerts = [];
 function element() {
-  return {value: '0', textContent: '', disabled: false, files: [], listeners: {},
+  return {value: '0', textContent: '', disabled: false, files: [], listeners: {}, attributes: {},
+    setAttribute(k,v) {this.attributes[k]=v;}, getAttribute(k) {return this.attributes[k];},
     addEventListener(event, fn) {this.listeners[event] = fn;},
     replaceChildren(...children) {this.children = children;}};
 }
@@ -38,6 +39,10 @@ async function settle() {while (pending.size) await Promise.all([...pending]);}
     await elements.maskOpacityUpdate.listeners.click({currentTarget: elements.maskOpacityUpdate});
     assert.strictEqual(elements.dshRbAlpha.textContent, alpha+'%');
     assert.strictEqual(elements.maskOpacityUpdate.disabled, false);
+  }
+  for (const enabled of [false,true]) {
+    await elements.hdmiOutputToggle.listeners.click();
+    assert.strictEqual(elements.hdmiOutputToggle.getAttribute('aria-checked'),String(enabled));
   }
   select.value = '5';
   await select.listeners.change({target: select});

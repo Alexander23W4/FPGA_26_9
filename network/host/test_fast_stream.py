@@ -51,6 +51,7 @@ class FastStreamTests(unittest.TestCase):
     def test_real_gui_worker_does_not_wait_for_repaint(self):
         with fast_server() as (board, client, server, state, base):
             board.mode = 0
+            hdmi_changes = []
             def uart(payload, wait=1.5):
                 if payload[:1] == b'T':
                     board.manual, board.threshold = payload[1:]
@@ -58,6 +59,9 @@ class FastStreamTests(unittest.TestCase):
                 if payload[:1] == b'P':
                     board.alpha = payload[1]
                     return line('MASK_TRANSP', board.alpha)
+                if payload[:1] == b'H':
+                    hdmi_changes.append(payload[1])
+                    return line('HDMI_EN', payload[1])
                 raise AssertionError('unexpected per-frame UART command')
             with patch.object(gui, '_board_talk_locked', side_effect=uart):
                 script = Path(gui.__file__).parents[2]/'scripts/tests/gui_fast_stream.js'
@@ -66,6 +70,7 @@ class FastStreamTests(unittest.TestCase):
             self.assertEqual(run.returncode, 0, run.stdout+run.stderr)
             self.assertIn('FAST_GUI_OK', run.stdout)
             self.assertEqual((board.uploads, board.sent, board.acks, board.connections), (3,4,0,1))
+            self.assertEqual(hdmi_changes, [0,1])
     def test_full_receive_releases_ddr_without_any_png_or_disk_work(self):
         with running_board() as board, tempfile.TemporaryDirectory() as folder:
             client = transfer.FrameTransferClient('127.0.0.1', board.server_address[1], folder, 2)

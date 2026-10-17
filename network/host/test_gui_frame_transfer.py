@@ -31,17 +31,24 @@ class GuiFrameTransferTests(unittest.TestCase):
             handler.state = state
             thresholds, opacities = [], []
             opacity = 45
+            hdmi_enabled = 1
+            hdmi_changes = []
             def uart(payload, wait=1.5):
-                nonlocal opacity
+                nonlocal opacity, hdmi_enabled
                 if payload == b'R':
                     values = dict(MODE=0, CMD_REG=0, VIDEO_MODE=board.mode, STATUS=128,
-                                  DATA_REG=128, LESION=123, MASK_TRANSP=opacity)
+                                  DATA_REG=128, LESION=123, MASK_TRANSP=opacity, HDMI_EN=hdmi_enabled)
                     return ''.join(line(name, value) for name, value in values.items())
                 if payload[0:1] == b'P':
                     opacities.append(payload)
                     board.events.append(('opacity', payload[1]))
                     opacity = payload[1]
                     return line('MASK_TRANSP', opacity + int(len(opacities)>1))
+                if payload[0:1] == b'H':
+                    hdmi_enabled = payload[1]
+                    hdmi_changes.append(hdmi_enabled)
+                    board.events.append(('hdmi', hdmi_enabled))
+                    return line('HDMI_EN', hdmi_enabled if len(hdmi_changes)<3 else 1-hdmi_enabled)
                 self.assertEqual(payload[0:1], b'T')
                 thresholds.append(payload)
                 board.events.append(('threshold', payload[-1]))
@@ -62,10 +69,13 @@ class GuiFrameTransferTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     self.assertIn('GUI_FRAME_HTTP_OK', result.stdout)
                 modes = list(range(5)) if mode == 5 else [mode]
-                self.assertEqual((board.uploads, board.acks), (3, 2*len(modes)+2))
+                self.assertEqual((board.uploads, board.acks), (4, 2*len(modes)+3))
                 self.assertEqual(board.renders, 2*len(modes)-1)
-                self.assertEqual(len(list(results.glob('*.bin'))), 2*len(modes)+2)
-                self.assertEqual(len(list(results.glob('*.png'))), 2*len(modes)+2)
+                self.assertEqual(len(list(results.glob('*.bin'))), 2*len(modes)+3)
+                self.assertEqual(len(list(results.glob('*.png'))), 2*len(modes)+3)
+                self.assertEqual(hdmi_changes, [0,1,0])
+                enabled_index = board.events.index(('hdmi', 1))
+                self.assertEqual(board.events[enabled_index+1], ('upload', 3))
                 opacity_index = board.events.index(('opacity', 35))
                 self.assertEqual(board.events[opacity_index+1], ('upload', 4 if mode==5 else mode))
                 threshold_index = board.events.index(('threshold', 77))

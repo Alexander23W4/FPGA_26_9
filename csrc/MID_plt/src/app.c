@@ -94,6 +94,7 @@ static int cmd_readback(void)
     static const struct { const char *name; unsigned reg; } regs[] = {
         {"MODE", MODE_ADDR}, {"CMD_REG", CMD_REG_ADDR},
         {"VIDEO_MODE", VIDEO_MODE_ADDR}, {"STATUS", STATUS_ADDR},
+        {"HDMI_EN", HDMI_EN},
         {"DATA_REG", DATA_REG_ADDR}, {"LESION", LESION_ADDR},
         {"MASK_TRANSP", MASK_TRANSP_ADDR},
         {"RETURN_INTERVAL", RETURN_INTERVAL}, {"RETURN_STALL", RETURN_STALL},
@@ -142,6 +143,17 @@ static int cmd_system_mode(void)
     return pl_write_checked(MODE_ADDR, mode, "MODE");
 }
 
+static int cmd_hdmi_enable(void)
+{
+    u8 enabled;
+    uartln_get_bytes(&enabled, 1);
+    if (enabled > 1u) {
+        xil_printf("[PL reg] ERROR: HDMI enable must be 0 or 1\r\n");
+        return -1;
+    }
+    return pl_write_checked(HDMI_EN, enabled, "HDMI_EN");
+}
+
 static const app_cmd_t cmds[] = {
     { CMD_HELP,        "? help", "list these commands", cmd_help },
     { CMD_LIST_IMAGES, "I list", "list eMMC images", cmd_list_images },
@@ -152,6 +164,7 @@ static const app_cmd_t cmds[] = {
     { CMD_READBACK,    "R rdbk", "read control/status regs and return timing 33/34/35", cmd_readback },
     { CMD_VIDEO_MODE,  "V vmod", "1 byte: 0 gray/1 contour/2 mask/3 overlay/4 heatmap", cmd_video_mode },
     { CMD_MASK_TRANSP, "P alpha","1 byte: overlay opacity 0 transparent..100 solid", cmd_mask_transparency },
+    { CMD_HDMI_ENABLE, "H hdmi", "1 byte: 0 HDMI off, 1 HDMI on", cmd_hdmi_enable },
     { CMD_SYSTEM_MODE, "M mode", "1 byte: 0 image/1 medical (algorithm reserved)", cmd_system_mode },
 };
 #define APP_CMD_COUNT   (sizeof(cmds) / sizeof(cmds[0]))
