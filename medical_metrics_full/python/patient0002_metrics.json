@@ -1,0 +1,302 @@
+{
+  "patient": "patient0002",
+  "view": "4CH",
+  "frames": 15,
+  "spacing_mm": [
+    0.30799999833106995,
+    0.30799999833106995
+  ],
+  "ed_frame": 0,
+  "es_frame": 14,
+  "edv_ml": 217.93043411521015,
+  "esv_ml": 126.04055373856359,
+  "ef_percent": 42.1647764570911,
+  "gls_percent": -19.860495445902934,
+  "gls_sides_percent": [
+    -3.0729941500604916,
+    -36.647996741745374
+  ],
+  "gls_method": "endocardial boundary path-length strain surrogate",
+  "long_axis_shortening_percent": -18.75,
+  "registration": [
+    {
+      "frame_a": 0,
+      "frame_b": 1,
+      "dx": 1.6436941964285714,
+      "dy": 4.330085736554949,
+      "dx_int": 2,
+      "dy_int": 4,
+      "sad": 162716,
+      "sad_mean": 17.65581597222222,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 1,
+      "frame_b": 2,
+      "dx": -8.0,
+      "dy": 8.0,
+      "dx_int": -8,
+      "dy_int": 8,
+      "sad": 205259,
+      "sad_mean": 22.27202690972222,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 2,
+      "frame_b": 3,
+      "dx": 8.0,
+      "dy": 3.3,
+      "dx_int": 8,
+      "dy_int": 3,
+      "sad": 170050,
+      "sad_mean": 18.45160590277778,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 3,
+      "frame_b": 4,
+      "dx": -0.2111287758346582,
+      "dy": -3.801304863582444,
+      "dx_int": 0,
+      "dy_int": -4,
+      "sad": 109790,
+      "sad_mean": 11.912977430555555,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 4,
+      "frame_b": 5,
+      "dx": -0.24891560292477383,
+      "dy": -0.3987425545996029,
+      "dx_int": 0,
+      "dy_int": 0,
+      "sad": 104906,
+      "sad_mean": 11.38302951388889,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 5,
+      "frame_b": 6,
+      "dx": -0.4864883308311724,
+      "dy": -3.1981981981981984,
+      "dx_int": 0,
+      "dy_int": -3,
+      "sad": 106633,
+      "sad_mean": 11.570421006944445,
+      "roi": 96,
+      "search": 8
+    }
+  ],
+  "per_frame": [
+    {
+      "area_pixels": 39326,
+      "area_mm2": 3730.6216235704765,
+      "long_axis_px": 176,
+      "long_axis_mm": 54.20799970626831,
+      "bbox": [
+        106,
+        327,
+        384,
+        502
+      ],
+      "frame": 0
+    },
+    {
+      "area_pixels": 38337,
+      "area_mm2": 3636.801128587229,
+      "long_axis_px": 172,
+      "long_axis_mm": 52.97599971294403,
+      "bbox": [
+        106,
+        326,
+        381,
+        497
+      ],
+      "frame": 1
+    },
+    {
+      "area_pixels": 37364,
+      "area_mm2": 3544.4984575875324,
+      "long_axis_px": 170,
+      "long_axis_mm": 52.35999971628189,
+      "bbox": [
+        107,
+        324,
+        378,
+        493
+      ],
+      "frame": 2
+    },
+    {
+      "area_pixels": 36426,
+      "area_mm2": 3455.5160265518534,
+      "long_axis_px": 167,
+      "long_axis_mm": 51.43599972128868,
+      "bbox": [
+        107,
+        323,
+        375,
+        489
+      ],
+      "frame": 3
+    },
+    {
+      "area_pixels": 35466,
+      "area_mm2": 3364.446587538792,
+      "long_axis_px": 164,
+      "long_axis_mm": 50.51199972629547,
+      "bbox": [
+        108,
+        321,
+        371,
+        484
+      ],
+      "frame": 4
+    },
+    {
+      "area_pixels": 34569,
+      "area_mm2": 3279.3535804609623,
+      "long_axis_px": 161,
+      "long_axis_mm": 49.58799973130226,
+      "bbox": [
+        108,
+        320,
+        368,
+        480
+      ],
+      "frame": 5
+    },
+    {
+      "area_pixels": 33657,
+      "area_mm2": 3192.837613398554,
+      "long_axis_px": 158,
+      "long_axis_mm": 48.66399973630905,
+      "bbox": [
+        109,
+        319,
+        365,
+        476
+      ],
+      "frame": 6
+    },
+    {
+      "area_pixels": 32766,
+      "area_mm2": 3108.313790314556,
+      "long_axis_px": 155,
+      "long_axis_mm": 47.73999974131584,
+      "bbox": [
+        109,
+        317,
+        362,
+        471
+      ],
+      "frame": 7
+    },
+    {
+      "area_pixels": 31890,
+      "area_mm2": 3025.2129272151374,
+      "long_axis_px": 153,
+      "long_axis_mm": 47.1239997446537,
+      "bbox": [
+        109,
+        315,
+        359,
+        467
+      ],
+      "frame": 8
+    },
+    {
+      "area_pixels": 31014,
+      "area_mm2": 2942.112064115719,
+      "long_axis_px": 151,
+      "long_axis_mm": 46.50799974799156,
+      "bbox": [
+        110,
+        313,
+        355,
+        463
+      ],
+      "frame": 9
+    },
+    {
+      "area_pixels": 30178,
+      "area_mm2": 2862.8057609751777,
+      "long_axis_px": 149,
+      "long_axis_mm": 45.89199975132942,
+      "bbox": [
+        110,
+        310,
+        352,
+        458
+      ],
+      "frame": 10
+    },
+    {
+      "area_pixels": 29346,
+      "area_mm2": 2783.8789138305247,
+      "long_axis_px": 148,
+      "long_axis_mm": 45.58399975299835,
+      "bbox": [
+        111,
+        307,
+        349,
+        454
+      ],
+      "frame": 11
+    },
+    {
+      "area_pixels": 28523,
+      "area_mm2": 2705.805842676619,
+      "long_axis_px": 146,
+      "long_axis_mm": 44.96799975633621,
+      "bbox": [
+        111,
+        305,
+        346,
+        450
+      ],
+      "frame": 12
+    },
+    {
+      "area_pixels": 27763,
+      "area_mm2": 2633.709203457945,
+      "long_axis_px": 145,
+      "long_axis_mm": 44.65999975800514,
+      "bbox": [
+        112,
+        302,
+        343,
+        446
+      ],
+      "frame": 13
+    },
+    {
+      "area_pixels": 26958,
+      "area_mm2": 2557.343684285534,
+      "long_axis_px": 143,
+      "long_axis_mm": 44.043999761343,
+      "bbox": [
+        112,
+        299,
+        341,
+        441
+      ],
+      "frame": 14
+    }
+  ],
+  "formula": {
+    "area_mm2": "N_pixels * sx * sy",
+    "volume_ml": "8 * area_mm2^2 / (3*pi*length_mm) / 1000",
+    "ef_percent": "(EDV-ESV)/EDV*100",
+    "strain_percent": "(L-L0)/L0*100"
+  },
+  "notes": [
+    "EDV/ESV use a single-plane area-length approximation, not 3-D biplane volume.",
+    "GLS is an endocardial-boundary path-length surrogate, not clinical speckle tracking."
+  ]
+}

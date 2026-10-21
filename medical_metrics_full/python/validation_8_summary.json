@@ -1,0 +1,35 @@
+{
+  "split": "validation",
+  "view": "4CH",
+  "patients_requested": 8,
+  "patients_ok": 8,
+  "patients_failed": 0,
+  "csv": "validation_8.csv",
+  "metrics": {
+    "edv_ml": {
+      "mean": 133.44488826935614,
+      "std": 30.45446705218234,
+      "n": 8
+    },
+    "esv_ml": {
+      "mean": 76.16509426077171,
+      "std": 28.72373927081169,
+      "n": 8
+    },
+    "ef_percent": {
+      "mean": 44.33782704424614,
+      "std": 11.875096425901427,
+      "n": 8
+    },
+    "gls_percent": {
+      "mean": -18.343098332207077,
+      "std": 5.474493921184912,
+      "n": 8
+    },
+    "long_axis_shortening_percent": {
+      "mean": -26.46886490540709,
+      "std": 5.2506638496957105,
+      "n": 8
+    }
+  }
+}

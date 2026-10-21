@@ -1,0 +1,39 @@
+medical_metrics package
+=======================
+Created: 2026-10-19
+
+Verified in this workspace
+--------------------------
+[PASS] Python golden model + RTL arithmetic: 11/11 unittest cases
+[PASS] CAMUS patient0001: EDV/ESV/EF/registration/GLS output
+[PASS] CAMUS official testing split: 8/8 patients processed
+[PASS] CAMUS official validation split: 8/8 patients processed
+[PASS] CAMUS NIfTI reader/writer round trip
+
+Delivered but not verified here
+--------------------------------
+[UNVERIFIED] RTL elaboration/synthesis/timing (no Vivado/iverilog/Verilator)
+[UNVERIFIED] RTL testbenches (code provided, simulator not available)
+[UNVERIFIED] ACZ7015 board bring-up and frame rate
+[UNVERIFIED] U-Net automatic mask (current metrics use CAMUS GT masks)
+
+Interface authority
+-------------------
+FPGA_26_9-master/rtl/top1.v
+  -> rtl/thresholder/top_threshold_demo.v
+  -> rtl/thresholder/axi_lite_slave.v
+  -> csrc/MID_plt/src/config/pl_cmd.h
+
+New medical registers use WORD indices 0x40..0x4F.
+Default separate AXI-Lite base: 0x44010000.
+If merged into the existing slave, define MED_CTRL_BASE=0x44000000.
+
+Primary entry points
+---------------------
+Python: python/golden_metrics.py
+Batch:  python/run_camus.py
+Tests:  python/test_golden_metrics.py
+RTL:    rtl/medical_accel_top.v
+PS:     csrc/medical_metrics.c
+Docs:   docs/INTEGRATION.md
+

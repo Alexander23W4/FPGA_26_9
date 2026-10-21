@@ -1,0 +1,380 @@
+{
+  "patient": "patient0003",
+  "view": "4CH",
+  "frames": 21,
+  "spacing_mm": [
+    0.30799999833106995,
+    0.30799999833106995
+  ],
+  "ed_frame": 0,
+  "es_frame": 20,
+  "edv_ml": 168.34002567248572,
+  "esv_ml": 83.02268209844722,
+  "ef_percent": 50.68155552027053,
+  "gls_percent": -13.538400127460385,
+  "gls_sides_percent": [
+    -5.904340257315718,
+    -21.17245999760505
+  ],
+  "gls_method": "endocardial boundary path-length strain surrogate",
+  "long_axis_shortening_percent": -27.225130890052355,
+  "registration": [
+    {
+      "frame_a": 0,
+      "frame_b": 1,
+      "dx": 1.6587462082912032,
+      "dy": 1.4656049754994345,
+      "dx_int": 2,
+      "dy_int": 1,
+      "sad": 120819,
+      "sad_mean": 13.109700520833334,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 1,
+      "frame_b": 2,
+      "dx": 0.6880386073767666,
+      "dy": 1.2884149748556528,
+      "dx_int": 1,
+      "dy_int": 1,
+      "sad": 120409,
+      "sad_mean": 13.06521267361111,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 2,
+      "frame_b": 3,
+      "dx": -0.18887147335423196,
+      "dy": 1.639737087258048,
+      "dx_int": 0,
+      "dy_int": 2,
+      "sad": 124555,
+      "sad_mean": 13.515082465277779,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 3,
+      "frame_b": 4,
+      "dx": -2.126657824933687,
+      "dy": 2.7832645693656524,
+      "dx_int": -2,
+      "dy_int": 3,
+      "sad": 133545,
+      "sad_mean": 14.490559895833334,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 4,
+      "frame_b": 5,
+      "dx": -2.0025520876914067,
+      "dy": 1.9399934996343544,
+      "dx_int": -2,
+      "dy_int": 2,
+      "sad": 122850,
+      "sad_mean": 13.330078125,
+      "roi": 96,
+      "search": 8
+    },
+    {
+      "frame_a": 5,
+      "frame_b": 6,
+      "dx": 0.546339319352003,
+      "dy": 2.204755957956083,
+      "dx_int": 1,
+      "dy_int": 2,
+      "sad": 125453,
+      "sad_mean": 13.61252170138889,
+      "roi": 96,
+      "search": 8
+    }
+  ],
+  "per_frame": [
+    {
+      "area_pixels": 36006,
+      "area_mm2": 3415.673146983639,
+      "long_axis_px": 191,
+      "long_axis_mm": 58.82799968123436,
+      "bbox": [
+        84,
+        225,
+        361,
+        415
+      ],
+      "frame": 0
+    },
+    {
+      "area_pixels": 35191,
+      "area_mm2": 3338.3589878215084,
+      "long_axis_px": 188,
+      "long_axis_mm": 57.90399968624115,
+      "bbox": [
+        85,
+        226,
+        360,
+        413
+      ],
+      "frame": 1
+    },
+    {
+      "area_pixels": 34416,
+      "area_mm2": 3264.8393886182557,
+      "long_axis_px": 186,
+      "long_axis_mm": 57.28799968957901,
+      "bbox": [
+        85,
+        226,
+        359,
+        411
+      ],
+      "frame": 2
+    },
+    {
+      "area_pixels": 33630,
+      "area_mm2": 3190.2762854263115,
+      "long_axis_px": 183,
+      "long_axis_mm": 56.3639996945858,
+      "bbox": [
+        86,
+        227,
+        358,
+        409
+      ],
+      "frame": 3
+    },
+    {
+      "area_pixels": 32865,
+      "area_mm2": 3117.7053262127783,
+      "long_axis_px": 181,
+      "long_axis_mm": 55.74799969792366,
+      "bbox": [
+        86,
+        228,
+        357,
+        408
+      ],
+      "frame": 4
+    },
+    {
+      "area_pixels": 32103,
+      "area_mm2": 3045.4189589961607,
+      "long_axis_px": 178,
+      "long_axis_mm": 54.82399970293045,
+      "bbox": [
+        87,
+        229,
+        356,
+        406
+      ],
+      "frame": 5
+    },
+    {
+      "area_pixels": 31339,
+      "area_mm2": 2972.942863781599,
+      "long_axis_px": 175,
+      "long_axis_mm": 53.89999970793724,
+      "bbox": [
+        87,
+        230,
+        355,
+        404
+      ],
+      "frame": 6
+    },
+    {
+      "area_pixels": 30607,
+      "area_mm2": 2903.5024165341397,
+      "long_axis_px": 172,
+      "long_axis_mm": 52.97599971294403,
+      "bbox": [
+        88,
+        231,
+        354,
+        402
+      ],
+      "frame": 7
+    },
+    {
+      "area_pixels": 29839,
+      "area_mm2": 2830.6468653236907,
+      "long_axis_px": 169,
+      "long_axis_mm": 52.05199971795082,
+      "bbox": [
+        88,
+        232,
+        354,
+        400
+      ],
+      "frame": 8
+    },
+    {
+      "area_pixels": 29120,
+      "area_mm2": 2762.4396500628663,
+      "long_axis_px": 166,
+      "long_axis_mm": 51.12799972295761,
+      "bbox": [
+        89,
+        233,
+        353,
+        398
+      ],
+      "frame": 9
+    },
+    {
+      "area_pixels": 28384,
+      "area_mm2": 2692.619746819519,
+      "long_axis_px": 164,
+      "long_axis_mm": 50.51199972629547,
+      "bbox": [
+        89,
+        234,
+        352,
+        397
+      ],
+      "frame": 10
+    },
+    {
+      "area_pixels": 27688,
+      "area_mm2": 2626.5944035350494,
+      "long_axis_px": 162,
+      "long_axis_mm": 49.89599972963333,
+      "bbox": [
+        90,
+        234,
+        351,
+        395
+      ],
+      "frame": 11
+    },
+    {
+      "area_pixels": 26971,
+      "area_mm2": 2558.576916272169,
+      "long_axis_px": 159,
+      "long_axis_mm": 48.97199973464012,
+      "bbox": [
+        90,
+        235,
+        350,
+        393
+      ],
+      "frame": 12
+    },
+    {
+      "area_pixels": 26270,
+      "area_mm2": 2492.07725299284,
+      "long_axis_px": 156,
+      "long_axis_mm": 48.04799973964691,
+      "bbox": [
+        91,
+        236,
+        349,
+        391
+      ],
+      "frame": 13
+    },
+    {
+      "area_pixels": 25576,
+      "area_mm2": 2426.241637706314,
+      "long_axis_px": 153,
+      "long_axis_mm": 47.1239997446537,
+      "bbox": [
+        91,
+        237,
+        348,
+        389
+      ],
+      "frame": 14
+    },
+    {
+      "area_pixels": 24883,
+      "area_mm2": 2360.5008864187603,
+      "long_axis_px": 151,
+      "long_axis_mm": 46.50799974799156,
+      "bbox": [
+        92,
+        238,
+        347,
+        388
+      ],
+      "frame": 15
+    },
+    {
+      "area_pixels": 24207,
+      "area_mm2": 2296.3728231137297,
+      "long_axis_px": 148,
+      "long_axis_mm": 45.58399975299835,
+      "bbox": [
+        92,
+        239,
+        347,
+        386
+      ],
+      "frame": 16
+    },
+    {
+      "area_pixels": 23525,
+      "area_mm2": 2231.675575814867,
+      "long_axis_px": 145,
+      "long_axis_mm": 44.65999975800514,
+      "bbox": [
+        92,
+        240,
+        346,
+        384
+      ],
+      "frame": 17
+    },
+    {
+      "area_pixels": 22867,
+      "area_mm2": 2169.2550644913313,
+      "long_axis_px": 143,
+      "long_axis_mm": 44.043999761343,
+      "bbox": [
+        93,
+        240,
+        345,
+        382
+      ],
+      "frame": 18
+    },
+    {
+      "area_pixels": 22220,
+      "area_mm2": 2107.8780571564866,
+      "long_axis_px": 141,
+      "long_axis_mm": 43.42799976468086,
+      "bbox": [
+        93,
+        241,
+        344,
+        381
+      ],
+      "frame": 19
+    },
+    {
+      "area_pixels": 21571,
+      "area_mm2": 2046.311321823698,
+      "long_axis_px": 139,
+      "long_axis_mm": 42.81199976801872,
+      "bbox": [
+        94,
+        242,
+        343,
+        380
+      ],
+      "frame": 20
+    }
+  ],
+  "formula": {
+    "area_mm2": "N_pixels * sx * sy",
+    "volume_ml": "8 * area_mm2^2 / (3*pi*length_mm) / 1000",
+    "ef_percent": "(EDV-ESV)/EDV*100",
+    "strain_percent": "(L-L0)/L0*100"
+  },
+  "notes": [
+    "EDV/ESV use a single-plane area-length approximation, not 3-D biplane volume.",
+    "GLS is an endocardial-boundary path-length surrogate, not clinical speckle tracking."
+  ]
+}

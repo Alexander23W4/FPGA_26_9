@@ -1,0 +1,35 @@
+{
+  "split": "testing",
+  "view": "4CH",
+  "patients_requested": 8,
+  "patients_ok": 8,
+  "patients_failed": 0,
+  "csv": "testing_8.csv",
+  "metrics": {
+    "edv_ml": {
+      "mean": 150.86700232368327,
+      "std": 67.76380190406262,
+      "n": 8
+    },
+    "esv_ml": {
+      "mean": 98.65513668188004,
+      "std": 56.78139444995215,
+      "n": 8
+    },
+    "ef_percent": {
+      "mean": 37.436048444836864,
+      "std": 19.014934647964008,
+      "n": 8
+    },
+    "gls_percent": {
+      "mean": -12.411244958286645,
+      "std": 6.790609764044717,
+      "n": 8
+    },
+    "long_axis_shortening_percent": {
+      "mean": -17.58698594773101,
+      "std": 11.622645534899133,
+      "n": 8
+    }
+  }
+}
