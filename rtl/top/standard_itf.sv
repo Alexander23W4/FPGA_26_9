@@ -73,20 +73,16 @@ interface heart_analysis;
     output [31:0] ESV_LV;
     output [31:0] EDV_RV;
     output [31:0] ESV_RV;
-    output [31:0] EF_LV;
-    output [31:0] EF_RV;
-    output [31:0] EF_LV;
-    output [31:0] EF_RV;
     output [31:0] GLS_LA;
     output [31:0] GLS_RA;
     output [31:0] GLS_LV;
     output [31:0] GLS_RV;
 
+
+endinterface
+
 /*
     assign EF_LV = (EDV_LV - ESV_LV) * 100 / EDV_LV;  // 射血分数的百分号值, 这里直接用了除号, 要优化一下, 能够输出比如13.56%或者-44.39% 这样保留两位小数
     assign EF_RV = (EDV_RV - ESV_RV) * 100 / EDV_RV;
-    内部实现这个
+    这个放到ps实现
 */
-endinterface
-
-
