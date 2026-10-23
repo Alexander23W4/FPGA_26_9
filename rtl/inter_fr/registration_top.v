@@ -18,6 +18,7 @@ module registration_top #(
     input  wire                 s_axis_tvalid,
     output wire                 s_axis_tready,
     input  wire                 s_axis_tlast,
+    
     output reg  signed [15:0]   reg_dx,
     output reg  signed [15:0]   reg_dy,
     output reg  [31:0]          reg_sad,
