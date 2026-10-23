@@ -1,120 +1,73 @@
 `timescale 1ns / 1ps
-// Exhaustive integer translation search over +/- SEARCH_R pixels.
-// The candidate frame must already be available in the two external RAMs.
+// Exact integer search, zero displacement first. Equal costs prefer the
+// smallest Manhattan displacement, including for flat/identical images.
 module registration_search #(
-    parameter integer FRAME_W = 256,
-    parameter integer FRAME_H = 256,
-    parameter integer ROI_W   = 48,
-    parameter integer ROI_H   = 48,
-    parameter integer SEARCH_R = 8,
-    parameter integer ADDR_W  = 16,
-    parameter integer DATA_W  = 8
+    parameter integer FRAME_W=256, FRAME_H=256, ROI_W=48, ROI_H=48,
+    parameter integer SEARCH_R=8, ADDR_W=16, DATA_W=8
 )(
-    input  wire                 clk,
-    input  wire                 rst,
-    input  wire                 start,
-    output wire [ADDR_W-1:0]    ref_addr,
-    output wire [ADDR_W-1:0]    cur_addr,
-    input  wire [DATA_W-1:0]    ref_data,
-    input  wire [DATA_W-1:0]    cur_data,
-    output reg                  busy,
-    output reg                  done,
-    output reg  signed [15:0]   best_dx,
-    output reg  signed [15:0]   best_dy,
-    output reg  [31:0]          best_sad
+    input wire clk, rst, start,
+    output wire [ADDR_W-1:0] ref_addr, cur_addr,
+    input wire [DATA_W-1:0] ref_data, cur_data,
+    output reg busy, done,
+    output reg signed [15:0] best_dx, best_dy,
+    output reg [31:0] best_sad
 );
-    localparam [15:0] ROI_X0 = (FRAME_W - ROI_W) / 2;
-    localparam [15:0] ROI_Y0 = (FRAME_H - ROI_H) / 2;
-    localparam [15:0] REF_BASE = ROI_Y0 * FRAME_W + ROI_X0;
-
-    localparam [1:0] IDLE = 2'd0;
-    localparam [1:0] WAIT = 2'd1;
-
-    reg [1:0] state;
-    reg       sad_start;
-    wire      sad_done;
+    localparam [ADDR_W-1:0] REF_BASE=((FRAME_H-ROI_H)/2)*FRAME_W+(FRAME_W-ROI_W)/2;
+    localparam [15:0] FW=FRAME_W, RW=ROI_W, RH=ROI_H;
+    reg signed [15:0] cand_dx, cand_dy;
+    reg zero_first, sad_start;
+    reg [16:0] best_distance;
+    wire [16:0] distance_x=cand_dx[15] ? -cand_dx : cand_dx;
+    wire [16:0] distance_y=cand_dy[15] ? -cand_dy : cand_dy;
+    wire [16:0] distance=distance_x+distance_y;
+    wire signed [31:0] current_base=$signed({1'b0,REF_BASE})+cand_dx+cand_dy*FRAME_W;
+    wire sad_done;
     wire [31:0] sad_value;
-    integer cand_dx;
-    integer cand_dy;
-
-    wire signed [31:0] cur_base_s = REF_BASE + cand_dx + cand_dy * FRAME_W;
-    wire [ADDR_W-1:0] cur_base = cur_base_s[ADDR_W-1:0];
-
-    frame_diff_sad #(
-        .ADDR_W(ADDR_W),
-        .DATA_W(DATA_W)
-    ) u_sad (
-        .clk(clk),
-        .rst(rst),
-        .start(sad_start),
-        .ref_base(REF_BASE),
-        .cur_base(cur_base),
-        .frame_w(FRAME_W),
-        .roi_w(ROI_W),
-        .roi_h(ROI_H),
-        .ref_addr(ref_addr),
-        .cur_addr(cur_addr),
-        .ref_data(ref_data),
-        .cur_data(cur_data),
-        .busy(),
-        .done(sad_done),
-        .sad(sad_value)
+    frame_diff_sad #(.ADDR_W(ADDR_W),.DATA_W(DATA_W)) u_sad(
+        .clk(clk),.rst(rst),.start(sad_start),.ref_base(REF_BASE),
+        .cur_base(current_base[ADDR_W-1:0]),.frame_w(FW),.roi_w(RW),.roi_h(RH),
+        .sad_limit(best_sad),.ref_addr(ref_addr),.cur_addr(cur_addr),
+        .ref_data(ref_data),.cur_data(cur_data),.busy(),.done(sad_done),.sad(sad_value)
     );
-
     always @(posedge clk) begin
         if (rst) begin
-            state     <= IDLE;
-            busy      <= 1'b0;
-            done      <= 1'b0;
-            sad_start <= 1'b0;
-            cand_dx   <= -SEARCH_R;
-            cand_dy   <= -SEARCH_R;
-            best_dx   <= 16'sd0;
-            best_dy   <= 16'sd0;
-            best_sad  <= 32'hFFFF_FFFF;
+            busy<=0; done<=0; sad_start<=0; zero_first<=0;
+            cand_dx<=0; cand_dy<=0; best_dx<=0; best_dy<=0;
+            best_sad<=32'hffffffff; best_distance<=17'h1ffff;
         end else begin
-            done <= 1'b0;
-            case (state)
-                IDLE: begin
-                    busy <= 1'b0;
-                    if (start) begin
-                        cand_dy   <= -SEARCH_R;
-                        cand_dx   <= -SEARCH_R;
-                        best_sad  <= 32'hFFFF_FFFF;
-                        best_dx   <= 16'sd0;
-                        best_dy   <= 16'sd0;
-                        sad_start <= 1'b1;
-                        busy      <= 1'b1;
-                        state     <= WAIT;
-                    end
+            done<=0; sad_start<=0;
+            if (start && !busy) begin
+                busy<=1; zero_first<=1; cand_dx<=0; cand_dy<=0;
+                best_dx<=0; best_dy<=0; best_sad<=32'hffffffff;
+                best_distance<=17'h1ffff; sad_start<=1;
+            end else if (busy && sad_done) begin
+                if (sad_value<best_sad || (sad_value==best_sad && distance<best_distance)) begin
+                    best_sad<=sad_value; best_dx<=cand_dx; best_dy<=cand_dy;
+                    best_distance<=distance;
                 end
-                WAIT: begin
-                    sad_start <= 1'b0;
-                    if (sad_done) begin
-                        if (sad_value < best_sad) begin
-                            best_sad <= sad_value;
-                            best_dx  <= cand_dx[15:0];
-                            best_dy  <= cand_dy[15:0];
-                        end
-                        if (cand_dx < SEARCH_R) begin
-                            cand_dx   <= cand_dx + 1;
-                            sad_start <= 1'b1;
-                        end else begin
-                            cand_dx <= -SEARCH_R;
-                            if (cand_dy < SEARCH_R) begin
-                                cand_dy   <= cand_dy + 1;
-                                sad_start <= 1'b1;
-                            end else begin
-                                busy  <= 1'b0;
-                                done  <= 1'b1;
-                                state <= IDLE;
-                            end
-                        end
-                    end
+                // A zero SAD at zero displacement is a proven optimum.
+                if ((cand_dx==0 && cand_dy==0 && sad_value==0) || SEARCH_R==0 ||
+                    (!zero_first && cand_dx==SEARCH_R && cand_dy==SEARCH_R)) begin
+                    busy<=0; done<=1;
+                end else begin
+                    sad_start<=1;
+                    if (zero_first) begin
+                        zero_first<=0; cand_dx<=-SEARCH_R; cand_dy<=-SEARCH_R;
+                    end else if (cand_dx==SEARCH_R) begin
+                        cand_dx<=-SEARCH_R; cand_dy<=cand_dy+16'sd1;
+                    end else if (cand_dy==0 && cand_dx==-1) begin
+                        cand_dx<=1; // zero was already evaluated first
+                    end else cand_dx<=cand_dx+16'sd1;
                 end
-                default: state <= IDLE;
-            endcase
+            end
         end
     end
+    // synthesis translate_off
+    initial begin
+        if (ROI_W<=0 || ROI_H<=0 || SEARCH_R<0 ||
+            ROI_W+2*SEARCH_R>FRAME_W || ROI_H+2*SEARCH_R>FRAME_H)
+            $fatal(1,"registration ROI and search margin must fit within frame");
+    end
+    // synthesis translate_on
 endmodule
 

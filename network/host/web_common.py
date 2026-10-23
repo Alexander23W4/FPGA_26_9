@@ -94,6 +94,7 @@ class WebState:
         self.image_assembler = proto.ImageAssembler()
         self.logs: list[str] = []
         self.simulate = simulate
+        self.system_mode = "simulation" if simulate else "processing"
         self.serial_connected = False
         self.processed_results: dict[str, dict] = {}
         self.transfer_status: dict = {}
@@ -184,6 +185,7 @@ class WebState:
             status = dict(self.status)
             logs = list(self.logs)
             simulate = self.simulate
+            system_mode = self.system_mode
             connected = self.serial_connected
             image_name = self.image_name
             processed_results = dict(self.processed_results) if include_images else None
@@ -195,7 +197,7 @@ class WebState:
             original = self.image.copy() if include_images and not simulate else None
         status["mode_name"] = MODE_NAMES[status.get("mode", mode)] if int(status.get("mode", mode)) < len(MODE_NAMES) else str(status.get("mode", mode))
         if not include_images:
-            return {"status": status, "logs": logs, "simulate": simulate,
+            return {"status": status, "logs": logs, "simulate": simulate, "system_mode": system_mode,
                     "serial_connected": connected, "transfer_status": transfer_status,
                     "image_name": image_name, "source_revision": source_revision,
                     "results_revision": results_revision, "source_kind": source_kind,
@@ -207,7 +209,7 @@ class WebState:
         else:
             preview = self.render_png(mode, center, width, alpha)
         return {"image": preview, "status": status,
-                "logs": logs, "simulate": simulate, "serial_connected": connected,
+                "logs": logs, "simulate": simulate, "system_mode": system_mode, "serial_connected": connected,
                 "image_name": image_name, "processed_results": processed_results,
                 "transfer_status": transfer_status, "source_revision": source_revision,
                 "results_revision": results_revision, "source_kind": source_kind,
@@ -382,12 +384,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/system_mode":
             mode = query.get("mode", [""])[0]
-            if mode not in ("simulation", "processing"):
+            if mode not in ("simulation", "processing", "medical"):
                 self.send_json({"ok": False, "error": "unsupported system mode"}, status=400)
                 return
             with self.state.lock:
                 self.state.simulate = mode == "simulation"
-            self.send_json({"ok": True, "simulate": mode == "simulation"})
+                self.state.system_mode = mode
+            self.send_json({"ok": True, "simulate": mode == "simulation", "system_mode": mode})
             return
         if parsed.path == "/api/command":
             if "mode" in query:

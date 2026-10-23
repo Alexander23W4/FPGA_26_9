@@ -699,6 +699,20 @@ def _set_video_mode(mode):
     return result
 
 
+def _set_system_mode(mode):
+    result = _write_byte_register(b"M", mode, "MODE", 1)
+    if result["ok"]:
+        result["reg_mode"] = result["value"]
+    return result
+
+
+def _require_return_path(state):
+    # The medical output is deliberately unconnected in the current PL top.
+    # Do not arm an S2MM/TCP job which can never receive a result in this mode.
+    if state is not None and getattr(state, 'system_mode', 'processing') == 'medical':
+        raise RuntimeError('医学模式配准输出尚未连接回传通路，当前仅支持切换模式；图像收发请使用图像处理模式')
+
+
 def _set_mask_transparency(value):
     result = _write_byte_register(b"P", value, "MASK_TRANSP", 100)
     if result["ok"]:
@@ -881,6 +895,7 @@ def _display_job(bin_bytes, filename, mode, state, upload, stream_folder=None, s
     result_name = None
     readback = None
     try:
+        _require_return_path(state)
         if upload:
             _validate_bin_frame(bin_bytes, filename)
         mode = int(mode)
@@ -898,6 +913,7 @@ def _display_job(bin_bytes, filename, mode, state, upload, stream_folder=None, s
     modes = list(range(5)) if mode == 5 else [mode]
     context = None
     try:
+        _require_return_path(state)  # mode changes share _TRANSFER_LOCK
         key = (upload, hashlib.sha256(bin_bytes).digest(), filename, mode, result_name)
         if _DISPLAY_PENDING is not None:
             if _DISPLAY_PENDING['key'] != key:
@@ -1168,6 +1184,7 @@ class NetworkHandler(web_common.Handler):
             if not _TRANSFER_LOCK.acquire(blocking=False):
                 raise RuntimeError('another FPGA frame is in progress')
             acquired = True
+            _require_return_path(self.state)
             if _DISPLAY_PENDING is not None:
                 raise RuntimeError('上一单图任务尚未完成，请先恢复原任务')
             started = time.perf_counter()
@@ -1213,6 +1230,33 @@ class NetworkHandler(web_common.Handler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/system_mode':
+            mode = parse_qs(parsed.query).get('mode', [''])[0]
+            if mode not in ('simulation', 'processing', 'medical'):
+                self.send_json({'ok': False, 'error': 'unsupported system mode'}, status=400)
+                return
+            if not _TRANSFER_LOCK.acquire(blocking=False):
+                self.send_json({'ok': False, 'error': '请先停止流或等待当前图像任务完成，再切换系统模式'}, status=409)
+                return
+            try:
+                if _DISPLAY_PENDING is not None or _FRAME_CLIENT.pending is not None:
+                    raise RuntimeError('上一帧回传尚未完成，请先完成原任务再切换模式')
+                extra = {}
+                if mode != 'simulation':
+                    extra = _set_system_mode(1 if mode == 'medical' else 0)
+                    if not extra['ok']:
+                        raise RuntimeError(extra['log'])
+                # Commit GUI state only after the matching PL MODE readback.
+                with self.state.lock:
+                    self.state.simulate = mode == 'simulation'
+                    self.state.system_mode = mode
+                self.send_json({**extra, 'ok': True, 'simulate': mode == 'simulation',
+                                'system_mode': mode})
+            except Exception as error:
+                self.send_json({'ok': False, 'error': str(error)}, status=400)
+            finally:
+                _TRANSFER_LOCK.release()
+            return
         if parsed.path == '/api/network/stream/datasets':
             try:
                 dataset = parse_qs(parsed.query).get('dataset', [''])[0]
@@ -1331,6 +1375,7 @@ class NetworkServer(web_common.ThreadingHTTPServer):
             return self.stream
 
     def start_stream(self, state, options):
+        _require_return_path(state)
         folder = options.get('folder', '')
         _stream_target(folder, 'frame.bin', 'frame.bin')
         mode = int(options.get('mode', 0))
@@ -1341,6 +1386,7 @@ class NetworkServer(web_common.ThreadingHTTPServer):
             if not _TRANSFER_LOCK.acquire(blocking=False):
                 raise RuntimeError('已有图像或流正在传输，请先停止当前任务')
             try:
+                _require_return_path(state)
                 if _DISPLAY_PENDING is not None or _FRAME_CLIENT.pending is not None:
                     raise RuntimeError('上一图像任务尚未完成，请先恢复原任务')
                 client = _FRAME_CLIENT

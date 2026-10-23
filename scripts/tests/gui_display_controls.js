@@ -11,6 +11,7 @@ function element() {
 }
 const document = {
   getElementById(id) {return elements[id] ||= element();},
+  querySelectorAll() {return [];},
   createElement: element, createTextNode: text => ({textContent: text})
 };
 const ctx = vm.createContext({document, setInterval() {}, updateOverlayControls() {}, updatePreviewLayout() {},

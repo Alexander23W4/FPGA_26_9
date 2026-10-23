@@ -15,6 +15,7 @@ let simulateOn=false;
 let lastThreshold=null;
 let systemModePending=false;
 let systemModeRevision=0;
+let confirmedSystemMode=systemMode.value;
 let processedResults={};
 let sourceRevision=-1;
 let resultsRevision=-1;
@@ -218,7 +219,11 @@ function updateModeMenu(){
 function updatePreviewLabel(){
   document.getElementById('previewMode').textContent=simulateOn?document.getElementById('mode').selectedOptions[0].textContent:'本地预览';
 }
-function setSimulateState(enabled){
+function setSimulateState(enabled,confirmedMode=null){
+  if(['simulation','processing','medical'].includes(confirmedMode)){
+    confirmedSystemMode=confirmedMode;
+    systemMode.value=confirmedMode;
+  }
   if(simulateOn!==enabled)lastThreshold=null;
   simulateOn=enabled;
   if(enabled)systemMode.value='simulation';
@@ -240,16 +245,15 @@ for(const button of modeButtons){
   });
 }
 systemMode.addEventListener('change',async()=>{
-  const previous=simulateOn,mode=systemMode.value;
-  const backendMode=mode==='medical'?'processing':mode;
+  const previous=confirmedSystemMode,mode=systemMode.value;
   systemModeRevision++;systemModePending=true;systemMode.disabled=true;
   setSimulateState(mode==='simulation');
   try{
-    const response=await fetch('/api/system_mode?mode='+encodeURIComponent(backendMode));
+    const response=await fetch('/api/system_mode?mode='+encodeURIComponent(mode));
     const result=await response.json();
     if(!response.ok||!result.ok)throw new Error(result.error||'系统模式切换失败');
-    setSimulateState(Boolean(result.simulate));
-  }catch(e){setSimulateState(previous);alert('系统模式切换失败: '+e.message);}
+    setSimulateState(Boolean(result.simulate),result.system_mode||mode);
+  }catch(e){setSimulateState(previous==='simulation',previous);alert('系统模式切换失败: '+e.message);}
   finally{
     systemModePending=false;systemMode.disabled=false;updateModeMenu();
     try{await reloadOriginalImage();}catch(e){/* Keep the existing preview if the source reload fails. */}
@@ -293,7 +297,7 @@ async function poll(){
     const response=await fetch(includeImages?'/api/state?'+query:'/api/network/state');
     const state=await response.json();
     if(systemModePending||revision!==systemModeRevision)return;
-    setSimulateState(Boolean(state.simulate));
+    setSimulateState(Boolean(state.simulate),state.system_mode);
     if(!fastStreamMode()&&state.image){
       showOriginalFrame(state.image,state.image_name,state.source_revision);
       if(state.processed_results)renderProcessedResults(state.processed_results,state.results_revision);

@@ -248,9 +248,6 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
     assign threshold_out = frame_busy ? frame_threshold : threshold;
     assign auto_mode_out = frame_busy ? frame_auto : auto_mode;
     assign frame_done_out= m_axis_tlast;       // frame done forwarded  给下一级的, 所以要用输出的eof
-
-    // ★ Prevent unused signal optimization
-    // reg_cmd 现在用于选择阈值模式, 不能再丢进 _unused
-    wire _unused = &{1'b0, reg_mode};
+    assign reg_mode_out = reg_mode[0]; // 0 image processing, 1 medical registration
 
 endmodule

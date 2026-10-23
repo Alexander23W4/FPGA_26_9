@@ -117,6 +117,25 @@ module top1 #(
         .px_sof(px_sof), .px_eol(px_eol), .px_ready(px_ready)
     );
 
+
+    reg [31:0] EDV_LA;
+    reg [31:0] ESV_LA;
+    reg [31:0] EDV_RA;
+    reg [31:0] ESV_RA;
+    reg [31:0] EDV_LV;
+    reg [31:0] ESV_LV;
+    reg [31:0] EDV_RV;
+    reg [31:0] ESV_RV;
+    wire [31:0] EF_LV;
+    wire [31:0] EF_RV;
+    assign EF_LV = (EDV_LV - ESV_LV) * 100 / EDV_LV;  // 射血分数的百分号值, 这里直接用了除号, 要优化一下, 能够输出比如13.56%或者-44.39%这样保留两位小数
+    assign EF_RV = (EDV_RV - ESV_RV) * 100 / EDV_RV;
+    reg [31:0] GLS_LA;
+    reg [31:0] GLS_RA;
+    reg [31:0] GLS_LV;
+    reg [31:0] GLS_RV;
+    
+
     wire [7:0] dn_data, ts_data;
     wire dn_valid, dn_eof, dn_ready;
     wire ts_contour, ts_mask, hdl_valid, hdl_eof, hdl_ready;
@@ -128,10 +147,28 @@ module top1 #(
     reset_sync u_rst_clk(.clk(clk), .arst(rst), .rst(rst_clk));
     reset_sync u_rst_pclk(.clk(pclk), .arst(rst), .rst(rst_pclk));
     reset_sync u_rst_x5(.clk(pclk_x5), .arst(rst), .rst(rst_x5));
-    
+    wire reg_mode, selected_mode;
+    wire [7:0] image_data, medical_data;
+    wire image_valid, image_eof, image_ready;
+    wire medical_valid, medical_eof, medical_ready;
+    frame_xbar u_input_xbar (
+        .clk(clk), .rst(rst_clk), .reg_mode(reg_mode),
+        .in_data(px_data[7:0]), .in_valid(px_valid), .in_eof(px_eof), .in_ready(px_ready),
+        .image_data(image_data), .image_valid(image_valid), .image_eof(image_eof), .image_ready(image_ready),
+        .medical_data(medical_data), .medical_valid(medical_valid), .medical_eof(medical_eof), .medical_ready(medical_ready),
+        .selected_mode(selected_mode)
+    );
+    registration_top u_registration (
+        .clk(clk), .rst(rst_clk || !selected_mode),
+        .in_data(medical_data), .in_valid(medical_valid), .in_eof(medical_eof), .in_ready(medical_ready),
+        // Reserved for the future medical pipeline. Drain every output pixel
+        // so this unconnected branch never stalls on its own output FIFO.
+        .out_data(), .out_valid(), .out_eof(), .out_ready(1'b1),
+        .reg_dx(), .reg_dy(), .reg_sad(), .reg_valid(), .reg_done(), .frame_count(), .frame_error()
+    );
     denoise u_denoise (
-        .ap_clk(clk), .ap_rst(rst_clk), .in_data(px_data[7:0]),
-        .in_valid(px_valid), .in_last(px_eof), .in_ready(px_ready),
+        .ap_clk(clk), .ap_rst(rst_clk), .in_data(image_data),
+        .in_valid(image_valid), .in_last(image_eof), .in_ready(image_ready),
         .out_ready(dn_ready), .out_data(dn_data), .out_valid(dn_valid), .out_last(dn_eof)
     );
 
@@ -148,6 +185,7 @@ module top1 #(
         .m_axis_tready(hdl_ready), .m_axis_tlast(hdl_eof),
         .m_axis_tmask(ts_mask), .m_axis_tcontour(ts_contour),
         .threshold_out(), .auto_mode_out(), .frame_done_out(),
+        .reg_mode_out(reg_mode),
         .video_mode_out(video_mode), .mask_transparency_out(mask_transparency),
         .hdmi_enable_out(hdmi_enable),
         .back_frame_mode(back_frame_mode),

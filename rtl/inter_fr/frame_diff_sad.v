@@ -1,102 +1,70 @@
 `timescale 1ns / 1ps
-// Streaming SAD core for one candidate translation.
-// Reference and candidate memories are synchronous: addresses are presented in
-// FETCH, and the returned data are consumed one cycle later in ACC.
+// One ROI pixel pair per clock, including synchronous BRAM read latency.
+// Candidates stop once their partial SAD exceeds sad_limit. Since differences
+// are nonnegative, a rejected candidate cannot beat the exact winning SAD.
 module frame_diff_sad #(
-    parameter integer ADDR_W = 16,
-    parameter integer DATA_W = 8
+    parameter integer ADDR_W=16, DATA_W=8
 )(
-    input  wire                 clk,
-    input  wire                 rst,
-    input  wire                 start,
-    input  wire [ADDR_W-1:0]    ref_base,
-    input  wire [ADDR_W-1:0]    cur_base,
-    input  wire [15:0]          frame_w,
-    input  wire [15:0]          roi_w,
-    input  wire [15:0]          roi_h,
-    output reg  [ADDR_W-1:0]    ref_addr,
-    output reg  [ADDR_W-1:0]    cur_addr,
-    input  wire [DATA_W-1:0]    ref_data,
-    input  wire [DATA_W-1:0]    cur_data,
-    output reg                  busy,
-    output reg                  done,
-    output reg  [31:0]          sad
+    input wire clk, rst, start,
+    input wire [ADDR_W-1:0] ref_base, cur_base,
+    input wire [15:0] frame_w, roi_w, roi_h,
+    input wire [31:0] sad_limit,
+    output reg [ADDR_W-1:0] ref_addr, cur_addr,
+    input wire [DATA_W-1:0] ref_data, cur_data,
+    output reg busy, done,
+    output reg [31:0] sad
 );
-    localparam [1:0] IDLE  = 2'd0;
-    localparam [1:0] FETCH = 2'd1;
-    localparam [1:0] ACC   = 2'd2;
-
-    reg [1:0]  state;
-    reg [15:0] x, y;
-    reg [15:0] frame_w_r, roi_w_r, roi_h_r;
-    reg [ADDR_W-1:0] ref_base_r, cur_base_r;
-    reg [31:0] acc;
-    wire [31:0] diff = (ref_data > cur_data)
-                     ? (ref_data - cur_data)
-                     : (cur_data - ref_data);
-
+    reg issuing, ram_valid, ram_last, diff_valid, diff_last;
+    reg [15:0] x, y, width_q, height_q;
+    reg [ADDR_W-1:0] row_step;
+    reg [DATA_W-1:0] diff_q;
+    reg [31:0] acc, limit_q;
+    wire last_x = x == width_q - 1'b1;
+    wire last_y = y == height_q - 1'b1;
+    wire [31:0] next_sum = acc + diff_q;
     always @(posedge clk) begin
         if (rst) begin
-            state      <= IDLE;
-            busy       <= 1'b0;
-            done       <= 1'b0;
-            sad        <= 32'd0;
-            acc        <= 32'd0;
-            x          <= 16'd0;
-            y          <= 16'd0;
-            ref_addr   <= {ADDR_W{1'b0}};
-            cur_addr   <= {ADDR_W{1'b0}};
-            frame_w_r  <= 16'd1;
-            roi_w_r    <= 16'd1;
-            roi_h_r    <= 16'd1;
-            ref_base_r <= {ADDR_W{1'b0}};
-            cur_base_r <= {ADDR_W{1'b0}};
+            busy<=0; done<=0; sad<=0; acc<=0; limit_q<=0;
+            issuing<=0; ram_valid<=0; ram_last<=0;
+            diff_valid<=0; diff_last<=0; diff_q<=0;
+            x<=0; y<=0; width_q<=1; height_q<=1; row_step<=1;
+            ref_addr<=0; cur_addr<=0;
         end else begin
-            done <= 1'b0;
-            case (state)
-                IDLE: begin
-                    busy <= 1'b0;
-                    if (start) begin
-                        frame_w_r  <= frame_w;
-                        roi_w_r    <= roi_w;
-                        roi_h_r    <= roi_h;
-                        ref_base_r <= ref_base;
-                        cur_base_r <= cur_base;
-                        x          <= 16'd0;
-                        y          <= 16'd0;
-                        acc        <= 32'd0;
-                        ref_addr   <= ref_base;
-                        cur_addr   <= cur_base;
-                        busy       <= 1'b1;
-                        state      <= FETCH;
-                    end
-                end
-                FETCH: begin
-                    // The synchronous RAM samples the addresses on this edge.
-                    state <= ACC;
-                end
-                ACC: begin
-                    acc <= acc + diff;
-                    if (x + 16'd1 < roi_w_r) begin
-                        x        <= x + 16'd1;
-                        ref_addr <= ref_base_r + (y * frame_w_r) + (x + 16'd1);
-                        cur_addr <= cur_base_r + (y * frame_w_r) + (x + 16'd1);
-                        state    <= FETCH;
-                    end else if (y + 16'd1 < roi_h_r) begin
-                        x        <= 16'd0;
-                        y        <= y + 16'd1;
-                        ref_addr <= ref_base_r + ((y + 16'd1) * frame_w_r);
-                        cur_addr <= cur_base_r + ((y + 16'd1) * frame_w_r);
-                        state    <= FETCH;
+            done<=0;
+            if (start && !busy) begin
+                width_q<=roi_w; height_q<=roi_h;
+                row_step<=frame_w-roi_w+16'd1;
+                x<=0; y<=0; ref_addr<=ref_base; cur_addr<=cur_base;
+                acc<=0; limit_q<=sad_limit; ram_valid<=0; diff_valid<=0;
+                if (roi_w==0 || roi_h==0) begin
+                    sad<=0; done<=1; issuing<=0; busy<=0;
+                end else begin issuing<=1; busy<=1; end
+            end else begin
+                // RAM samples the current address here. Its result is sampled
+                // by the difference stage on the following edge.
+                ram_valid<=issuing;
+                ram_last<=issuing && last_x && last_y;
+                if (issuing) begin
+                    if (last_x) begin
+                        x<=0; y<=y+1'b1;
+                        ref_addr<=ref_addr+row_step; cur_addr<=cur_addr+row_step;
+                        if (last_y) issuing<=0;
                     end else begin
-                        sad   <= acc + diff;
-                        done  <= 1'b1;
-                        busy  <= 1'b0;
-                        state <= IDLE;
+                        x<=x+1'b1;
+                        ref_addr<=ref_addr+1'b1; cur_addr<=cur_addr+1'b1;
                     end
                 end
-                default: state <= IDLE;
-            endcase
+                diff_valid<=ram_valid; diff_last<=ram_last;
+                if (ram_valid)
+                    diff_q<=ref_data>=cur_data ? ref_data-cur_data : cur_data-ref_data;
+                if (diff_valid) begin
+                    acc<=next_sum;
+                    if (diff_last || next_sum>limit_q) begin
+                        sad<=next_sum; done<=1; busy<=0;
+                        issuing<=0; ram_valid<=0; diff_valid<=0;
+                    end
+                end
+            end
         end
     end
 endmodule
