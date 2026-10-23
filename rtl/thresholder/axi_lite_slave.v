@@ -8,7 +8,7 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
     input wire [31:0] s_axi_awaddr, input wire s_axi_awvalid,
     output wire s_axi_awready,
     input wire [31:0] s_axi_wdata, input wire [3:0] s_axi_wstrb,
-    input wire s_axi_wvalid, output wire s_axi_wready,
+    input wire s_axi_wvalid, output wire s_axi_wreadfy,
     output reg [1:0] s_axi_bresp, output reg s_axi_bvalid,
     input wire s_axi_bready,
     input wire [31:0] s_axi_araddr, input wire s_axi_arvalid,

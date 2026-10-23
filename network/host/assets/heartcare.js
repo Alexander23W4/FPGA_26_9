@@ -24,6 +24,7 @@ let frameRatePaused=false;
 const streamModeLabels=['去噪流','轮廓流','二值掩膜流','叠加掩膜流','伪彩色映射流'];
 
 function isStreamMode(){return typeof dshStreamMode!=='undefined'&&dshStreamMode;}
+function isProcessingMode(){return systemMode.value==='processing'||systemMode.value==='medical';}
 function fastStreamMode(){return isStreamMode()&&typeof dshFastStream!=='undefined'&&dshFastStream;}
 function streamRunning(){return typeof dshStreamRunning!=='undefined'&&dshStreamRunning;}
 function transferBusy(){return (typeof dshTransferBusy!=='undefined'&&dshTransferBusy)||streamRunning();}
@@ -96,9 +97,9 @@ function renderProcessedResults(results,revision=null){
     const last=entries.length?entries[entries.length-1]:null;
     comparisonResult=last&&last[1];
     const actualMode=comparisonResult&&comparisonResult.mode!==undefined?Number(comparisonResult.mode):last?Number(last[0]):Number(fpgaOutputMode.value);
-    document.getElementById('comparisonProcessedLabel').textContent=streamModeLabels[actualMode]||'处理流';
+    document.getElementById('comparisonProcessedLabel').textContent=systemMode.value==='medical'?'处理流':(streamModeLabels[actualMode]||'处理流');
   }else{
-    document.getElementById('comparisonProcessedLabel').textContent=fpgaOutputMode.selectedOptions[0].textContent;
+    document.getElementById('comparisonProcessedLabel').textContent=systemMode.value==='medical'?'处理流':fpgaOutputMode.selectedOptions[0].textContent;
   }
   let visibleResultChanged=show('comparisonProcessed',comparisonResult)&&!comparisonPreview.hidden;
   for(let mode=0;mode<5;mode++){
@@ -110,10 +111,11 @@ function renderProcessedResults(results,revision=null){
 }
 
 function updatePreviewLayout(){
-  const processing=systemMode.value==='processing';
+  const processing=isProcessingMode();
+  const medical=systemMode.value==='medical';
   const stream=isStreamMode();
   document.getElementById('fullDisplayOption').disabled=stream;
-  const showAll=processing&&!stream&&fpgaOutputMode.value==='5';
+  const showAll=processing&&!medical&&!stream&&fpgaOutputMode.value==='5';
   const showComparison=processing&&!showAll;
   singlePreview.hidden=processing;
   comparisonPreview.hidden=!showComparison;
@@ -125,9 +127,9 @@ function updatePreviewLayout(){
     document.getElementById('comparisonOriginal').hidden=true;
     document.getElementById('comparisonProcessed').hidden=true;
   }else document.getElementById('comparisonOriginal').hidden=false;
-  document.getElementById('comparisonOriginalLabel').textContent=stream?'原流':'原图';
-  document.getElementById('comparisonOriginal').alt=stream?'原流':'原图';
-  document.getElementById('comparisonProcessed').alt=stream?'FPGA 回传处理流':'FPGA 回传处理图';
+  document.getElementById('comparisonOriginalLabel').textContent=medical||stream?'原流':'原图';
+  document.getElementById('comparisonOriginal').alt=medical||stream?'原流':'原图';
+  document.getElementById('comparisonProcessed').alt=medical?'处理流':stream?'FPGA 回传处理流':'FPGA 回传处理图';
   renderProcessedResults(processedResults);
 }
 fpgaOutputMode.addEventListener('change',updatePreviewLayout);
@@ -210,7 +212,8 @@ function updateModeMenu(){
     button.setAttribute('aria-pressed',String(button.dataset.mode===systemMode.value));
     button.disabled=systemModePending||transferBusy();
   }
-  document.getElementById('currentModeCaption').textContent=simulateOn?'模拟模式':'图像处理模式';
+  const captions={simulation:'模拟模式',processing:'图像处理模式',medical:'医学分析模式'};
+  document.getElementById('currentModeCaption').textContent=captions[systemMode.value]||'图像处理模式';
 }
 function updatePreviewLabel(){
   document.getElementById('previewMode').textContent=simulateOn?document.getElementById('mode').selectedOptions[0].textContent:'本地预览';
@@ -218,9 +221,13 @@ function updatePreviewLabel(){
 function setSimulateState(enabled){
   if(simulateOn!==enabled)lastThreshold=null;
   simulateOn=enabled;
-  systemMode.value=enabled?'simulation':'processing';
+  if(enabled)systemMode.value='simulation';
+  else if(systemMode.value==='simulation')systemMode.value='processing';
+  document.body.classList.toggle('medical-mode',systemMode.value==='medical');
   updateModeMenu();updatePreviewLabel();updatePreviewLayout();
-  for(const group of document.querySelectorAll('[data-system-mode]'))group.hidden=group.dataset.systemMode!==systemMode.value;
+  for(const group of document.querySelectorAll('[data-system-mode]')){
+    group.hidden=group.dataset.systemMode!==systemMode.value&&!(group.dataset.systemMode==='processing'&&isProcessingMode());
+  }
   updateThresholdControls();
 }
 for(const button of modeButtons){
@@ -234,10 +241,11 @@ for(const button of modeButtons){
 }
 systemMode.addEventListener('change',async()=>{
   const previous=simulateOn,mode=systemMode.value;
+  const backendMode=mode==='medical'?'processing':mode;
   systemModeRevision++;systemModePending=true;systemMode.disabled=true;
   setSimulateState(mode==='simulation');
   try{
-    const response=await fetch('/api/system_mode?mode='+encodeURIComponent(mode));
+    const response=await fetch('/api/system_mode?mode='+encodeURIComponent(backendMode));
     const result=await response.json();
     if(!response.ok||!result.ok)throw new Error(result.error||'系统模式切换失败');
     setSimulateState(Boolean(result.simulate));

@@ -128,6 +128,7 @@ module top1 #(
     reset_sync u_rst_clk(.clk(clk), .arst(rst), .rst(rst_clk));
     reset_sync u_rst_pclk(.clk(pclk), .arst(rst), .rst(rst_pclk));
     reset_sync u_rst_x5(.clk(pclk_x5), .arst(rst), .rst(rst_x5));
+    
     denoise u_denoise (
         .ap_clk(clk), .ap_rst(rst_clk), .in_data(px_data[7:0]),
         .in_valid(px_valid), .in_last(px_eof), .in_ready(px_ready),

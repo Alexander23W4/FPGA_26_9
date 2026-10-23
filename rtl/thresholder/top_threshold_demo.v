@@ -55,6 +55,7 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
     output wire        auto_mode_out,     // 1 = auto, 0 = manual
     output wire        frame_done_out,     // frame done forwarded
 
+    output wire reg_mode_out,
     output wire [31:0] video_mode_out,
     output wire hdmi_enable_out,
     output wire [31:0] mask_transparency_out,

@@ -86,11 +86,17 @@ async function produce(run){
       const entry=files[index];
       if(!data){
         const start=performance.now();
-        data=await entry.file.arrayBuffer();sourceMs=performance.now()-start;
+        if(entry.file)data=await entry.file.arrayBuffer();
+        else{
+          const source=await fetch(entry.sourceUrl,{cache:'no-store'});
+          if(!source.ok)throw new Error('读取预设流帧失败: '+(entry.name||'未知文件'));
+          data=await source.arrayBuffer();
+        }
+        sourceMs=performance.now()-start;
         if(!run.running)break;
         if(data.byteLength!==65536)throw new Error('BIN 必须恰好为 65536 字节');
       }
-      const query=new URLSearchParams({session:run.session,name:entry.file.name,
+      const query=new URLSearchParams({session:run.session,name:entry.name||entry.file.name,
         path:entry.path,index:String(index),sequence:String(sequence)});
       const response=await fetch('/api/network/stream/enqueue?'+query,{method:'POST',
         headers:{'Content-Type':'application/octet-stream'},body:data});

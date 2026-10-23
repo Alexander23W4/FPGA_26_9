@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import secrets
 import socket
 import struct
@@ -293,7 +294,7 @@ document.getElementById('imageFile').addEventListener('change', async e => {
     document.getElementById('imageName').textContent = '当前图像: ' + j.name;
     renderProcessedResults({});
     await poll();
-    if (document.getElementById('systemMode').value === 'processing') await dshProcess(true);
+    if (isProcessingMode()) await dshProcess(true);
   });
 });
 let lastConfirmedVideoMode = 0;
@@ -431,7 +432,7 @@ function dshRunStreamWorker(entries,streamChanged) {
           ' ms · Canvas 提交 '+(dshNow()-paintStarted).toFixed(2)+' ms';
         const result=processed.metadata;
         document.getElementById('streamProcessedCanvas').setAttribute('data-result-job',String(result.job));
-        document.getElementById('comparisonProcessedLabel').textContent=streamModeLabels[result.mode];
+        document.getElementById('comparisonProcessedLabel').textContent=document.getElementById('systemMode').value==='medical'?'处理流':streamModeLabels[result.mode];
         updateFrameRate();processed=null;
       }
     });
@@ -463,28 +464,46 @@ function dshRunStreamWorker(entries,streamChanged) {
       mode:document.getElementById('fpgaOutputMode').value,times:dshStreamSamples.map(t=>t+offset)});
   });
 }
-async function dshStartStream(files) {
+async function dshStartStream(files, preset=null) {
   if (dshTransferBusy || dshStreamRunning || systemModePending) return;
   let performanceStarted = false;
   dshTransferBusy = true;
   dshStreamControls();
   try {
-    const entries = Array.from(files).filter(file => file.name.toLowerCase().endsWith('.bin')).map(file => {
-      dshValidateBin(file);
-      const parts = file.webkitRelativePath.split('/');
-      const folder = parts.shift(), path = parts.join('/');
-      if (!folder || !path) throw new Error('请选择包含 BIN 图像的文件夹');
-      return {file, folder, path};
-    });
+    let entries, folder;
+    if (preset) {
+      document.getElementById('processingStatus').textContent =
+        preset === 'cardiac' ? '请选择一个 Cardiac patient 文件夹…' : '请选择一个 Camus patient 文件夹…';
+      const response = await fetch('/api/network/stream/datasets?dataset=' + encodeURIComponent(preset));
+      const catalog = await response.json();
+      document.getElementById('processingStatus').textContent = '';
+      if (catalog.cancelled) return;
+      if (!response.ok || !catalog.ok) throw new Error(catalog.error || '读取流数据集失败');
+      folder = catalog.folder;
+      entries = catalog.files.map(item => ({...item, sourceUrl:'/api/network/stream/dataset-frame?' +
+        new URLSearchParams({dataset:preset,path:item.path}).toString()}));
+    } else {
+      entries = Array.from(files).filter(file => file.name.toLowerCase().endsWith('.bin')).map(file => {
+        dshValidateBin(file);
+        const parts = file.webkitRelativePath.split('/');
+        const entryFolder = parts.shift(), path = parts.join('/');
+        if (!entryFolder || !path) throw new Error('请选择包含 BIN 图像的文件夹');
+        return {file, name:file.name, size:file.size, folder:entryFolder, path};
+      });
+      folder = entries.length ? entries[0].folder : '';
+    }
     if (!entries.length) throw new Error('所选文件夹没有 BIN 图像');
-    const folder = entries[0].folder;
-    if (entries.some(entry => entry.folder !== folder)) throw new Error('一次只能选择一个流文件夹');
-    entries.sort((a,b) => a.path.localeCompare(b.path, 'zh-CN', {numeric:true, sensitivity:'base'}));
-    const signature = folder + '\n' + entries.map(entry => entry.path).join('\n');
+    if (entries.some(entry => !entry.name.toLowerCase().endsWith('.bin') || entry.size !== 65536))
+      throw new Error('流数据集中存在不是 65536 字节的 BIN 文件');
+    if (!preset) {
+      if (entries.some(entry => entry.folder !== folder)) throw new Error('一次只能选择一个流文件夹');
+      entries.sort((a,b) => a.path.localeCompare(b.path, 'zh-CN', {numeric:true, sensitivity:'base'}));
+    }
+    const signature = (preset || 'local') + '\n' + folder + '\n' + entries.map(entry => entry.path).join('\n');
     const streamChanged = signature !== dshStreamSignature;
     if (streamChanged) dshStreamIndex = 0;
     dshStreamSignature = signature; dshStreamFolder = folder; dshStreamFiles = entries;
-    if (document.getElementById('systemMode').value !== 'processing') {
+    if (!isProcessingMode()) {
       systemModeRevision++; systemModePending = true;
       try {
         const response = await fetch('/api/system_mode?mode=processing');
@@ -515,7 +534,19 @@ async function dshStartStream(files) {
 document.getElementById('chooseStream').addEventListener('click', () => {
   if (dshStreamRunning) { dshStopStream(); return; }
   if (dshTransferBusy) return;
-  const picker = document.getElementById('streamFolder'); picker.value = ''; picker.click();
+  document.getElementById('streamDatasetDialog').showModal();
+});
+document.querySelectorAll('[data-stream-dataset]').forEach(button => button.addEventListener('click', () => {
+  const dataset = button.dataset.streamDataset;
+  document.getElementById('streamDatasetDialog').close();
+  void dshStartStream(null, dataset);
+}));
+document.getElementById('streamDatasetClose').addEventListener('click', () =>
+  document.getElementById('streamDatasetDialog').close());
+document.getElementById('streamDatasetCancel').addEventListener('click', () =>
+  document.getElementById('streamDatasetDialog').close());
+document.getElementById('streamDatasetDialog').addEventListener('click', event => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
 });
 document.getElementById('streamFolder').addEventListener('change', async e => {
   if (e.target.files.length) await dshStartStream(e.target.files);
@@ -532,6 +563,10 @@ _REPO = _Path(__file__).resolve().parents[2]
 _SERIAL_PORT = _os.environ.get("SERIAL_PORT", "COM7")
 EMMC_FIXED_ADDR = 2048
 FRAME_BYTES = 256 * 256
+STREAM_DATASETS = {
+    'camus': ('Camus', Path(r'E:\camus\images')),
+    'cardiac': ('Cardiac', Path(r'E:\cardiarc_extract\cardiacUDC_gui_ready\sequences')),
+}
 FRAME_DONE_LINE = "RESULT: FRAME_DONE frames=1 bytes=65536"
 _SERIAL_LOCK = threading.RLock()
 _TRANSFER_LOCK = threading.Lock()
@@ -722,6 +757,98 @@ def _stream_target(folder, relative, filename):
     return result_name
 
 
+def _natural_path_key(value):
+    return tuple(int(part) if part.isdigit() else part.casefold()
+                 for part in re.split(r'(\d+)', value))
+
+
+def _dataset_root(dataset):
+    if dataset not in STREAM_DATASETS:
+        raise ValueError('未知流数据集')
+    label, configured_root = STREAM_DATASETS[dataset]
+    root = configured_root.resolve()
+    if not root.is_dir():
+        raise FileNotFoundError(f'{label} 数据目录不存在: {root}')
+    return label, root
+
+
+def _dataset_file(dataset, relative):
+    label, root = _dataset_root(dataset)
+    if not relative or '\\' in relative or relative.startswith('/'):
+        raise ValueError('数据集相对路径无效')
+    parts = relative.split('/')
+    if any(part in ('', '.', '..') for part in parts):
+        raise ValueError('数据集相对路径无效')
+    path = root.joinpath(*parts).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError('数据集路径越界') from exc
+    if not path.is_file() or path.suffix.lower() != '.bin':
+        raise FileNotFoundError(f'{label} BIN 文件不存在: {relative}')
+    if path.stat().st_size != FRAME_BYTES:
+        raise ValueError(f'{label} BIN 必须恰好为 {FRAME_BYTES} 字节: {relative}')
+    return label, path
+
+
+def _choose_dataset_folder(dataset):
+    """Open a native folder picker at the dataset root and return one selected patient folder."""
+    label, root = _dataset_root(dataset)
+    import tkinter as tk
+    from tkinter import filedialog
+
+    window = tk.Tk()
+    window.withdraw()
+    window.attributes('-topmost', True)
+    try:
+        selected = filedialog.askdirectory(
+            parent=window,
+            title=f'选择一个 {label} 患者文件夹',
+            initialdir=str(root),
+            mustexist=True,
+        )
+    finally:
+        window.destroy()
+    if not selected:
+        return label, root, None
+
+    selected = Path(selected).resolve()
+    try:
+        selected.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f'所选目录必须位于 {label} 数据目录内') from exc
+    if selected == root:
+        raise ValueError('请选择一个具体的 patient 文件夹，不要选择整个数据集目录')
+    if not selected.is_dir():
+        raise FileNotFoundError(f'所选 {label} 患者目录不存在: {selected}')
+    return label, root, selected
+
+
+def _dataset_catalog(dataset, selected_folder):
+    label, root = _dataset_root(dataset)
+    selected = Path(selected_folder).resolve()
+    try:
+        selected.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f'所选目录必须位于 {label} 数据目录内') from exc
+    if selected == root:
+        raise ValueError('请选择一个具体的 patient 文件夹，不要选择整个数据集目录')
+    if not selected.is_dir():
+        raise FileNotFoundError(f'所选 {label} 患者目录不存在: {selected}')
+    files = sorted((path for path in selected.rglob('*.bin') if path.is_file()),
+                   key=lambda path: _natural_path_key(path.relative_to(root).as_posix()))
+    if not files:
+        raise FileNotFoundError(f'所选 {label} 患者目录中没有 BIN 图像: {selected}')
+    entries = []
+    for path in files:
+        relative = path.relative_to(root).as_posix()
+        size = path.stat().st_size
+        if size != FRAME_BYTES:
+            raise ValueError(f'{label} BIN 必须恰好为 {FRAME_BYTES} 字节: {relative}')
+        entries.append({'name': path.name, 'path': relative, 'size': size})
+    return label, entries
+
+
 def _state_versions(state):
     if state is None:
         return {}
@@ -874,7 +1001,7 @@ def customize_page(page):
         '<div class="metric"><span>阈值模式</span><b id="dshRbMode">—</b></div>'
         '<div class="metric"><span>输出显示</span><b id="dshRbVid">—</b></div>'
         '<div class="metric"><span>掩膜透明度</span><b id="dshRbAlpha">—</b></div>'
-        '<div class="metric"><span>帧率</span><b><span id="dshGuiFps">—</span> <span class="unit">FPS</span></b></div>'
+        '<div class="metric" data-medical-fps><span>帧率</span><b><span id="dshGuiFps">—</span> <span class="unit">FPS</span></b></div>'
         '</div><div id="metrics"')
     return page.replace('</body>', TAIL_SCRIPT + '</body>')
 
@@ -1086,6 +1213,36 @@ class NetworkHandler(web_common.Handler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/network/stream/datasets':
+            try:
+                dataset = parse_qs(parsed.query).get('dataset', [''])[0]
+                label, root, selected = _choose_dataset_folder(dataset)
+                if selected is None:
+                    self.send_json({'ok': False, 'cancelled': True, 'dataset': dataset})
+                    return
+                _, entries = _dataset_catalog(dataset, selected)
+                self.send_json({'ok': True, 'dataset': dataset, 'folder': selected.name,
+                                'count': len(entries), 'files': entries})
+            except Exception as error:
+                self.send_json({'ok': False, 'error': str(error), 'log': str(error)}, status=400)
+            return
+        if parsed.path == '/api/network/stream/dataset-frame':
+            try:
+                query = parse_qs(parsed.query)
+                dataset = query.get('dataset', [''])[0]
+                relative = query.get('path', [''])[0]
+                _, path = _dataset_file(dataset, relative)
+                data = path.read_bytes()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('X-Content-Type-Options', 'nosniff')
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as error:
+                self.send_json({'ok': False, 'error': str(error), 'log': str(error)}, status=400)
+            return
         if parsed.path == '/api/network/stream/result':
             self.stream_result(parsed)
             return

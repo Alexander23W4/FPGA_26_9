@@ -1,5 +1,7 @@
 # CAMUS 数据转换工具
 
+本目录也包含 CardiacUDC cine 序列转换工具，见下方“CardiacUDC 流模式”。
+
 ## 转换范围
 
 已将 CAMUS_public 中全部 500 例患者的四个静态时相转换为 FPGA 工程可用格式：
@@ -57,3 +59,43 @@ CAMUS 是心脏超声数据，不是 CT。当前转换结果用于验证医学�
 ## 数据许可
 
 CAMUS 使用 CC BY-NC-SA 4.0，仅允许非商业科研用途。引用要求见 CAMUS_public/database_split/LICENSE_TERMS.md 和 information.txt。
+
+## CardiacUDC 流模式
+
+`tools/convert_cardiacudc.py` 用于把 `cardiacUDC_dataset` 中的 NIfTI cine 图像拆成逐帧 BIN，供 FPGA GUI 的“选择流文件夹”使用。它和上面的 CAMUS 静态时相转换是两套输入格式。
+
+PowerShell 示例：
+
+~~~powershell
+& 'E:/PythonVersionEnv/Python3.14.0/python.exe' `
+  'C:/Users/HUAWEI/Desktop/FPGA_26_9/camus_pipeline/tools/convert_cardiacudc.py' `
+  --input 'E:/cardiarc_extract/cardiacUDC_dataset' `
+  --output 'E:/cardiarc_extract/cardiacUDC_gui_ready'
+~~~
+
+输出按站点和病例分开，例如：
+
+~~~text
+cardiacUDC_gui_ready/
+  manifest.csv
+  sequences/
+    Site_G_100/patient1-4/000000.bin
+    Site_G_100/patient1-4/000001.bin
+    ...
+~~~
+
+GUI 中选择 `sequences/Site_G_100/patient1-4` 作为流文件夹。帧文件名补足六位数字，确保按 NIfTI 的帧轴顺序播放。每个 BIN 是无头文件的 256×256、8-bit 灰度数据，恰好 65,536 字节。GUI 按自己的发送速度循环播放，不会保留 NIfTI 中未提供的采集时间间隔。
+
+CardiacUDC 的源像素已是 8-bit；转换保留像素灰度范围，不做逐帧自动对比度拉伸。图像按 NIfTI 的 x/y 轴转为屏幕行列方向，并将超声扇区尖端统一放在上方；随后按比例缩放并居中补黑边，避免把 4:3 超声图像拉伸成正方形。标签不混入 GUI 输入目录；`manifest.csv` 会标出对应标签是否存在。
+
+先试转前两段序列：
+
+~~~powershell
+& 'E:/PythonVersionEnv/Python3.14.0/python.exe' `
+  'C:/Users/HUAWEI/Desktop/FPGA_26_9/camus_pipeline/tools/convert_cardiacudc.py' `
+  --input 'E:/cardiarc_extract/cardiacUDC_dataset' `
+  --output 'E:/cardiarc_extract/cardiacUDC_gui_ready' `
+  --limit 2
+~~~
+
+若要重跑已有输出并覆盖同名 BIN，加 `--overwrite`。转换不会修改 NIfTI 源文件。

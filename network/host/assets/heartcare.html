@@ -32,11 +32,11 @@
     <button id="menuClose" class="icon-button mobile-close" type="button" aria-label="关闭系统导航"><svg aria-hidden="true"><use href="#icon-close"/></svg></button>
   </div>
   <div class="nav-caption">工作空间</div>
-  <select id="systemMode" aria-label="系统模式" hidden><option value="simulation">模拟模式</option><option value="processing" selected>图像处理模式</option><option value="medical" disabled>医学分析模式</option></select>
+  <select id="systemMode" aria-label="系统模式" hidden><option value="simulation">模拟模式</option><option value="processing" selected>图像处理模式</option><option value="medical">医学分析模式</option></select>
   <nav class="mode-navigation" aria-label="系统模式">
     <button class="mode-option" type="button" data-mode="simulation" aria-pressed="false" title="模拟模式"><svg aria-hidden="true"><use href="#icon-image"/></svg><span class="nav-label">模拟模式<small>本地图像预览</small></span><span class="nav-indicator"></span></button>
     <button class="mode-option" type="button" data-mode="processing" aria-pressed="true" title="图像处理模式"><svg aria-hidden="true"><use href="#icon-chip"/></svg><span class="nav-label">图像处理模式<small>FPGA 图像管线</small></span><span class="nav-indicator"></span></button>
-    <button class="mode-option" type="button" disabled title="医学分析模式暂未开放"><svg aria-hidden="true"><use href="#icon-heart"/></svg><span class="nav-label">医学分析模式<small>暂未开放</small></span></button>
+    <button class="mode-option" type="button" data-mode="medical" aria-pressed="false" title="医学分析模式"><svg aria-hidden="true"><use href="#icon-heart"/></svg><span class="nav-label">医学分析模式<small>医学分析界面</small></span><span class="nav-indicator"></span></button>
   </nav>
   <div class="sidebar-footer"><span class="platform-icon"><svg aria-hidden="true"><use href="#icon-chip"/></svg></span><div class="platform-copy"><strong>Heartcare</strong><span>心脏超声图像处理平台</span></div></div>
 </aside>
@@ -121,6 +121,30 @@
   </div>
   <footer class="workspace-footer"><span>Heartcare <span class="footer-dot">·</span> 心脏超声图像工作台</span><span id="currentModeCaption">图像处理模式</span></footer>
 </main>
+<dialog id="streamDatasetDialog" class="stream-dataset-dialog" aria-labelledby="streamDatasetTitle">
+  <section class="stream-dataset-card">
+    <header class="stream-dataset-header">
+      <span class="stream-dataset-mark"><svg aria-hidden="true"><use href="#icon-heart"/></svg></span>
+      <button id="streamDatasetClose" class="icon-button" type="button" aria-label="关闭数据集选择">×</button>
+    </header>
+    <p class="stream-dataset-eyebrow">HEARTCARE · STREAM</p>
+    <h3 id="streamDatasetTitle">选择流数据集</h3>
+    <p class="stream-dataset-description">选择数据来源后，会从对应目录打开文件夹选择器。请选择一个 patient 文件夹；系统只循环发送该患者目录中的 BIN 帧。</p>
+    <div class="stream-dataset-options">
+      <button class="stream-dataset-option" type="button" data-stream-dataset="camus">
+        <span class="stream-dataset-icon"><svg aria-hidden="true"><use href="#icon-image"/></svg></span>
+        <span class="stream-dataset-copy"><strong>Camus</strong><small>选择单个 patient 文件夹</small><code>E:\camus\images</code></span>
+        <span class="stream-dataset-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="stream-dataset-option" type="button" data-stream-dataset="cardiac">
+        <span class="stream-dataset-icon"><svg aria-hidden="true"><use href="#icon-heart"/></svg></span>
+        <span class="stream-dataset-copy"><strong>Cardiac</strong><small>选择单个 patient 文件夹</small><code>E:\cardiarc_extract\cardiacUDC_gui_ready\sequences</code></span>
+        <span class="stream-dataset-arrow" aria-hidden="true">›</span>
+      </button>
+    </div>
+    <footer class="stream-dataset-footer"><span>选定患者目录后开始循环传输</span><button id="streamDatasetCancel" type="button">取消</button></footer>
+  </section>
+</dialog>
 <dialog id="imageViewer" class="image-viewer" aria-labelledby="imageViewerTitle">
   <header class="image-viewer-header">
     <h3 id="imageViewerTitle">图像查看</h3>
