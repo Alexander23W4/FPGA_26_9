@@ -8,7 +8,8 @@
 | `pclk` | 25.2 MHz | 帧缓存 HDMI 读口、显示格式计算、HDMI 光栅 |
 | `pclk_x5` | 126 MHz | HDMI 串行输出，仍与 pclk 来自同一 MMCM |
 
-处理时钟由新增 `clk_wiz_proc` 生成；HDMI 继续使用原 `clk_wiz_0`。
+处理时钟由新增 `clk_wiz_proc` 生成，输入接到原 `clk_wiz_0` 的 126 MHz 缓冲输出。
+这样两个 MMCM 共用板上的 `clk50M` 输入缓冲，避免同一封装时钟脚被放置两个 IBUF。
 两个 MMCM 都锁定后才释放公共复位；RTL 在三个域各自同步释放本地复位。
 `--fclk0` 改的是 PS FCLK，不能用它修改本项目的处理时钟。
 

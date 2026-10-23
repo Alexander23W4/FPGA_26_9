@@ -20,6 +20,8 @@ ensure_processing_clock
 ensure_return_dma
 ensure_processing_clock
 validate_bd_design
+if {[get_bd_nets -of_objects [get_bd_pins clk_wiz_proc/clk_in1]] ne
+    [get_bd_nets -of_objects [get_bd_pins clk_wiz_0/clk_out2]]} {error "processing MMCM input is not cascaded from the buffered serializer clock"}
 set procnet [get_bd_nets -of_objects [get_bd_pins clk_wiz_proc/clk_out1]]
 foreach pin {top1_0/clk processing_system7_0/M_AXI_GP0_ACLK processing_system7_0/S_AXI_HP0_ACLK axi_dma_return/m_axi_s2mm_aclk axi_vdma_0/m_axis_mm2s_aclk rst_ps7_50M/slowest_sync_clk u_ila_hdmi/clk} {
     if {[get_bd_nets -of_objects [get_bd_pins $pin]] ne $procnet} {error "unmigrated clock: $pin"}

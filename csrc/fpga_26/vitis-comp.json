@@ -3,7 +3,7 @@
   "type": "PLATFORM",
   "configuration": {
     "description": "",
-    "xsa": "C:\\Users\\HUAWEI\\Desktop\\FPGA_26_9\\build\\out\\2026-10-17_132457_c517fce-dirty_3nTdPG\\fpga_26.xsa",
+    "xsa": "C:\\Users\\HUAWEI\\Desktop\\FPGA_26_9\\build\\out\\2026-10-17_171139_e81b00a-dirty_nTBr8M\\fpga_26.xsa",
     "xsaPathInPlatform": "fpga_26\\hw\\fpga_26.xsa",
     "emulationXsa": "",
     "emulationXsaPathInPlatform": "",

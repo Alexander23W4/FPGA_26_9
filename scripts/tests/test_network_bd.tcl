@@ -10,6 +10,13 @@ ensure_processing_clock
 ensure_processing_clock
 validate_bd_design
 set proc_net [get_bd_nets -of_objects [get_bd_pins clk_wiz_proc/clk_out1]]
+set proc_input_net [get_bd_nets -of_objects [get_bd_pins clk_wiz_proc/clk_in1]]
+if {$proc_input_net ne [get_bd_nets -of_objects [get_bd_pins clk_wiz_0/clk_out2]]} {
+    error "processing MMCM must use the buffered 126-MHz clock"
+}
+if {[get_property CONFIG.PRIM_SOURCE [get_bd_cells clk_wiz_proc]] ne "No_buffer"} {
+    error "processing MMCM must not add a second input buffer"
+}
 foreach pin {top1_0/clk processing_system7_0/M_AXI_GP0_ACLK processing_system7_0/S_AXI_HP0_ACLK axi_dma_return/m_axi_s2mm_aclk axi_vdma_0/m_axis_mm2s_aclk rst_ps7_50M/slowest_sync_clk} {
     if {[get_bd_nets -of_objects [get_bd_pins $pin]] ne $proc_net} {error "wrong processing clock: $pin"}
 }
@@ -34,5 +41,5 @@ foreach {cell base} {axi_vdma_0 0x43000000 top1_0 0x44000000 axi_dma_return 0x45
     set seg [get_bd_addr_segs -of_objects [get_bd_addr_spaces processing_system7_0/Data] -filter "NAME =~ *${cell}*"]
     if {[llength $seg]!=1 || [expr {[get_property OFFSET $seg]}] != [expr {$base}]} {error "wrong address for $cell"}
 }
-puts "NETWORK_BD_OK: 32-bit S2MM, 64-bit HP0, 256KiB receive, stable addresses, idempotent migration"
+puts "NETWORK_BD_OK: shared input buffer, 80-MHz processing clock, 32-bit S2MM, 64-bit HP0, stable addresses, idempotent migration"
 close_project
