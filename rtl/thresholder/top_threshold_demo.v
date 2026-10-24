@@ -61,7 +61,15 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
     output wire [31:0] mask_transparency_out,
     input wire [7:0] back_frame_mode,
     input wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq,
-    input wire [2:0] back_status
+    input wire [2:0] back_status,
+    input wire [31:0] EDV_LA,
+    input wire [31:0] ESV_LA,
+    input wire [31:0] EDV_RA,
+    input wire [31:0] ESV_RA,
+    input wire [31:0] EDV_LV,
+    input wire [31:0] ESV_LV,
+    input wire [31:0] EDV_RV,
+    input wire [31:0] ESV_RV
 );
     reg [16:0] lesion_pixels;        // ★ 17 位: 一帧最多 256*256=65536, 16 位会溢出归零
     reg [16:0] lesion_pixels_save;   // Previous completed frame; byte offset 0x84.
@@ -106,6 +114,14 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
         .s_axi_rvalid  (s_axi_rvalid),
         .s_axi_rready  (s_axi_rready),
 
+        .EDV_LA(EDV_LA),
+        .ESV_LA(ESV_LA),
+        .EDV_RA(EDV_RA),
+        .ESV_RA(ESV_RA),
+        .EDV_LV(EDV_LV),
+        .ESV_LV(ESV_LV),
+        .EDV_RV(EDV_RV),
+        .ESV_RV(ESV_RV),
         .reg_mode      (reg_mode),
         .reg_cmd       (reg_cmd),
         .reg_threshold (reg_threshold),

@@ -36,7 +36,6 @@ module medical_axi_lite (
     input  wire [15:0] length_px,
     input  wire [63:0] edv_q16,
     input  wire [63:0] esv_q16,
-    input  wire signed [63:0] strain_q16,
     input  wire [31:0] ed_frame,
     input  wire [31:0] es_frame,
     input  wire [31:0] frame_id
@@ -52,8 +51,6 @@ module medical_axi_lite (
     localparam [6:0] ADDR_EDV_HI    = 7'h48;
     localparam [6:0] ADDR_ESV_LO    = 7'h49;
     localparam [6:0] ADDR_ESV_HI    = 7'h4A;
-    localparam [6:0] ADDR_STRAIN_LO = 7'h4B;
-    localparam [6:0] ADDR_STRAIN_HI = 7'h4C;
     localparam [6:0] ADDR_ED_FRAME  = 7'h4D;
     localparam [6:0] ADDR_ES_FRAME  = 7'h4E;
     localparam [6:0] ADDR_FRAME_ID  = 7'h4F;
@@ -141,8 +138,6 @@ module medical_axi_lite (
                         ADDR_EDV_HI:     rdata <= edv_q16[63:32];
                         ADDR_ESV_LO:     rdata <= esv_q16[31:0];
                         ADDR_ESV_HI:     rdata <= esv_q16[63:32];
-                        ADDR_STRAIN_LO:  rdata <= strain_q16[31:0];
-                        ADDR_STRAIN_HI:  rdata <= strain_q16[63:32];
                         ADDR_ED_FRAME:   rdata <= ed_frame;
                         ADDR_ES_FRAME:   rdata <= es_frame;
                         ADDR_FRAME_ID:   rdata <= frame_id;

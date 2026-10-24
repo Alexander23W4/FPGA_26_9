@@ -73,10 +73,6 @@ interface heart_analysis;
     output [31:0] ESV_LV;
     output [31:0] EDV_RV;
     output [31:0] ESV_RV;
-    output [31:0] GLS_LA;
-    output [31:0] GLS_RA;
-    output [31:0] GLS_LV;
-    output [31:0] GLS_RV;
 
 
 endinterface

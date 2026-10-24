@@ -118,23 +118,17 @@ module top1 #(
     );
 
 
-    reg [31:0] EDV_LA;
-    reg [31:0] ESV_LA;
-    reg [31:0] EDV_RA;
-    reg [31:0] ESV_RA;
-    reg [31:0] EDV_LV;
-    reg [31:0] ESV_LV;
-    reg [31:0] EDV_RV;
-    reg [31:0] ESV_RV;
+    wire [31:0] EDV_LA;
+    wire [31:0] ESV_LA;
+    wire [31:0] EDV_RA;
+    wire [31:0] ESV_RA;
+    wire [31:0] EDV_LV;
+    wire [31:0] ESV_LV;
+    wire [31:0] EDV_RV;
+    wire [31:0] ESV_RV;
     wire [31:0] EF_LV;
     wire [31:0] EF_RV;
-    assign EF_LV = (EDV_LV - ESV_LV) * 100 / EDV_LV;  // 射血分数的百分号值, 这里直接用了除号, 要优化一下, 能够输出比如13.56%或者-44.39%这样保留两位小数
-    assign EF_RV = (EDV_RV - ESV_RV) * 100 / EDV_RV;
-    reg [31:0] GLS_LA;
-    reg [31:0] GLS_RA;
-    reg [31:0] GLS_LV;
-    reg [31:0] GLS_RV;
-    
+
 
     wire [7:0] dn_data, ts_data;
     wire dn_valid, dn_eof, dn_ready;
@@ -166,6 +160,19 @@ module top1 #(
         .out_data(), .out_valid(), .out_eof(), .out_ready(1'b1),
         .reg_dx(), .reg_dy(), .reg_sad(), .reg_valid(), .reg_done(), .frame_count(), .frame_error()
     );
+    // Stream inputs reserved until the four-chamber segmentation is connected.
+    // Drive idle values explicitly so floating inputs cannot create X metrics.
+    medical_accel_top u_medical (
+        .clk(clk), .rst(rst_clk),
+        .in_data(8'd0), .in_valid(1'b0), .in_eof(1'b0), .in_ready(),
+        .in_LA_ctr(1'b0), .in_RA_ctr(1'b0), .in_LV_ctr(1'b0), .in_RV_ctr(1'b0),
+        .in_LA_mask(1'b0), .in_RA_mask(1'b0), .in_LV_mask(1'b0), .in_RV_mask(1'b0),
+        .out_data(), .out_valid(), .out_eof(), .out_ready(1'b1),
+        .out_LA_ctr(), .out_RA_ctr(), .out_LV_ctr(), .out_RV_ctr(),
+        .out_LA_mask(), .out_RA_mask(), .out_LV_mask(), .out_RV_mask(),
+        .EDV_LA(EDV_LA), .ESV_LA(ESV_LA), .EDV_RA(EDV_RA), .ESV_RA(ESV_RA),
+        .EDV_LV(EDV_LV), .ESV_LV(ESV_LV), .EDV_RV(EDV_RV), .ESV_RV(ESV_RV)
+    );
     denoise u_denoise (
         .ap_clk(clk), .ap_rst(rst_clk), .in_data(image_data),
         .in_valid(image_valid), .in_last(image_eof), .in_ready(image_ready),
@@ -174,6 +181,8 @@ module top1 #(
 
     top_threshold_demo #(.CLK_HZ(CLK_HZ)) u_top_threshold_demo (
         .clk(clk), .rst_n(~rst_clk),
+        .EDV_LA(EDV_LA), .ESV_LA(ESV_LA), .EDV_RA(EDV_RA), .ESV_RA(ESV_RA),
+        .EDV_LV(EDV_LV), .ESV_LV(ESV_LV), .EDV_RV(EDV_RV), .ESV_RV(ESV_RV),
         .s_axi_awaddr({23'd0, awaddr}), .s_axi_awvalid(awvalid), .s_axi_awready(awready),
         .s_axi_wdata(wdata), .s_axi_wstrb(wstrb), .s_axi_wvalid(wvalid), .s_axi_wready(wready),
         .s_axi_bresp(bresp), .s_axi_bvalid(bvalid), .s_axi_bready(bready),

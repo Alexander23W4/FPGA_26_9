@@ -15,6 +15,35 @@ def line(name, value, address=None):
 
 
 class DisplayRegistersTests(unittest.TestCase):
+    def test_medical_readback_formats_pixel_volume_and_unavailable(self):
+        response = ''.join(line(name, 0) for name in gui.PL_REGISTERS)
+        values = (12345, 4567, 1, 0, 98765, 12300, 0xffffffff, 0xffffffff)
+        for (name, address), value in zip(gui.MEDICAL_REGISTERS.items(), values):
+            response += line(name, value, address)
+        with patch.object(gui, '_board_talk', return_value=response):
+            result = gui._readback_regs()
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['medical_volume_index'], dict(
+            EDV_LA='123.45', ESV_LA='45.67', EDV_RA='0.01', ESV_RA='0.00',
+            EDV_LV='987.65', ESV_LV='123.00', EDV_RV=None, ESV_RV=None))
+        self.assertEqual(result['medical_raw']['EDV_RV'], 0xffffffff)
+        self.assertEqual(result['medical_volume_unit'], 'px^3')
+        self.assertNotIn('medical_volumes_ml', result)
+
+    def test_medical_readback_checks_word_addresses(self):
+        with self.assertRaises(ValueError):
+            gui._parse_pl_registers(line('EDV_LV', 12345, 0x50), ('EDV_LV',))
+        with self.assertRaises(ValueError):
+            gui._parse_pl_registers(line('EDV_LV', 0x100000000, 0x14), ('EDV_LV',))
+
+    def test_old_firmware_without_medical_results_still_reads_controls(self):
+        response = ''.join(line(name, 0) for name in gui.PL_REGISTERS)
+        with patch.object(gui, '_board_talk', return_value=response):
+            result = gui._readback_regs()
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['medical_raw'], {})
+        self.assertEqual(result['medical_volume_index'], {})
+
     @unittest.skipUnless(shutil.which('node'), 'Node.js is needed to execute GUI handlers')
     def test_actual_gui_handlers_through_http_and_uart_bridge(self):
         values = dict(MODE=0, CMD_REG=1, VIDEO_MODE=0, STATUS=120,

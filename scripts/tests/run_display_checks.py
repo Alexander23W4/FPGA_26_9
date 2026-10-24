@@ -2,6 +2,7 @@
 import argparse
 from pathlib import Path
 import subprocess
+import runpy
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -10,12 +11,14 @@ def main():
     parser.add_argument('--vivado-bin', default='E:/Xilinx/Vivado/2023.2/bin')
     parser.add_argument('--out', type=Path, default=ROOT / 'build/tests/display')
     parser.add_argument('--top', action='append', choices=('tb_display_regs',
-                        'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr', 'tb_independent_return', 'tb_system_mode'),
+                        'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr', 'tb_independent_return', 'tb_system_mode', 'tb_medical_stream', 'tb_mask_volume', 'tb_cardiac_phases', 'tb_medical_volumes', 'tb_volume_range', 'tb_cardiac_temporal_regression'),
                         help='Run selected local testbench; may be repeated')
     args = parser.parse_args()
     args.out = args.out.resolve()
     binary = Path(args.vivado_bin)
     args.out.mkdir(parents=True, exist_ok=True)
+    oracle = runpy.run_path(str(ROOT / 'rtl/heart_analysis/tests/make_volume_vectors.py'))
+    oracle['write_vectors'](args.out)
     def run(name, *command):
         argv = [item.as_posix() if isinstance(item, Path) else str(item) for item in command]
         result = subprocess.run(argv, cwd=args.out,
@@ -30,7 +33,8 @@ def main():
     tests = [ROOT / 'sim/tb/tb_display_regs.sv', ROOT / 'sim/tb/tb_video_colorizer.sv',
              ROOT / 'sim/tb/tb_hdmi_out.v', ROOT / 'sim/tb/tb_top_thr.v',
              ROOT / 'sim/tb/tb_back_stream.sv', ROOT / 'sim/tb/tb_independent_return.sv',
-             ROOT / 'sim/tb/tb_system_mode.sv']
+             ROOT / 'sim/tb/tb_system_mode.sv',
+             *sorted((ROOT / 'rtl/heart_analysis/tests').glob('tb_*.sv'))]
     run('compile', binary/'xvlog.bat', '--sv', '--relax', '--work', 'xil_defaultlib', *sources, *tests,
         binary.parent/'data/verilog/src/glbl.v')
     run('top1_elaborate', binary/'xelab.bat', '--relax', '-L', 'unisims_ver',

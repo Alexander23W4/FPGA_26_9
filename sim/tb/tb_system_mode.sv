@@ -12,6 +12,11 @@ module tb_system_mode;
     reg awvalid=0,wvalid=0,bready=0;
     wire awready,wready,bvalid;
     wire [1:0] bresp;
+    reg [8:0] araddr=0;
+    reg arvalid=0,rready=0;
+    wire arready,rvalid;
+    wire [31:0] rdata;
+    wire [1:0] rresp;
     integer image_count=0,medical_count=0;
     top1 dut(.clk(clk),.pclk(pclk),.pclk_x5(xclk),.rst(rst),
         .s_axis_tdata(data),.s_axis_tvalid(valid),.s_axis_tready(ready),
@@ -19,7 +24,8 @@ module tb_system_mode;
         .m_axis_tready(1'b1),.awaddr(awaddr),.awvalid(awvalid),.awready(awready),
         .wdata(wdata),.wstrb(4'hf),.wvalid(wvalid),.wready(wready),
         .bresp(bresp),.bvalid(bvalid),.bready(bready),
-        .araddr(9'd0),.arvalid(1'b0),.rready(1'b1));
+        .araddr(araddr),.arvalid(arvalid),.arready(arready),
+        .rdata(rdata),.rresp(rresp),.rvalid(rvalid),.rready(rready));
     always @(posedge clk)if(!dut.rst_clk)begin
         if(dut.image_valid&&dut.medical_valid)$fatal(1,"both branches valid");
         if(dut.image_valid&&dut.image_ready)image_count++;
@@ -45,9 +51,23 @@ module tb_system_mode;
         end
         @(negedge clk);valid=0;
     endtask
+    task automatic rd(input [8:0] address,input [31:0] value,input [1:0] response);
+        @(negedge clk);araddr=address;arvalid=1;
+        do @(posedge clk);while(!arready);
+        @(negedge clk);arvalid=0;
+        repeat(4)begin
+            @(posedge clk);#1;
+            if(!rvalid || rdata!==value || rresp!==response)
+                $fatal(1,"top1 medical read addr=%h data=%h response=%h",address,rdata,rresp);
+        end
+        @(negedge clk);rready=1;
+        @(negedge clk);rready=0;
+    endtask
     initial begin
         repeat(8)@(negedge clk);rst=0;wait(!dut.rst_clk);
         @(negedge clk);if(dut.reg_mode!==0)$fatal(1,"default mode is not image");
+        for(int a='h40;a<='h5c;a+=4)rd(a,32'hffffffff,0);
+        rd('h60,0,2);rd('h64,0,2);rd('ha0,0,2);rd('ha4,0,2);
         wr(9'h10,0); // Disable HDMI ownership while testing the input branches.
         fork
             send_frame();

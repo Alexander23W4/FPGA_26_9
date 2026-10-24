@@ -8,6 +8,7 @@
 #include "app/app.h"
 #include "app/cfg.h"
 #include "common/uartln.h"
+#include "common/medical_volume.h"
 #include "drv/emmc.h"
 #include "drv/vdma.h"
 #include "img/catalog.h"
@@ -97,6 +98,10 @@ static int cmd_readback(void)
         {"HDMI_EN", HDMI_EN},
         {"DATA_REG", DATA_REG_ADDR}, {"LESION", LESION_ADDR},
         {"MASK_TRANSP", MASK_TRANSP_ADDR},
+        {"EDV_LA", EDV_LA}, {"ESV_LA", ESV_LA},
+        {"EDV_RA", EDV_RA}, {"ESV_RA", ESV_RA},
+        {"EDV_LV", EDV_LV}, {"ESV_LV", ESV_LV},
+        {"EDV_RV", EDV_RV}, {"ESV_RV", ESV_RV},
         {"RETURN_INTERVAL", RETURN_INTERVAL}, {"RETURN_STALL", RETURN_STALL},
         {"RETURN_SEQ", RETURN_SEQ}
     };
@@ -106,6 +111,25 @@ static int cmd_readback(void)
         u32 value = Xil_In32(PL_REG_ADDRESS(regs[i].reg));
         xil_printf("[PL rdbk] %s(0x%02X) = %u\r\n",
                    regs[i].name, regs[i].reg, (unsigned)value);
+        if (regs[i].reg >= EDV_LA && regs[i].reg <= ESV_RV) {
+            if (value == PL_VOLUME_UNAVAILABLE)
+                xil_printf("[PL volume] %s = unavailable\r\n", regs[i].name);
+            else {
+                xil_printf("[PL volume] %s = %u.%02u px^3\r\n", regs[i].name,
+                           (unsigned)(value / PL_VOLUME_SCALE),
+                           (unsigned)(value % PL_VOLUME_SCALE));
+                if (PL_VOLUME_ML_COEFF > 0.0) {
+                    /* Raw is already scaled by 100: coefficient preserves that scale. */
+                    uint32_t ml_x100;
+                    if (medical_volume_to_ml_x100(value, PL_VOLUME_ML_COEFF, &ml_x100) == 0) {
+                        xil_printf("[PL volume calibrated] %s = %u.%02u mL\r\n",
+                                   regs[i].name, (unsigned)(ml_x100 / PL_VOLUME_SCALE),
+                                   (unsigned)(ml_x100 % PL_VOLUME_SCALE));
+                    } else
+                        xil_printf("[PL volume calibrated] %s = overflow\r\n", regs[i].name);
+                }
+            }
+        }
     }
     return 0;
 }

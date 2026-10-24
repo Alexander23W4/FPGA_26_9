@@ -14,6 +14,17 @@
 #define STATUS_ADDR      0x03u /* RO: actual threshold selected by PL */
 #define HDMI_EN          0x04u /* RW byte 0x10: 1 HDMI reads/owns a bank (default), 0 independent return only */
 
+/* RO geometric volume index: unsigned pixel^3 * 100, unit spacing.
+ * 0xffffffff = no paired ED/ES yet, or a missing chamber at either phase.
+ * Set the PS coefficient later, using spacing AFTER the 256x256 resize:
+ *   isotropic spacing s mm: coefficient = s*s*s / 1000 [mL / pixel^3]
+ *   row-disc model dx=dz=sx, dy=sy: sx*sx*sy / 1000.
+ */
+#define PL_VOLUME_SCALE  100u
+#define PL_VOLUME_UNAVAILABLE 0xffffffffu
+#ifndef PL_VOLUME_ML_COEFF
+#define PL_VOLUME_ML_COEFF 0.0 /* 0: uncalibrated; do not label the index as mL */
+#endif
 #define EDV_LA           0x10u
 #define ESV_LA           0x11u
 #define EDV_RA           0x12u
@@ -22,10 +33,6 @@
 #define ESV_LV           0x15u
 #define EDV_RV           0x16u
 #define ESV_RV           0x17u
-#define GLS_LA           0x18u
-#define GLS_RA           0x19u
-#define GLS_LV           0x28u
-#define GLS_RV           0x29u
 
 #define DATA_REG_ADDR    0x20u /* Manual threshold, 0..255 */
 #define LESION_ADDR      0x21u /* RO: last complete frame's foreground pixels */

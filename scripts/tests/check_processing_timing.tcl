@@ -5,7 +5,7 @@ set out [file join $root build tests processing_clock]
 file mkdir $out
 set mhz [expr {[llength $argv] ? [lindex $argv 0] : 80.0}]
 create_project -in_memory -part xc7z015clg485-2
-foreach file [glob $root/rtl/*.v $root/rtl/thresholder/*.v $root/rtl/inter_fr/*.v] {read_verilog $file}
+foreach file [glob $root/rtl/*.v $root/rtl/thresholder/*.v $root/rtl/inter_fr/*.v $root/rtl/heart_analysis/*.v] {read_verilog $file}
 synth_design -top top1 -mode out_of_context -part xc7z015clg485-2 -generic CLK_HZ=[expr {int($mhz*1000000)}]
 create_clock -name processing -period [expr {1000.0/$mhz}] [get_ports clk]
 create_clock -name pixel -period [expr {1000.0/25.2}] [get_ports pclk]

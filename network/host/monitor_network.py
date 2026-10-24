@@ -585,6 +585,15 @@ PL_REGISTERS = {"MODE": 0x00, "CMD_REG": 0x01, "VIDEO_MODE": 0x02,
                 "STATUS": 0x03, "DATA_REG": 0x20, "LESION": 0x21,
                 "MASK_TRANSP": 0x22}
 
+# Optional for compatibility with firmware/mocks predating medical readback.
+# Unsigned unit-spacing pixel^3 * 100; PS applies physical calibration later.
+# 0xffffffff means no valid phase pair or missing chamber, not measured zero.
+MEDICAL_REGISTERS = {"EDV_LA": 0x10, "ESV_LA": 0x11,
+                     "EDV_RA": 0x12, "ESV_RA": 0x13,
+                     "EDV_LV": 0x14, "ESV_LV": 0x15,
+                     "EDV_RV": 0x16, "ESV_RV": 0x17}
+READBACK_REGISTERS = {**PL_REGISTERS, **MEDICAL_REGISTERS}
+
 
 def _board_talk(payload, wait=1.5):
     """往板子串口发字节, 返回板子打印的内容"""
@@ -651,10 +660,12 @@ def _parse_pl_registers(text, required):
     for name, address, value in re.findall(
             r"^\[PL rdbk\]\s+(\w+)\(0x([0-9a-fA-F]+)\)\s*=\s*(\d+)\s*$",
             text, re.M):
-        if name in PL_REGISTERS:
-            if int(address, 16) != PL_REGISTERS[name]:
+        if name in READBACK_REGISTERS:
+            if int(address, 16) != READBACK_REGISTERS[name]:
                 raise ValueError("register map mismatch for %s; rebuild/flash matching PS and PL" % name)
             values[name] = int(value)
+            if name in MEDICAL_REGISTERS and values[name] > 0xffffffff:
+                raise ValueError("medical volume is not an unsigned 32-bit value: " + name)
     missing = [name for name in required if name not in values]
     if missing:
         raise ValueError("missing register readback: " + ", ".join(missing))
@@ -667,11 +678,17 @@ def _readback_regs():
         txt = _board_talk(b"R", wait=2.0)
         regs = _parse_pl_registers(txt, PL_REGISTERS)
         lesion = regs["LESION"]
+        medical_raw = {name: regs[name] for name in MEDICAL_REGISTERS if name in regs}
+        medical_index = {name: (None if value == 0xffffffff else
+                            "%d.%02d" % divmod(value, 100))
+                      for name, value in medical_raw.items()}
         return {"ok": True, "mode": regs["CMD_REG"], "system_mode": regs["MODE"],
                 "threshold": regs["DATA_REG"], "actual_threshold": regs["STATUS"],
                 "video_mode": regs["VIDEO_MODE"], "lesion_pixels": lesion,
                 "mask_transparency": regs["MASK_TRANSP"],
                 "hdmi_enabled": regs["HDMI_EN"],
+                "medical_raw": medical_raw, "medical_volume_index": medical_index,
+                "medical_volume_unit": "px^3",
                 "lesion_mm2": "%.3f" % (lesion * PIXEL_AREA_MM2), "log": txt}
     except Exception as exc:
         return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
