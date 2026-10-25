@@ -8,7 +8,7 @@
 /* WORD register numbers, not byte offsets. Always use PL_REG_ADDRESS().
  * HDMI_EN index 04 is byte offset 10; all entries use the conversion below.
  */
-#define MODE_ADDR        0x00u /* 0 image processing, 1 medical (reserved) */
+#define MODE_ADDR        0x00u /* 0 image processing, 1 medical (registration -> complete U-Net -> metrics) */
 #define CMD_REG_ADDR     0x01u /* 0 automatic threshold, 1 manual */
 #define VIDEO_MODE_ADDR  0x02u /* 0 gray, 1 contour, 2 mask, 3 overlay, 4 heatmap */
 #define STATUS_ADDR      0x03u /* RO: actual threshold selected by PL */
@@ -25,6 +25,7 @@
 #ifndef PL_VOLUME_ML_COEFF
 #define PL_VOLUME_ML_COEFF 0.0 /* 0: uncalibrated; do not label the index as mL */
 #endif
+#define UNET_STATUS      0x2au /* bit0 model ready, bit1 computing, bit2 malformed frame */
 #define EDV_LA           0x10u
 #define ESV_LA           0x11u
 #define EDV_RA           0x12u

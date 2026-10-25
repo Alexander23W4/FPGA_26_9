@@ -2,6 +2,26 @@
 set repo [file normalize [file join [file dirname [info script]] .. ..]]
 set argv [list fpga_26 [file join $repo build tests network_bd] -hp]
 source [file join $repo scripts tcl create_zynq_project.tcl]
+# Recreate the historical AXI monitor to test migration, including its shared
+# functional AXI net. New projects already remove the native trace cores.
+set axi_net [get_bd_intf_nets -of_objects [get_bd_intf_pins top1_0/S_AXI]]
+create_bd_cell -type ip -vlnv xilinx.com:ip:system_ila:1.1 u_ila_saxi
+set_property -dict [list CONFIG.C_NUM_MONITOR_SLOTS {1} CONFIG.C_MON_TYPE {INTERFACE} \
+    CONFIG.C_SLOT_0_INTF_TYPE {xilinx.com:interface:aximm_rtl:1.0}] [get_bd_cells u_ila_saxi]
+connect_bd_intf_net [get_bd_intf_pins top1_0/S_AXI] [get_bd_intf_pins u_ila_saxi/SLOT_0_AXI]
+set ::env(FPGA_DEBUG_ILA) 1
+configure_debug_budget
+if {![llength [get_bd_cells -quiet u_ila_saxi]]} {error "Explicit debug configuration was removed"}
+unset ::env(FPGA_DEBUG_ILA)
+configure_debug_budget
+configure_debug_budget
+foreach core {u_ila_hdmi u_ila_saxi u_ila_vdma_mm2s} {
+    if {[llength [get_bd_cells -quiet $core]]} {error "Debug core survived normal build: $core"}
+}
+if {[get_bd_intf_nets -of_objects [get_bd_intf_pins top1_0/S_AXI]] ne $axi_net} {
+    error "Removing the monitor changed the functional AXI-Lite net"
+}
+puts "DEBUG_BUDGET_BD_OK removed legacy probes, preserved AXI-Lite, idempotent"
 validate_bd_design
 set before [get_property CONFIG.NUM_MI [get_bd_cells axi_interconnect_0]]
 ensure_return_dma

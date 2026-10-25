@@ -37,10 +37,16 @@ def main():
              ROOT / 'sim/tb/tb_medical_output.sv', ROOT / 'sim/tb/tb_medical_top.sv', ROOT / 'sim/tb/tb_output_xbar.sv',
              ROOT / 'sim/tb/tb_medical_colorizer.sv',
              *sorted((ROOT / 'rtl/heart_analysis/tests').glob('tb_*.sv'))]
-    run('compile', binary/'xvlog.bat', '--sv', '--relax', '--work', 'xil_defaultlib', *sources, *tests,
-        binary.parent/'data/verilog/src/glbl.v')
-    run('top1_elaborate', binary/'xelab.bat', '--relax', '-L', 'unisims_ver',
-        'xil_defaultlib.top1', 'xil_defaultlib.glbl', '-s', 'top1_ports')
+    # Generated neural-network RTL exceeds cmd.exe's 8191-character limit.
+    project = args.out / 'sources.prj'
+    files = [*sources, *tests, binary.parent/'data/verilog/src/glbl.v']
+    project.write_text(''.join('sv xil_defaultlib "'+path.as_posix()+'"\n' for path in files),encoding='utf-8')
+    run('compile', binary/'xvlog.bat', '--relax', '-prj', project)
+    # Legacy-display regression deliberately prunes the separate DDR inference
+    # engine; its enabled top and vendor IPs are checked by rtl/unet/tests.
+    options = args.out / 'top1.args'
+    options.write_text('--relax\n-L\nunisims_ver\nxil_defaultlib.top1\nxil_defaultlib.glbl\n--generic_top\n"ENABLE_UNET=0"\n-s\ntop1_ports\n',encoding='ascii')
+    run('top1_elaborate', binary/'xelab.bat', '-f', options)
     script = args.out / 'run.tcl'
     script.write_text('run all\nquit\n', encoding='ascii')
     for top in (args.top or ('tb_display_regs', 'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr', 'tb_independent_return')):

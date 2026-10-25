@@ -290,6 +290,9 @@ if {$want_axi_infra} {
     # ---- 控制通路 AXI Interconnect（PS 当主）----
     set nm [llength $gp_slaves]
 
+    source [file join $repo_root rtl unet tools vivado_unet.tcl]
+    prepare_unet_operators
+
     # PL 唯一顶层: rtl/top1.v
     #   内部: axi2px -> denose -> hdl_out -> double_buf -> hdmi_out -> hdmi_tx
     #         以及 axi_lite_rcv 给 PS 做控制/状态
@@ -713,8 +716,11 @@ if {$want_hp} {
     ensure_return_dma
     source [file join [file dirname [info script]] processing_clock.tcl]
     ensure_processing_clock
+    ensure_unet_ddr
 }
 # ---- 保存并校验 ----
+source [file join [file dirname [info script]] debug_budget.tcl]
+configure_debug_budget
 regenerate_bd_layout
 set _vd_err ""
 if {[catch {validate_bd_design} _vd_err]} {

@@ -1,5 +1,6 @@
 # Refresh generated BD modules before launching synthesis. Keep this separate so
 # preparation and the implemented-register checks can be tested without a build.
+source [file join [file dirname [info script]] debug_budget.tcl]
 proc sync_repo_rtl {dir} {
     foreach path [glob -nocomplain -directory $dir *] {
         if {[file isdirectory $path]} {
@@ -25,6 +26,8 @@ proc prepare_fresh_bd {bd} {
     }
     if {[llength [info commands ensure_return_dma]]} {ensure_return_dma}
     if {[llength [info commands ensure_processing_clock]]} {ensure_processing_clock}
+    if {[llength [info commands ensure_unet_ddr]]} {ensure_unet_ddr}
+    configure_debug_budget
     validate_bd_design
     save_bd_design
     reset_target all $bd

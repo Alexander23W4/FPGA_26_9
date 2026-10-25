@@ -134,6 +134,10 @@ puts [format "\[flashall\] UART1 CR = 0x%08X  TX_EN=%d" $cr [expr {($cr >> 4) & 
 
 rst -processor
 dow $elf
+if {[info exists ::env(UNET_WEIGHTS)] && $::env(UNET_WEIGHTS) ne ""} {
+    source [file normalize [file join [file dirname [info script]] .. .. rtl unet tools load_weights.tcl]]
+    load_unet_weights $::env(UNET_WEIGHTS)
+}
 con
 
 puts "FLASH_ALL_OK"

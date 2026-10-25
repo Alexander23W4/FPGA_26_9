@@ -93,6 +93,8 @@ set old_ack_path [file normalize [file join $script_dir .. .. rtl back_ack_cdc.v
 set old_ack_refs [get_files -quiet $old_ack_path]
 if {[llength $old_ack_refs]} {remove_files $old_ack_refs}
 sync_repo_rtl [file normalize [file join $script_dir .. .. rtl]]
+source [file join $script_dir .. .. rtl unet tools vivado_unet.tcl]
+prepare_unet_operators
 prepare_fresh_bd $bd
 puts "\[build_zynq\] Top module: [get_property top [current_fileset]]"
 

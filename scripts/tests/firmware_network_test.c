@@ -12,7 +12,7 @@
 #include "../../csrc/MID_plt/src/net_frame.c"
 
 static u32 dma_regs[32],vdma_status=1,back_flags,video_mode=4,captured_mode=4;
-static u32 processing_hz=100000000;
+static u32 processing_hz=100000000,system_mode,model_status;
 static unsigned dma_starts,ack_writes,flushes,invalidates,timer_calls;
 static u64 clock_ticks;
 static u8 wire_bytes[2000000];static size_t wire_used;
@@ -29,7 +29,8 @@ u32 Xil_In32(UINTPTR address)
     if(address==PL_REG_ADDRESS(RETURN_STALL))return 126000;
     if(address==PL_REG_ADDRESS(RETURN_SEQ))return 7;
     if(address==PL_REG_ADDRESS(CLOCK_HZ))return processing_hz;
-    if(address==PL_REG_ADDRESS(MODE_ADDR))return 0;
+    if(address==PL_REG_ADDRESS(MODE_ADDR))return system_mode;
+    if(address==PL_REG_ADDRESS(UNET_STATUS))return model_status;
     if(address==PL_REG_ADDRESS(CMD_REG_ADDR))return 1;
     if(address==PL_REG_ADDRESS(DATA_REG_ADDR)||address==PL_REG_ADDRESS(STATUS_ADDR))return 123;
     if(address==PL_REG_ADDRESS(LESION_ADDR))return 65432;
@@ -273,6 +274,13 @@ int main(void)
     u32 checksum,before;
     assert(memory==(void *)(UINTPTR)IMG_DDR_BASE);memset(memory,0xcc,0x50000);
     assert(net_frame_init()==0);connect_host();
+    system_mode=1;model_status=0;
+    request(HELLO_PIPE,901,0,0,0);
+    assert(!pipe_enabled&&get32(tx_header+4)==ERROR&&phase==IDLE&&dma_starts==0);
+    assert(pl_timeout()==COUNTS_PER_SECOND*300ull);
+    model_status=1;assert(unet_ready());
+    system_mode=0;assert(pl_timeout()==COUNTS_PER_SECOND*30ull);
+    puts("FIRMWARE_UNET_GUARD_OK: unloaded model rejected before DMA, ready flag, per-mode deadlines");
     request(RENDER,6,0,0,4);assert(phase==IDLE&&get32(tx_header+4)==CONFIGURED&&dma_starts==0);
     upload(7,0);assert(phase==READY&&dma_starts==0);
     assert(*(u8 *)IMG_RES_DDR_BASE==0xcc);net_frame_poll();

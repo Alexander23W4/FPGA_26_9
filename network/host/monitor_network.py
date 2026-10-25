@@ -724,10 +724,9 @@ def _set_system_mode(mode):
 
 
 def _require_return_path(state):
-    # The medical output now reaches HDMI/S2MM, but its segmentation input is
-    # still tied idle in top1. Keep the guard until that input is connected.
-    if state is not None and getattr(state, 'system_mode', 'processing') == 'medical':
-        raise RuntimeError('医学分析模块输入尚未连接分割数据，暂不能发起医学图像收发；输出已连接 HDMI/PC 通路')
+    # Both pipelines now produce full return frames. Firmware checks UNET_STATUS
+    # before medical jobs, so missing/mismatched DDR weights fail explicitly.
+    return
 
 
 def _set_mask_transparency(value):
@@ -1263,6 +1262,7 @@ class NetworkHandler(web_common.Handler):
                     extra = _set_system_mode(1 if mode == 'medical' else 0)
                     if not extra['ok']:
                         raise RuntimeError(extra['log'])
+                _FRAME_CLIENT.timeout = 300 if mode == 'medical' else 60
                 # Commit GUI state only after the matching PL MODE readback.
                 with self.state.lock:
                     self.state.simulate = mode == 'simulation'

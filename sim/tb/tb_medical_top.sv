@@ -26,7 +26,7 @@ module tb_medical_top;
     integer cycles=0;
     always @(negedge clk)cycles++;
     wire return_ready=(cycles%43>19);
-    top1 dut(.clk(clk),.pclk(pclk),.pclk_x5(xclk),.rst(rst),
+    top1 #(.ENABLE_UNET(0)) dut(.clk(clk),.pclk(pclk),.pclk_x5(xclk),.rst(rst),
         .s_axis_tdata(data),.s_axis_tvalid(valid),.s_axis_tready(ready),
         .s_axis_tkeep(8'hff),.s_axis_tlast(1'b0),.s_axis_tuser(1'b0),
         .m_axis_tready(return_ready),.m_axis_tdata(returned),.m_axis_tvalid(return_valid),

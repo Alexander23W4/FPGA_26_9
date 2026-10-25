@@ -192,6 +192,7 @@ static void pipe_start(void)
     u32 current;
     if(pipe_active||pipe_abandoned||input->state!=P_READY||output->state!=P_FREE)return;
     if(back_state()&1u)return;
+    if(!unet_ready()) {pipe_fail("U-Net model not ready; load matching DDR weights first",0);return;}
     if(!vdma_alive()||(vdma_mm2s_status()&1u)==0u) {pipe_fail("input VDMA unavailable",1);return;}
     current=Xil_In32(PL_REG_ADDRESS(VIDEO_MODE_ADDR));
     /* A mode write can emit the PREVIOUS PL image. Capture and discard that
@@ -296,7 +297,7 @@ static void pipe_poll(void)
             pipe_fail("pipeline DMA/PL error; reset board",1);return;
         }
         if(status==1&&(pipe_redraw||(sr&0x1001u)==0x1001u)&&!(back_state()&1u))pipe_finish();
-        else if(ticks()-pipe_dma_started>COUNTS_PER_SECOND*30ull) {
+        else if(ticks()-pipe_dma_started>pl_timeout()) {
             pipe_fail("pipeline DMA/PL timeout; reset board",1);return;
         }
     }

@@ -69,7 +69,8 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
     input wire [31:0] EDV_LV,
     input wire [31:0] ESV_LV,
     input wire [31:0] EDV_RV,
-    input wire [31:0] ESV_RV
+    input wire [31:0] ESV_RV,
+    input tri0 [31:0] unet_status
 );
     reg [16:0] lesion_pixels;        // ★ 17 位: 一帧最多 256*256=65536, 16 位会溢出归零
     reg [16:0] lesion_pixels_save;   // Previous completed frame; byte offset 0x84.
@@ -121,7 +122,7 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
         .EDV_LV(EDV_LV),
         .ESV_LV(ESV_LV),
         .EDV_RV(EDV_RV),
-        .ESV_RV(ESV_RV),
+        .ESV_RV(ESV_RV), .unet_status(unet_status),
         .reg_mode      (reg_mode),
         .reg_cmd       (reg_cmd),
         .reg_threshold (reg_threshold),

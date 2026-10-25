@@ -33,7 +33,8 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
     input wire [31:0] EDV_LV,
     input wire [31:0] ESV_LV,
     input wire [31:0] EDV_RV,
-    input wire [31:0] ESV_RV
+    input wire [31:0] ESV_RV,
+    input tri0 [31:0] unet_status
 );
     localparam [6:0] ADDR_MODE = 7'h00, ADDR_CMD = 7'h01,
         ADDR_VIDEO_MODE = 7'h02, ADDR_STATUS = 7'h03, ADDR_HDMI_EN = 7'h04,
@@ -127,6 +128,7 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
                 if (s_axi_araddr[1:0] != 2'b00) s_axi_rresp <= 2'b10;
                 else begin
                     case (s_axi_araddr[8:2])
+                        7'h2a: s_axi_rdata <= unet_status;
                         ADDR_EDV_LA: s_axi_rdata <= EDV_LA;
                         ADDR_ESV_LA: s_axi_rdata <= ESV_LA;
                         ADDR_EDV_RA: s_axi_rdata <= EDV_RA;

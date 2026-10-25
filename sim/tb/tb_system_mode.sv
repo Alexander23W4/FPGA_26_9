@@ -18,7 +18,7 @@ module tb_system_mode;
     wire [31:0] rdata;
     wire [1:0] rresp;
     integer image_count=0,medical_count=0;
-    top1 dut(.clk(clk),.pclk(pclk),.pclk_x5(xclk),.rst(rst),
+    top1 #(.ENABLE_UNET(0)) dut(.clk(clk),.pclk(pclk),.pclk_x5(xclk),.rst(rst),
         .s_axis_tdata(data),.s_axis_tvalid(valid),.s_axis_tready(ready),
         .s_axis_tkeep(8'hff),.s_axis_tlast(1'b0),.s_axis_tuser(1'b0),
         .m_axis_tready(1'b1),.awaddr(awaddr),.awvalid(awvalid),.awready(awready),

@@ -59,23 +59,14 @@ class SystemModeTests(unittest.TestCase):
             finally:
                 gui._TRANSFER_LOCK.release()
 
-    def test_unconnected_medical_output_never_starts_return_wait(self):
+    def test_connected_medical_path_accepts_complete_return(self):
+        from test_fast_stream import post_frame
         with fast_server() as (board, client, server, state, base):
             state.system_mode = 'medical'
-            with patch.object(client, 'transfer') as transfer:
-                result = gui._do_transfer(bytes(65536), state=state)
-                self.assertFalse(result['ok'])
-                self.assertIn('尚未连接', result['log'])
-                transfer.assert_not_called()
-            with self.assertRaisesRegex(RuntimeError, '尚未连接'):
-                server.start_stream(state, {'folder': 'patient0001', 'mode': 0})
-            request = Request(base + '/api/network/frame?folder=patient0001&path=001.bin&name=001.bin&mode=0',
-                              data=bytes(65536))
-            with self.assertRaises(HTTPError) as caught:
-                urlopen(request)
-            self.assertEqual(caught.exception.code, 400)
-            caught.exception.close()
-            self.assertEqual(board.uploads, 0)
+            metadata,pixels=post_frame(base,mode=0)
+            self.assertEqual(len(pixels),262144)
+            self.assertEqual(board.uploads,1)
+            self.assertEqual(state.system_mode,'medical')
 
     @unittest.skipUnless(shutil.which('node'), 'Node.js is required')
     def test_actual_gui_selects_medical_and_rolls_back_failed_write(self):

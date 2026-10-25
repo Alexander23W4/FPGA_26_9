@@ -2,6 +2,8 @@
 
 module top1 #(
     parameter integer CLK_HZ = 80000000,
+    parameter integer ENABLE_UNET = 1,
+    parameter [15:0] UNET_CLASS_MAP = 16'h4321,
     parameter integer PIXEL_W = 8,      // 像素位宽: 8bit 灰度
     // Legacy BD parameter retained for project compatibility; the current
     // 256x256 denoise RTL is enabled in this pipeline.
@@ -9,7 +11,7 @@ module top1 #(
 )(
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS:M_AXIS, ASSOCIATED_RESET rst" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS:M_AXIS:M_AXI_UNET_WEIGHTS:M_AXI_UNET_FEATURES:M_AXI_REGISTRATION, ASSOCIATED_RESET rst" *)
     input  wire        clk,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
@@ -95,6 +97,193 @@ module top1 #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
     input  wire        rready,
 
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARADDR" *)
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME M_AXI_UNET_WEIGHTS, PROTOCOL AXI4, ADDR_WIDTH 32, DATA_WIDTH 32, ID_WIDTH 1, READ_WRITE_MODE READ_ONLY, MAX_BURST_LENGTH 64, NUM_READ_OUTSTANDING 4, NUM_WRITE_OUTSTANDING 4" *)
+    output wire [31:0] M_AXI_UNET_WEIGHTS_ARADDR,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARID" *)
+    output wire M_AXI_UNET_WEIGHTS_ARID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARLEN" *)
+    output wire [7:0] M_AXI_UNET_WEIGHTS_ARLEN,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARSIZE" *)
+    output wire [2:0] M_AXI_UNET_WEIGHTS_ARSIZE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARBURST" *)
+    output wire [1:0] M_AXI_UNET_WEIGHTS_ARBURST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARLOCK" *)
+    output wire M_AXI_UNET_WEIGHTS_ARLOCK,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARCACHE" *)
+    output wire [3:0] M_AXI_UNET_WEIGHTS_ARCACHE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARPROT" *)
+    output wire [2:0] M_AXI_UNET_WEIGHTS_ARPROT,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARQOS" *)
+    output wire [3:0] M_AXI_UNET_WEIGHTS_ARQOS,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARVALID" *)
+    output wire M_AXI_UNET_WEIGHTS_ARVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS ARREADY" *)
+    input wire M_AXI_UNET_WEIGHTS_ARREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS RID" *)
+    input wire M_AXI_UNET_WEIGHTS_RID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS RDATA" *)
+    input wire [31:0] M_AXI_UNET_WEIGHTS_RDATA,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS RRESP" *)
+    input wire [1:0] M_AXI_UNET_WEIGHTS_RRESP,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS RLAST" *)
+    input wire M_AXI_UNET_WEIGHTS_RLAST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS RVALID" *)
+    input wire M_AXI_UNET_WEIGHTS_RVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_WEIGHTS RREADY" *)
+    output wire M_AXI_UNET_WEIGHTS_RREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWADDR" *)
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME M_AXI_UNET_FEATURES, PROTOCOL AXI4, ADDR_WIDTH 32, DATA_WIDTH 32, ID_WIDTH 1, READ_WRITE_MODE READ_WRITE, MAX_BURST_LENGTH 64, NUM_READ_OUTSTANDING 4, NUM_WRITE_OUTSTANDING 4" *)
+    output wire [31:0] M_AXI_UNET_FEATURES_AWADDR,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWID" *)
+    output wire M_AXI_UNET_FEATURES_AWID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWLEN" *)
+    output wire [7:0] M_AXI_UNET_FEATURES_AWLEN,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWSIZE" *)
+    output wire [2:0] M_AXI_UNET_FEATURES_AWSIZE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWBURST" *)
+    output wire [1:0] M_AXI_UNET_FEATURES_AWBURST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWLOCK" *)
+    output wire M_AXI_UNET_FEATURES_AWLOCK,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWCACHE" *)
+    output wire [3:0] M_AXI_UNET_FEATURES_AWCACHE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWPROT" *)
+    output wire [2:0] M_AXI_UNET_FEATURES_AWPROT,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWQOS" *)
+    output wire [3:0] M_AXI_UNET_FEATURES_AWQOS,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWVALID" *)
+    output wire M_AXI_UNET_FEATURES_AWVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES AWREADY" *)
+    input wire M_AXI_UNET_FEATURES_AWREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARADDR" *)
+    output wire [31:0] M_AXI_UNET_FEATURES_ARADDR,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARID" *)
+    output wire M_AXI_UNET_FEATURES_ARID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARLEN" *)
+    output wire [7:0] M_AXI_UNET_FEATURES_ARLEN,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARSIZE" *)
+    output wire [2:0] M_AXI_UNET_FEATURES_ARSIZE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARBURST" *)
+    output wire [1:0] M_AXI_UNET_FEATURES_ARBURST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARLOCK" *)
+    output wire M_AXI_UNET_FEATURES_ARLOCK,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARCACHE" *)
+    output wire [3:0] M_AXI_UNET_FEATURES_ARCACHE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARPROT" *)
+    output wire [2:0] M_AXI_UNET_FEATURES_ARPROT,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARQOS" *)
+    output wire [3:0] M_AXI_UNET_FEATURES_ARQOS,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARVALID" *)
+    output wire M_AXI_UNET_FEATURES_ARVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES ARREADY" *)
+    input wire M_AXI_UNET_FEATURES_ARREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES WDATA" *)
+    output wire [31:0] M_AXI_UNET_FEATURES_WDATA,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES WSTRB" *)
+    output wire [3:0] M_AXI_UNET_FEATURES_WSTRB,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES WLAST" *)
+    output wire M_AXI_UNET_FEATURES_WLAST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES WVALID" *)
+    output wire M_AXI_UNET_FEATURES_WVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES WREADY" *)
+    input wire M_AXI_UNET_FEATURES_WREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES BID" *)
+    input wire M_AXI_UNET_FEATURES_BID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES BRESP" *)
+    input wire [1:0] M_AXI_UNET_FEATURES_BRESP,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES BVALID" *)
+    input wire M_AXI_UNET_FEATURES_BVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES BREADY" *)
+    output wire M_AXI_UNET_FEATURES_BREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES RID" *)
+    input wire M_AXI_UNET_FEATURES_RID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES RDATA" *)
+    input wire [31:0] M_AXI_UNET_FEATURES_RDATA,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES RRESP" *)
+    input wire [1:0] M_AXI_UNET_FEATURES_RRESP,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES RLAST" *)
+    input wire M_AXI_UNET_FEATURES_RLAST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES RVALID" *)
+    input wire M_AXI_UNET_FEATURES_RVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_UNET_FEATURES RREADY" *)
+    output wire M_AXI_UNET_FEATURES_RREADY,
+
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWADDR" *)
+    (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME M_AXI_REGISTRATION, PROTOCOL AXI4, ADDR_WIDTH 32, DATA_WIDTH 32, ID_WIDTH 1, READ_WRITE_MODE READ_WRITE, MAX_BURST_LENGTH 64, NUM_READ_OUTSTANDING 4, NUM_WRITE_OUTSTANDING 4" *)
+    output wire [31:0] M_AXI_REGISTRATION_AWADDR,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWID" *)
+    output wire M_AXI_REGISTRATION_AWID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWLEN" *)
+    output wire [7:0] M_AXI_REGISTRATION_AWLEN,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWSIZE" *)
+    output wire [2:0] M_AXI_REGISTRATION_AWSIZE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWBURST" *)
+    output wire [1:0] M_AXI_REGISTRATION_AWBURST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWLOCK" *)
+    output wire M_AXI_REGISTRATION_AWLOCK,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWCACHE" *)
+    output wire [3:0] M_AXI_REGISTRATION_AWCACHE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWPROT" *)
+    output wire [2:0] M_AXI_REGISTRATION_AWPROT,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWQOS" *)
+    output wire [3:0] M_AXI_REGISTRATION_AWQOS,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWVALID" *)
+    output wire M_AXI_REGISTRATION_AWVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION AWREADY" *)
+    input wire M_AXI_REGISTRATION_AWREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARADDR" *)
+    output wire [31:0] M_AXI_REGISTRATION_ARADDR,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARID" *)
+    output wire M_AXI_REGISTRATION_ARID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARLEN" *)
+    output wire [7:0] M_AXI_REGISTRATION_ARLEN,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARSIZE" *)
+    output wire [2:0] M_AXI_REGISTRATION_ARSIZE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARBURST" *)
+    output wire [1:0] M_AXI_REGISTRATION_ARBURST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARLOCK" *)
+    output wire M_AXI_REGISTRATION_ARLOCK,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARCACHE" *)
+    output wire [3:0] M_AXI_REGISTRATION_ARCACHE,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARPROT" *)
+    output wire [2:0] M_AXI_REGISTRATION_ARPROT,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARQOS" *)
+    output wire [3:0] M_AXI_REGISTRATION_ARQOS,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARVALID" *)
+    output wire M_AXI_REGISTRATION_ARVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION ARREADY" *)
+    input wire M_AXI_REGISTRATION_ARREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION WDATA" *)
+    output wire [31:0] M_AXI_REGISTRATION_WDATA,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION WSTRB" *)
+    output wire [3:0] M_AXI_REGISTRATION_WSTRB,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION WLAST" *)
+    output wire M_AXI_REGISTRATION_WLAST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION WVALID" *)
+    output wire M_AXI_REGISTRATION_WVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION WREADY" *)
+    input wire M_AXI_REGISTRATION_WREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION BID" *)
+    input wire M_AXI_REGISTRATION_BID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION BRESP" *)
+    input wire [1:0] M_AXI_REGISTRATION_BRESP,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION BVALID" *)
+    input wire M_AXI_REGISTRATION_BVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION BREADY" *)
+    output wire M_AXI_REGISTRATION_BREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION RID" *)
+    input wire M_AXI_REGISTRATION_RID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION RDATA" *)
+    input wire [31:0] M_AXI_REGISTRATION_RDATA,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION RRESP" *)
+    input wire [1:0] M_AXI_REGISTRATION_RRESP,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION RLAST" *)
+    input wire M_AXI_REGISTRATION_RLAST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION RVALID" *)
+    input wire M_AXI_REGISTRATION_RVALID,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 M_AXI_REGISTRATION RREADY" *)
+    output wire M_AXI_REGISTRATION_RREADY,
+
     // 仅接到 BD 内部 ILA，不会成为 system_wrapper 的外部 IO。
     output wire [127:0] debug_probe,
 
@@ -156,21 +345,203 @@ module top1 #(
         .medical_data(medical_data), .medical_valid(medical_valid), .medical_eof(medical_eof), .medical_ready(medical_ready),
         .selected_mode(selected_mode)
     );
-    registration_top u_registration (
+    wire [7:0] registered_data,unet_data;
+    wire registered_valid,registered_eof,registered_ready,unet_valid,unet_eof,unet_ready;
+    wire [3:0] unet_mask,unet_contour;
+    wire [31:0] unet_status;
+    reg [31:0] registration_epoch;
+    reg medical_mode_d;
+    always @(posedge clk) begin
+        if(rst_clk)begin registration_epoch<=0;medical_mode_d<=0;end
+        else begin medical_mode_d<=reg_mode;if(reg_mode&&!medical_mode_d)registration_epoch<=registration_epoch+1'b1;end
+    end
+    generate if(ENABLE_UNET)begin : g_registration_ddr
+        registration_ddr_top u_registration(.clk(clk),.rst(rst_clk),.epoch(registration_epoch),
+            .in_data(medical_data),.in_valid(medical_valid),.in_eof(medical_eof),.in_ready(medical_ready),
+            .out_data(registered_data),.out_valid(registered_valid),.out_eof(registered_eof),.out_ready(registered_ready),
+            .M_AXI_REGISTRATION_AWADDR(M_AXI_REGISTRATION_AWADDR),
+            .M_AXI_REGISTRATION_AWID(M_AXI_REGISTRATION_AWID),
+            .M_AXI_REGISTRATION_AWLEN(M_AXI_REGISTRATION_AWLEN),
+            .M_AXI_REGISTRATION_AWSIZE(M_AXI_REGISTRATION_AWSIZE),
+            .M_AXI_REGISTRATION_AWBURST(M_AXI_REGISTRATION_AWBURST),
+            .M_AXI_REGISTRATION_AWLOCK(M_AXI_REGISTRATION_AWLOCK),
+            .M_AXI_REGISTRATION_AWCACHE(M_AXI_REGISTRATION_AWCACHE),
+            .M_AXI_REGISTRATION_AWPROT(M_AXI_REGISTRATION_AWPROT),
+            .M_AXI_REGISTRATION_AWQOS(M_AXI_REGISTRATION_AWQOS),
+            .M_AXI_REGISTRATION_AWVALID(M_AXI_REGISTRATION_AWVALID),
+            .M_AXI_REGISTRATION_AWREADY(M_AXI_REGISTRATION_AWREADY),
+            .M_AXI_REGISTRATION_ARADDR(M_AXI_REGISTRATION_ARADDR),
+            .M_AXI_REGISTRATION_ARID(M_AXI_REGISTRATION_ARID),
+            .M_AXI_REGISTRATION_ARLEN(M_AXI_REGISTRATION_ARLEN),
+            .M_AXI_REGISTRATION_ARSIZE(M_AXI_REGISTRATION_ARSIZE),
+            .M_AXI_REGISTRATION_ARBURST(M_AXI_REGISTRATION_ARBURST),
+            .M_AXI_REGISTRATION_ARLOCK(M_AXI_REGISTRATION_ARLOCK),
+            .M_AXI_REGISTRATION_ARCACHE(M_AXI_REGISTRATION_ARCACHE),
+            .M_AXI_REGISTRATION_ARPROT(M_AXI_REGISTRATION_ARPROT),
+            .M_AXI_REGISTRATION_ARQOS(M_AXI_REGISTRATION_ARQOS),
+            .M_AXI_REGISTRATION_ARVALID(M_AXI_REGISTRATION_ARVALID),
+            .M_AXI_REGISTRATION_ARREADY(M_AXI_REGISTRATION_ARREADY),
+            .M_AXI_REGISTRATION_WDATA(M_AXI_REGISTRATION_WDATA),
+            .M_AXI_REGISTRATION_WSTRB(M_AXI_REGISTRATION_WSTRB),
+            .M_AXI_REGISTRATION_WLAST(M_AXI_REGISTRATION_WLAST),
+            .M_AXI_REGISTRATION_WVALID(M_AXI_REGISTRATION_WVALID),
+            .M_AXI_REGISTRATION_WREADY(M_AXI_REGISTRATION_WREADY),
+            .M_AXI_REGISTRATION_BID(M_AXI_REGISTRATION_BID),
+            .M_AXI_REGISTRATION_BRESP(M_AXI_REGISTRATION_BRESP),
+            .M_AXI_REGISTRATION_BVALID(M_AXI_REGISTRATION_BVALID),
+            .M_AXI_REGISTRATION_BREADY(M_AXI_REGISTRATION_BREADY),
+            .M_AXI_REGISTRATION_RID(M_AXI_REGISTRATION_RID),
+            .M_AXI_REGISTRATION_RDATA(M_AXI_REGISTRATION_RDATA),
+            .M_AXI_REGISTRATION_RRESP(M_AXI_REGISTRATION_RRESP),
+            .M_AXI_REGISTRATION_RLAST(M_AXI_REGISTRATION_RLAST),
+            .M_AXI_REGISTRATION_RVALID(M_AXI_REGISTRATION_RVALID),
+            .M_AXI_REGISTRATION_RREADY(M_AXI_REGISTRATION_RREADY),
+            .status());
+    end else begin : g_registration_bram
+registration_top u_registration (
         .clk(clk), .rst(rst_clk || !selected_mode),
         .in_data(medical_data), .in_valid(medical_valid), .in_eof(medical_eof), .in_ready(medical_ready),
-        // Reserved for the future medical pipeline. Drain every output pixel
-        // so this unconnected branch never stalls on its own output FIFO.
-        .out_data(), .out_valid(), .out_eof(), .out_ready(1'b1),
+        .out_data(registered_data), .out_valid(registered_valid), .out_eof(registered_eof), .out_ready(registered_ready),
         .reg_dx(), .reg_dy(), .reg_sad(), .reg_valid(), .reg_done(), .frame_count(), .frame_error()
     );
-    // Stream inputs reserved until the four-chamber segmentation is connected.
-    // Drive idle values explicitly so floating inputs cannot create X metrics.
+        assign M_AXI_REGISTRATION_AWADDR=0;
+        assign M_AXI_REGISTRATION_AWID=0;
+        assign M_AXI_REGISTRATION_AWLEN=0;
+        assign M_AXI_REGISTRATION_AWSIZE=0;
+        assign M_AXI_REGISTRATION_AWBURST=0;
+        assign M_AXI_REGISTRATION_AWLOCK=0;
+        assign M_AXI_REGISTRATION_AWCACHE=0;
+        assign M_AXI_REGISTRATION_AWPROT=0;
+        assign M_AXI_REGISTRATION_AWQOS=0;
+        assign M_AXI_REGISTRATION_AWVALID=0;
+        assign M_AXI_REGISTRATION_ARADDR=0;
+        assign M_AXI_REGISTRATION_ARID=0;
+        assign M_AXI_REGISTRATION_ARLEN=0;
+        assign M_AXI_REGISTRATION_ARSIZE=0;
+        assign M_AXI_REGISTRATION_ARBURST=0;
+        assign M_AXI_REGISTRATION_ARLOCK=0;
+        assign M_AXI_REGISTRATION_ARCACHE=0;
+        assign M_AXI_REGISTRATION_ARPROT=0;
+        assign M_AXI_REGISTRATION_ARQOS=0;
+        assign M_AXI_REGISTRATION_ARVALID=0;
+        assign M_AXI_REGISTRATION_WDATA=0;
+        assign M_AXI_REGISTRATION_WSTRB=0;
+        assign M_AXI_REGISTRATION_WLAST=0;
+        assign M_AXI_REGISTRATION_WVALID=0;
+        assign M_AXI_REGISTRATION_BREADY=0;
+        assign M_AXI_REGISTRATION_RREADY=0;
+    end endgenerate
+    generate if (ENABLE_UNET) begin : g_unet
+        unet #(.CLASS_MAP(UNET_CLASS_MAP)) u_unet(
+            .clk(clk),.rst(rst_clk),.enable(reg_mode),
+            .in_data(registered_data),.in_valid(registered_valid),.in_eof(registered_eof),.in_ready(registered_ready),
+            .out_data(unet_data),.out_valid(unet_valid),.out_eof(unet_eof),.out_ready(unet_ready),
+            .LA_mask(unet_mask[0]),.RA_mask(unet_mask[1]),.LV_mask(unet_mask[2]),.RV_mask(unet_mask[3]),
+            .LA_ctr(unet_contour[0]),.RA_ctr(unet_contour[1]),.LV_ctr(unet_contour[2]),.RV_ctr(unet_contour[3]),
+            .M_AXI_UNET_WEIGHTS_ARADDR(M_AXI_UNET_WEIGHTS_ARADDR),
+            .M_AXI_UNET_WEIGHTS_ARID(M_AXI_UNET_WEIGHTS_ARID),
+            .M_AXI_UNET_WEIGHTS_ARLEN(M_AXI_UNET_WEIGHTS_ARLEN),
+            .M_AXI_UNET_WEIGHTS_ARSIZE(M_AXI_UNET_WEIGHTS_ARSIZE),
+            .M_AXI_UNET_WEIGHTS_ARBURST(M_AXI_UNET_WEIGHTS_ARBURST),
+            .M_AXI_UNET_WEIGHTS_ARLOCK(M_AXI_UNET_WEIGHTS_ARLOCK),
+            .M_AXI_UNET_WEIGHTS_ARCACHE(M_AXI_UNET_WEIGHTS_ARCACHE),
+            .M_AXI_UNET_WEIGHTS_ARPROT(M_AXI_UNET_WEIGHTS_ARPROT),
+            .M_AXI_UNET_WEIGHTS_ARQOS(M_AXI_UNET_WEIGHTS_ARQOS),
+            .M_AXI_UNET_WEIGHTS_ARVALID(M_AXI_UNET_WEIGHTS_ARVALID),
+            .M_AXI_UNET_WEIGHTS_ARREADY(M_AXI_UNET_WEIGHTS_ARREADY),
+            .M_AXI_UNET_WEIGHTS_RID(M_AXI_UNET_WEIGHTS_RID),
+            .M_AXI_UNET_WEIGHTS_RDATA(M_AXI_UNET_WEIGHTS_RDATA),
+            .M_AXI_UNET_WEIGHTS_RRESP(M_AXI_UNET_WEIGHTS_RRESP),
+            .M_AXI_UNET_WEIGHTS_RLAST(M_AXI_UNET_WEIGHTS_RLAST),
+            .M_AXI_UNET_WEIGHTS_RVALID(M_AXI_UNET_WEIGHTS_RVALID),
+            .M_AXI_UNET_WEIGHTS_RREADY(M_AXI_UNET_WEIGHTS_RREADY),
+            .M_AXI_UNET_FEATURES_AWADDR(M_AXI_UNET_FEATURES_AWADDR),
+            .M_AXI_UNET_FEATURES_AWID(M_AXI_UNET_FEATURES_AWID),
+            .M_AXI_UNET_FEATURES_AWLEN(M_AXI_UNET_FEATURES_AWLEN),
+            .M_AXI_UNET_FEATURES_AWSIZE(M_AXI_UNET_FEATURES_AWSIZE),
+            .M_AXI_UNET_FEATURES_AWBURST(M_AXI_UNET_FEATURES_AWBURST),
+            .M_AXI_UNET_FEATURES_AWLOCK(M_AXI_UNET_FEATURES_AWLOCK),
+            .M_AXI_UNET_FEATURES_AWCACHE(M_AXI_UNET_FEATURES_AWCACHE),
+            .M_AXI_UNET_FEATURES_AWPROT(M_AXI_UNET_FEATURES_AWPROT),
+            .M_AXI_UNET_FEATURES_AWQOS(M_AXI_UNET_FEATURES_AWQOS),
+            .M_AXI_UNET_FEATURES_AWVALID(M_AXI_UNET_FEATURES_AWVALID),
+            .M_AXI_UNET_FEATURES_AWREADY(M_AXI_UNET_FEATURES_AWREADY),
+            .M_AXI_UNET_FEATURES_ARADDR(M_AXI_UNET_FEATURES_ARADDR),
+            .M_AXI_UNET_FEATURES_ARID(M_AXI_UNET_FEATURES_ARID),
+            .M_AXI_UNET_FEATURES_ARLEN(M_AXI_UNET_FEATURES_ARLEN),
+            .M_AXI_UNET_FEATURES_ARSIZE(M_AXI_UNET_FEATURES_ARSIZE),
+            .M_AXI_UNET_FEATURES_ARBURST(M_AXI_UNET_FEATURES_ARBURST),
+            .M_AXI_UNET_FEATURES_ARLOCK(M_AXI_UNET_FEATURES_ARLOCK),
+            .M_AXI_UNET_FEATURES_ARCACHE(M_AXI_UNET_FEATURES_ARCACHE),
+            .M_AXI_UNET_FEATURES_ARPROT(M_AXI_UNET_FEATURES_ARPROT),
+            .M_AXI_UNET_FEATURES_ARQOS(M_AXI_UNET_FEATURES_ARQOS),
+            .M_AXI_UNET_FEATURES_ARVALID(M_AXI_UNET_FEATURES_ARVALID),
+            .M_AXI_UNET_FEATURES_ARREADY(M_AXI_UNET_FEATURES_ARREADY),
+            .M_AXI_UNET_FEATURES_WDATA(M_AXI_UNET_FEATURES_WDATA),
+            .M_AXI_UNET_FEATURES_WSTRB(M_AXI_UNET_FEATURES_WSTRB),
+            .M_AXI_UNET_FEATURES_WLAST(M_AXI_UNET_FEATURES_WLAST),
+            .M_AXI_UNET_FEATURES_WVALID(M_AXI_UNET_FEATURES_WVALID),
+            .M_AXI_UNET_FEATURES_WREADY(M_AXI_UNET_FEATURES_WREADY),
+            .M_AXI_UNET_FEATURES_BID(M_AXI_UNET_FEATURES_BID),
+            .M_AXI_UNET_FEATURES_BRESP(M_AXI_UNET_FEATURES_BRESP),
+            .M_AXI_UNET_FEATURES_BVALID(M_AXI_UNET_FEATURES_BVALID),
+            .M_AXI_UNET_FEATURES_BREADY(M_AXI_UNET_FEATURES_BREADY),
+            .M_AXI_UNET_FEATURES_RID(M_AXI_UNET_FEATURES_RID),
+            .M_AXI_UNET_FEATURES_RDATA(M_AXI_UNET_FEATURES_RDATA),
+            .M_AXI_UNET_FEATURES_RRESP(M_AXI_UNET_FEATURES_RRESP),
+            .M_AXI_UNET_FEATURES_RLAST(M_AXI_UNET_FEATURES_RLAST),
+            .M_AXI_UNET_FEATURES_RVALID(M_AXI_UNET_FEATURES_RVALID),
+            .M_AXI_UNET_FEATURES_RREADY(M_AXI_UNET_FEATURES_RREADY),
+            .status(unet_status));
+    end else begin : g_no_unet
+        // Local legacy-display tests can disable the large inference engine.
+        assign registered_ready=1'b1;
+        assign unet_data=0;assign unet_valid=0;assign unet_eof=0;
+        assign unet_mask=0;assign unet_contour=0;assign unet_status=0;
+        assign M_AXI_UNET_WEIGHTS_ARADDR=32'd0;
+        assign M_AXI_UNET_WEIGHTS_ARID=1'd0;
+        assign M_AXI_UNET_WEIGHTS_ARLEN=8'd0;
+        assign M_AXI_UNET_WEIGHTS_ARSIZE=3'd0;
+        assign M_AXI_UNET_WEIGHTS_ARBURST=2'd0;
+        assign M_AXI_UNET_WEIGHTS_ARLOCK=1'd0;
+        assign M_AXI_UNET_WEIGHTS_ARCACHE=4'd0;
+        assign M_AXI_UNET_WEIGHTS_ARPROT=3'd0;
+        assign M_AXI_UNET_WEIGHTS_ARQOS=4'd0;
+        assign M_AXI_UNET_WEIGHTS_ARVALID=1'd0;
+        assign M_AXI_UNET_WEIGHTS_RREADY=1'd0;
+        assign M_AXI_UNET_FEATURES_AWADDR=32'd0;
+        assign M_AXI_UNET_FEATURES_AWID=1'd0;
+        assign M_AXI_UNET_FEATURES_AWLEN=8'd0;
+        assign M_AXI_UNET_FEATURES_AWSIZE=3'd0;
+        assign M_AXI_UNET_FEATURES_AWBURST=2'd0;
+        assign M_AXI_UNET_FEATURES_AWLOCK=1'd0;
+        assign M_AXI_UNET_FEATURES_AWCACHE=4'd0;
+        assign M_AXI_UNET_FEATURES_AWPROT=3'd0;
+        assign M_AXI_UNET_FEATURES_AWQOS=4'd0;
+        assign M_AXI_UNET_FEATURES_AWVALID=1'd0;
+        assign M_AXI_UNET_FEATURES_ARADDR=32'd0;
+        assign M_AXI_UNET_FEATURES_ARID=1'd0;
+        assign M_AXI_UNET_FEATURES_ARLEN=8'd0;
+        assign M_AXI_UNET_FEATURES_ARSIZE=3'd0;
+        assign M_AXI_UNET_FEATURES_ARBURST=2'd0;
+        assign M_AXI_UNET_FEATURES_ARLOCK=1'd0;
+        assign M_AXI_UNET_FEATURES_ARCACHE=4'd0;
+        assign M_AXI_UNET_FEATURES_ARPROT=3'd0;
+        assign M_AXI_UNET_FEATURES_ARQOS=4'd0;
+        assign M_AXI_UNET_FEATURES_ARVALID=1'd0;
+        assign M_AXI_UNET_FEATURES_WDATA=32'd0;
+        assign M_AXI_UNET_FEATURES_WSTRB=4'd0;
+        assign M_AXI_UNET_FEATURES_WLAST=1'd0;
+        assign M_AXI_UNET_FEATURES_WVALID=1'd0;
+        assign M_AXI_UNET_FEATURES_BREADY=1'd0;
+        assign M_AXI_UNET_FEATURES_RREADY=1'd0;
+    end endgenerate
+    // Medical metrics and payload use the SAME segmented, registered frame.
     medical_accel_top u_medical (
         .clk(clk), .rst(rst_clk),
-        .in_data(8'd0), .in_valid(1'b0), .in_eof(1'b0), .in_ready(),
-        .in_LA_ctr(1'b0), .in_RA_ctr(1'b0), .in_LV_ctr(1'b0), .in_RV_ctr(1'b0),
-        .in_LA_mask(1'b0), .in_RA_mask(1'b0), .in_LV_mask(1'b0), .in_RV_mask(1'b0),
+        .in_data(unet_data), .in_valid(unet_valid), .in_eof(unet_eof), .in_ready(unet_ready),
+        .in_LA_ctr(unet_contour[0]), .in_RA_ctr(unet_contour[1]), .in_LV_ctr(unet_contour[2]), .in_RV_ctr(unet_contour[3]),
+        .in_LA_mask(unet_mask[0]), .in_RA_mask(unet_mask[1]), .in_LV_mask(unet_mask[2]), .in_RV_mask(unet_mask[3]),
         .out_data(medical_out_data), .out_valid(medical_out_valid), .out_eof(medical_out_eof), .out_ready(medical_out_ready),
         .out_LA_ctr(medical_out_contour[0]), .out_RA_ctr(medical_out_contour[1]),
         .out_LV_ctr(medical_out_contour[2]), .out_RV_ctr(medical_out_contour[3]),
@@ -187,6 +558,7 @@ module top1 #(
 
     top_threshold_demo #(.CLK_HZ(CLK_HZ)) u_top_threshold_demo (
         .clk(clk), .rst_n(~rst_clk),
+        .unet_status(unet_status),
         .EDV_LA(EDV_LA), .ESV_LA(ESV_LA), .EDV_RA(EDV_RA), .ESV_RA(ESV_RA),
         .EDV_LV(EDV_LV), .ESV_LV(ESV_LV), .EDV_RV(EDV_RV), .ESV_RV(ESV_RV),
         .s_axi_awaddr({23'd0, awaddr}), .s_axi_awvalid(awvalid), .s_axi_awready(awready),

@@ -100,7 +100,7 @@ new_out_dir() {
 # Relative paths let the download helper verify that inputs still match the
 # successful build. Generated build/csrc platform files are not PL inputs.
 pl_input_hashes() {
-  (cd "$REPO_ROOT" && find rtl constrs board ip scripts/tcl -type f \
+  (cd "$REPO_ROOT" && find rtl constrs board ip scripts/tcl -type f ! -path '*/__pycache__/*' ! -name '*.pyc' \
     -print0 | sort -z | xargs -0 sha256sum)
 }
 

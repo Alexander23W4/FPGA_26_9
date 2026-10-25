@@ -80,6 +80,13 @@ static u64 ticks(void)
 static u32 get32(const u8 *p) {return ((u32)p[0]<<24)|((u32)p[1]<<16)|((u32)p[2]<<8)|p[3];}
 static void put32(u8 *p,u32 n) {p[0]=(u8)(n>>24);p[1]=(u8)(n>>16);p[2]=(u8)(n>>8);p[3]=(u8)n;}
 static u32 back_state(void) {return Xil_In32(PL_REG_ADDRESS(BACK_STATUS));}
+static int unet_ready(void) {
+    return Xil_In32(PL_REG_ADDRESS(MODE_ADDR))==0u ||
+           (Xil_In32(PL_REG_ADDRESS(UNET_STATUS))&1u)!=0u;
+}
+static u64 pl_timeout(void) {
+    return COUNTS_PER_SECOND*(Xil_In32(PL_REG_ADDRESS(MODE_ADDR))?300ull:30ull);
+}
 static u32 micros(u64 duration) {return (u32)(duration*1000000ull/COUNTS_PER_SECOND);}
 /* Metadata v5 carries PL durations in microseconds, independent of PL frequency.
  * Old hardware returns zero for the unknown register; retain its 25.2 MHz rate. */
@@ -228,6 +235,7 @@ static void handle_header(void)
     u32 checksum=get32(rx_header+16),extra=get32(rx_header+20);
     if(get32(rx_header)!=MAGIC) {error_response(id,FAILED,"unsupported protocol; update host and firmware together");return;}
     if(type==HELLO_PIPE) {
+        if(!unet_ready()) {error_response(id,FAILED,"U-Net model not ready; load matching DDR weights first");return;}
         if(!id||length||checksum||extra||phase!=IDLE||pipe_enabled) {
             error_response(id,BUSY,"pipeline unavailable; finish the current job first");return;
         }
@@ -247,6 +255,7 @@ static void handle_header(void)
         discard_remaining=length;
         if(phase!=IDLE) {error_response(id,BUSY,"previous job is unfinished; resume it or reset the board after a DMA fault");return;}
         if(!id||length!=NET_INPUT_BYTES||extra!=0) {error_response(id,FAILED,"input must be 256x256x8-bit, 65536 bytes");return;}
+        if(!unet_ready()) {error_response(id,FAILED,"U-Net model not ready; load matching DDR weights first");return;}
         if((back_state()&1u)!=0u) {error_response(id,BUSY,"PL return branch is not idle");return;}
         discard_remaining=0;
         job=id;redraw=0;cancelled=0;fast_job=(type==UPLOAD_FAST);
@@ -436,7 +445,7 @@ void net_frame_poll(void)
                     }
                 }
             }
-        } else if(now-job_started>COUNTS_PER_SECOND*30ull)fail_job("DMA/PL timeout; reset board");
+        } else if(now-job_started>pl_timeout())fail_job("DMA/PL timeout; reset board");
     }
     if(phase==RECEIVING&&now-job_started>COUNTS_PER_SECOND*30ull) {
         discard_remaining=NET_INPUT_BYTES-received;phase=IDLE;
