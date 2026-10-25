@@ -268,6 +268,28 @@ async function reloadOriginalImage(){
   showOriginalFrame(original.image,original.image_name,original.source_revision);
 }
 
+function renderMedicalMetrics(readback={}){
+  const volumes=readback.medical_volumes_ml||{},efs=readback.medical_ef_percent||{};
+  const display=value=>typeof value==='string'&&/^\d+\.\d{2}$/.test(value)?value:'—';
+  for(const chamber of ['LA','RA','LV','RV']){
+    for(const phase of ['EDV','ESV']){
+      const key=phase+'_'+chamber;
+      document.getElementById('medical'+key).textContent=display(volumes[key]);
+    }
+  }
+  for(const chamber of ['LV','RV']){
+    const key='EF_'+chamber;
+    document.getElementById('medical'+key).textContent=display(efs[key]);
+  }
+  const ready=Object.values(volumes).some(value=>display(value)!=='—');
+  document.getElementById('medicalMetricState').textContent=!readback.medical_volumes_ml?
+    '等待 PS 容积与 EF 回传':!ready?'等待有效掩膜与完整心动周期':
+    'PS 已更新 · '+new Date().toLocaleTimeString('zh-CN',{hour12:false});
+  document.getElementById('medicalScaleNote').textContent=(readback.medical_scale_assumed===false?
+    '使用 PS 配置的像素尺度': '按 CAMUS 像素尺度估算 · 面积 0.436281 mm²/像素')+
+    '；心房容积取自左心室 ED/ES 时相。';
+}
+
 function renderMetrics(status,state){
   const rows=[
     ['目标面积',status.area_mm2,'mm²'],

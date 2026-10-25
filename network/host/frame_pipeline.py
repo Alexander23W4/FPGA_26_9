@@ -13,9 +13,9 @@ import socket
 import threading
 import time
 
-from frame_transfer import (INPUT_BYTES, OUTPUT_BYTES, META, PERF, PERF_FAST,
+from frame_transfer import (INPUT_BYTES, OUTPUT_BYTES, META, META_MEDICAL, PERF, PERF_FAST,
     MAGIC, HEADER, ERROR, RemoteError, packet, crc, receive_header, recv_exact,
-    decode_frame_metadata, decode_frame_performance)
+    decode_result_payload, decode_frame_performance)
 
 HELLO_PIPE, PIPE_READY, PIPE_UPLOAD, PIPE_RESULT = 18, 19, 20, 22
 PIPE_CREDIT = 23
@@ -146,14 +146,14 @@ class FramePipeline:
                 started = time.perf_counter()
                 kind, length, checksum, mode = self._result_header(job, deadline)
                 header_received = time.perf_counter()
-                if (kind != PIPE_RESULT or length != META.size + OUTPUT_BYTES or mode != context['mode']):
+                if (kind != PIPE_RESULT or length - OUTPUT_BYTES not in (META.size, META_MEDICAL.size)
+                        or mode != context['mode']):
                     raise ValueError('pipeline result id/length/mode mismatch')
                 payload = recv_exact(self._socket, length, deadline)
                 received = time.perf_counter()
                 if crc(payload) != checksum:
                     raise ValueError('FPGA result CRC mismatch')
-                readback = decode_frame_metadata(payload[:META.size], mode)
-                raw = payload[META.size:]
+                readback, raw = decode_result_payload(payload, mode)
                 if raw[3::4].count(255) != 65536:
                     raise ValueError('FPGA RGBA alpha must be 255')
                 validated = time.perf_counter()

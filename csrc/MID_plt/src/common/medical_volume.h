@@ -20,4 +20,14 @@ static inline int medical_volume_to_ml_x100(uint32_t raw, double coefficient,
     return 0;
 }
 
+/* Percent * 100, calculated BEFORE volume rounding (the common scale cancels).
+ * An absent phase pair, empty ED or inverted volumes is not an EF of zero. */
+static inline uint32_t medical_ef_x100(uint32_t ed, uint32_t es)
+{
+    if (ed == PL_VOLUME_UNAVAILABLE || es == PL_VOLUME_UNAVAILABLE ||
+        ed == 0u || es > ed)
+        return PL_VOLUME_UNAVAILABLE;
+    return (uint32_t)(((uint64_t)(ed - es) * 10000u + ed / 2u) / ed);
+}
+
 #endif

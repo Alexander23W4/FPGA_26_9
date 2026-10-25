@@ -4,6 +4,7 @@
 #include "app/cfg.h"
 #include "config/pl_cmd.h"
 #include "common/crc32.h"
+#include "common/medical_readback.h"
 #include "drv/vdma.h"
 #include "drv/s2mm.h"
 #include "lwip/init.h"
@@ -35,7 +36,7 @@
 #define FAST_READY 15u
 #define RESULT_RGBA 16u
 #define PERF_FAST 17u
-#define META_BYTES 56u /* v4: register/timing header, then RGBA, then PERF_FAST */
+#define META_BYTES 104u /* v6: 56-byte status + 48-byte PS medical snapshot */
 #define PERF_BYTES 48u
 #define UPLOAD_REQUIRED 1u
 #define FAILED 2u
@@ -79,6 +80,15 @@ static u64 ticks(void)
 }
 static u32 get32(const u8 *p) {return ((u32)p[0]<<24)|((u32)p[1]<<16)|((u32)p[2]<<8)|p[3];}
 static void put32(u8 *p,u32 n) {p[0]=(u8)(n>>24);p[1]=(u8)(n>>16);p[2]=(u8)(n>>8);p[3]=(u8)n;}
+static void medical_metadata(u8 *meta)
+{
+    struct medical_readback m;
+    unsigned i;
+    medical_readback_capture(&m);
+    put32(meta+56,m.flags);put32(meta+60,m.coefficient_nano);
+    for(i=0;i<8;++i)put32(meta+64+4*i,m.ml_x100[i]);
+    put32(meta+96,m.ef_x100[0]);put32(meta+100,m.ef_x100[1]);
+}
 static u32 back_state(void) {return Xil_In32(PL_REG_ADDRESS(BACK_STATUS));}
 static int unet_ready(void) {
     return Xil_In32(PL_REG_ADDRESS(MODE_ADDR))==0u ||
@@ -126,7 +136,7 @@ static void prepare_result(void)
                                   DATA_REG_ADDR,LESION_ADDR,MASK_TRANSP_ADDR};
     unsigned i;u64 before;
     if(fast_job) {
-        put32(result_meta,5u);
+        put32(result_meta,6u);
         for(i=0;i<7;++i)put32(result_meta+4u*(i+1u),
             i==2?result_mode:Xil_In32(PL_REG_ADDRESS(regs[i])));
         put32(result_meta+32,(u32)((rx_finished-rx_started)*1000000ull/COUNTS_PER_SECOND));
@@ -135,6 +145,7 @@ static void prepare_result(void)
         put32(result_meta+44,pl_micros(Xil_In32(PL_REG_ADDRESS(RETURN_INTERVAL))));
         put32(result_meta+48,pl_micros(Xil_In32(PL_REG_ADDRESS(RETURN_STALL))));
         put32(result_meta+52,Xil_In32(PL_REG_ADDRESS(RETURN_SEQ)));
+        medical_metadata(result_meta);
     }
     before=ticks();
     if(fast_job)result_crc=crc32_extend(crc32_calc(result_meta,META_BYTES),(const u8 *)IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE);

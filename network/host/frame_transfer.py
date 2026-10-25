@@ -14,6 +14,7 @@ import struct
 import threading
 import time
 from PIL import Image
+from medical_metrics import decode_medical_values
 
 MAGIC = 0x48434631  # HCF1, network byte order
 HEADER = struct.Struct('!6I')
@@ -24,6 +25,7 @@ HELLO_FAST, FAST_READY = 14, 15
 RESULT_RGBA = 16
 PERF_FAST = 17
 META = struct.Struct('!14I')  # v4: same registers, followed by a PERF_FAST message
+META_MEDICAL = struct.Struct('!26I')  # v6: PS-scaled volumes and ventricular EF
 PERF = struct.Struct('!12I')
 INPUT_BYTES = 65536
 OUTPUT_BYTES = 262144
@@ -85,19 +87,31 @@ def result_image(raw, mode):
 
 
 def decode_frame_metadata(data, mode):
+    if len(data) not in (META.size, META_MEDICAL.size):
+        raise ValueError('invalid FPGA metadata length')
     (version, system, threshold_mode, video, actual, manual, lesion, alpha,
-     rx_us, setup_us, pl_us, interval_cycles, stall_cycles, interval_seq) = META.unpack(data)
-    if (version not in (4, 5) or system > 1 or threshold_mode > 1 or video != mode or
+     rx_us, setup_us, pl_us, interval_cycles, stall_cycles, interval_seq) = META.unpack(data[:META.size])
+    if (version not in (4, 5, 6) or (version == 6) != (len(data) == META_MEDICAL.size) or
+            system > 1 or threshold_mode > 1 or video != mode or
             actual > 255 or manual > 255 or lesion > 65536 or alpha > 100):
         raise ValueError('invalid FPGA frame register snapshot')
-    return {'ok': True, 'system_mode': system, 'mode': threshold_mode,
+    result = {'ok': True, 'system_mode': system, 'mode': threshold_mode,
             'video_mode': video, 'actual_threshold': actual, 'threshold': manual,
             'lesion_pixels': lesion, 'lesion_mm2': '%.3f' % (lesion * 0.436280886141),
             'mask_transparency': alpha,
             'ps_timings_ms': {'receive': rx_us/1000, 'setup': setup_us/1000, 'pl_to_ddr': pl_us/1000},
-            'pl_interval': {'sequence': interval_seq, 'elapsed_ms': interval_cycles/(1000 if version == 5 else 25200),
-                            'write_stall_ms': stall_cycles/(1000 if version == 5 else 25200)},
+            'pl_interval': {'sequence': interval_seq, 'elapsed_ms': interval_cycles/(1000 if version >= 5 else 25200),
+                            'write_stall_ms': stall_cycles/(1000 if version >= 5 else 25200)},
             'log': 'register snapshot received with frame over TCP'}
+    if version == 6:
+        words = META_MEDICAL.unpack(data)
+        result.update(decode_medical_values(words[14], words[15], words[16:24], words[24:26]))
+    return result
+
+
+def decode_result_payload(payload, mode):
+    metadata_size = len(payload) - OUTPUT_BYTES
+    return decode_frame_metadata(payload[:metadata_size], mode), payload[metadata_size:]
 
 
 def decode_frame_performance(data):
@@ -272,7 +286,8 @@ class FrameTransferClient:
                         wait_started = time.perf_counter()
                         kind, length, checksum, returned_mode = receive_header(sock, job, deadline)
                         header_received = time.perf_counter()
-                        if kind != RESULT_FAST or length != OUTPUT_BYTES + META.size or returned_mode not in range(5):
+                        if (kind != RESULT_FAST or length - OUTPUT_BYTES not in (META.size, META_MEDICAL.size)
+                                or returned_mode not in range(5)):
                             raise ValueError('unexpected stream protocol; rebuild and flash PL/PS')
                         if mode is not None and returned_mode != mode:
                             raise ValueError('FPGA result mode mismatch')
@@ -280,8 +295,7 @@ class FrameTransferClient:
                         payload_received = time.perf_counter()
                         if crc(payload) != checksum:
                             raise ValueError('FPGA result CRC mismatch')
-                        readback = decode_frame_metadata(payload[:META.size], returned_mode)
-                        raw = payload[META.size:]
+                        readback, raw = decode_result_payload(payload, returned_mode)
                         if raw[3::4].count(255) != 65536:
                             raise ValueError('FPGA RGBA alpha must be 255')
                         validated = time.perf_counter()

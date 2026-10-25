@@ -85,9 +85,8 @@ ED/ES 至少相隔 5 个源视频帧；超过 240 帧仍未配对则重新搜索
 在 80 MHz 下，接收 65536 个像素的理想时间为 0.8192 ms；这只是模块吞吐估计，
 不代表全系统帧率或已完成时序收敛。
 
-**顶层集成仍按原要求：`top1.u_medical` 输入接空闲值、流输出不连接，只连接结果。**
-因此模块本身能计算，不代表当前上板链路已经给它提供四腔掩膜。接入分割输出后才会在
-PS 看到新结果。当前独立的 `registration_top` 仍在原医学分支，支持反压，不在本模块重复实例化。
+当前 `top1.u_medical` 已接入医学分支：DDR 配准 → 完整 U-Net → 本模块 → 输出仲裁 → 双帧缓存。
+像素及四腔掩膜/轮廓按握手传递；容积结果独立连接只读寄存器。U-Net 权重须先加载到 DDR。
 
 ## 只读寄存器与 PS 标定
 
@@ -101,12 +100,14 @@ PS 使用 `PL_REG_ADDRESS(index)`，基址 `0x44000000`。
 | EDV_LV / ESV_LV | 0x14 / 0x15 | 0x50 / 0x54 |
 | EDV_RV / ESV_RV | 0x16 / 0x17 | 0x58 / 0x5C |
 
-例如 `158336` 表示 `1583.36 像素³`。PS 的 `R` 命令保留原始读回行，并显示 px³。
+例如 `158336` 表示 `1583.36 像素³`。PS 的 `R` 命令保留 `[PL rdbk]` 原始读回行。
 写上述地址返回 `SLVERR`；已删除的 GLS WORD 0x18、0x19、0x28、0x29 读写均返回 `SLVERR`。
-Python 返回 `medical_raw`、保留两位小数的 `medical_volume_index` 和单位 `medical_volume_unit=px^3`；
-未就绪值返回 `null`，不误标成 mL。
+PS 用两次一致的八寄存器读取形成快照，换算容积并计算两个心室 EF。换算失败、未就绪、EDV=0
+或 ESV>EDV 时返回 `0xffffffff`。EF 使用原始体积计算，避免先舍入 mL 的误差：
+`EF_x100 = round((EDV_raw - ESV_raw) * 10000 / EDV_raw)`。
+GUI/Python 只格式化 PS 结果，不重新计算 EF。
 
-以后修改 `csrc/MID_plt/src/config/pl_cmd.h` 的 `PL_VOLUME_ML_COEFF`，PS 就能按系数换算：
+`csrc/MID_plt/src/config/pl_cmd.h` 的 `PL_VOLUME_ML_COEFF` 控制 PS 换算：
 
 ```text
 V_mL = (寄存器值 / 100) × PL_VOLUME_ML_COEFF
@@ -114,14 +115,25 @@ V_mL = (寄存器值 / 100) × PL_VOLUME_ML_COEFF
 当前圆盘模型 dx=dz=sx、dy=sy：系数 = sx² × sy / 1000
 ```
 
-系数默认为 0，表示未标定。大于 0 后，`R` 额外打印标定后的 mL，
+按用户指定，CAMUS 和 CardiacUDA 暂时共用项目已有的假设像素面积 `0.436280886141 mm²`。
+假设等距正方形像素，边长 `0.6605156214208715 mm`，默认容积系数为
+`0.00028817034062347113 mL/像素³`。这是估算尺度，未经过逐视频物理标定；不能把面积系数直接乘体积。
 实际换算在 `common/medical_volume.h` 中完成，包含未就绪判断、舍入与溢出检查。
-原始只读寄存器数值不会随 PS 系数改变。
+原始只读寄存器不变，PS 容积和 EF 都以整数放大 100 倍传输，GUI 显示两位小数。
+
+`R` 追加 `[PS medical] NAME_ML_X100`、`EF_LV_X100`、`EF_RV_X100`、`FLAGS` 和
+`COEFFICIENT_NANO`。连续流使用 TCP 元数据 v6：原 56 字节后追加 48 字节，依次为 flags、
+系数×10^9、八个 mL×100、LV/RV EF×100，全部网络字节序，和图像共同计算 CRC。
+Python 输出 `medical_volumes_ml`、`medical_ef_percent`、`medical_scale_assumed`；
+未就绪为 `null`。旧 v4/v5 固件仍能回传图像，但没有新的医学数值。
+图像模式在任务完成后读取 `R`；连续流每帧携带快照，不额外逐帧查询 UART，也不影响图像模式保存文件。
+GUI 医学模式展示 LV/RV EDV、ESV、EF 和 LA/RA 在相同心室 ED/ES 时相的容积；
+后两者不是独立检测心房最大/最小容积。没有完整周期时显示“—”，有结果后保持最近完整周期，随新结果更新。
 
 系数应使用 **缩放后 256×256 图像**的间距。例如 800×600 等比缩放成 256×192 后补黑边，
 有效间距为原始间距除以 0.32，黑边不属于解剖区域。
 本地 CardiacUDA 364 个视频头均给出空间间距 1、1，360 个没有物理单位，4 个标为 mm；
-没有得到可靠的真实标定，当前按用户指定统一使用单位间距。部分原视频保留深度刻度，可后续逐段核实。
+没有得到可靠的真实标定，当前按用户指定沿用上述 CAMUS 假设尺度。部分原视频保留深度刻度，可后续逐段核实。
 
 参考：[CardiacUDA 官方说明](https://github.com/XiaoweiXu/CardiacUDA-dataset)、
 [ASE/EACVI 心腔定量指南](https://asecho.org/wp-content/uploads/2016/02/2015_ChamberQuantificationREV.pdf)。

@@ -80,6 +80,16 @@
 
       <section class="results-section" aria-labelledby="resultsTitle">
         <div class="results-heading"><div class="section-title"><svg aria-hidden="true"><use href="#icon-chart"/></svg><h3 id="resultsTitle">处理结果</h3></div><div data-system-mode="processing"><button id="request">请求FPGA状态</button></div><span class="section-note" data-system-mode="simulation" hidden>模拟数据</span></div>
+        <div id="medicalResults" data-system-mode="medical" hidden>
+          <div class="medical-summary"><span>最近完整心动周期</span><span id="medicalMetricState" role="status">等待完整心动周期</span></div>
+          <div class="medical-chambers">
+            <article class="chamber-card" data-chamber="LV"><h4><i></i>左心室 <span>LV</span></h4><dl><div><dt>EDV <span>mL</span></dt><dd id="medicalEDV_LV">—</dd></div><div><dt>ESV <span>mL</span></dt><dd id="medicalESV_LV">—</dd></div><div class="chamber-ef"><dt>射血分数 EF <span>%</span></dt><dd id="medicalEF_LV">—</dd></div></dl></article>
+            <article class="chamber-card" data-chamber="RV"><h4><i></i>右心室 <span>RV</span></h4><dl><div><dt>EDV <span>mL</span></dt><dd id="medicalEDV_RV">—</dd></div><div><dt>ESV <span>mL</span></dt><dd id="medicalESV_RV">—</dd></div><div class="chamber-ef"><dt>射血分数 EF <span>%</span></dt><dd id="medicalEF_RV">—</dd></div></dl></article>
+            <article class="chamber-card" data-chamber="LA"><h4><i></i>左心房 <span>LA</span></h4><dl><div><dt>ED 时相容积 <span>mL</span></dt><dd id="medicalEDV_LA">—</dd></div><div><dt>ES 时相容积 <span>mL</span></dt><dd id="medicalESV_LA">—</dd></div></dl></article>
+            <article class="chamber-card" data-chamber="RA"><h4><i></i>右心房 <span>RA</span></h4><dl><div><dt>ED 时相容积 <span>mL</span></dt><dd id="medicalEDV_RA">—</dd></div><div><dt>ES 时相容积 <span>mL</span></dt><dd id="medicalESV_RA">—</dd></div></dl></article>
+          </div>
+          <p id="medicalScaleNote" class="medical-scale-note">按 CAMUS 像素尺度估算 · 面积 0.436281 mm²/像素；心房容积取自左心室 ED/ES 时相。</p>
+        </div>
         <div id="metrics" data-system-mode="simulation" hidden></div>
         <pre id="logs" hidden></pre>
       </section>

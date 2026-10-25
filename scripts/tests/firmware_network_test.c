@@ -13,6 +13,9 @@
 
 static u32 dma_regs[32],vdma_status=1,back_flags,video_mode=4,captured_mode=4;
 static u32 processing_hz=100000000,system_mode,model_status;
+static u32 medical_raw[8]={40000000,24000000,30000000,20000000,100000000,40000000,80000000,40000000};
+static unsigned medical_reads,medical_publish_at;
+static int medical_unstable;
 static unsigned dma_starts,ack_writes,flushes,invalidates,timer_calls;
 static u64 clock_ticks;
 static u8 wire_bytes[2000000];static size_t wire_used;
@@ -35,6 +38,12 @@ u32 Xil_In32(UINTPTR address)
     if(address==PL_REG_ADDRESS(DATA_REG_ADDR)||address==PL_REG_ADDRESS(STATUS_ADDR))return 123;
     if(address==PL_REG_ADDRESS(LESION_ADDR))return 65432;
     if(address==PL_REG_ADDRESS(MASK_TRANSP_ADDR))return 45;
+    if(address>=PL_REG_ADDRESS(EDV_LA)&&address<=PL_REG_ADDRESS(ESV_RV)) {
+        ++medical_reads;
+        if(medical_reads==medical_publish_at) {medical_raw[4]=200000000;medical_raw[5]=50000000;}
+        if(medical_unstable&&medical_reads%8u==1u)++medical_raw[0];
+        return medical_raw[(address-PL_REG_ADDRESS(EDV_LA))/4u];
+    }
     if(address==0xf8f00200u) {clock_ticks+=1000;return (u32)clock_ticks;}
     if(address==0xf8f00204u)return (u32)(clock_ticks>>32);
     if(address==0xf8f00208u)return 1;
@@ -268,11 +277,31 @@ static void test_pipeline_burst(void)
     VirtualFree(memory,0,MEM_RELEASE);connect_host();
     puts("FIRMWARE_BURST_OK: 225+ callbacks, full DDR ring, bounded TCP-window queue, immediate resume, no timer/retry, exact IDs/CRC");
 }
+static void test_medical_snapshot(void)
+{
+    struct medical_readback m;
+    u32 saved[8];unsigned i;
+    memcpy(saved,medical_raw,sizeof(saved));
+    /* Publication after the first scan must produce the new PAIR, not old ED
+     * combined with new ES. Continued churn is unavailable, never stale EF. */
+    medical_reads=0;medical_publish_at=9;
+    medical_readback_capture(&m);
+    assert(m.flags==3&&m.raw[4]==200000000&&m.raw[5]==50000000&&m.ef_x100[0]==7500);
+    assert(medical_reads==24);
+    medical_publish_at=0;medical_unstable=1;medical_reads=0;
+    medical_readback_capture(&m);
+    assert(m.flags==2&&medical_reads==32);
+    for(i=0;i<8;++i)assert(m.raw[i]==PL_VOLUME_UNAVAILABLE&&m.ml_x100[i]==PL_VOLUME_UNAVAILABLE);
+    assert(m.ef_x100[0]==PL_VOLUME_UNAVAILABLE&&m.ef_x100[1]==PL_VOLUME_UNAVAILABLE);
+    medical_unstable=0;memcpy(medical_raw,saved,sizeof(saved));
+    puts("FIRMWARE_MEDICAL_OK: coherent phase pair, PS-scaled mL/EF, unstable snapshot unavailable");
+}
 int main(void)
 {
     void *memory=VirtualAlloc((void *)(UINTPTR)IMG_DDR_BASE,0x50000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
     u32 checksum,before;
     assert(memory==(void *)(UINTPTR)IMG_DDR_BASE);memset(memory,0xcc,0x50000);
+    test_medical_snapshot();
     assert(net_frame_init()==0);connect_host();
     system_mode=1;model_status=0;
     request(HELLO_PIPE,901,0,0,0);
@@ -356,7 +385,10 @@ int main(void)
         drain_result();assert(phase==IDLE&&last_done==90&&last_fast);
         assert(wire_used==24+META_BYTES+IMG_RES_DDR_SIZE+24+PERF_BYTES&&get32(wire_bytes+4)==RESULT_FAST);
         assert(get32(wire_bytes+12)==META_BYTES+IMG_RES_DDR_SIZE);
-        assert(get32(wire_bytes+24)==5&&get32(wire_bytes+24+12)==captured_mode);
+        assert(get32(wire_bytes+24)==6&&get32(wire_bytes+24+12)==captured_mode);
+        assert(get32(wire_bytes+24+56)==3&&get32(wire_bytes+24+60)==288170);
+        assert(get32(wire_bytes+24+80)==28817&&get32(wire_bytes+24+84)==11527);
+        assert(get32(wire_bytes+24+96)==6000&&get32(wire_bytes+24+100)==5000);
         assert(get32(wire_bytes+24+24)==65432&&get32(wire_bytes+24+28)==45);
         assert(get32(wire_bytes+24+44)==5040&&get32(wire_bytes+24+48)==1260&&get32(wire_bytes+24+52)==7);
         processing_hz=150000000;assert(pl_micros(504000)==3360);

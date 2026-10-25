@@ -16,14 +16,22 @@
 
 /* RO geometric volume index: unsigned pixel^3 * 100, unit spacing.
  * 0xffffffff = no paired ED/ES yet, or a missing chamber at either phase.
- * Set the PS coefficient later, using spacing AFTER the 256x256 resize:
+ * PS converts using spacing AFTER the 256x256 resize:
  *   isotropic spacing s mm: coefficient = s*s*s / 1000 [mL / pixel^3]
  *   row-disc model dx=dz=sx, dy=sy: sx*sx*sy / 1000.
  */
 #define PL_VOLUME_SCALE  100u
 #define PL_VOLUME_UNAVAILABLE 0xffffffffu
+/* User-selected assumption for both CAMUS and CardiacUDA, not a measured
+ * calibration: square pixels, area 0.436280886141 mm^2, s=0.6605156214208715 mm.
+ * Volume uses s^3 / 1000, NEVER the area coefficient. */
+#define PL_PIXEL_AREA_MM2 0.436280886141
 #ifndef PL_VOLUME_ML_COEFF
-#define PL_VOLUME_ML_COEFF 0.0 /* 0: uncalibrated; do not label the index as mL */
+#define PL_VOLUME_ML_COEFF 0.00028817034062347113
+#define PL_VOLUME_SCALE_ASSUMED 1u
+#endif
+#ifndef PL_VOLUME_SCALE_ASSUMED
+#define PL_VOLUME_SCALE_ASSUMED 0u /* Explicit coefficient supplied by the build. */
 #endif
 #define UNET_STATUS      0x2au /* bit0 model ready, bit1 computing, bit2 malformed frame */
 #define EDV_LA           0x10u

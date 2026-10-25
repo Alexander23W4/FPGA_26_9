@@ -38,6 +38,15 @@ class MockBoard(socketserver.ThreadingTCPServer):
         self.pipeline_credit_sent=threading.Event()
         self.pipeline_credit_release=threading.Event()
         self.threshold=128;self.manual=0;self.alpha=45
+        self.medical_values=None
+
+    def metadata(self, mode):
+        prefix=(4,0,self.manual,mode,self.threshold,self.threshold,1234,self.alpha,
+                1000,500,25000,504000,126000,self.uploads-1)
+        if self.medical_values is None:
+            return transfer.META.pack(*prefix)
+        prefix=(6,1,*prefix[2:11],20000,5000,self.uploads-1)
+        return transfer.META_MEDICAL.pack(*prefix,*self.medical_values)
 
 class MockHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -74,8 +83,7 @@ class MockHandler(socketserver.BaseRequestHandler):
                 if board.error_next:
                     message=board.error_next.encode();board.error_next=None
                     self.request.sendall(transfer.packet(transfer.ERROR,job,len(message),0,2)+message);return
-                meta=transfer.META.pack(4,0,board.manual,mode,board.threshold,board.threshold,1234,board.alpha,
-                                       1000,500,25000,504000,126000,board.uploads-1)
+                meta=board.metadata(mode)
                 payload=meta+raw
                 self.request.sendall(transfer.packet(PIPE_RESULT,job,len(payload),transfer.crc(payload)^int(board.bad_crc),mode)+payload)
                 perf=transfer.PERF.pack(1,500,2500,10000,1000,64,2,600,100,65535,65535,1)
@@ -162,8 +170,7 @@ class MockHandler(socketserver.BaseRequestHandler):
             if board.stall_next:
                 board.stall_next=False;board.stall_job=job
                 board.release_late.wait(5)
-            meta=transfer.META.pack(4,0,board.manual,result_mode,board.threshold,board.threshold,1234,board.alpha,
-                                    1000,500,25000,504000,126000,board.uploads-1)
+            meta=board.metadata(result_mode)
             payload=meta+raw if board.fast else raw
             length=len(payload)-1 if board.bad_length else len(payload)
             checksum=transfer.crc(payload)^(1 if board.bad_crc else 0)

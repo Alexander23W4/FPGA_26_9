@@ -23,6 +23,7 @@ import web_common
 from frame_transfer import FrameTransferClient, normalize_result_name
 from queued_stream import QueuedStream, QueueFull
 from frame_pipeline import FramePipeline
+from medical_metrics import parse_ps_medical
 
 
 def load_gray(path):
@@ -215,6 +216,7 @@ async function dshProcess(upload) {
     renderProcessedResults({...previous, ...Object.fromEntries(result.results.map(item => [String(item.mode), item]))}, result.results_revision);
   }
   if (!response.ok || !result.ok) throw new Error(result.log || result.error);
+  if (result.readback) dshApplyReadback(result.readback);
   if (upload) dshNeedsUpload = false;
   if (mode !== '5') lastConfirmedVideoMode = Number(mode);
   await poll();
@@ -241,6 +243,7 @@ async function dshThrUpdate() {
 }
 function dshApplyReadback(j) {
     if (!j.ok) throw new Error('状态回读失败: ' + j.log);
+    if (typeof renderMedicalMetrics === 'function') renderMedicalMetrics(j);
     document.getElementById('dshRbMode').textContent = j.mode === 1 ? '手动' : '自动';
     document.getElementById('dshRbThr').textContent = j.actual_threshold;
     const names = ['去噪处理', '轮廓处理', '二值掩膜处理', '叠加掩膜处理', '伪彩色热力图处理'];
@@ -689,7 +692,8 @@ def _readback_regs():
                 "hdmi_enabled": regs["HDMI_EN"],
                 "medical_raw": medical_raw, "medical_volume_index": medical_index,
                 "medical_volume_unit": "px^3",
-                "lesion_mm2": "%.3f" % (lesion * PIXEL_AREA_MM2), "log": txt}
+                "lesion_mm2": "%.3f" % (lesion * PIXEL_AREA_MM2), "log": txt,
+                **parse_ps_medical(txt)}
     except Exception as exc:
         return {"ok": False, "log": "%s: %s" % (type(exc).__name__, exc)}
 
@@ -980,8 +984,9 @@ def _display_job(bin_bytes, filename, mode, state, upload, stream_folder=None, s
                     with state.lock:
                         state.transfer_status.update(completed=len(results))
                     state.log('模式 %d 回传已保存并确认: %s' % (current_mode, result['files']['bin']))
-            if result_name is not None:
-                # No next input frame until both the fresh return and R complete.
+            if result_name is not None or (state is not None and state.system_mode == 'medical'):
+                # Durable image jobs have no TCP status prefix. Continuous streams
+                # use FramePipeline metadata and never enter this UART path.
                 before = time.perf_counter()
                 readback = _readback_regs()
                 timings['readback_ms'] = (time.perf_counter() - before) * 1000

@@ -169,7 +169,7 @@ static void pipe_finish(void)
     if(mode!=input->mode||i<IMG_RES_DDR_SIZE) {pipe_fail("pipeline RGBA/frame mode mismatch",1);return;}
     output->id=input->id;output->mode=mode;
     output->input_crc_ticks=input->crc_ticks;output->copy_ticks=input->copy_ticks;
-    put32(output->meta,5u);
+    put32(output->meta,6u);
     for(i=0;i<7;++i)put32(output->meta+4u*(i+1u),i==2?mode:Xil_In32(PL_REG_ADDRESS(regs[i])));
     put32(output->meta+32,micros(input->finished-input->started));
     put32(output->meta+36,micros(pipe_dma_started-input->finished));
@@ -177,6 +177,7 @@ static void pipe_finish(void)
     put32(output->meta+44,pl_micros(Xil_In32(PL_REG_ADDRESS(RETURN_INTERVAL))));
     put32(output->meta+48,pl_micros(Xil_In32(PL_REG_ADDRESS(RETURN_STALL))));
     put32(output->meta+52,Xil_In32(PL_REG_ADDRESS(RETURN_SEQ)));
+    medical_metadata(output->meta);
     before=ticks();output->checksum=crc32_extend(crc32_calc(output->meta,META_BYTES),raw,IMG_RES_DDR_SIZE);
     output->crc_ticks=ticks()-before;
     s2mm_stop();output->state=P_RESULT;input->state=P_FREE;
