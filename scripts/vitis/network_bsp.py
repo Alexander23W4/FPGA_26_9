@@ -3,6 +3,11 @@ import json
 from pathlib import Path
 import re
 
+# GEM TX-complete interrupts release PBUF_RAM while the raw-API main loop
+# allocates TCP buffers. NO_SYS mutexes are empty: enable lwIP's IRQ-safe heap.
+REQUIRED_MACROS = {'LWIP_ALLOW_MEM_FREE_FROM_OTHER_CONTEXT': 1,
+                   'SYS_LIGHTWEIGHT_PROT': 1}
+
 
 def load_profile(path):
     data = json.loads(Path(path).read_text(encoding='utf-8'))
@@ -32,7 +37,9 @@ def patch_inputs(bsp, profile):
     text = re.sub(r'# HEARTCARE_NETWORK_BEGIN.*?# HEARTCARE_NETWORK_END\n?', '', text, flags=re.S)
     block = '# HEARTCARE_NETWORK_BEGIN\n' + ''.join(
         'set(%s %d CACHE STRING "Heartcare network profile" FORCE)\n' % (name, value['value'])
-        for name, value in sorted(profile.items())) + '# HEARTCARE_NETWORK_END\n'
+        for name, value in sorted(profile.items())) + ''.join(
+        'set(%s %d CACHE STRING "Heartcare interrupt-safe heap" FORCE)\n' % pair
+        for pair in sorted(REQUIRED_MACROS.items())) + '# HEARTCARE_NETWORK_END\n'
     new = block + text
     if new != cmake.read_text(encoding='utf-8'):
         cmake.write_text(new, encoding='utf-8'); changed = True
@@ -42,6 +49,15 @@ def patch_inputs(bsp, profile):
         text, count = re.subn(pattern, '#define %s %d' % (value['macro'], value['value']), text, flags=re.M)
         if count != 1:
             raise RuntimeError('expected one lwIP template entry: ' + value['macro'])
+    for macro, value in REQUIRED_MACROS.items():
+        pattern = r'^#(?:cmakedefine(?:01)?|define)\s+' + macro + r'\b[^\r\n]*'
+        replacement = '#define %s %d' % (macro, value)
+        text, count = re.subn(pattern, replacement, text, flags=re.M)
+        if count == 0:
+            # SYS_LIGHTWEIGHT_PROT is absent from the vendor template.
+            text = replacement + '\n' + text
+        elif count != 1:
+            raise RuntimeError('duplicate lwIP template entry: ' + macro)
     if text != template.read_text(encoding='utf-8'):
         template.write_text(text, encoding='utf-8'); changed = True
     return changed
@@ -53,7 +69,8 @@ def verify_profile(bsp, exported, profile):
              Path(exported)/'include/lwipopts.h']
     for path in paths:
         text = path.read_text(encoding='utf-8')
-        for setting in profile.values():
+        for setting in list(profile.values()) + [
+                {'macro': macro, 'value': value} for macro, value in REQUIRED_MACROS.items()]:
             match = re.search(r'^#define\s+' + setting['macro'] + r'\s+(\d+)\s*$', text, re.M)
             if not match or int(match.group(1)) != setting['value']:
                 raise RuntimeError('BSP profile mismatch: %s in %s' % (setting['macro'], path))

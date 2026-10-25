@@ -51,12 +51,20 @@ def run(args,capacity):
                 except OSError as error:
                     samples.append({'error':str(error)});return
             stop.wait(.003)
+    if args.folder is None:
+        images=[bytes(range(256))*256]
+    else:
+        paths=sorted(args.folder.glob('*.bin'))
+        if not paths:
+            raise ValueError('select one patient folder containing BIN frames')
+        images=[path.read_bytes() for path in paths]
+        if any(len(image)!=65536 for image in images):
+            raise ValueError('every BIN must be 256x256x8-bit (65536 bytes)')
     worker=threading.Thread(target=sample,daemon=True);worker.start()
-    image=bytes(range(256))*256
     try:
         while len(frames)<args.frames:
             while submitted<args.frames and len(pending)<capacity:
-                pending.append((submitted,pipeline.submit({'data':image},args.mode)));submitted+=1
+                pending.append((submitted,pipeline.submit({'data':images[submitted%len(images)]},args.mode)));submitted+=1
             sequence,future=pending.popleft();result=future.result(15)
             frames.append({'sequence':sequence,'ms':(time.perf_counter()-epoch)*1000,
                            'timings_ms':result['timings_ms'],'readback':result['readback']})
@@ -79,6 +87,7 @@ if __name__=='__main__':
     parser.add_argument('--port',type=int,default=5002);parser.add_argument('--mode',type=int,default=4)
     parser.add_argument('--frames',type=int,default=40);parser.add_argument('--capacities',type=int,nargs='+',default=[1,4,8])
     parser.add_argument('--out',default=str(ROOT/'build/tests/stream_network_baseline'))
+    parser.add_argument('--folder',type=Path,help='one patient folder; loop its BIN frames instead of synthetic pixels')
     parser.add_argument('--send-buffer',type=int)
     parser.add_argument('--send-chunk',type=int)
     parser.add_argument('--send-pause',type=float,default=0)

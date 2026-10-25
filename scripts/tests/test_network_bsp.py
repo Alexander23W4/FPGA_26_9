@@ -7,7 +7,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'scripts/vitis'))
-from network_bsp import load_profile, patch_inputs, verify_profile, verify_optimization
+from network_bsp import load_profile, patch_inputs, verify_profile, verify_optimization, REQUIRED_MACROS
 
 
 class NetworkBspTests(unittest.TestCase):
@@ -28,11 +28,14 @@ class NetworkBspTests(unittest.TestCase):
         self.assertEqual(self.cmake.read_text().count('HEARTCARE_NETWORK_BEGIN'), 1)
         self.assertIn('set(lwip213_tcp_wnd 65535 CACHE STRING', self.cmake.read_text())
         self.assertIn('#define TCP_SND_BUF 65535', self.template.read_text())
+        for macro,value in REQUIRED_MACROS.items():
+            self.assertIn('#define %s %d'%(macro,value),self.template.read_text())
 
     def generate_outputs(self):
         for root in (self.bsp, self.bsp/'libsrc/build_configs/gen_bsp', self.exported):
             (root/'include').mkdir(parents=True, exist_ok=True)
-            (root/'include/lwipopts.h').write_text(''.join('#define %s %d\n' % (s['macro'],s['value']) for s in self.profile.values()))
+            (root/'include/lwipopts.h').write_text(''.join('#define %s %d\n' % (s['macro'],s['value']) for s in self.profile.values()) +
+                ''.join('#define %s %d\n'%pair for pair in REQUIRED_MACROS.items()))
         (self.bsp/'libsrc/build_configs/gen_bsp/CMakeCache.txt').write_text(
             ''.join('%s:STRING=%d\n' % (n,s['value']) for n,s in self.profile.items()))
 
@@ -55,6 +58,14 @@ class NetworkBspTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'not -O2'):verify_optimization(path)
         path.write_text(json.dumps([{'command':'gcc -O0 -O2 -c main.c','file':'main.c'}]))
         verify_optimization(path)
+
+    def test_audit_rejects_unsafe_interrupt_heap(self):
+        self.generate_outputs()
+        path=self.exported/'include/lwipopts.h'
+        path.write_text(path.read_text().replace('LWIP_ALLOW_MEM_FREE_FROM_OTHER_CONTEXT 1',
+                                                'LWIP_ALLOW_MEM_FREE_FROM_OTHER_CONTEXT 0'))
+        with self.assertRaisesRegex(RuntimeError,'LWIP_ALLOW_MEM_FREE_FROM_OTHER_CONTEXT'):
+            verify_profile(self.bsp,self.exported,self.profile)
 
 
 if __name__ == '__main__': unittest.main()
