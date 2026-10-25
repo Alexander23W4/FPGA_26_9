@@ -15,7 +15,14 @@ def main():
     command=[str(compiler),'-std=c11','-O2','-Wall','-Wextra','-Werror','-Wno-unused-parameter','-static',
              '-I'+str(OUT/'include'),'-I'+str(ROOT/'csrc/MID_plt/src'),
              str(ROOT/'scripts/tests/firmware_network_test.c'),str(ROOT/'csrc/MID_plt/src/drv_s2mm.c'),
+             str(ROOT/'csrc/MID_plt/src/medical_metrics.c'),
              str(ROOT/'csrc/MID_plt/src/crc32.c'),'-o',str(executable)]
     subprocess.run(command,check=True)
     subprocess.run([str(executable)],check=True,timeout=20)
+    command[-1]=str(OUT/'medical_metrics_test.exe')
+    first=command.index(str(ROOT/'scripts/tests/firmware_network_test.c'))
+    command[first:first+4]=[str(ROOT/'scripts/tests/medical_metrics_test.c'),
+                            str(ROOT/'csrc/MID_plt/src/medical_metrics.c')]
+    subprocess.run(command,check=True)
+    subprocess.run([str(OUT/'medical_metrics_test.exe')],check=True,timeout=20)
 if __name__=='__main__':main()

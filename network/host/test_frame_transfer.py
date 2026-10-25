@@ -39,6 +39,9 @@ class MockBoard(socketserver.ThreadingTCPServer):
         self.pipeline_credit_release=threading.Event()
         self.threshold=128;self.manual=0;self.alpha=45
         self.medical_values=None
+        self.cardiac_values=None
+        self.source_frame_us=0
+        self.boundaries=[]
 
     def metadata(self, mode):
         prefix=(4,0,self.manual,mode,self.threshold,self.threshold,1234,self.alpha,
@@ -46,6 +49,9 @@ class MockBoard(socketserver.ThreadingTCPServer):
         if self.medical_values is None:
             return transfer.META.pack(*prefix)
         prefix=(6,1,*prefix[2:11],20000,5000,self.uploads-1)
+        if self.cardiac_values is not None:
+            values=self.cardiac_values() if callable(self.cardiac_values) else self.cardiac_values
+            return transfer.META_CARDIAC.pack(7,*prefix[1:],*self.medical_values,*values)
         return transfer.META_MEDICAL.pack(*prefix,*self.medical_values)
 
 class MockHandler(socketserver.BaseRequestHandler):
@@ -99,13 +105,15 @@ class MockHandler(socketserver.BaseRequestHandler):
             magic,kind,job,length,checksum,extra=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))
             if magic!=transfer.MAGIC:raise AssertionError('magic')
             if kind==HELLO_PIPE:
-                self.request.sendall(transfer.packet(PIPE_READY,job,extra=6)+transfer.packet(PIPE_CREDIT,0,extra=4))
+                board.source_frame_us=extra
+                self.request.sendall(transfer.packet(PIPE_READY,job,extra=7 if board.cardiac_values is not None else 6)+transfer.packet(PIPE_CREDIT,0,extra=4))
                 self.pipeline_queue=queue.Queue()
                 self.pipeline_sender=threading.Thread(target=self.pipeline_send,daemon=True)
                 self.pipeline_sender.start()
                 return True
             if kind==PIPE_UPLOAD:
-                assert self.pipeline_queue is not None and length==65536 and extra in range(5)
+                assert self.pipeline_queue is not None and length==65536 and extra&7 in range(5) and not extra&~0x107
+                board.boundaries.append(bool(extra&0x100));extra&=7
                 image=transfer.recv_exact(self.request,length)
                 assert transfer.crc(image)==checksum
                 board.input_images.append(image);board.uploads+=1;board.has_frame=True

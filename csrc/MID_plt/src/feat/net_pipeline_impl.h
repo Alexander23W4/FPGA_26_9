@@ -11,7 +11,7 @@
 enum pipe_state {P_FREE, P_RECEIVE, P_READY, P_DMA, P_RESULT};
 struct pipe_input {
     enum pipe_state state;
-    u32 id, checksum, mode;
+    u32 id, checksum, mode, boundary;
     u64 started, finished, crc_ticks, copy_ticks;
 };
 struct pipe_output {
@@ -94,13 +94,15 @@ static u32 pipe_consume(const u8 *bytes,u32 length)
             }
             if(get32(pipe_header)!=MAGIC||get32(pipe_header+4)!=PIPE_UPLOAD||
                !get32(pipe_header+8)||get32(pipe_header+12)!=NET_INPUT_BYTES||
-               get32(pipe_header+20)>4u) {pipe_fail("invalid pipeline frame header",0);break;}
+               (get32(pipe_header+20)&~0x107u)||
+               (get32(pipe_header+20)&7u)>4u) {pipe_fail("invalid pipeline frame header",0);break;}
             if(pipe_in[pipe_in_write].state!=P_FREE)break;
             pipe_rx_slot=(int)pipe_in_write;
             pipe_in[pipe_rx_slot].state=P_RECEIVE;
             pipe_in[pipe_rx_slot].id=get32(pipe_header+8);
             pipe_in[pipe_rx_slot].checksum=get32(pipe_header+16);
-            pipe_in[pipe_rx_slot].mode=get32(pipe_header+20);
+            pipe_in[pipe_rx_slot].mode=get32(pipe_header+20)&7u;
+            pipe_in[pipe_rx_slot].boundary=(get32(pipe_header+20)&0x100u)!=0;
             pipe_in[pipe_rx_slot].started=ticks();
             pipe_in[pipe_rx_slot].copy_ticks=0;pipe_used=0;pipe_hused=0;
         }
@@ -169,7 +171,8 @@ static void pipe_finish(void)
     if(mode!=input->mode||i<IMG_RES_DDR_SIZE) {pipe_fail("pipeline RGBA/frame mode mismatch",1);return;}
     output->id=input->id;output->mode=mode;
     output->input_crc_ticks=input->crc_ticks;output->copy_ticks=input->copy_ticks;
-    put32(output->meta,6u);
+    if(Xil_In32(PL_REG_ADDRESS(MODE_ADDR))) (void)medical_collect_frame();
+    put32(output->meta,7u);
     for(i=0;i<7;++i)put32(output->meta+4u*(i+1u),i==2?mode:Xil_In32(PL_REG_ADDRESS(regs[i])));
     put32(output->meta+32,micros(input->finished-input->started));
     put32(output->meta+36,micros(pipe_dma_started-input->finished));
@@ -210,6 +213,7 @@ static void pipe_start(void)
         }
     }
     if(!pipe_redraw) {
+        if(input->boundary)medical_analysis_boundary();
         Xil_DCacheFlushRange(pipe_input_address(pipe_in_read),NET_INPUT_BYTES);dsb();
         if(vdma_mm2s_config(pipe_input_address(pipe_in_read),256u,256u,256u)!=0||vdma_mm2s_start()!=0) {
             pipe_fail("pipeline MM2S start failed",1);return;

@@ -26,14 +26,15 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
     input wire [7:0] back_frame_mode,
     input wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq,
     input wire [2:0] back_status,
-    input wire [31:0] EDV_LA,
-    input wire [31:0] ESV_LA,
-    input wire [31:0] EDV_RA,
-    input wire [31:0] ESV_RA,
-    input wire [31:0] EDV_LV,
-    input wire [31:0] ESV_LV,
-    input wire [31:0] EDV_RV,
-    input wire [31:0] ESV_RV,
+    input tri0 [31:0] VOLUME_SEQ, VOLUME_STATUS,
+    input wire [31:0] VOLUME_LA,
+
+    input wire [31:0] VOLUME_RA,
+
+    input wire [31:0] VOLUME_LV,
+
+    input wire [31:0] VOLUME_RV,
+
     input tri0 [31:0] unet_status
 );
     localparam [6:0] ADDR_MODE = 7'h00, ADDR_CMD = 7'h01,
@@ -44,14 +45,10 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
         ADDR_CLOCK_HZ = 7'h36;
 
     // Read-only medical values; numbers are WORD indices, as in pl_cmd.h.
-    localparam [6:0] ADDR_EDV_LA = 7'h10;
-    localparam [6:0] ADDR_ESV_LA = 7'h11;
-    localparam [6:0] ADDR_EDV_RA = 7'h12;
-    localparam [6:0] ADDR_ESV_RA = 7'h13;
-    localparam [6:0] ADDR_EDV_LV = 7'h14;
-    localparam [6:0] ADDR_ESV_LV = 7'h15;
-    localparam [6:0] ADDR_EDV_RV = 7'h16;
-    localparam [6:0] ADDR_ESV_RV = 7'h17;
+    localparam [6:0] ADDR_VOLUME_LA = 7'h10;
+    localparam [6:0] ADDR_VOLUME_RA = 7'h11;
+    localparam [6:0] ADDR_VOLUME_LV = 7'h12;
+    localparam [6:0] ADDR_VOLUME_RV = 7'h13;
 
     reg aw_pending, w_pending;
     reg [31:0] aw_saved, w_saved;
@@ -128,15 +125,14 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
                 if (s_axi_araddr[1:0] != 2'b00) s_axi_rresp <= 2'b10;
                 else begin
                     case (s_axi_araddr[8:2])
+                        7'h14: s_axi_rdata <= VOLUME_SEQ;
+                        7'h15: s_axi_rdata <= VOLUME_STATUS;
+                        7'h16: s_axi_rdata <= 32'h564f4c31; // VOL1 ABI
                         7'h2a: s_axi_rdata <= unet_status;
-                        ADDR_EDV_LA: s_axi_rdata <= EDV_LA;
-                        ADDR_ESV_LA: s_axi_rdata <= ESV_LA;
-                        ADDR_EDV_RA: s_axi_rdata <= EDV_RA;
-                        ADDR_ESV_RA: s_axi_rdata <= ESV_RA;
-                        ADDR_EDV_LV: s_axi_rdata <= EDV_LV;
-                        ADDR_ESV_LV: s_axi_rdata <= ESV_LV;
-                        ADDR_EDV_RV: s_axi_rdata <= EDV_RV;
-                        ADDR_ESV_RV: s_axi_rdata <= ESV_RV;
+                        ADDR_VOLUME_LA: s_axi_rdata <= VOLUME_LA;
+                        ADDR_VOLUME_RA: s_axi_rdata <= VOLUME_RA;
+                        ADDR_VOLUME_LV: s_axi_rdata <= VOLUME_LV;
+                        ADDR_VOLUME_RV: s_axi_rdata <= VOLUME_RV;
                         ADDR_MODE: s_axi_rdata <= reg_mode;
                         ADDR_CMD: s_axi_rdata <= reg_cmd;
                         ADDR_VIDEO_MODE: s_axi_rdata <= reg_video_mode;

@@ -11,7 +11,7 @@ module tb_display_regs;
     wire [7:0] threshold;
     wire host_wr;
     integer writes=0;
-    reg [31:0] edv_la=12345;
+    reg [31:0] volume_la=12345;
     axi_lite_slave dut (
         .s_axi_aclk(clk),.s_axi_aresetn(rst_n),
         .s_axi_awaddr(awaddr),.s_axi_awvalid(awvalid),.s_axi_awready(awready),
@@ -22,10 +22,9 @@ module tb_display_regs;
         .reg_mode(mode),.reg_cmd(cmd),.reg_threshold(threshold),.host_wr_en(host_wr),
         .status_in(32'd128),.reg_video_mode(video),.lesion_pixels(17'd65536),
         .reg_mask_transparency(alpha),
-        .EDV_LA(edv_la), .ESV_LA(32'd4567),
-        .EDV_RA(32'd23456), .ESV_RA(32'd5678),
-        .EDV_LV(32'd34567), .ESV_LV(32'd6789),
-        .EDV_RV(32'd45678), .ESV_RV(32'd7890),
+        .VOLUME_LA(volume_la), .VOLUME_RA(32'd23456),
+        .VOLUME_LV(32'd34567), .VOLUME_RV(32'd45678),
+        .VOLUME_SEQ(32'd77), .VOLUME_STATUS(32'd31),
         .back_frame_mode(8'd4), .back_status(3'b001)
         ,.return_interval_cycles(32'd504000), .return_stall_cycles(32'd126000), .return_interval_seq(32'd7)
     );
@@ -96,17 +95,15 @@ module tb_display_regs;
         rd('hcc,504000,0);rd('hd0,126000,0);rd('hd4,7,0);
         wr('hcc,1,4'hf,0,0,2);wr('hd0,1,4'hf,0,0,2);wr('hd4,1,4'hf,0,0,2);
         wr('h80,99,4'hf,0,3,0);rd('h80,99,0);
-        // Medical WORD indices 0x10..0x17 become BYTE offsets 0x40..0x5c.
-        rd('h40,12345,0);rd('h44,4567,0);
-        rd('h48,23456,0);rd('h4c,5678,0);
-        rd('h50,34567,0);rd('h54,6789,0);
-        rd('h58,45678,0);rd('h5c,7890,0);
-        for (int a='h40;a<='h5c;a+=4) wr(a,32'hdeadbeef,4'hf,2,0,2);
-        rd('h40,12345,0);rd('h5c,7890,0);
+        // Per-frame volumes + sequence/status and versioned ABI; all RO.
+        rd('h40,12345,0);rd('h44,23456,0);rd('h48,34567,0);rd('h4c,45678,0);
+        rd('h50,77,0);rd('h54,31,0);rd('h58,32'h564f4c31,0);rd('h5c,0,2);
+        for (int a='h40;a<='h58;a+=4) wr(a,32'hdeadbeef,4'hf,2,0,2);
+        rd('h40,12345,0);rd('h50,77,0);
         // RDATA must remain a snapshot while the source changes under R stall.
         @(negedge clk);araddr='h40;arvalid=1;
         do @(posedge clk);while(!arready);
-        @(negedge clk);arvalid=0;edv_la=22222;
+        @(negedge clk);arvalid=0;volume_la=22222;
         repeat(4)begin
             @(posedge clk);#1;
             if(!rvalid || rdata!==12345 || rresp!==0)$fatal(1,"medical RDATA changed while stalled");

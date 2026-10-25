@@ -26,10 +26,8 @@ module tb_medical_stream;
         .out_RA_mask(received[10]), .out_LV_mask(received[9]),
         .out_RV_mask(received[8]), .out_eof(received[16]),
         .out_valid(out_valid), .out_ready(out_ready),
-        .EDV_LA(volumes[31:0]), .ESV_LA(volumes[63:32]),
-        .EDV_RA(volumes[95:64]), .ESV_RA(volumes[127:96]),
-        .EDV_LV(volumes[159:128]), .ESV_LV(volumes[191:160]),
-        .EDV_RV(volumes[223:192]), .ESV_RV(volumes[255:224])
+        .VOLUME_LA(volumes[31:0]), .VOLUME_RA(volumes[63:32]),
+        .VOLUME_LV(volumes[95:64]), .VOLUME_RV(volumes[127:96])
     );
     always @(negedge clk) if(random_ready) begin
         // Long stalls cross frame boundaries as well as individual pixels.
@@ -89,7 +87,8 @@ module tb_medical_stream;
             wait(emitted==2048+65536);@(negedge clk);
             if(cycles-start_cycle>65540)$fatal(1,"stream did not sustain one pixel/clock");
         end
-        if(volumes!=={8{32'hffffffff}})$fatal(1,"unavailable volume was presented as a measurement");
+        repeat(8)@(negedge clk);
+        if(dut.VOLUME_STATUS!==31 || dut.VOLUME_SEQ==0)$fatal(1,"complete frame volume was not published");
         $display("[PASS] tb_medical_stream: pixels/8 flags/EOF, long stalls, reset flush, 65536 pixels at one/clock, unavailable results");
         $finish;
     end

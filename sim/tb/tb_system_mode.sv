@@ -66,7 +66,8 @@ module tb_system_mode;
     initial begin
         repeat(8)@(negedge clk);rst=0;wait(!dut.rst_clk);
         @(negedge clk);if(dut.reg_mode!==0)$fatal(1,"default mode is not image");
-        for(int a='h40;a<='h5c;a+=4)rd(a,32'hffffffff,0);
+        for(int a='h40;a<='h4c;a+=4)rd(a,32'hffffffff,0);
+        rd('h50,0,0);rd('h54,0,0);rd('h58,32'h564f4c31,0);rd('h5c,0,2);
         rd('h60,0,2);rd('h64,0,2);rd('ha0,0,2);rd('ha4,0,2);
         wr(9'h10,0); // Disable HDMI ownership while testing the input branches.
         fork

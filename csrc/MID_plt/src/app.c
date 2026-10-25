@@ -113,8 +113,6 @@ static int cmd_readback(void)
     }
     medical_readback_capture(&medical);
     for (i = 0; i < 8; ++i) {
-        xil_printf("[PL rdbk] %s(0x%02X) = %u\r\n", volume_names[i], EDV_LA+i,
-                   (unsigned)medical.raw[i]);
         xil_printf("[PS medical] %s_ML_X100 = %u\r\n", volume_names[i],
                    (unsigned)medical.ml_x100[i]);
     }
@@ -122,6 +120,21 @@ static int cmd_readback(void)
     xil_printf("[PS medical] EF_RV_X100 = %u\r\n", (unsigned)medical.ef_x100[1]);
     xil_printf("[PS medical] FLAGS = %u\r\n", (unsigned)medical.flags);
     xil_printf("[PS medical] COEFFICIENT_NANO = %u\r\n", (unsigned)medical.coefficient_nano);
+    xil_printf("[PS medical] SEQUENCE = %u\r\n", (unsigned)medical.sequence);
+    xil_printf("[PS medical] FRAME_INDEX = %u\r\n", (unsigned)medical.frame_index);
+    xil_printf("[PS medical] VOLUME_STATUS = %u\r\n", (unsigned)medical.status);
+    xil_printf("[PS medical] SOURCE_FRAME_US = %u\r\n", (unsigned)medical.source_us);
+    xil_printf("[PS medical] PERIOD_FRAMES = %u\r\n", (unsigned)medical.period_frames);
+    xil_printf("[PS medical] PERIOD_US = %u\r\n", (unsigned)medical.period_us);
+    xil_printf("[PS medical] BPM_X100 = %u\r\n", (unsigned)medical.bpm_x100);
+    xil_printf("[PS medical] ED_INDEX = %u\r\n", (unsigned)medical.ed_index);
+    xil_printf("[PS medical] ES_INDEX = %u\r\n", (unsigned)medical.es_index);
+    xil_printf("[PS medical] EPOCH = %u\r\n", (unsigned)medical.epoch);
+    for(i=0;i<4;++i) {
+        static const char *names[]={"LA","RA","LV","RV"};
+        xil_printf("[PS medical] VOLUME_%s_ML_X100 = %u\r\n",names[i],
+                   (unsigned)medical.current_ml_x100[i]);
+    }
     return 0;
 }
 
@@ -169,7 +182,20 @@ static int cmd_hdmi_enable(void)
     return pl_write_checked(HDMI_EN, enabled, "HDMI_EN");
 }
 
+static int cmd_source_fps(void)
+{
+    u8 fps;
+    uartln_get_bytes(&fps,1);
+    if(fps<1u||fps>100u) {
+        xil_printf("[PS timing] ERROR: source FPS must be 1..100\r\n");return -1;
+    }
+    medical_analysis_set_source_us((1000000u+fps/2u)/fps);
+    xil_printf("[PS timing] SOURCE_FPS = %u\r\n",(unsigned)fps);
+    return 0;
+}
+
 static const app_cmd_t cmds[] = {
+    { 'F', "F fps", "1 byte: source video FPS 1..100 for cardiac timing", cmd_source_fps },
     { CMD_HELP,        "? help", "list these commands", cmd_help },
     { CMD_LIST_IMAGES, "I list", "list eMMC images", cmd_list_images },
     { CMD_EMMC_LOAD,   "A add ", "PC -> eMMC: receive and verify a BIN", feat_emmc_load_run },
@@ -226,7 +252,7 @@ int app_exec(char c)
         u8 discarded[4];u32 count=0;
         if(c==CMD_THRESHOLD)count=2;
         else if(c==CMD_IMG_TO_DDR)count=4;
-        else if(c==CMD_VIDEO_MODE||c==CMD_MASK_TRANSP||c==CMD_SYSTEM_MODE)count=1;
+        else if(c==CMD_VIDEO_MODE||c==CMD_MASK_TRANSP||c==CMD_SYSTEM_MODE||c=='F')count=1;
         if(count)uartln_get_bytes(discarded,count);
         xil_printf("BUSY: network frame owns DDR/PL; command rejected\r\n===== END =====\r\n");
         return -1;

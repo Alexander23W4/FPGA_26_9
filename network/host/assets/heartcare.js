@@ -269,6 +269,7 @@ async function reloadOriginalImage(){
 }
 
 function renderMedicalMetrics(readback={}){
+  if(typeof renderCardiacCharts==='function')renderCardiacCharts(readback);
   const volumes=readback.medical_volumes_ml||{},efs=readback.medical_ef_percent||{};
   const display=value=>typeof value==='string'&&/^\d+\.\d{2}$/.test(value)?value:'—';
   for(const chamber of ['LA','RA','LV','RV']){
@@ -289,6 +290,18 @@ function renderMedicalMetrics(readback={}){
     '使用 PS 配置的像素尺度': '按 CAMUS 像素尺度估算 · 面积 0.436281 mm²/像素')+
     '；心房容积取自左心室 ED/ES 时相。';
 }
+
+const sourceFps=document.getElementById('sourceFps');
+sourceFps.addEventListener('input',()=>document.getElementById('sourceFpsValue').textContent=sourceFps.value);
+sourceFps.addEventListener('change',()=>{
+  if(typeof dshParameter!=='function')return;
+  void dshParameter(async()=>{
+    const response=await fetch('/api/serial/source_fps?value='+sourceFps.value);
+    const reply=await response.json();
+    if(!response.ok||!reply.ok)throw new Error(reply.log||'源视频帧率设置失败');
+    if(typeof dshReadback==='function')await dshReadback(true);
+  });
+});
 
 function renderMetrics(status,state){
   const rows=[

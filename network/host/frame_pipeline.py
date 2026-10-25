@@ -13,7 +13,7 @@ import socket
 import threading
 import time
 
-from frame_transfer import (INPUT_BYTES, OUTPUT_BYTES, META, META_MEDICAL, PERF, PERF_FAST,
+from frame_transfer import (INPUT_BYTES, OUTPUT_BYTES, META_SIZES, PERF, PERF_FAST,
     MAGIC, HEADER, ERROR, RemoteError, packet, crc, receive_header, recv_exact,
     decode_result_payload, decode_frame_performance)
 
@@ -23,9 +23,11 @@ PIPE_CREDIT = 23
 
 class FramePipeline:
     def __init__(self, host, port, timeout=60, *, capacity=8, send_buffer=None,
-                 send_chunk=None, send_pause=0):
+                 send_chunk=None, send_pause=0, source_frame_us=0):
         self.host, self.port, self.timeout = host, port, timeout
         self.capacity = capacity
+        self.source_frame_us=source_frame_us
+        self._capability=6
         self.send_buffer = send_buffer
         if send_chunk is not None and (isinstance(send_chunk, bool)
                                        or not isinstance(send_chunk, int) or send_chunk < 1):
@@ -50,9 +52,11 @@ class FramePipeline:
             if self.send_buffer is not None:
                 sock.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,self.send_buffer)
             sock.settimeout(self.timeout)
-            sock.sendall(packet(HELLO_PIPE, self._next_job))
-            if receive_header(sock, self._next_job) != (PIPE_READY, 0, 0, 6):
+            sock.sendall(packet(HELLO_PIPE, self._next_job,extra=self.source_frame_us))
+            kind,length,checksum,capability=receive_header(sock,self._next_job)
+            if (kind,length,checksum)!=(PIPE_READY,0,0) or capability not in (6,7):
                 raise ValueError('continuous stream protocol unavailable; rebuild and flash PS')
+            self._capability=capability
         except BaseException:
             sock.close()
             raise
@@ -79,6 +83,7 @@ class FramePipeline:
             context = {'job': job, 'mode': mode, 'data': data, 'future': future,
                        'started': time.perf_counter(), 'sent': threading.Event(),
                        'upload_queue_ms': 0.0, 'upload_ms': 0.0}
+            context['boundary']=source.get('index')==0 and self._capability>=7
             self._pending.append(context)
             self._writes.put_nowait(context)
             self._condition.notify_all()
@@ -120,7 +125,8 @@ class FramePipeline:
                 started = time.perf_counter()
                 context['upload_queue_ms'] = (started-context['started'])*1000
                 data = context['data']
-                payload = packet(PIPE_UPLOAD, context['job'], len(data), crc(data), context['mode']) + data
+                payload = packet(PIPE_UPLOAD, context['job'], len(data), crc(data),
+                                 context['mode'] | (0x100 if context['boundary'] else 0)) + data
                 if self.send_chunk is None:
                     self._socket.sendall(payload)
                 else:
@@ -146,7 +152,7 @@ class FramePipeline:
                 started = time.perf_counter()
                 kind, length, checksum, mode = self._result_header(job, deadline)
                 header_received = time.perf_counter()
-                if (kind != PIPE_RESULT or length - OUTPUT_BYTES not in (META.size, META_MEDICAL.size)
+                if (kind != PIPE_RESULT or length - OUTPUT_BYTES not in META_SIZES
                         or mode != context['mode']):
                     raise ValueError('pipeline result id/length/mode mismatch')
                 payload = recv_exact(self._socket, length, deadline)

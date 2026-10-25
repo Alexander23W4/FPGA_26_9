@@ -71,6 +71,7 @@ collect(PROJECT_LIB_DEPS xiltimer;xilffs;lwip213)
 
 
 
+
 collect(PROJECT_LIB_DEPS gcc)
 collect(PROJECT_LIB_DEPS c)
 
@@ -95,6 +96,7 @@ collect (PROJECT_LIB_SOURCES feat_img2ddr.c)
 collect (PROJECT_LIB_SOURCES img_catalog.c)
 collect (PROJECT_LIB_SOURCES img_ddr.c)
 collect (PROJECT_LIB_SOURCES main.c)
+collect (PROJECT_LIB_SOURCES medical_metrics.c)
 collect (PROJECT_LIB_SOURCES net_frame.c)
 collect (PROJECT_LIB_SOURCES platform.c)
 collect (PROJECT_LIB_SOURCES pl_ctrl_test.c)

@@ -14,7 +14,7 @@ import struct
 import threading
 import time
 from PIL import Image
-from medical_metrics import decode_medical_values
+from medical_metrics import decode_medical_values, decode_cardiac_frame
 
 MAGIC = 0x48434631  # HCF1, network byte order
 HEADER = struct.Struct('!6I')
@@ -26,6 +26,8 @@ RESULT_RGBA = 16
 PERF_FAST = 17
 META = struct.Struct('!14I')  # v4: same registers, followed by a PERF_FAST message
 META_MEDICAL = struct.Struct('!26I')  # v6: PS-scaled volumes and ventricular EF
+META_CARDIAC = struct.Struct('!40I')  # v7: per-frame volume, cycle and source timing
+META_SIZES = (META.size, META_MEDICAL.size, META_CARDIAC.size)
 PERF = struct.Struct('!12I')
 INPUT_BYTES = 65536
 OUTPUT_BYTES = 262144
@@ -87,11 +89,12 @@ def result_image(raw, mode):
 
 
 def decode_frame_metadata(data, mode):
-    if len(data) not in (META.size, META_MEDICAL.size):
+    if len(data) not in META_SIZES:
         raise ValueError('invalid FPGA metadata length')
     (version, system, threshold_mode, video, actual, manual, lesion, alpha,
      rx_us, setup_us, pl_us, interval_cycles, stall_cycles, interval_seq) = META.unpack(data[:META.size])
-    if (version not in (4, 5, 6) or (version == 6) != (len(data) == META_MEDICAL.size) or
+    if (version not in (4, 5, 6, 7) or
+            len(data)!={4:META.size,5:META.size,6:META_MEDICAL.size,7:META_CARDIAC.size}.get(version) or
             system > 1 or threshold_mode > 1 or video != mode or
             actual > 255 or manual > 255 or lesion > 65536 or alpha > 100):
         raise ValueError('invalid FPGA frame register snapshot')
@@ -103,9 +106,10 @@ def decode_frame_metadata(data, mode):
             'pl_interval': {'sequence': interval_seq, 'elapsed_ms': interval_cycles/(1000 if version >= 5 else 25200),
                             'write_stall_ms': stall_cycles/(1000 if version >= 5 else 25200)},
             'log': 'register snapshot received with frame over TCP'}
-    if version == 6:
-        words = META_MEDICAL.unpack(data)
+    if version >= 6:
+        words = (META_CARDIAC if version==7 else META_MEDICAL).unpack(data)
         result.update(decode_medical_values(words[14], words[15], words[16:24], words[24:26]))
+        if version==7:result.update(decode_cardiac_frame(words[26:]))
     return result
 
 
@@ -286,7 +290,7 @@ class FrameTransferClient:
                         wait_started = time.perf_counter()
                         kind, length, checksum, returned_mode = receive_header(sock, job, deadline)
                         header_received = time.perf_counter()
-                        if (kind != RESULT_FAST or length - OUTPUT_BYTES not in (META.size, META_MEDICAL.size)
+                        if (kind != RESULT_FAST or length - OUTPUT_BYTES not in META_SIZES
                                 or returned_mode not in range(5)):
                             raise ValueError('unexpected stream protocol; rebuild and flash PL/PS')
                         if mode is not None and returned_mode != mode:

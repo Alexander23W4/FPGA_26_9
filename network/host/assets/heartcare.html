@@ -89,6 +89,12 @@
             <article class="chamber-card" data-chamber="RA"><h4><i></i>右心房 <span>RA</span></h4><dl><div><dt>ED 时相容积 <span>mL</span></dt><dd id="medicalEDV_RA">—</dd></div><div><dt>ES 时相容积 <span>mL</span></dt><dd id="medicalESV_RA">—</dd></div></dl></article>
           </div>
           <p id="medicalScaleNote" class="medical-scale-note">按 CAMUS 像素尺度估算 · 面积 0.436281 mm²/像素；心房容积取自左心室 ED/ES 时相。</p>
+          <section class="cardiac-curves" aria-labelledby="cardiacCurvesTitle">
+            <div class="cardiac-curves-heading"><div><span class="cardiac-eyebrow">CARDIAC DYNAMICS</span><h4 id="cardiacCurvesTitle">心动周期 · 容积曲线</h4></div><span id="medicalCurveCount" class="soft-badge">最近 0 / 50 帧</span></div>
+            <div class="cardiac-vitals"><div><span>心率 · HR</span><strong id="medicalHeartRate">—</strong><small>BPM</small></div><div><span>心动周期</span><strong id="medicalCycleSeconds">—</strong><small>s</small><small id="medicalCycleFrames">等待两个相邻周期</small></div><p id="medicalSourceTiming">时间尺度按源视频 30 FPS 设定</p></div>
+            <div id="medicalCurveStrips"></div>
+            <div class="cardiac-curves-foot"><span id="medicalCurveRange">等待逐帧容积回传</span><span><i class="phase-key ed"></i>ED <i class="phase-key es"></i>ES · 心率由左心室周期估算</span></div>
+          </section>
         </div>
         <div id="metrics" data-system-mode="simulation" hidden></div>
         <pre id="logs" hidden></pre>
@@ -114,6 +120,13 @@
           <input id="maskOpacity" type="range" min="0" max="100" value="45">
           <div class="range-scale"><span>0</span><span>100</span></div>
           <button id="maskOpacityUpdate" type="button">掩膜透明度更新</button>
+        </section>
+        <section class="setting-group source-fps-setting" data-system-mode="medical" hidden>
+          <div class="group-heading"><span class="step-number">03</span><h4>源视频时间尺度</h4></div>
+          <div class="range-label"><label for="sourceFps">源视频 FPS</label><div class="value-unit"><output id="sourceFpsValue" for="sourceFps">30</output><span>FPS</span></div></div>
+          <input id="sourceFps" type="range" min="1" max="100" step="1" value="30">
+          <div class="range-scale"><span>1</span><span>100</span></div>
+          <p class="source-fps-help">按原始视频采样帧率设置，用于心率与周期换算。</p>
         </section>
         <section class="setting-group" data-system-mode="simulation" hidden>
           <div class="group-heading"><span class="step-number">01</span><h4>预览显示</h4></div>
@@ -172,6 +185,7 @@
   </div>
   <p class="image-viewer-help">滚轮缩放 · 拖动平移 · 双击适应窗口 · Esc 关闭</p>
 </dialog>
+<script src="/assets/medical_charts.js"></script>
 <script src="/assets/heartcare.js"></script>
 <script src="/assets/image_viewer.js"></script>
 </body></html>

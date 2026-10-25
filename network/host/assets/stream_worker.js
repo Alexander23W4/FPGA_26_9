@@ -190,7 +190,8 @@ async function loop(options){
   activeRun=run;
   try{
     if(!options.files||!options.files.length)throw new Error('流文件夹中没有 BIN 图像');
-    const session=await postJson('/api/network/stream/start',{folder:options.folder,mode:Number(options.mode)});
+    const session=await postJson('/api/network/stream/start',{folder:options.folder,mode:Number(options.mode),
+      source_fps:options.sourceFps||30});
     run.session=session.session;run.capacity=session.capacity;
     if(!run.session||!Number.isInteger(run.capacity)||run.capacity<1)throw new Error('流缓存配置错误');
     run.sessionReady.resolve();

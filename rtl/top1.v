@@ -307,14 +307,15 @@ module top1 #(
     );
 
 
-    wire [31:0] EDV_LA;
-    wire [31:0] ESV_LA;
-    wire [31:0] EDV_RA;
-    wire [31:0] ESV_RA;
-    wire [31:0] EDV_LV;
-    wire [31:0] ESV_LV;
-    wire [31:0] EDV_RV;
-    wire [31:0] ESV_RV;
+    wire [31:0] VOLUME_SEQ, VOLUME_STATUS;
+    wire [31:0] VOLUME_LA;
+
+    wire [31:0] VOLUME_RA;
+
+    wire [31:0] VOLUME_LV;
+
+    wire [31:0] VOLUME_RV;
+
     wire [31:0] EF_LV;
     wire [31:0] EF_RV;
 
@@ -547,8 +548,8 @@ registration_top u_registration (
         .out_LV_ctr(medical_out_contour[2]), .out_RV_ctr(medical_out_contour[3]),
         .out_LA_mask(medical_out_mask[0]), .out_RA_mask(medical_out_mask[1]),
         .out_LV_mask(medical_out_mask[2]), .out_RV_mask(medical_out_mask[3]),
-        .EDV_LA(EDV_LA), .ESV_LA(ESV_LA), .EDV_RA(EDV_RA), .ESV_RA(ESV_RA),
-        .EDV_LV(EDV_LV), .ESV_LV(ESV_LV), .EDV_RV(EDV_RV), .ESV_RV(ESV_RV)
+        .VOLUME_LA(VOLUME_LA), .VOLUME_RA(VOLUME_RA),
+        .VOLUME_LV(VOLUME_LV), .VOLUME_RV(VOLUME_RV), .VOLUME_SEQ(VOLUME_SEQ), .VOLUME_STATUS(VOLUME_STATUS)
     );
     denoise u_denoise (
         .ap_clk(clk), .ap_rst(rst_clk), .in_data(image_data),
@@ -559,8 +560,8 @@ registration_top u_registration (
     top_threshold_demo #(.CLK_HZ(CLK_HZ)) u_top_threshold_demo (
         .clk(clk), .rst_n(~rst_clk),
         .unet_status(unet_status),
-        .EDV_LA(EDV_LA), .ESV_LA(ESV_LA), .EDV_RA(EDV_RA), .ESV_RA(ESV_RA),
-        .EDV_LV(EDV_LV), .ESV_LV(ESV_LV), .EDV_RV(EDV_RV), .ESV_RV(ESV_RV),
+        .VOLUME_LA(VOLUME_LA), .VOLUME_RA(VOLUME_RA),
+        .VOLUME_LV(VOLUME_LV), .VOLUME_RV(VOLUME_RV), .VOLUME_SEQ(VOLUME_SEQ), .VOLUME_STATUS(VOLUME_STATUS),
         .s_axi_awaddr({23'd0, awaddr}), .s_axi_awvalid(awvalid), .s_axi_awready(awready),
         .s_axi_wdata(wdata), .s_axi_wstrb(wstrb), .s_axi_wvalid(wvalid), .s_axi_wready(wready),
         .s_axi_bresp(bresp), .s_axi_bvalid(bvalid), .s_axi_bready(bready),

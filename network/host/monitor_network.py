@@ -23,7 +23,7 @@ import web_common
 from frame_transfer import FrameTransferClient, normalize_result_name
 from queued_stream import QueuedStream, QueueFull
 from frame_pipeline import FramePipeline
-from medical_metrics import parse_ps_medical
+from medical_metrics import parse_ps_medical, MedicalCurveHistory
 
 
 def load_gray(path):
@@ -178,7 +178,7 @@ async function dshRun(action) {
     }
   const status = document.getElementById('processingStatus');
   const controls = ['imageFile', 'chooseImage', 'chooseStream', 'streamFolder', 'fpgaOutputMode', 'thresholdMode',
-    'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'request'];
+    'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'];
   const disabled = controls.map(id => document.getElementById(id).disabled);
   dshTransferBusy = true;
   controls.forEach(id => { document.getElementById(id).disabled = true; });
@@ -241,9 +241,9 @@ async function dshThrUpdate() {
     if (!dshStreamRunning) await dshReadback();
   });
 }
-function dshApplyReadback(j) {
+function dshApplyReadback(j, updateMedical = true) {
     if (!j.ok) throw new Error('状态回读失败: ' + j.log);
-    if (typeof renderMedicalMetrics === 'function') renderMedicalMetrics(j);
+    if (updateMedical && typeof renderMedicalMetrics === 'function') renderMedicalMetrics(j);
     document.getElementById('dshRbMode').textContent = j.mode === 1 ? '手动' : '自动';
     document.getElementById('dshRbThr').textContent = j.actual_threshold;
     const names = ['去噪处理', '轮廓处理', '二值掩膜处理', '叠加掩膜处理', '伪彩色热力图处理'];
@@ -344,7 +344,7 @@ function dshStreamControls() {
   document.getElementById('chooseImage').disabled = dshStreamRunning || dshTransferBusy;
   document.getElementById('chooseStream').textContent = dshStreamRunning ? '停止流' : '选择流文件夹';
   document.getElementById('chooseStream').disabled = !dshStreamRunning && dshTransferBusy;
-  for (const id of ['fpgaOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'request'])
+  for (const id of ['fpgaOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'])
     document.getElementById(id).disabled = stopping;
   document.getElementById('fullDisplayOption').disabled = dshStreamMode;
   updateModeMenu(); updateThresholdControls(); updatePreviewLayout();
@@ -416,6 +416,7 @@ function dshDrawBin(canvasId,raw,color) {
   context.putImageData(pixels,0,0);
 }
 function dshRunStreamWorker(entries,streamChanged) {
+  if(typeof resetCardiacCharts==='function')resetCardiacCharts();
   const worker=new Worker('/assets/stream_worker.js');
   const generation=++dshPreviewGeneration;
   let original=null,processed=null,paintPending=false,error=null;
@@ -436,6 +437,7 @@ function dshRunStreamWorker(entries,streamChanged) {
         const result=processed.metadata;
         document.getElementById('streamProcessedCanvas').setAttribute('data-result-job',String(result.job));
         document.getElementById('comparisonProcessedLabel').textContent=document.getElementById('systemMode').value==='medical'?'处理流':streamModeLabels[result.mode];
+        if(typeof renderMedicalMetrics==='function')renderMedicalMetrics(result.readback);
         updateFrameRate();processed=null;
       }
     });
@@ -449,7 +451,7 @@ function dshRunStreamWorker(entries,streamChanged) {
           original=message;document.getElementById('imageName').textContent=dshStreamFolder;
           schedulePaint();worker.postMessage({type:'preview_consumed',kind:'source'});
         }else if(message.type==='result'){
-          processed=message;processed.queuedAt=dshNow();dshApplyFastStats(message);dshApplyReadback(message.metadata.readback);
+          processed=message;processed.queuedAt=dshNow();dshApplyFastStats(message);dshApplyReadback(message.metadata.readback,false);
           dshNeedsUpload=false;schedulePaint();
           worker.postMessage({type:'preview_consumed',kind:'result'});
         }else if(message.type==='paused'){
@@ -464,7 +466,8 @@ function dshRunStreamWorker(entries,streamChanged) {
     };
     const offset=Date.now()-dshNow();
     worker.postMessage({type:'start',files:entries,index:dshStreamIndex,folder:dshStreamFolder,
-      mode:document.getElementById('fpgaOutputMode').value,times:dshStreamSamples.map(t=>t+offset)});
+      mode:document.getElementById('fpgaOutputMode').value,
+      sourceFps:Number(document.getElementById('sourceFps').value),times:dshStreamSamples.map(t=>t+offset)});
   });
 }
 async function dshStartStream(files, preset=null) {
@@ -725,6 +728,18 @@ def _set_system_mode(mode):
     if result["ok"]:
         result["reg_mode"] = result["value"]
     return result
+
+
+def _set_source_fps(value):
+    try:
+        fps=int(value)
+        if not 1<=fps<=100:raise ValueError('源视频 FPS 必须为 1..100')
+        text=_board_talk(b'F'+bytes([fps]))
+        match=re.search(r'^\[PS timing\] SOURCE_FPS = (\d+)\s*$',text,re.M)
+        if not match or int(match[1])!=fps:raise ValueError('PS 源帧率设置未确认\n'+text)
+        return {'ok':True,'source_fps':fps}
+    except Exception as exc:
+        return {'ok':False,'log':str(exc)}
 
 
 def _require_return_path(state):
@@ -1251,6 +1266,9 @@ class NetworkHandler(web_common.Handler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/serial/source_fps':
+            self.send_json(_set_source_fps(parse_qs(parsed.query).get('value',[''])[0]))
+            return
         if parsed.path == '/api/system_mode':
             mode = parse_qs(parsed.query).get('mode', [''])[0]
             if mode not in ('simulation', 'processing', 'medical'):
@@ -1403,6 +1421,9 @@ class NetworkServer(web_common.ThreadingHTTPServer):
         mode = int(options.get('mode', 0))
         if mode not in range(5):
             raise ValueError('流模式必须为 0..4')
+        source_fps=int(options.get('source_fps',30))
+        if not 1<=source_fps<=100:raise ValueError('源视频 FPS 必须为 1..100')
+        source_us=round(1000000/source_fps)
         token = secrets.token_hex(16)
         with self.stream_lock:
             if not _TRANSFER_LOCK.acquire(blocking=False):
@@ -1421,10 +1442,13 @@ class NetworkServer(web_common.ThreadingHTTPServer):
                 # On this Windows/board pair, 3 KiB batches eliminated RX overruns
                 # and retransmission timeouts in a 1000-frame full-duplex run.
                 pipeline = FramePipeline(client.host, client.port, client.timeout,
-                                         capacity=8, send_chunk=3072, send_pause=.0001)
+                                         capacity=8, send_chunk=3072, send_pause=.0001,
+                                         source_frame_us=source_us)
+                curves=MedicalCurveHistory()
 
                 def publish(source, result):
                     started = time.perf_counter()
+                    curves.observe(result.get('readback',{}),source)
                     state.replace_image(source['data'], source['name'],
                                         preserve_results=True, display_name=folder)
                     state.publish_result({key: value for key, value in result.items() if key != 'raw'},

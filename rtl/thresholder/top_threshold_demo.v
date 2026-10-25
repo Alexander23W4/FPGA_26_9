@@ -62,14 +62,15 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
     input wire [7:0] back_frame_mode,
     input wire [31:0] return_interval_cycles, return_stall_cycles, return_interval_seq,
     input wire [2:0] back_status,
-    input wire [31:0] EDV_LA,
-    input wire [31:0] ESV_LA,
-    input wire [31:0] EDV_RA,
-    input wire [31:0] ESV_RA,
-    input wire [31:0] EDV_LV,
-    input wire [31:0] ESV_LV,
-    input wire [31:0] EDV_RV,
-    input wire [31:0] ESV_RV,
+    input tri0 [31:0] VOLUME_SEQ, VOLUME_STATUS,
+    input wire [31:0] VOLUME_LA,
+
+    input wire [31:0] VOLUME_RA,
+
+    input wire [31:0] VOLUME_LV,
+
+    input wire [31:0] VOLUME_RV,
+
     input tri0 [31:0] unet_status
 );
     reg [16:0] lesion_pixels;        // ★ 17 位: 一帧最多 256*256=65536, 16 位会溢出归零
@@ -115,14 +116,11 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
         .s_axi_rvalid  (s_axi_rvalid),
         .s_axi_rready  (s_axi_rready),
 
-        .EDV_LA(EDV_LA),
-        .ESV_LA(ESV_LA),
-        .EDV_RA(EDV_RA),
-        .ESV_RA(ESV_RA),
-        .EDV_LV(EDV_LV),
-        .ESV_LV(ESV_LV),
-        .EDV_RV(EDV_RV),
-        .ESV_RV(ESV_RV), .unet_status(unet_status),
+        .VOLUME_SEQ(VOLUME_SEQ), .VOLUME_STATUS(VOLUME_STATUS),
+        .VOLUME_LA(VOLUME_LA),
+        .VOLUME_RA(VOLUME_RA),
+        .VOLUME_LV(VOLUME_LV),
+        .VOLUME_RV(VOLUME_RV), .unet_status(unet_status),
         .reg_mode      (reg_mode),
         .reg_cmd       (reg_cmd),
         .reg_threshold (reg_threshold),

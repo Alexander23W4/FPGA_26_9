@@ -11,6 +11,7 @@ function element(){return {value:'0',textContent:'',files:[],attributes:{},addEv
 const document={getElementById(id){return elements[id]||=element();},querySelectorAll(){return [];},
   createElement:element,createTextNode:text=>({textContent:text})};
 const ctx=vm.createContext({document,setInterval(){},updateOverlayControls(){},updatePreviewLayout(){}});
+vm.runInContext(fs.readFileSync(path.join(assets,'medical_charts.js'),'utf8'),ctx);
 vm.runInContext(renderer+'\n'+tail,ctx);
 const readback={ok:true,mode:0,video_mode:0,actual_threshold:128,mask_transparency:45,
   lesion_pixels:0,lesion_mm2:'0.000',medical_volumes_ml:{},medical_ef_percent:{EF_LV:'60.00',EF_RV:'50.00'},
@@ -36,4 +37,20 @@ delete readback.medical_volumes_ml;delete readback.medical_ef_percent;
 ctx.dshApplyReadback(readback);
 assert.equal(elements.medicalEF_RV.textContent,'—');
 assert(elements.medicalMetricState.textContent.includes('等待 PS'));
+const history=Array.from({length:60},(_,i)=>({sequence:i+1,index:i+1,epoch:i<30?1:2,
+  volumes_ml:{LA:(i/2+10).toFixed(2),RA:null,LV:(60-i/2).toFixed(2),RV:(i/3+20).toFixed(2)}}));
+const chart={medical_frame:history[59],medical_history:history,medical_cycle:{
+  period_frames:40,period_seconds:1.33332,heart_rate_bpm:'45.00',source_fps:30,ed_index:35,es_index:55}};
+ctx.renderCardiacCharts(chart);
+assert.equal(elements.medicalCurveCount.textContent,'最近 50 / 50 帧');
+assert(elements.medicalCurveRange.textContent.includes('11 — 60'));
+assert.equal(elements.medicalHeartRate.textContent,'45.00');
+assert.equal(elements.medicalCycleSeconds.textContent,'1.333');
+assert.equal(elements.curveEmptyRA.hidden,false);
+assert.equal(elements.curveValueRA.textContent,'—');
+assert.equal((elements.curveLineLV.attributes.d.match(/M/g)||[]).length,2,'do not connect across clip wrap');
+assert(!elements.curveLineLV.attributes.d.includes('NaN'));
+assert(elements.curveEdLV.attributes.d.length>0);
+ctx.resetCardiacCharts();assert.equal(elements.medicalCurveCount.textContent,'最近 0 / 50 帧');
+assert(html.includes('id="sourceFps" type="range" min="1" max="100"'));
 console.log('GUI_MEDICAL_METRICS_OK: eight volumes, two PS EFs, missing phase, old firmware, assumed scale');

@@ -15,7 +15,7 @@
 #define HDMI_EN          0x04u /* RW byte 0x10: 1 HDMI reads/owns a bank (default), 0 independent return only */
 
 /* RO geometric volume index: unsigned pixel^3 * 100, unit spacing.
- * 0xffffffff = no paired ED/ES yet, or a missing chamber at either phase.
+ * 0xffffffff = no completed frame, malformed frame, or missing/saturated chamber.
  * PS converts using spacing AFTER the 256x256 resize:
  *   isotropic spacing s mm: coefficient = s*s*s / 1000 [mL / pixel^3]
  *   row-disc model dx=dz=sx, dy=sy: sx*sx*sy / 1000.
@@ -34,14 +34,14 @@
 #define PL_VOLUME_SCALE_ASSUMED 0u /* Explicit coefficient supplied by the build. */
 #endif
 #define UNET_STATUS      0x2au /* bit0 model ready, bit1 computing, bit2 malformed frame */
-#define EDV_LA           0x10u
-#define ESV_LA           0x11u
-#define EDV_RA           0x12u
-#define ESV_RA           0x13u
-#define EDV_LV           0x14u
-#define ESV_LV           0x15u
-#define EDV_RV           0x16u
-#define ESV_RV           0x17u
+#define VOLUME_LA        0x10u /* RO: per-frame pixel^3 * 100 */
+#define VOLUME_RA        0x11u
+#define VOLUME_LV        0x12u
+#define VOLUME_RV        0x13u
+#define VOLUME_SEQ       0x14u /* Publishes atomically with four volumes. */
+#define VOLUME_STATUS    0x15u /* bit0 frame good, bits1..4 LA/RA/LV/RV present */
+#define MEDICAL_ABI      0x16u
+#define MEDICAL_ABI_VOL1 0x564f4c31u
 
 #define DATA_REG_ADDR    0x20u /* Manual threshold, 0..255 */
 #define LESION_ADDR      0x21u /* RO: last complete frame's foreground pixels */

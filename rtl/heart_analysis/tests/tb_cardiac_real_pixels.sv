@@ -18,8 +18,13 @@ module tb_cardiac_real_pixels;
         .in_LA_ctr(1'b0),.in_RA_ctr(1'b0),.in_LV_ctr(1'b0),.in_RV_ctr(1'b0),
         .out_ready(out_ready),.out_valid(out_valid),.out_eof(out_eof),
         .out_LA_mask(out_masks[0]),.out_RA_mask(out_masks[1]),.out_LV_mask(out_masks[2]),.out_RV_mask(out_masks[3]),
-        .EDV_LA(ed[31:0]),.ESV_LA(es[31:0]),.EDV_RA(ed[63:32]),.ESV_RA(es[63:32]),
-        .EDV_LV(ed[95:64]),.ESV_LV(es[95:64]),.EDV_RV(ed[127:96]),.ESV_RV(es[127:96]));
+        .VOLUME_LA(),.VOLUME_RA(),.VOLUME_LV(),.VOLUME_RV(),.VOLUME_SEQ(),.VOLUME_STATUS());
+    // Legacy phase oracle is test-only; production phase detection now runs in PS.
+    wire reference_update;
+    ed_es_tracker reference_tracker(.clk(clk),.rst(rst),.frame_valid(dut.frame_valid),
+        .frame_good(dut.frame_good),.volumes_x100(dut.frame_volumes),
+        .ed_values(ed),.es_values(es),.result_valid(),.result_updated(reference_update),
+        .ed_frame_id(),.es_frame_id(),.frame_id());
     always @(negedge clk)out_ready=!rst && cycles%8192<8187;
     always @(posedge clk)begin
         cycles++;
@@ -37,8 +42,8 @@ module tb_cardiac_real_pixels;
                     $fatal(1,"real mask geometry mismatch frame %0d got=%h expected=%h",count,dut.frame_volumes,reference[count]);
                 count++;
             end
-            if(dut.result_updated)begin
-                $fdisplay(fd,"%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d",dut.u_tracker.ed_frame_id,dut.u_tracker.es_frame_id,
+            if(reference_update)begin
+                $fdisplay(fd,"%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d",reference_tracker.ed_frame_id,reference_tracker.es_frame_id,
                     ed[31:0],es[31:0],ed[63:32],es[63:32],ed[95:64],es[95:64],ed[127:96],es[127:96]);
                 pairs++;
             end

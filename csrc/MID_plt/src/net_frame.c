@@ -36,7 +36,7 @@
 #define FAST_READY 15u
 #define RESULT_RGBA 16u
 #define PERF_FAST 17u
-#define META_BYTES 104u /* v6: 56-byte status + 48-byte PS medical snapshot */
+#define META_BYTES 160u /* v7: PS phase results plus per-frame volumes and source timing */
 #define PERF_BYTES 48u
 #define UPLOAD_REQUIRED 1u
 #define FAILED 2u
@@ -88,11 +88,17 @@ static void medical_metadata(u8 *meta)
     put32(meta+56,m.flags);put32(meta+60,m.coefficient_nano);
     for(i=0;i<8;++i)put32(meta+64+4*i,m.ml_x100[i]);
     put32(meta+96,m.ef_x100[0]);put32(meta+100,m.ef_x100[1]);
+    put32(meta+104,m.sequence);put32(meta+108,m.status);put32(meta+112,m.frame_index);
+    put32(meta+116,m.source_us);put32(meta+120,m.period_frames);put32(meta+124,m.period_us);
+    put32(meta+128,m.bpm_x100);put32(meta+132,m.ed_index);put32(meta+136,m.es_index);
+    put32(meta+140,m.epoch);
+    for(i=0;i<4;++i)put32(meta+144+4*i,m.current_ml_x100[i]);
 }
 static u32 back_state(void) {return Xil_In32(PL_REG_ADDRESS(BACK_STATUS));}
 static int unet_ready(void) {
     return Xil_In32(PL_REG_ADDRESS(MODE_ADDR))==0u ||
-           (Xil_In32(PL_REG_ADDRESS(UNET_STATUS))&1u)!=0u;
+           ((Xil_In32(PL_REG_ADDRESS(UNET_STATUS))&1u)!=0u &&
+            Xil_In32(PL_REG_ADDRESS(MEDICAL_ABI))==MEDICAL_ABI_VOL1);
 }
 static u64 pl_timeout(void) {
     return COUNTS_PER_SECOND*(Xil_In32(PL_REG_ADDRESS(MODE_ADDR))?300ull:30ull);
@@ -135,8 +141,9 @@ static void prepare_result(void)
     static const unsigned regs[]={MODE_ADDR,CMD_REG_ADDR,VIDEO_MODE_ADDR,STATUS_ADDR,
                                   DATA_REG_ADDR,LESION_ADDR,MASK_TRANSP_ADDR};
     unsigned i;u64 before;
+    if(Xil_In32(PL_REG_ADDRESS(MODE_ADDR))) (void)medical_collect_frame();
     if(fast_job) {
-        put32(result_meta,6u);
+        put32(result_meta,7u);
         for(i=0;i<7;++i)put32(result_meta+4u*(i+1u),
             i==2?result_mode:Xil_In32(PL_REG_ADDRESS(regs[i])));
         put32(result_meta+32,(u32)((rx_finished-rx_started)*1000000ull/COUNTS_PER_SECOND));
@@ -247,10 +254,11 @@ static void handle_header(void)
     if(get32(rx_header)!=MAGIC) {error_response(id,FAILED,"unsupported protocol; update host and firmware together");return;}
     if(type==HELLO_PIPE) {
         if(!unet_ready()) {error_response(id,FAILED,"U-Net model not ready; load matching DDR weights first");return;}
-        if(!id||length||checksum||extra||phase!=IDLE||pipe_enabled) {
+        if(!id||length||checksum||extra>1000000u||phase!=IDLE||pipe_enabled) {
             error_response(id,BUSY,"pipeline unavailable; finish the current job first");return;
         }
-        pipe_begin();response(PIPE_READY,id,0,0,0,6u);return;
+        medical_analysis_reset(extra);
+        pipe_begin();response(PIPE_READY,id,0,0,0,7u);return;
     }
     if(type==HELLO_FAST) {
         if(!id||length||checksum||extra) {error_response(id,FAILED,"invalid stream capability request");return;}
