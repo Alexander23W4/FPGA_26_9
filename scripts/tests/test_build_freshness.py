@@ -78,6 +78,23 @@ printf 'FLASH_ALL_OK\n'
         self.assertNotIn('fpga_26.runs', args)
         self.assertIn('MID_plt.elf', args)
 
+    def test_xsct_zero_exit_without_success_marker_blocks_next_command(self):
+        self.build()
+        self.tool('Vitis','xsct.bat',"printf '!!!APU_MISSING!!!\\n'; exit 0\n")
+        result=self.run_bash('bash scripts/flash_current.sh init && touch gui_started')
+        self.assertNotEqual(result.returncode,0)
+        self.assertFalse((self.root/'gui_started').exists())
+        logs=list((self.root/'build/flash').glob('*.log'))
+        self.assertEqual(len(logs),1)
+        self.assertIn('APU_MISSING',logs[0].read_text())
+
+    def test_xsct_error_after_success_marker_still_fails(self):
+        self.build()
+        self.tool('Vitis','xsct.bat',"printf 'FLASH_ALL_OK\\n'; exit 7\n")
+        result=self.run_bash('bash scripts/flash_current.sh init && touch gui_started')
+        self.assertNotEqual(result.returncode,0)
+        self.assertFalse((self.root/'gui_started').exists())
+
     def test_vitis_tools_at_front_of_path_do_not_capture_shell_tools(self):
         polluted = self.root / 'old_gnuwin'
         polluted.mkdir()
@@ -209,7 +226,7 @@ class RtlSourceTests(unittest.TestCase):
     def tcl(self):
         import tkinter
         interpreter = tkinter.Tcl()
-        interpreter.eval((REPO / 'scripts/tcl/build_freshness.tcl').read_text(encoding='utf-8-sig'))
+        interpreter.call('source',str(REPO / 'scripts/tcl/build_freshness.tcl'))
         return interpreter
 
     def test_existing_project_adds_new_rtl_once(self):

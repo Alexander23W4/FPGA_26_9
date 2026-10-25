@@ -19,6 +19,18 @@ sha256sum -c "$psout/PS_INPUTS.sha256" >/dev/null || die "PS sources changed; re
 [ -s "$hwout/register_audit.txt" ] || die "Missing PL register verification"
 info "Verified bitstream: $hwout/system_wrapper.bit"
 info "Verified ELF: $psout/MID_plt.elf"
-"$XSCT_BIN" "$(winpath "$SCRIPTS_DIR/tcl/flash_all.tcl")" \
-  "$(winpath "$hwout/system_wrapper.bit")" "$(winpath "$psout/MID_plt.elf")" \
-  "$(winpath "$psout/ps7_init.tcl")" "$mode"
+# Some Windows XSCT failures (including Tcl/native shutdown errors) return zero.
+# Require the final Tcl success marker as well as the process/pipeline status.
+# Keep diagnostics outside build/out so successful build archives stay immutable.
+mkdir -p "$BUILD_DIR/flash"
+flash_log="$(mktemp "$BUILD_DIR/flash/flash-$(date +%Y-%m-%d_%H%M%S)-XXXXXX.log")"
+info "Flash log: $flash_log"
+if "$XSCT_BIN" "$(winpath "$SCRIPTS_DIR/tcl/flash_all.tcl")" \
+    "$(winpath "$hwout/system_wrapper.bit")" "$(winpath "$psout/MID_plt.elf")" \
+    "$(winpath "$psout/ps7_init.tcl")" "$mode" 2>&1 | /usr/bin/tee "$flash_log"; then
+  /usr/bin/tr -d '\r' < "$flash_log" | /usr/bin/grep -Fxq 'FLASH_ALL_OK' \
+    || die "XSCT did not confirm successful programming; GUI will not start. Log: $flash_log"
+else
+  die "XSCT programming failed; GUI will not start. Log: $flash_log"
+fi
+ok "Programming completed and confirmed"
