@@ -11,7 +11,7 @@ def main():
     parser.add_argument('--vivado-bin', default='E:/Xilinx/Vivado/2023.2/bin')
     parser.add_argument('--out', type=Path, default=ROOT / 'build/tests/display')
     parser.add_argument('--top', action='append', choices=('tb_display_regs',
-                        'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr', 'tb_independent_return', 'tb_system_mode', 'tb_medical_stream', 'tb_mask_volume', 'tb_cardiac_phases', 'tb_medical_volumes', 'tb_volume_range', 'tb_cardiac_temporal_regression'),
+                        'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr', 'tb_independent_return', 'tb_system_mode', 'tb_medical_output', 'tb_medical_top', 'tb_output_xbar', 'tb_medical_colorizer', 'tb_medical_stream', 'tb_mask_volume', 'tb_cardiac_phases', 'tb_medical_volumes', 'tb_volume_range', 'tb_cardiac_temporal_regression'),
                         help='Run selected local testbench; may be repeated')
     args = parser.parse_args()
     args.out = args.out.resolve()
@@ -34,6 +34,8 @@ def main():
              ROOT / 'sim/tb/tb_hdmi_out.v', ROOT / 'sim/tb/tb_top_thr.v',
              ROOT / 'sim/tb/tb_back_stream.sv', ROOT / 'sim/tb/tb_independent_return.sv',
              ROOT / 'sim/tb/tb_system_mode.sv',
+             ROOT / 'sim/tb/tb_medical_output.sv', ROOT / 'sim/tb/tb_medical_top.sv', ROOT / 'sim/tb/tb_output_xbar.sv',
+             ROOT / 'sim/tb/tb_medical_colorizer.sv',
              *sorted((ROOT / 'rtl/heart_analysis/tests').glob('tb_*.sv'))]
     run('compile', binary/'xvlog.bat', '--sv', '--relax', '--work', 'xil_defaultlib', *sources, *tests,
         binary.parent/'data/verilog/src/glbl.v')
@@ -42,8 +44,8 @@ def main():
     script = args.out / 'run.tcl'
     script.write_text('run all\nquit\n', encoding='ascii')
     for top in (args.top or ('tb_display_regs', 'tb_back_stream', 'tb_hdmi_out', 'tb_video_colorizer', 'tb_top_thr', 'tb_independent_return')):
-        library = ('-L', 'unisims_ver') if top == 'tb_system_mode' else ()
-        globals_ = ('xil_defaultlib.glbl',) if top == 'tb_system_mode' else ()
+        library = ('-L', 'unisims_ver') if top in ('tb_system_mode','tb_medical_top') else ()
+        globals_ = ('xil_defaultlib.glbl',) if top in ('tb_system_mode','tb_medical_top') else ()
         run(top+'_elaborate', binary/'xelab.bat', '--relax', *library,
             'xil_defaultlib.'+top, *globals_, '-s', top)
         output = run(top, binary/'xsim.bat', top, '-tclbatch', script, '-onerror', 'quit')

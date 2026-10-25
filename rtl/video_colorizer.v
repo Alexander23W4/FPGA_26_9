@@ -1,11 +1,13 @@
 `timescale 1ns / 1ps
 
-// Modes: 0 grayscale, 1 white contour, 2 binary mask, 3 red overlay, 4 heatmap.
+// Processing modes: 0 gray, 1 white contour, 2 binary mask, 3 red overlay, 4 heatmap.
+// Medical pixels use four-color alpha masks and solid contours, independent of mode.
 // Alpha is overlay opacity: 0 = transparent, 100 = solid red.
 // No real arithmetic or per-pixel division. All video signals have equal latency.
-module video_colorizer (
+module video_colorizer #(parameter integer CHAMBERS=1) (
     input wire pclk, input wire rst,
-    input wire [7:0] gray, input wire mask, input wire contour,
+    input wire [7:0] gray, input wire [CHAMBERS-1:0] mask, contour,
+    input tri0 medical,
     input wire [31:0] mode, input wire [6:0] alpha,
     input wire image_active, input wire in_hs, input wire in_vs, input wire in_de,
     output reg [7:0] r, output reg [7:0] g, output reg [7:0] b,
@@ -19,6 +21,25 @@ module video_colorizer (
     reg [23:0] s1_heat;
     reg [31:0] s1_mode;
     reg s1_mask, s1_contour, s1_image, s1_hs, s1_vs, s1_de;
+    reg s1_medical;
+    reg [23:0] s1_contour_color;
+    reg [15:0] s1_med_r, s1_med_g, s1_med_b;
+    // LA red, RA yellow, LV green, RV blue. Overlap priority LA > RA > LV > RV.
+    function [23:0] chamber_color;
+        input [3:0] bits_in;
+        begin
+            if (bits_in[0]) chamber_color=24'hff0000;
+            else if (bits_in[1]) chamber_color=24'hffff00;
+            else if (bits_in[2]) chamber_color=24'h00ff00;
+            else if (bits_in[3]) chamber_color=24'h0000ff;
+            else chamber_color=0;
+        end
+    endfunction
+    wire [23:0] mask_color=chamber_color(mask);
+    wire [23:0] ctr_color=chamber_color(contour);
+    wire [15:0] med_r=mask_color[23] ? red_weighted : gray_weighted;
+    wire [15:0] med_g=mask_color[15] ? red_weighted : gray_weighted;
+    wire [15:0] med_b=mask_color[7] ? red_weighted : gray_weighted;
 
     // Exact floor(x/100) for every x in 0..25500.
     function [7:0] divide_100;
@@ -301,6 +322,8 @@ module video_colorizer (
     always @(posedge pclk) begin
         if (rst) begin
             s1_gray_weighted <= 0; s1_red_weighted <= 0;
+            s1_medical <= 0; s1_contour_color <= 0;
+            s1_med_r <= 0; s1_med_g <= 0; s1_med_b <= 0;
             s1_gray <= 0; s1_heat <= 0; s1_mode <= 0;
             s1_mask <= 0; s1_contour <= 0; s1_image <= 0;
             s1_hs <= 1; s1_vs <= 1; s1_de <= 0;
@@ -308,12 +331,22 @@ module video_colorizer (
         end else begin
             s1_gray_weighted <= gray_weighted; s1_red_weighted <= red_weighted;
             s1_gray <= gray; s1_heat <= heatmap_color(gray); s1_mode <= mode;
-            s1_mask <= mask; s1_contour <= contour; s1_image <= image_active;
+            s1_mask <= |mask; s1_contour <= |contour; s1_image <= image_active;
+            s1_medical <= medical; s1_contour_color <= ctr_color;
+            s1_med_r <= med_r; s1_med_g <= med_g; s1_med_b <= med_b;
             s1_hs <= in_hs; s1_vs <= in_vs; s1_de <= in_de;
             hs <= s1_hs; vs <= s1_vs; de <= s1_de;
             r <= 0; g <= 0; b <= 0;
             if (s1_image && s1_de) begin
-                case (s1_mode)
+                // Medical output always overlays the four masks and solid contours.
+                // The processing branch retains all five original display modes.
+                if (s1_medical) begin
+                    if (s1_contour) begin
+                        r<=s1_contour_color[23:16]; g<=s1_contour_color[15:8]; b<=s1_contour_color[7:0];
+                    end else if (s1_mask) begin
+                        r<=divide_100(s1_med_r); g<=divide_100(s1_med_g); b<=divide_100(s1_med_b);
+                    end else begin r<=s1_gray; g<=s1_gray; b<=s1_gray; end
+                end else case (s1_mode)
                     32'd1: begin
                         r <= s1_contour ? 8'hff : s1_gray;
                         g <= s1_contour ? 8'hff : s1_gray;

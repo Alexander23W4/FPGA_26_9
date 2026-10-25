@@ -164,12 +164,12 @@ module tb_independent_return #(
         check_timer=0;
     end
     reg [23:0] previous_rgb=0,next_rgb;
-    reg [19:0] held_ram;
+    reg [21:0] held_ram;
     reg check_ram;
     integer hindex;
     always @(posedge pclk)if(!rst)begin
         check_ram=!display_read_en;
-        held_ram={memory.q0,memory.q1,memory.q0_mask,memory.q1_mask,memory.q0_contour,memory.q1_contour};
+        held_ram={memory.q0,memory.q1};
         next_rgb=0;
         if(hactive)begin
             hindex=(hdmi.vcnt-112)*256+hdmi.hcnt-192;
@@ -179,7 +179,7 @@ module tb_independent_return #(
             hdmi_pixels=hdmi_pixels+1;
         end
         #1;
-        if(check_ram && {memory.q0,memory.q1,memory.q0_mask,memory.q1_mask,memory.q0_contour,memory.q1_contour}!==held_ram)
+        if(check_ram && {memory.q0,memory.q1}!==held_ram)
             $fatal(1,"disabled HDMI still read frame RAM");
         if({hr,hg,hblue}!==previous_rgb)$fatal(1,"HDMI output disturbed by return backpressure");
         previous_rgb=next_rgb;

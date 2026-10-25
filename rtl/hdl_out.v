@@ -1,12 +1,13 @@
 `timescale 1ns / 1ps
 
-module hdl_out(
+module hdl_out #(parameter integer CHAMBERS=1) (
     input clk,
     input rst,
 
     input [7:0] hdl_data,
-    input hdl_mask,
-    input hdl_contour,
+    input [CHAMBERS-1:0] hdl_mask,
+    input [CHAMBERS-1:0] hdl_contour,
+    input tri0 hdl_medical,
     input hdl_valid,
     input hdl_eof,
     output reg hdl_ready,
@@ -14,8 +15,9 @@ module hdl_out(
     output reg buf_idx,   // 当前整帧的写 bank
     output reg [15:0] buf_addr,
     output reg [7:0]  buf_data,
-    output reg buf_mask,
-    output reg buf_contour,
+    output reg [CHAMBERS-1:0] buf_mask,
+    output reg [CHAMBERS-1:0] buf_contour,
+    output wire buf_medical,
     output reg en,
 
     input  wire display_ack_toggle,   // clk-domain confirmation of actual switch
@@ -45,6 +47,7 @@ module hdl_out(
         (display_sent && publication_acked) :
         (display_disabled && publication_acked);
 
+    assign buf_medical = hdl_medical;
     assign dbg_status = {eof_mismatch, state, buf_idx, counter};
 
     always @(posedge clk) begin

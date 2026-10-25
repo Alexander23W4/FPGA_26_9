@@ -4,10 +4,11 @@
 // HDMI uses the display clock; the independent return instance uses clk.
 // Data path: frame store -> out_arr (two-stage RGB calculation) -> hdmi_out.
 // hdmi_out supplies the read window/frame boundary and owns HDMI control timing.
-module out_arr (
+module out_arr #(parameter integer CHAMBERS=1) (
     input wire pclk, input wire rst,
     input wire [7:0] buf_data,
-    input wire buf_mask, input wire buf_contour,
+    input wire [CHAMBERS-1:0] buf_mask, input wire [CHAMBERS-1:0] buf_contour,
+    input tri0 buf_medical,
     // Settings must belong to this instance's clock domain. HDMI uses CDC;
     // the return instance receives the processing-domain registers directly.
     input wire [31:0] video_mode, input wire [31:0] mask_transparency,
@@ -56,10 +57,11 @@ module out_arr (
     end
 
     // The pixel arithmetic/LUT is kept in its reusable, independently tested core.
-    // 0 gray, 1 contour, 2 mask, 3 red alpha overlay, 4 pseudocolor heatmap.
-    video_colorizer u_colorizer (
+    // Processing: 0 gray, 1 contour, 2 mask, 3 red overlay, 4 heatmap.
+    // Medical pixels: four-color mask overlay plus solid contours.
+    video_colorizer #(.CHAMBERS(CHAMBERS)) u_colorizer (
         .pclk(pclk), .rst(rst),
-        .gray(buf_data), .mask(buf_mask), .contour(buf_contour),
+        .gray(buf_data), .mask(buf_mask), .contour(buf_contour), .medical(buf_medical),
         .mode(video_mode_active), .alpha(mask_transparency_active),
         // Only RGB leaves this module; hdmi_out aligns its own HS/VS/DE.
         .image_active(image_active), .in_hs(1'b1), .in_vs(1'b1), .in_de(1'b1),

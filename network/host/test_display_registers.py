@@ -76,7 +76,7 @@ class DisplayRegistersTests(unittest.TestCase):
                     capture_output=True, text=True, encoding='utf-8', timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('GUI_DISPLAY_HTTP_OK', result.stdout)
-            self.assertEqual(writes, [b'P'+bytes([a]) for a in (0,45,100)] + [b'H\x00', b'H\x01'])
+            self.assertEqual(writes, [b'P'+bytes([a]) for a in (0,45,100,0,45,100)] + [b'H\x00', b'H\x01'])
         finally:
             server.shutdown()
             server.server_close()

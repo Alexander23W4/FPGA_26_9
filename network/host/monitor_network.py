@@ -724,10 +724,10 @@ def _set_system_mode(mode):
 
 
 def _require_return_path(state):
-    # The medical output is deliberately unconnected in the current PL top.
-    # Do not arm an S2MM/TCP job which can never receive a result in this mode.
+    # The medical output now reaches HDMI/S2MM, but its segmentation input is
+    # still tied idle in top1. Keep the guard until that input is connected.
     if state is not None and getattr(state, 'system_mode', 'processing') == 'medical':
-        raise RuntimeError('医学模式配准输出尚未连接回传通路，当前仅支持切换模式；图像收发请使用图像处理模式')
+        raise RuntimeError('医学分析模块输入尚未连接分割数据，暂不能发起医学图像收发；输出已连接 HDMI/PC 通路')
 
 
 def _set_mask_transparency(value):

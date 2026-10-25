@@ -35,11 +35,14 @@ async function settle() {while (pending.size) await Promise.all([...pending]);}
     assert.strictEqual(elements.dshRbThr.textContent, 120, 'display the active STATUS threshold, not manual DATA_REG=37');
     assert.strictEqual(Number(select.value), mode);
   }
-  for (const alpha of [0,45,100]) {
-    elements.maskOpacity.value = String(alpha);
-    await elements.maskOpacityUpdate.listeners.click({currentTarget: elements.maskOpacityUpdate});
-    assert.strictEqual(elements.dshRbAlpha.textContent, alpha+'%');
-    assert.strictEqual(elements.maskOpacityUpdate.disabled, false);
+  for (const system of ['processing','medical']) {
+    document.getElementById('systemMode').value=system;
+    for (const alpha of [0,45,100]) {
+      elements.maskOpacity.value = String(alpha);
+      await elements.maskOpacityUpdate.listeners.click({currentTarget: elements.maskOpacityUpdate});
+      assert.strictEqual(elements.dshRbAlpha.textContent, alpha+'%');
+      assert.strictEqual(elements.maskOpacityUpdate.disabled, false);
+    }
   }
   for (const enabled of [false,true]) {
     await elements.hdmiOutputToggle.listeners.click();

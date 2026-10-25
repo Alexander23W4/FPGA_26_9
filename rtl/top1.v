@@ -132,7 +132,11 @@ module top1 #(
 
     wire [7:0] dn_data, ts_data;
     wire dn_valid, dn_eof, dn_ready;
-    wire ts_contour, ts_mask, hdl_valid, hdl_eof, hdl_ready;
+    wire ts_contour, ts_mask, ts_valid, ts_eof, ts_ready;
+    wire hdl_valid, hdl_eof, hdl_ready, hdl_medical;
+    wire [7:0] hdl_data, medical_out_data;
+    wire [3:0] hdl_mask, hdl_contour, medical_out_mask, medical_out_contour;
+    wire medical_out_valid, medical_out_eof, medical_out_ready;
     wire [31:0] video_mode, mask_transparency;
     wire hdmi_enable, hdmi_enable_pclk, display_armed, hdmi_read_lock, hdmi_read_en;
     wire [7:0] back_frame_mode;
@@ -167,9 +171,11 @@ module top1 #(
         .in_data(8'd0), .in_valid(1'b0), .in_eof(1'b0), .in_ready(),
         .in_LA_ctr(1'b0), .in_RA_ctr(1'b0), .in_LV_ctr(1'b0), .in_RV_ctr(1'b0),
         .in_LA_mask(1'b0), .in_RA_mask(1'b0), .in_LV_mask(1'b0), .in_RV_mask(1'b0),
-        .out_data(), .out_valid(), .out_eof(), .out_ready(1'b1),
-        .out_LA_ctr(), .out_RA_ctr(), .out_LV_ctr(), .out_RV_ctr(),
-        .out_LA_mask(), .out_RA_mask(), .out_LV_mask(), .out_RV_mask(),
+        .out_data(medical_out_data), .out_valid(medical_out_valid), .out_eof(medical_out_eof), .out_ready(medical_out_ready),
+        .out_LA_ctr(medical_out_contour[0]), .out_RA_ctr(medical_out_contour[1]),
+        .out_LV_ctr(medical_out_contour[2]), .out_RV_ctr(medical_out_contour[3]),
+        .out_LA_mask(medical_out_mask[0]), .out_RA_mask(medical_out_mask[1]),
+        .out_LV_mask(medical_out_mask[2]), .out_RV_mask(medical_out_mask[3]),
         .EDV_LA(EDV_LA), .ESV_LA(ESV_LA), .EDV_RA(EDV_RA), .ESV_RA(ESV_RA),
         .EDV_LV(EDV_LV), .ESV_LV(ESV_LV), .EDV_RV(EDV_RV), .ESV_RV(ESV_RV)
     );
@@ -190,8 +196,8 @@ module top1 #(
         .s_axi_rdata(rdata), .s_axi_rresp(rresp), .s_axi_rvalid(rvalid), .s_axi_rready(rready),
         .s_axis_tdata(dn_data), .s_axis_tvalid(dn_valid),
         .s_axis_tready(dn_ready), .s_axis_tlast(dn_eof),
-        .m_axis_tdata(ts_data), .m_axis_tvalid(hdl_valid),
-        .m_axis_tready(hdl_ready), .m_axis_tlast(hdl_eof),
+        .m_axis_tdata(ts_data), .m_axis_tvalid(ts_valid),
+        .m_axis_tready(ts_ready), .m_axis_tlast(ts_eof),
         .m_axis_tmask(ts_mask), .m_axis_tcontour(ts_contour),
         .threshold_out(), .auto_mode_out(), .frame_done_out(),
         .reg_mode_out(reg_mode),
@@ -203,13 +209,22 @@ module top1 #(
         .back_status({back_overflow, 1'b0, back_busy})
     );
 
-    // Preserve all three planes. Display selection happens after the frame store,
-    // so switching modes never destroys grayscale or requires another image upload.
-    wire [7:0] hdl_data = ts_data;
+    // Select a complete source frame; retain gray, four mask/contour pairs,
+    // and source kind together so both independent readers format the same data.
+    output_frame_xbar u_output_xbar (
+        .clk(clk), .rst(rst_clk), .reg_mode(reg_mode),
+        .image_data(ts_data), .image_mask(ts_mask), .image_contour(ts_contour),
+        .image_valid(ts_valid), .image_eof(ts_eof), .image_ready(ts_ready),
+        .medical_data(medical_out_data), .medical_mask(medical_out_mask), .medical_contour(medical_out_contour),
+        .medical_valid(medical_out_valid), .medical_eof(medical_out_eof), .medical_ready(medical_out_ready),
+        .out_data(hdl_data), .out_mask(hdl_mask), .out_contour(hdl_contour), .out_medical(hdl_medical),
+        .out_valid(hdl_valid), .out_eof(hdl_eof), .out_ready(hdl_ready)
+    );
     wire fb_write_idx, fb_read_idx;
     wire [15:0] fb_write_addr, fb_read_addr;
     wire [7:0] fb_write_data, fb_read_data;
-    wire fb_write_mask, fb_write_contour, fb_read_mask, fb_read_contour;
+    wire [3:0] fb_write_mask, fb_write_contour, fb_read_mask, fb_read_contour;
+    wire fb_write_medical, fb_read_medical;
     wire fb_write_en, frame_ready_toggle;
     wire display_ready_toggle, display_buf_idx;
     wire display_frame_toggle, display_frame_bank, display_ack_pclk;
@@ -244,36 +259,37 @@ module top1 #(
     wire back_read_idx, back_read_lock, back_read_en, back_source_ready;
     wire [15:0] back_read_addr;
     wire [7:0] back_read_data, back_r, back_g, back_b;
-    wire back_read_mask, back_read_contour;
+    wire [3:0] back_read_mask, back_read_contour;
+    wire back_read_medical;
     wire back_job_start, back_new_image_start, back_pixel_valid, back_valid, back_sof;
     wire [31:0] back_video_mode;
 
-    hdl_out u_hdl_out (
+    hdl_out #(.CHAMBERS(4)) u_hdl_out (
         .clk(clk), .rst(rst_clk),
-        .hdl_data(hdl_data), .hdl_mask(ts_mask), .hdl_contour(ts_contour),
+        .hdl_data(hdl_data), .hdl_mask(hdl_mask), .hdl_contour(hdl_contour), .hdl_medical(hdl_medical),
         .hdl_valid(hdl_valid), .hdl_eof(hdl_eof), .hdl_ready(hdl_ready),
         .buf_idx(fb_write_idx), .buf_addr(fb_write_addr), .buf_data(fb_write_data),
-        .buf_mask(fb_write_mask), .buf_contour(fb_write_contour), .en(fb_write_en),
+        .buf_mask(fb_write_mask), .buf_contour(fb_write_contour), .buf_medical(fb_write_medical), .en(fb_write_en),
         .display_ack_toggle(display_ack_clk), .display_disabled(display_disabled), .frame_ready_toggle(frame_ready_toggle),
         .hdmi_enable(hdmi_enable), .display_armed(display_armed),
         .display_ready_toggle(display_ready_toggle), .display_buf_idx(display_buf_idx),
         .back_read_lock(back_read_lock), .back_read_idx(back_read_idx),
         .dbg_status(hdl_dbg_status)
     );
-    double_buf u_double_buf (
+    double_buf #(.CHAMBERS(4)) u_double_buf (
         .clk(clk), .pclk(pclk), .write_en(fb_write_en),
         .write_buf_idx(fb_write_idx), .write_addr(fb_write_addr),
-        .write_data(fb_write_data), .write_mask(fb_write_mask), .write_contour(fb_write_contour),
+        .write_data(fb_write_data), .write_mask(fb_write_mask), .write_contour(fb_write_contour), .write_medical(fb_write_medical),
         .read_buf_idx(fb_read_idx), .read_addr(fb_read_addr), .read_en(hdmi_read_en),
-        .read_data(fb_read_data), .read_mask(fb_read_mask), .read_contour(fb_read_contour),
+        .read_data(fb_read_data), .read_mask(fb_read_mask), .read_contour(fb_read_contour), .read_medical(fb_read_medical),
         .back_read_en(back_read_en), .back_read_idx(back_read_idx), .back_read_addr(back_read_addr),
-        .back_read_data(back_read_data), .back_read_mask(back_read_mask), .back_read_contour(back_read_contour)
+        .back_read_data(back_read_data), .back_read_mask(back_read_mask), .back_read_contour(back_read_contour), .back_read_medical(back_read_medical)
     );
 
-    out_arr u_out_arr (
+    out_arr #(.CHAMBERS(4)) u_out_arr (
         .pclk(pclk), .rst(rst_pclk),
         .buf_data(fb_read_data),
-        .buf_mask(fb_read_mask), .buf_contour(fb_read_contour),
+        .buf_mask(fb_read_mask), .buf_contour(fb_read_contour), .buf_medical(fb_read_medical),
         .video_mode(video_mode_pclk), .mask_transparency(mask_transparency_pclk),
         .frame_start(hdmi_frame_start), .image_active(hdmi_image_active),
         .new_frame(hdmi_new_frame), .back_busy(1'b0),
@@ -289,9 +305,9 @@ module top1 #(
         .read_addr(back_read_addr), .read_en(back_read_en),
         .job_start(back_job_start), .new_image_start(back_new_image_start), .pixel_valid(back_pixel_valid)
     );
-    out_arr u_back_out_arr (
+    out_arr #(.CHAMBERS(4)) u_back_out_arr (
         .pclk(clk), .rst(rst_clk), .buf_data(back_read_data),
-        .buf_mask(back_read_mask), .buf_contour(back_read_contour),
+        .buf_mask(back_read_mask), .buf_contour(back_read_contour), .buf_medical(back_read_medical),
         .video_mode(video_mode), .mask_transparency(mask_transparency),
         .frame_start(back_job_start), .image_active(back_pixel_valid),
         .new_frame(1'b1), .back_busy(1'b0),
@@ -334,7 +350,7 @@ module top1 #(
         rdata, awaddr, araddr, wdata[7:0], bresp, rresp,
         awvalid, awready, wvalid, wready, bvalid, bready, arvalid, arready, rvalid, rready,
         fb_write_addr, back_read_addr, fb_write_data, video_mode[2:0], mask_transparency[6:0],
-        ts_mask, ts_contour, hdl_valid, hdl_ready, hdl_eof, frame_ready_toggle
+        (|hdl_mask), (|hdl_contour), hdl_valid, hdl_ready, hdl_eof, frame_ready_toggle
     };
 
     // TMDS 串行位: 来自 hdmi_tx, 在这里紧贴端口做 OBUFDS
