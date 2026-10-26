@@ -22,7 +22,8 @@ def main():
     def run(name, *command):
         argv = [item.as_posix() if isinstance(item, Path) else str(item) for item in command]
         result = subprocess.run(argv, cwd=args.out,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180)
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                timeout=600 if name == "tb_medical_output" else 180)
         output = result.stdout.decode('utf-8', 'replace')
         (args.out / (name + '.log')).write_text(output, encoding='utf-8')
         if result.returncode or 'ERROR:' in output or 'Fatal:' in output or '[FAIL]' in output:

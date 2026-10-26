@@ -101,20 +101,29 @@ module tb_medical_output #(
     return_timing timer(.clk(clk),.rst(rst),.new_image_start(new_start),.frame_commit(commit),
         .write_blocked(mux_valid&&!mux_ready),.interval_cycles(interval_ticks),.stall_cycles(stall_ticks),.sequence_id(seq));
 
+    function automatic bit medical_frame(input integer f);
+        medical_frame=(f>=10)||(f%2);
+    endfunction
     function automatic [7:0] gray(input integer f,i);
         gray=(i%256) ^ (i/256) ^ (f*37);
     endfunction
     function automatic [3:0] mbit(input integer f,i);
-        mbit=(f%2)?(((i+f)%7<5)?(1<<((i/256)%4)):0):((i+f)%7<3);
+        if(f>=10)case((f-10)%4)
+            0:mbit=4'b0001;
+            2:mbit=4'b1000;
+            default:mbit=0;
+        endcase
+        else mbit=(f%2)?(((i+f)%7<5)?(1<<((i/256)%4)):0):((i+f)%7<3);
     endfunction
     function automatic [3:0] cbit(input integer f,i);
-        cbit=(f%2)?((i%13==0)?(1<<((i/256)%4)):0):((i+f)%11==0);
+        if(f>=10)cbit=(i%256==0||i%256==255||i/256==0||i/256==255)?mbit(f,i):0;
+        else cbit=(f%2)?((i%13==0)?(1<<((i/256)%4)):0):((i+f)%11==0);
     endfunction
     function automatic [23:0] color(input integer f,i,md,a);
         integer v,r,g,b,k,c,cr,cg,cb;
         begin
             v=gray(f,i);r=v;g=v;b=v;
-            if(f%2)begin
+            if(medical_frame(f))begin
                 k=mbit(f,i);c=cbit(f,i);
                 if(md==1)k=c;
                 cr=(k&3)?255:0;cg=(k&6)?255:0;cb=(k&8)?255:0;
@@ -166,7 +175,7 @@ module tb_medical_output #(
             packet_frame=bank_frame[reader.latest_bank];packet_mode=mode;packet_alpha=alpha;
             jobs=jobs+1;job_cycle=cycles;requests=0;
         end
-        if(pvalid && back_medical!==(packet_frame%2==1))$fatal(1,"lost return frame provenance");
+        if(pvalid && back_medical!==medical_frame(packet_frame))$fatal(1,"lost return frame provenance");
         if(ren)begin
             if(ra!==requests[15:0])$fatal(1,"return read skipped/repeated address %0d != %0d",ra,requests);
             requests=requests+1;
@@ -207,7 +216,7 @@ module tb_medical_output #(
         next_rgb=0;
         if(hactive)begin
             hindex=(hdmi.vcnt-112)*256+hdmi.hcnt-192;
-            if(hdmi_medical!==(bank_frame[hb]%2==1))$fatal(1,"lost HDMI frame provenance");
+            if(hdmi_medical!==medical_frame(bank_frame[hb]))$fatal(1,"lost HDMI frame provenance");
             if(hd!==gray(bank_frame[hb],hindex)||hm!==mbit(bank_frame[hb],hindex)||hc!==cbit(bank_frame[hb],hindex))
                 $fatal(1,"HDMI read planes corrupted during independent return");
             next_rgb=color(bank_frame[hb],hindex,hdmi_arr.video_mode_active,hdmi_arr.mask_transparency_active);
@@ -222,7 +231,7 @@ module tb_medical_output #(
     task automatic send_frame(input integer f);
         integer i;
         begin
-            writing_frame=f;medical_source=f%2;
+            writing_frame=f;medical_source=medical_frame(f);
             for(i=0;i<65536;i=i+1)begin
                 @(negedge clk);valid=1;pixel=gray(f,i);mask=mbit(f,i);contour=cbit(f,i);last=i==65535;
                 do @(posedge clk);while(!ready);
@@ -291,8 +300,25 @@ module tb_medical_output #(
         wait(!display_enable);wait(display_enable);
         send_frame(9);wait(packets==16);wait(!reader.active);wait(hactive);
         if(seq!=9)$fatal(1,"HDMI toggles changed return interval accounting");
-        $display("[PASS] tb_medical_output: 16 complete packets, 10 alternating image/medical frames, four chamber labels/colors/alpha, actual medical stream + output xbar, all modes, asynchronous clocks, HDMI OFF/ON and rapid toggles, no disabled RAM reads, no HDMI throttling while OFF, long/random stalls, ownership, timing. Unstalled return=%0d cycles",nostall_duration);
+        // Reproduce the actual defect pattern: a full chamber followed by a
+        // completely empty mask must clear EVERY plane in both frame banks.
+        patterned=1;
+        for(n=10;n<14;n=n+1)begin
+            before_packets=packets;send_frame(n);
+            wait(packets==before_packets+1);wait(!reader.active);
+        end
+        before_packets=packets;@(negedge clk);mode=1;
+        wait(packets==before_packets+1);wait(!reader.active);
+        for(n=14;n<18;n=n+1)begin
+            before_packets=packets;send_frame(n);
+            wait(packets==before_packets+1);wait(!reader.active);
+        end
+        wait(hactive && bank_frame[hb]==17);displayed_before=hdmi_pixels;
+        wait(hdmi_pixels>=displayed_before+65536);
+        if(commits!=18||seq!=17||jobs!=25||packets!=25)
+            $fatal(1,"missing/duplicate clearing-frame commit or packet");
+        $display("[PASS] tb_medical_output: 25 full packets, 18 frames, mask and contour modes full-LA -> blank -> full-RV -> blank, both HDMI and PC clear old planes; four colors, alpha, asynchronous clocks and long/random stalls");
         $finish;
     end
-    initial begin #300000000;$fatal(1,"medical output timeout");end
+    initial begin #600000000;$fatal(1,"medical output timeout");end
 endmodule
