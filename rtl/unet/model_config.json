@@ -1,6 +1,6 @@
 {
-  "backend": "small-int8",
-  "lanes": 8,
+  "backend": "full-fp32",
+  "lanes": 16,
   "clock_mhz": 160,
   "classes": {
     "background": 0,

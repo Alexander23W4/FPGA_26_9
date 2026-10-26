@@ -6,18 +6,11 @@ proc prepare_unet_operators {} {
     # Vivado exports its own PYTHONHOME/PYTHONPATH. Isolate the external
     # interpreter so it uses its matching standard library instead.
     puts [exec python -I [file join $::unet_root rtl unet tools freshness.py] --check]
-    set dir [file join $::unet_root rtl unet small_generated]
-    if {![file exists [file join $dir small_unet_ddr_core.v]]} {
-        error "Missing small U-Net RTL: run rtl/unet/tools/build.sh first"
+    set dir [file join $::unet_root rtl unet generated]
+    if {![file exists [file join $dir unet_ddr_core.v]]} {
+        error "Missing complete U-Net RTL: run rtl/unet/hls/build_hls.tcl with Vitis HLS first"
     }
-    # Old FP32 sources remain recoverable, but must not synthesize their
-    # floating-point operator IPs in the active integer-model project.
-    foreach file [get_files -all -quiet -filter {NAME =~ */rtl/unet/generated/*}] {remove_files $file}
-    foreach ip [get_ips -quiet unet_ddr_core_*_ip] {
-        set file [get_property IP_FILE $ip]
-        if {$file ne ""} {remove_files $file}
-    }
-    foreach script [lsort [glob -nocomplain -directory $dir *_ip.tcl]] {
+    foreach script [lsort [glob -directory $dir *_ip.tcl]] {
         set name [file rootname [file tail $script]]
         if {[llength [get_ips -quiet $name]]==0} {source $script}
     }
