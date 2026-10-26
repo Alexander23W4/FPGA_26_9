@@ -8978,7 +8978,7 @@ assign icmp_ln257_2_fu_1534_p2 = ((weights_addr_5_read_reg_1814 == 32'd256) ? 1'
 
 assign icmp_ln257_fu_1474_p2 = ((weights_addr_3_read_reg_1774 == 32'd6258688) ? 1'b1 : 1'b0);
 
-assign icmp_ln258_fu_1564_p2 = ((weights_addr_6_read_reg_1834 == 32'd3920958655) ? 1'b1 : 1'b0);
+assign icmp_ln258_fu_1564_p2 = ((weights_addr_6_read_reg_1834 == 32'd1562305944) ? 1'b1 : 1'b0);
 
 assign icmp_ln266_fu_1577_p2 = ((p_fu_682 == 17'd65536) ? 1'b1 : 1'b0);
 

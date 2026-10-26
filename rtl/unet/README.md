@@ -9,7 +9,7 @@ AXI-Stream -> 配准 -> 小模型 U-Net -> 医学指标 -> hdl_out -> double_buf
                                                         -> HDMI / S2MM / PS / PC
 ```
 
-`rtl/unet/unet.v` 的像素、四腔 mask/contour、valid/ready/eof 和两路 AXI DDR 主口保持原接口。处理时钟仍为 80 MHz，HDMI 仍为 25.2 MHz，U-Net 使用独立时钟；输入/输出异步 FIFO、完整状态字 CDC 和两路 AXI 时钟转换器沿用。默认 U-Net 时钟目标 200 MHz，最终可用频率必须以整工程实现时序为准。
+`rtl/unet/unet.v` 的像素、四腔 mask/contour、valid/ready/eof 和两路 AXI DDR 主口保持原接口。处理时钟仍为 80 MHz，HDMI 仍为 25.2 MHz，U-Net 使用独立时钟；输入/输出异步 FIFO、完整状态字 CDC 和两路 AXI 时钟转换器沿用。HLS 估算 Fmax 约 165.5 MHz；190 MHz 整工程布线出现 0.164 ns setup 违例；当前构建目标为 160 MHz，最终可用频率以重新实现报告为准。
 
 每帧先完整接收、推理，再输出 65,536 个与原灰度逐像素对齐的结果。输出字为 `{四腔轮廓[3:0], 四腔掩膜[3:0], 原灰度[7:0]}`，不是交付 IP 的类别字节。类别沿用 0 背景、1 LA、2 RA、3 LV、4 RV，颜色沿用红、黄、绿、蓝。下游反压时输出握手保持数据及 EOF；每个输入/输出像素各完成一次握手。
 
