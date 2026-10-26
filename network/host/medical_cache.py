@@ -10,9 +10,8 @@ from PIL import Image
 
 PIXELS = 256 * 256
 CACHE_DIR = '.heartcare_unet'
-COLORS = np.array([[191,63,101], [255,212,0], [0,210,96], [40,120,255]], dtype=np.uint8)
-# PL uses red/yellow/green/blue in LA/RA/LV/RV order.
-COLORS[0] = [255,0,0]
+COLORS = np.array([[255,0,0], [255,255,0], [0,255,0], [0,0,255]], dtype=np.uint8)
+# Match the PL chamber colors exactly: LA red, RA yellow, LV green, RV blue.
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
@@ -85,8 +84,9 @@ class PatientCache:
             import io
             stream=io.BytesIO();Image.fromarray(image.reshape(256,256,3)).save(stream,format='PNG')
             self._atomic(paths[kind],stream.getvalue())
-        record={'version':1,'model':self.model_key,'source':name,'source_sha256':source_hash,
-                'planes':{kind:sha(data) for kind,data in planes.items()}}
+        record={'version':2,'model':self.model_key,'source':name,'source_sha256':source_hash,
+                'planes':{kind:sha(data) for kind,data in planes.items()},
+                'previews':{kind:sha(paths[kind].read_bytes()) for kind in ('mask_preview','contour_preview')}}
         # This record is the commit: neither presence nor an old filename is completion.
         self._atomic(paths['record'],json.dumps(record,ensure_ascii=False).encode('utf-8'))
 
@@ -106,7 +106,7 @@ class PatientCache:
 
     def read(self,name,source=None):
         paths=self._paths(name);record=json.loads(paths['record'].read_text(encoding='utf-8'))
-        if record.get('version')!=1 or record.get('model')!=self.model_key or record.get('source')!=name:
+        if record.get('version')!=2 or record.get('model')!=self.model_key or record.get('source')!=name:
             raise ValueError('cache belongs to another model or format')
         original=self.sources[name].read_bytes() if source is None else source
         if len(original)!=PIXELS or sha(original)!=record.get('source_sha256'):
@@ -114,19 +114,21 @@ class PatientCache:
         planes={kind:paths[kind].read_bytes() for kind in ('gray','mask','contour')}
         for kind,data in planes.items():
             if len(data)!=PIXELS or sha(data)!=record.get('planes',{}).get(kind):raise ValueError('cached '+kind+' is incomplete or changed')
-        if not all(paths[k].is_file() for k in ('mask_preview','contour_preview')):raise ValueError('cached previews are incomplete')
+        for kind in ('mask_preview','contour_preview'):
+            preview=paths[kind].read_bytes()
+            if len(preview)<64 or sha(preview)!=record.get('previews',{}).get(kind):raise ValueError('cached '+kind+' is incomplete or changed')
         return planes
 
     def status(self):
-        completed=0
+        done=[]
         for name in self.sources:
-            try:self.read(name);completed+=1
+            try:self.read(name);done.append(name)
             except (OSError,ValueError,KeyError):pass
         with self._lock:
             errors=[str(f.exception()) for f in self._pending if f.done() and f.exception() is not None]
-        return {'complete':completed==len(self.sources),'completed':completed,'total':len(self.sources),
+        return {'complete':len(done)==len(self.sources),'completed':len(done),'completed_files':done,'total':len(self.sources),
                 'saving':sum(not f.done() for f in self._pending),'error':errors[0] if errors else None,
-                'label':'已完成模型分割' if completed==len(self.sources) else '未完成模型分割'}
+                'label':'已完成模型分割' if len(done)==len(self.sources) else '未完成模型分割'}
 
     def close(self):
         with self._lock:self._closed=True

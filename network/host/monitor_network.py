@@ -24,6 +24,8 @@ from frame_transfer import FrameTransferClient, normalize_result_name
 from queued_stream import QueuedStream, QueueFull
 from frame_pipeline import FramePipeline
 from medical_metrics import parse_ps_medical, MedicalCurveHistory
+from medical_cache import PatientCache, CACHE_DIR
+from medical_workflow import SegmentationPipeline, AnalysisPipeline, model_key
 
 
 def load_gray(path):
@@ -137,6 +139,7 @@ let dshFpsPaused = false;
 let dshStreamFiles = [], dshStreamIndex = 0, dshStreamFolder = '';
 let dshStreamSignature = '', dshStreamQueue = [];
 let dshStreamSamples = [], dshStreamCompleted = 0;
+let dshMedicalPatient = null, dshMedicalEntries = [], dshMedicalStatus = null;
 const dshNow = () => typeof performance !== 'undefined' ? performance.now() : Date.now();
 function dshResetPerformance(resetFps = false) {
     if (resetFps) { dshStreamSamples = []; resetFrameRate(); }
@@ -178,7 +181,7 @@ async function dshRun(action) {
         if (typeof resumeFrameRate === 'function') resumeFrameRate();
     }
   const status = document.getElementById('processingStatus');
-  const controls = ['imageFile', 'chooseImage', 'chooseStream', 'streamFolder', 'fpgaOutputMode', 'medicalOutputMode', 'thresholdMode',
+  const controls = ['imageFile', 'chooseImage', 'chooseStream', 'medicalSegment', 'medicalAnalyze', 'streamFolder', 'fpgaOutputMode', 'medicalOutputMode', 'thresholdMode',
     'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'];
   const disabled = controls.map(id => document.getElementById(id).disabled);
   dshTransferBusy = true;
@@ -353,6 +356,8 @@ function dshStreamControls() {
   for (const id of ['fpgaOutputMode', 'medicalOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'])
     document.getElementById(id).disabled = stopping;
   document.getElementById('fullDisplayOption').disabled = dshStreamMode;
+  document.getElementById('medicalSegment').disabled = dshTransferBusy || dshStreamRunning || !dshMedicalPatient;
+  document.getElementById('medicalAnalyze').disabled = dshTransferBusy || dshStreamRunning || !dshMedicalPatient || !dshMedicalStatus || !dshMedicalStatus.complete;
   updateModeMenu(); updateThresholdControls(); updatePreviewLayout();
 }
 function dshStopStream() {
@@ -421,7 +426,7 @@ function dshDrawBin(canvasId,raw,color) {
   }
   context.putImageData(pixels,0,0);
 }
-function dshRunStreamWorker(entries,streamChanged) {
+function dshRunStreamWorker(entries,streamChanged,workflow=null) {
   if(typeof resetCardiacCharts==='function')resetCardiacCharts();
   const worker=new Worker('/assets/stream_worker.js');
   const generation=++dshPreviewGeneration;
@@ -471,19 +476,78 @@ function dshRunStreamWorker(entries,streamChanged) {
       }catch(cause){error=cause;worker.postMessage({type:'stop'});}
     };
     const offset=Date.now()-dshNow();
-    worker.postMessage({type:'start',files:entries,index:dshStreamIndex,folder:dshStreamFolder,
+    worker.postMessage({type:'start',files:entries,index:dshStreamIndex,folder:dshStreamFolder,workflow,
+      dataset:dshMedicalPatient&&workflow?dshMedicalPatient.dataset:null,
+      patient:dshMedicalPatient&&workflow?dshMedicalPatient.patient:null,
+      maskTransparency:Number(document.getElementById('maskOpacity').value),
       mode:dshOutputMode(),
       sourceFps:Number(document.getElementById('sourceFps').value),times:dshStreamSamples.map(t=>t+offset)});
   });
 }
-async function dshStartStream(files, preset=null) {
+function dshSetMedicalCacheStatus(status,error=null){
+  dshMedicalStatus=status;
+  const lamp=document.getElementById('medicalCacheLamp');
+  lamp.className='cache-state '+(status&&status.complete?'cache-complete':'cache-incomplete');
+  lamp.textContent=error?'未完成模型分割 · '+error:(status&&status.complete?'已完成模型分割':
+    '未完成模型分割'+(status?' · '+status.completed+'/'+status.total+' 帧':''));
+  dshStreamControls();
+}
+async function dshRefreshMedicalCache(){
+  if(!dshMedicalPatient)return;
+  try{
+    const q=new URLSearchParams({dataset:dshMedicalPatient.dataset,patient:dshMedicalPatient.patient});
+    const response=await fetch('/api/network/medical/cache?'+q,{cache:'no-store'}),status=await response.json();
+    if(!response.ok||!status.ok)throw new Error(status.error||'缓存状态读取失败');
+    dshSetMedicalCacheStatus(status);
+  }catch(error){dshSetMedicalCacheStatus(null,error.message);}
+}
+async function dshSelectMedicalPatient(dataset){
+  document.getElementById('processingStatus').textContent='选择患者文件夹…';
+  try{
+    const response=await fetch('/api/network/stream/datasets?dataset='+encodeURIComponent(dataset));
+    const catalog=await response.json();document.getElementById('processingStatus').textContent='';
+    if(catalog.cancelled)return;
+    if(!response.ok||!catalog.ok)throw new Error(catalog.error||'读取患者目录失败');
+    const entries=catalog.files.map(item=>({...item,sourceUrl:'/api/network/stream/dataset-frame?'+
+      new URLSearchParams({dataset,path:item.path}).toString()}));
+    dshMedicalPatient={dataset:catalog.dataset,patient:catalog.patient,folder:catalog.folder};
+    dshMedicalEntries=entries;dshStreamFolder=catalog.folder;dshStreamFiles=entries;
+    dshStreamMode=true;dshStreamSignature=dataset+'\n'+catalog.patient+'\n'+entries.map(x=>x.path).join('\n');
+    document.getElementById('imageName').textContent=catalog.folder;
+    document.getElementById('comparisonPreview').hidden=false;document.getElementById('singlePreview').hidden=true;
+    document.getElementById('streamOriginalCanvas').hidden=false;document.getElementById('streamProcessedCanvas').hidden=false;
+    const first=await fetch(entries[0].sourceUrl,{cache:'no-store'});
+    if(!first.ok)throw new Error('患者首帧读取失败');
+    dshDrawBin('streamOriginalCanvas',await first.arrayBuffer(),false);
+    document.getElementById('streamProcessedCanvas').getContext('2d').clearRect(0,0,256,256);
+    document.getElementById('comparisonOriginalLabel').textContent='原流';
+    document.getElementById('comparisonProcessedLabel').textContent='处理流';
+    dshSetMedicalCacheStatus(null);
+    await dshRefreshMedicalCache();
+    if(dshMedicalPoll)clearInterval(dshMedicalPoll);
+    dshMedicalPoll=setInterval(()=>{if(!dshStreamRunning)void dshRefreshMedicalCache();},2000);
+  }catch(error){document.getElementById('processingStatus').textContent='';alert('患者目录读取失败: '+error.message);}
+}
+let dshMedicalPoll=null;
+async function dshStartStream(files, preset=null, workflow=null) {
   if (dshTransferBusy || dshStreamRunning || systemModePending) return;
   let performanceStarted = false;
   dshTransferBusy = true;
   dshStreamControls();
   try {
     let entries, folder;
-    if (preset) {
+    if(workflow){
+      if(!dshMedicalPatient||!dshMedicalEntries.length)throw new Error('请先选择一个 Cardiac patient 文件夹');
+      if(document.getElementById('systemMode').value!=='medical')throw new Error('请先切换到医学分析模式');
+      entries=dshMedicalEntries;folder=dshMedicalPatient.folder;
+      await dshRefreshMedicalCache();
+      if(workflow==='analysis'&&(!dshMedicalStatus||!dshMedicalStatus.complete))throw new Error('全部图像完成模型分割后才能开始流分析');
+      if(workflow==='segmentation'&&dshMedicalStatus&&dshMedicalStatus.completed_files){
+        const done=new Set(dshMedicalStatus.completed_files.map(name=>dshMedicalPatient.patient+'/'+name));
+        entries=entries.filter(entry=>!done.has(entry.path));
+      }
+      if(!entries.length){await dshRefreshMedicalCache();return;}
+    } else if (preset) {
       document.getElementById('processingStatus').textContent =
         preset === 'cardiac' ? '请选择一个 Cardiac patient 文件夹…' : '请选择一个 Camus patient 文件夹…';
       const response = await fetch('/api/network/stream/datasets?dataset=' + encodeURIComponent(preset));
@@ -494,6 +558,23 @@ async function dshStartStream(files, preset=null) {
       folder = catalog.folder;
       entries = catalog.files.map(item => ({...item, sourceUrl:'/api/network/stream/dataset-frame?' +
         new URLSearchParams({dataset:preset,path:item.path}).toString()}));
+      if(document.getElementById('systemMode').value==='medical'){
+        dshMedicalPatient={dataset:catalog.dataset,patient:catalog.patient,folder:catalog.folder};
+        dshMedicalEntries=entries;dshStreamFolder=folder;dshStreamFiles=entries;dshStreamMode=true;
+        document.getElementById('imageName').textContent=folder;
+        document.getElementById('comparisonPreview').hidden=false;document.getElementById('singlePreview').hidden=true;
+        document.getElementById('streamOriginalCanvas').hidden=false;document.getElementById('streamProcessedCanvas').hidden=false;
+        const first=await fetch(entries[0].sourceUrl,{cache:'no-store'});
+        if(!first.ok)throw new Error('患者首帧读取失败');
+        dshDrawBin('streamOriginalCanvas',await first.arrayBuffer(),false);
+        document.getElementById('streamProcessedCanvas').getContext('2d').clearRect(0,0,256,256);
+        document.getElementById('comparisonOriginalLabel').textContent='原流';
+        document.getElementById('comparisonProcessedLabel').textContent='处理流';
+        dshSetMedicalCacheStatus(null);await dshRefreshMedicalCache();
+        if(dshMedicalPoll)clearInterval(dshMedicalPoll);
+        dshMedicalPoll=setInterval(()=>{if(!dshStreamRunning)void dshRefreshMedicalCache();},2000);
+        return;
+      }
     } else {
       entries = Array.from(files).filter(file => file.name.toLowerCase().endsWith('.bin')).map(file => {
         dshValidateBin(file);
@@ -511,7 +592,7 @@ async function dshStartStream(files, preset=null) {
       if (entries.some(entry => entry.folder !== folder)) throw new Error('一次只能选择一个流文件夹');
       entries.sort((a,b) => a.path.localeCompare(b.path, 'zh-CN', {numeric:true, sensitivity:'base'}));
     }
-    const signature = (preset || 'local') + '\n' + folder + '\n' + entries.map(entry => entry.path).join('\n');
+    const signature = (workflow||preset||'local') + '\n' + folder + '\n' + entries.map(entry => entry.path).join('\n');
     const streamChanged = signature !== dshStreamSignature;
     if (streamChanged) dshStreamIndex = 0;
     dshStreamSignature = signature; dshStreamFolder = folder; dshStreamFiles = entries;
@@ -530,9 +611,11 @@ async function dshStartStream(files, preset=null) {
     if (document.getElementById('fpgaOutputMode').value === '5') document.getElementById('fpgaOutputMode').value = '0';
     dshFpsPaused = false; resumeFrameRate();
     dshStreamRunning = true; dshStreamControls();
+    document.getElementById('medicalCacheLamp').className='cache-state cache-working';
+    if(workflow==='segmentation')document.getElementById('medicalCacheLamp').textContent='模型分割处理中…';
     dshResetPerformance(streamChanged);
     performanceStarted = true;
-    await dshRunStreamWorker(entries,streamChanged);
+    await dshRunStreamWorker(entries,streamChanged,workflow);
   } catch (error) { alert('流处理失败: ' + error.message); }
   finally {
     dshStreamRunning = false; dshTransferBusy = false;
@@ -541,6 +624,7 @@ async function dshStartStream(files, preset=null) {
     for (const request of dshStreamQueue.splice(0)) request.reject(new Error('流已停止，参数尚未更新'));
     document.getElementById('processingStatus').textContent = '';
     dshStreamControls();
+    if(workflow==='segmentation')await dshRefreshMedicalCache();
   }
 }
 document.getElementById('chooseStream').addEventListener('click', () => {
@@ -551,8 +635,11 @@ document.getElementById('chooseStream').addEventListener('click', () => {
 document.querySelectorAll('[data-stream-dataset]').forEach(button => button.addEventListener('click', () => {
   const dataset = button.dataset.streamDataset;
   document.getElementById('streamDatasetDialog').close();
-  void dshStartStream(null, dataset);
+  if(document.getElementById('systemMode').value==='medical')void dshSelectMedicalPatient(dataset);
+  else void dshStartStream(null, dataset);
 }));
+document.getElementById('medicalSegment').addEventListener('click',()=>void dshStartStream(null,null,'segmentation'));
+document.getElementById('medicalAnalyze').addEventListener('click',()=>void dshStartStream(null,null,'analysis'));
 document.getElementById('streamDatasetClose').addEventListener('click', () =>
   document.getElementById('streamDatasetDialog').close());
 document.getElementById('streamDatasetCancel').addEventListener('click', () =>
@@ -890,7 +977,8 @@ def _dataset_catalog(dataset, selected_folder):
         raise ValueError('请选择一个具体的 patient 文件夹，不要选择整个数据集目录')
     if not selected.is_dir():
         raise FileNotFoundError(f'所选 {label} 患者目录不存在: {selected}')
-    files = sorted((path for path in selected.rglob('*.bin') if path.is_file()),
+    files = sorted((path for path in selected.rglob('*.bin') if path.is_file()
+                    and CACHE_DIR not in path.relative_to(selected).parts),
                    key=lambda path: _natural_path_key(path.relative_to(root).as_posix()))
     if not files:
         raise FileNotFoundError(f'所选 {label} 患者目录中没有 BIN 图像: {selected}')
@@ -902,6 +990,27 @@ def _dataset_catalog(dataset, selected_folder):
             raise ValueError(f'{label} BIN 必须恰好为 {FRAME_BYTES} 字节: {relative}')
         entries.append({'name': path.name, 'path': relative, 'size': size})
     return label, entries
+
+
+def _patient_context(dataset, patient_relative):
+    label, root = _dataset_root(dataset)
+    if not patient_relative or '\\' in patient_relative or patient_relative.startswith('/'):
+        raise ValueError('患者目录相对路径无效')
+    patient = root.joinpath(*patient_relative.split('/')).resolve()
+    try:
+        patient.relative_to(root)
+    except ValueError as exc:
+        raise ValueError('患者目录路径越界') from exc
+    if not patient.is_dir() or patient == root:
+        raise ValueError('患者目录不存在或未选择具体患者')
+    _, entries = _dataset_catalog(dataset, patient)
+    sources = [root.joinpath(*entry['path'].split('/')) for entry in entries]
+    return label, root, patient, entries, sources
+
+
+def _patient_cache(dataset, patient_relative):
+    _, _, patient, entries, sources = _patient_context(dataset, patient_relative)
+    return PatientCache(patient, sources, model_key(_REPO)), entries
 
 
 def _state_versions(state):
@@ -1312,9 +1421,26 @@ class NetworkHandler(web_common.Handler):
                     return
                 _, entries = _dataset_catalog(dataset, selected)
                 self.send_json({'ok': True, 'dataset': dataset, 'folder': selected.name,
+                                'patient': selected.relative_to(root).as_posix(),
                                 'count': len(entries), 'files': entries})
             except Exception as error:
                 self.send_json({'ok': False, 'error': str(error), 'log': str(error)}, status=400)
+            return
+        if parsed.path == '/api/network/medical/cache':
+            cache = None
+            try:
+                query = parse_qs(parsed.query)
+                dataset = query.get('dataset', [''])[0]
+                patient = query.get('patient', [''])[0]
+                cache, entries = _patient_cache(dataset, patient)
+                status = cache.status()
+                status.update(dataset=dataset, patient=patient, count=len(entries))
+                self.send_json({'ok': True, **status})
+            except Exception as error:
+                self.send_json({'ok': False, 'error': str(error)}, status=400)
+            finally:
+                if cache is not None:
+                    cache.close()
             return
         if parsed.path == '/api/network/stream/dataset-frame':
             try:
@@ -1430,9 +1556,26 @@ class NetworkServer(web_common.ThreadingHTTPServer):
         source_fps=int(options.get('source_fps',30))
         if not 1<=source_fps<=100:raise ValueError('源视频 FPS 必须为 1..100')
         source_us=round(1000000/source_fps)
+        workflow=options.get('workflow')
+        if workflow not in (None, 'segmentation', 'analysis'):
+            raise ValueError('未知医学流任务')
+        if workflow and state.system_mode != 'medical':
+            raise ValueError('模型分割和流分析只能在医学分析模式运行')
+        dataset=patient_relative=None
+        cache=None;patient_entries=[];patient_prefix='';cache_status={}
+        if workflow:
+            dataset=options.get('dataset','');patient_relative=options.get('patient','')
+            cache, patient_entries = _patient_cache(dataset, patient_relative)
+            cache_status=cache.status()
+            if workflow=='analysis' and not cache_status['complete']:
+                cache.close()
+                raise ValueError('该患者尚未完成全部 U-Net 模型分割')
+            _, root, patient, _, _ = _patient_context(dataset, patient_relative)
+            patient_prefix=patient.relative_to(root).as_posix()
         token = secrets.token_hex(16)
         with self.stream_lock:
             if not _TRANSFER_LOCK.acquire(blocking=False):
+                if cache is not None:cache.close()
                 raise RuntimeError('已有图像或流正在传输，请先停止当前任务')
             try:
                 _require_return_path(state)
@@ -1449,8 +1592,16 @@ class NetworkServer(web_common.ThreadingHTTPServer):
                 # and retransmission timeouts in a 1000-frame full-duplex run.
                 medical = state.system_mode == 'medical'
                 pipeline = FramePipeline(client.host, client.port, 300 if medical else client.timeout,
-                                         capacity=1 if medical else 8, send_chunk=3072, send_pause=.0001,
-                                         source_frame_us=source_us)
+                                         capacity=(8 if workflow=='analysis' else 1 if medical else 8),
+                                         send_chunk=3072, send_pause=.0001,
+                                         source_frame_us=source_us, medical_workflow=workflow)
+                if workflow == 'segmentation':
+                    skip={patient_prefix+'/'+name for name in cache_status.get('completed_files',[])}
+                    options['_skip_paths']=skip
+                    pipeline=SegmentationPipeline(pipeline,cache,patient_prefix,
+                        alpha=lambda:int(options.get('mask_transparency',45)))
+                elif workflow == 'analysis':
+                    pipeline=AnalysisPipeline(pipeline,cache,patient_prefix)
                 curves=MedicalCurveHistory()
 
                 def publish(source, result):
@@ -1474,10 +1625,15 @@ class NetworkServer(web_common.ThreadingHTTPServer):
 
                 session = QueuedStream(None, release, mode=mode, pipeline=pipeline, on_result=publish)
                 session.folder = folder
+                session.workflow = workflow
+                session.patient = patient_relative
                 self.stream = session
                 self.stream_token = token
                 return self.stream_token, session
             except BaseException:
+                if cache is not None:
+                    try:cache.close()
+                    except Exception:pass
                 _TRANSFER_LOCK.release()
                 raise
 

@@ -84,7 +84,7 @@ async function produce(run){
   let index=run.options.index,sequence=0,accepted=0;
   let data=null,sourceMs=0;
   try{
-    while(run.running){
+    while(run.running&&(!run.once||accepted<files.length)){
       const entry=files[index];
       if(!data){
         const start=performance.now();
@@ -111,8 +111,9 @@ async function produce(run){
       if(run.sourceTimes.size>32)run.sourceTimes.delete(run.sourceTimes.keys().next().value);
       accepted++;
       if(accepted===run.capacity)run.prefilled.resolve();
-      index=(index+1)%files.length;sequence++;data=null;
+      index=run.once?index+1:(index+1)%files.length;sequence++;data=null;
     }
+    run.producerDone=true;
   }finally{run.prefilled.resolve();}
 }
 function serverTimings(response){
@@ -167,6 +168,10 @@ async function consume(run){
     publish('source',{raw:source,folder:run.options.folder,index:stream.index});
     publish('result',{raw,...run.last});
     wakeProducer(run);
+    if(run.once&&stream.completed>=run.options.files.length){
+      run.running=false;
+      await control(run,'stop');
+    }
   }
 }
 async function drainAfterError(run){
@@ -188,12 +193,14 @@ async function loop(options){
   if(activeRun)return;
   const run={options,running:true,session:null,serverStopped:false,stopRequested:false,
     desiredPaused:false,sessionReady:gate(),prefilled:gate(),controlTail:Promise.resolve(),
-    sourceTimes:new Map(),times:(options.times||[]).slice(),last:null,error:null};
+    sourceTimes:new Map(),times:(options.times||[]).slice(),last:null,error:null,
+    once:options.workflow==='segmentation',producerDone:false};
   activeRun=run;
   try{
     if(!options.files||!options.files.length)throw new Error('流文件夹中没有 BIN 图像');
     const session=await postJson('/api/network/stream/start',{folder:options.folder,mode:Number(options.mode),
-      source_fps:options.sourceFps||30});
+      source_fps:options.sourceFps||30,workflow:options.workflow||null,dataset:options.dataset,
+      patient:options.patient,mask_transparency:options.maskTransparency});
     run.session=session.session;run.capacity=session.capacity;
     if(!run.session||!Number.isInteger(run.capacity)||run.capacity<1)throw new Error('流缓存配置错误');
     run.sessionReady.resolve();

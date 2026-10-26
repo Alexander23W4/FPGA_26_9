@@ -8,7 +8,7 @@ from medical_cache import PatientCache,packed_input,semantic_planes,preview_rgba
 
 @lru_cache(maxsize=8)
 def _model_key(source, size, modified, registration_hash, class_map):
-    return hashlib.sha256(Path(source).read_bytes()+registration_hash.encode()+class_map.encode()+b'patient-cache-v1').hexdigest()
+    return hashlib.sha256(Path(source).read_bytes()+registration_hash.encode()+class_map.encode()+b'patient-cache-v2').hexdigest()
 
 def model_key(repo):
     source=next((Path(repo)/'ip/ai4chamberseger').glob('*.zip'))

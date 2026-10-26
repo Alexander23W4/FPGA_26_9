@@ -46,7 +46,7 @@
     <div class="workspace-heading">
       <div class="heading-line"><button id="menuToggle" class="icon-button" type="button" aria-label="收起系统导航" aria-controls="systemDrawer" aria-expanded="true"><svg aria-hidden="true"><use href="#icon-menu"/></svg></button><h2>Heartcare</h2></div>
     </div>
-    <div class="header-actions" id="imagePicker"><button id="chooseImage" type="button">选择 BIN 图像</button><button id="chooseStream" type="button">选择流文件夹</button><input id="imageFile" type="file" accept=".bin" hidden><input id="streamFolder" type="file" accept=".bin" webkitdirectory directory multiple hidden><span id="processingStatus" data-system-mode="processing" role="status" aria-live="polite"></span></div>
+    <div class="header-actions" id="imagePicker"><button id="chooseImage" type="button">选择 BIN 图像</button><button id="chooseStream" type="button">选择流文件夹</button><div class="medical-cache-actions" data-system-mode="medical" hidden><span id="medicalCacheLamp" class="cache-state cache-incomplete" role="status">未完成模型分割</span><button id="medicalSegment" type="button">U-Net 模型分割</button><button id="medicalAnalyze" type="button" disabled>开始流分析</button></div><input id="imageFile" type="file" accept=".bin" hidden><input id="streamFolder" type="file" accept=".bin" webkitdirectory directory multiple hidden><span id="processingStatus" data-system-mode="processing" role="status" aria-live="polite"></span></div>
   </header>
 
   <div class="workbench-grid">
