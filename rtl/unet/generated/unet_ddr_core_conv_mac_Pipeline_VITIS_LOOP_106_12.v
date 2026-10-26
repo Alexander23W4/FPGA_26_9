@@ -82,71 +82,7 @@ module unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_106_12 (
         kernel_15_address1,
         kernel_15_ce1,
         kernel_15_we1,
-        kernel_15_d1,
-        kernel_16_address1,
-        kernel_16_ce1,
-        kernel_16_we1,
-        kernel_16_d1,
-        kernel_17_address1,
-        kernel_17_ce1,
-        kernel_17_we1,
-        kernel_17_d1,
-        kernel_18_address1,
-        kernel_18_ce1,
-        kernel_18_we1,
-        kernel_18_d1,
-        kernel_19_address1,
-        kernel_19_ce1,
-        kernel_19_we1,
-        kernel_19_d1,
-        kernel_20_address1,
-        kernel_20_ce1,
-        kernel_20_we1,
-        kernel_20_d1,
-        kernel_21_address1,
-        kernel_21_ce1,
-        kernel_21_we1,
-        kernel_21_d1,
-        kernel_22_address1,
-        kernel_22_ce1,
-        kernel_22_we1,
-        kernel_22_d1,
-        kernel_23_address1,
-        kernel_23_ce1,
-        kernel_23_we1,
-        kernel_23_d1,
-        kernel_24_address1,
-        kernel_24_ce1,
-        kernel_24_we1,
-        kernel_24_d1,
-        kernel_25_address1,
-        kernel_25_ce1,
-        kernel_25_we1,
-        kernel_25_d1,
-        kernel_26_address1,
-        kernel_26_ce1,
-        kernel_26_we1,
-        kernel_26_d1,
-        kernel_27_address1,
-        kernel_27_ce1,
-        kernel_27_we1,
-        kernel_27_d1,
-        kernel_28_address1,
-        kernel_28_ce1,
-        kernel_28_we1,
-        kernel_28_d1,
-        kernel_29_address1,
-        kernel_29_ce1,
-        kernel_29_we1,
-        kernel_29_d1,
-        kernel_30_address1,
-        kernel_30_ce1,
-        kernel_30_we1,
-        kernel_30_d1,
-        kernel_31_address1,
-        kernel_31_ce1,
-        kernel_31_we1,
-        kernel_31_d1
+        kernel_15_d1
 );
 
 parameter    ap_ST_fsm_pp0_stage0 = 1'd1;
@@ -162,7 +98,7 @@ input  [8:0] kernel_num_data_valid;
 input  [8:0] kernel_fifo_cap;
 input   kernel_empty_n;
 output   kernel_read;
-input  [9:0] mul;
+input  [8:0] mul;
 output  [3:0] kernel_1_address1;
 output   kernel_1_ce1;
 output   kernel_1_we1;
@@ -227,70 +163,6 @@ output  [3:0] kernel_15_address1;
 output   kernel_15_ce1;
 output   kernel_15_we1;
 output  [31:0] kernel_15_d1;
-output  [3:0] kernel_16_address1;
-output   kernel_16_ce1;
-output   kernel_16_we1;
-output  [31:0] kernel_16_d1;
-output  [3:0] kernel_17_address1;
-output   kernel_17_ce1;
-output   kernel_17_we1;
-output  [31:0] kernel_17_d1;
-output  [3:0] kernel_18_address1;
-output   kernel_18_ce1;
-output   kernel_18_we1;
-output  [31:0] kernel_18_d1;
-output  [3:0] kernel_19_address1;
-output   kernel_19_ce1;
-output   kernel_19_we1;
-output  [31:0] kernel_19_d1;
-output  [3:0] kernel_20_address1;
-output   kernel_20_ce1;
-output   kernel_20_we1;
-output  [31:0] kernel_20_d1;
-output  [3:0] kernel_21_address1;
-output   kernel_21_ce1;
-output   kernel_21_we1;
-output  [31:0] kernel_21_d1;
-output  [3:0] kernel_22_address1;
-output   kernel_22_ce1;
-output   kernel_22_we1;
-output  [31:0] kernel_22_d1;
-output  [3:0] kernel_23_address1;
-output   kernel_23_ce1;
-output   kernel_23_we1;
-output  [31:0] kernel_23_d1;
-output  [3:0] kernel_24_address1;
-output   kernel_24_ce1;
-output   kernel_24_we1;
-output  [31:0] kernel_24_d1;
-output  [3:0] kernel_25_address1;
-output   kernel_25_ce1;
-output   kernel_25_we1;
-output  [31:0] kernel_25_d1;
-output  [3:0] kernel_26_address1;
-output   kernel_26_ce1;
-output   kernel_26_we1;
-output  [31:0] kernel_26_d1;
-output  [3:0] kernel_27_address1;
-output   kernel_27_ce1;
-output   kernel_27_we1;
-output  [31:0] kernel_27_d1;
-output  [3:0] kernel_28_address1;
-output   kernel_28_ce1;
-output   kernel_28_we1;
-output  [31:0] kernel_28_d1;
-output  [3:0] kernel_29_address1;
-output   kernel_29_ce1;
-output   kernel_29_we1;
-output  [31:0] kernel_29_d1;
-output  [3:0] kernel_30_address1;
-output   kernel_30_ce1;
-output   kernel_30_we1;
-output  [31:0] kernel_30_d1;
-output  [3:0] kernel_31_address1;
-output   kernel_31_ce1;
-output   kernel_31_we1;
-output  [31:0] kernel_31_d1;
 
 reg ap_idle;
 reg kernel_read;
@@ -326,38 +198,6 @@ reg kernel_14_ce1;
 reg kernel_14_we1;
 reg kernel_15_ce1;
 reg kernel_15_we1;
-reg kernel_16_ce1;
-reg kernel_16_we1;
-reg kernel_17_ce1;
-reg kernel_17_we1;
-reg kernel_18_ce1;
-reg kernel_18_we1;
-reg kernel_19_ce1;
-reg kernel_19_we1;
-reg kernel_20_ce1;
-reg kernel_20_we1;
-reg kernel_21_ce1;
-reg kernel_21_we1;
-reg kernel_22_ce1;
-reg kernel_22_we1;
-reg kernel_23_ce1;
-reg kernel_23_we1;
-reg kernel_24_ce1;
-reg kernel_24_we1;
-reg kernel_25_ce1;
-reg kernel_25_we1;
-reg kernel_26_ce1;
-reg kernel_26_we1;
-reg kernel_27_ce1;
-reg kernel_27_we1;
-reg kernel_28_ce1;
-reg kernel_28_we1;
-reg kernel_29_ce1;
-reg kernel_29_we1;
-reg kernel_30_ce1;
-reg kernel_30_we1;
-reg kernel_31_ce1;
-reg kernel_31_we1;
 
 (* fsm_encoding = "none" *) reg   [0:0] ap_CS_fsm;
 wire    ap_CS_fsm_pp0_stage0;
@@ -367,56 +207,25 @@ reg    ap_enable_reg_pp0_iter2;
 reg    ap_idle_pp0;
 reg    ap_block_state2_pp0_stage0_iter1;
 reg    ap_block_pp0_stage0_subdone;
-wire   [0:0] icmp_ln106_fu_746_p2;
+wire   [0:0] icmp_ln106_fu_410_p2;
 reg    ap_condition_exit_pp0_iter0_stage0;
 wire    ap_loop_exit_ready;
 reg    ap_ready_int;
 reg    kernel_blk_n;
 wire    ap_block_pp0_stage0;
 reg    ap_block_pp0_stage0_11001;
-wire   [4:0] trunc_ln106_fu_758_p1;
-reg   [4:0] trunc_ln106_reg_858;
-reg   [3:0] lshr_ln2_reg_862;
-reg   [3:0] lshr_ln2_reg_862_pp0_iter1_reg;
-reg   [31:0] kernel_read_reg_867;
-wire   [31:0] zext_ln108_fu_812_p1;
-reg   [9:0] item_2_fu_178;
-wire   [9:0] item_4_fu_752_p2;
+wire   [3:0] trunc_ln106_fu_422_p1;
+reg   [3:0] trunc_ln106_reg_490;
+reg   [3:0] trunc_ln106_reg_490_pp0_iter1_reg;
+reg   [3:0] lshr_ln2_reg_494;
+reg   [3:0] lshr_ln2_reg_494_pp0_iter1_reg;
+reg   [31:0] kernel_read_reg_499;
+wire   [31:0] zext_ln108_fu_460_p1;
+reg   [8:0] item_2_fu_114;
+wire   [8:0] item_4_fu_416_p2;
 wire    ap_loop_init;
-reg   [9:0] ap_sig_allocacmp_item;
-reg    ap_predicate_pred360_state3;
-wire   [31:0] bitcast_ln108_fu_777_p1;
-reg    ap_predicate_pred366_state3;
-reg    ap_predicate_pred371_state3;
-reg    ap_predicate_pred376_state3;
-reg    ap_predicate_pred381_state3;
-reg    ap_predicate_pred386_state3;
-reg    ap_predicate_pred391_state3;
-reg    ap_predicate_pred396_state3;
-reg    ap_predicate_pred401_state3;
-reg    ap_predicate_pred406_state3;
-reg    ap_predicate_pred411_state3;
-reg    ap_predicate_pred416_state3;
-reg    ap_predicate_pred421_state3;
-reg    ap_predicate_pred426_state3;
-reg    ap_predicate_pred431_state3;
-reg    ap_predicate_pred436_state3;
-reg    ap_predicate_pred441_state3;
-reg    ap_predicate_pred446_state3;
-reg    ap_predicate_pred451_state3;
-reg    ap_predicate_pred456_state3;
-reg    ap_predicate_pred461_state3;
-reg    ap_predicate_pred466_state3;
-reg    ap_predicate_pred471_state3;
-reg    ap_predicate_pred476_state3;
-reg    ap_predicate_pred481_state3;
-reg    ap_predicate_pred486_state3;
-reg    ap_predicate_pred491_state3;
-reg    ap_predicate_pred496_state3;
-reg    ap_predicate_pred501_state3;
-reg    ap_predicate_pred506_state3;
-reg    ap_predicate_pred511_state3;
-reg    ap_predicate_pred516_state3;
+reg   [8:0] ap_sig_allocacmp_item;
+wire   [31:0] bitcast_ln108_fu_441_p1;
 reg    ap_done_reg;
 wire    ap_continue_int;
 reg    ap_done_int;
@@ -431,43 +240,12 @@ initial begin
 #0 ap_CS_fsm = 1'd1;
 #0 ap_enable_reg_pp0_iter1 = 1'b0;
 #0 ap_enable_reg_pp0_iter2 = 1'b0;
-#0 trunc_ln106_reg_858 = 5'd0;
-#0 lshr_ln2_reg_862 = 4'd0;
-#0 lshr_ln2_reg_862_pp0_iter1_reg = 4'd0;
-#0 kernel_read_reg_867 = 32'd0;
-#0 item_2_fu_178 = 10'd0;
-#0 ap_predicate_pred360_state3 = 1'b0;
-#0 ap_predicate_pred366_state3 = 1'b0;
-#0 ap_predicate_pred371_state3 = 1'b0;
-#0 ap_predicate_pred376_state3 = 1'b0;
-#0 ap_predicate_pred381_state3 = 1'b0;
-#0 ap_predicate_pred386_state3 = 1'b0;
-#0 ap_predicate_pred391_state3 = 1'b0;
-#0 ap_predicate_pred396_state3 = 1'b0;
-#0 ap_predicate_pred401_state3 = 1'b0;
-#0 ap_predicate_pred406_state3 = 1'b0;
-#0 ap_predicate_pred411_state3 = 1'b0;
-#0 ap_predicate_pred416_state3 = 1'b0;
-#0 ap_predicate_pred421_state3 = 1'b0;
-#0 ap_predicate_pred426_state3 = 1'b0;
-#0 ap_predicate_pred431_state3 = 1'b0;
-#0 ap_predicate_pred436_state3 = 1'b0;
-#0 ap_predicate_pred441_state3 = 1'b0;
-#0 ap_predicate_pred446_state3 = 1'b0;
-#0 ap_predicate_pred451_state3 = 1'b0;
-#0 ap_predicate_pred456_state3 = 1'b0;
-#0 ap_predicate_pred461_state3 = 1'b0;
-#0 ap_predicate_pred466_state3 = 1'b0;
-#0 ap_predicate_pred471_state3 = 1'b0;
-#0 ap_predicate_pred476_state3 = 1'b0;
-#0 ap_predicate_pred481_state3 = 1'b0;
-#0 ap_predicate_pred486_state3 = 1'b0;
-#0 ap_predicate_pred491_state3 = 1'b0;
-#0 ap_predicate_pred496_state3 = 1'b0;
-#0 ap_predicate_pred501_state3 = 1'b0;
-#0 ap_predicate_pred506_state3 = 1'b0;
-#0 ap_predicate_pred511_state3 = 1'b0;
-#0 ap_predicate_pred516_state3 = 1'b0;
+#0 trunc_ln106_reg_490 = 4'd0;
+#0 trunc_ln106_reg_490_pp0_iter1_reg = 4'd0;
+#0 lshr_ln2_reg_494 = 4'd0;
+#0 lshr_ln2_reg_494_pp0_iter1_reg = 4'd0;
+#0 kernel_read_reg_499 = 32'd0;
+#0 item_2_fu_114 = 9'd0;
 #0 ap_done_reg = 1'b0;
 #0 ap_loop_exit_ready_pp0_iter1_reg = 1'b0;
 end
@@ -501,7 +279,7 @@ always @ (posedge ap_clk) begin
     end else begin
         if ((ap_continue_int == 1'b1)) begin
             ap_done_reg <= 1'b0;
-        end else if (((ap_loop_exit_ready_pp0_iter1_reg == 1'b1) & (1'b0 == ap_block_pp0_stage0_subdone) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
+        end else if (((1'b0 == ap_block_pp0_stage0_subdone) & (ap_loop_exit_ready_pp0_iter1_reg == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
             ap_done_reg <= 1'b1;
         end
     end
@@ -541,333 +319,13 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        ap_predicate_pred360_state3 <= 1'b0;
+        item_2_fu_114 <= 9'd0;
     end else begin
         if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred360_state3 <= (trunc_ln106_reg_858 == 5'd30);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred366_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred366_state3 <= (trunc_ln106_reg_858 == 5'd29);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred371_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred371_state3 <= (trunc_ln106_reg_858 == 5'd28);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred376_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred376_state3 <= (trunc_ln106_reg_858 == 5'd27);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred381_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred381_state3 <= (trunc_ln106_reg_858 == 5'd26);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred386_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred386_state3 <= (trunc_ln106_reg_858 == 5'd25);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred391_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred391_state3 <= (trunc_ln106_reg_858 == 5'd24);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred396_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred396_state3 <= (trunc_ln106_reg_858 == 5'd23);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred401_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred401_state3 <= (trunc_ln106_reg_858 == 5'd22);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred406_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred406_state3 <= (trunc_ln106_reg_858 == 5'd21);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred411_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred411_state3 <= (trunc_ln106_reg_858 == 5'd20);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred416_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred416_state3 <= (trunc_ln106_reg_858 == 5'd19);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred421_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred421_state3 <= (trunc_ln106_reg_858 == 5'd18);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred426_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred426_state3 <= (trunc_ln106_reg_858 == 5'd17);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred431_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred431_state3 <= (trunc_ln106_reg_858 == 5'd16);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred436_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred436_state3 <= (trunc_ln106_reg_858 == 5'd15);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred441_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred441_state3 <= (trunc_ln106_reg_858 == 5'd14);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred446_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred446_state3 <= (trunc_ln106_reg_858 == 5'd13);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred451_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred451_state3 <= (trunc_ln106_reg_858 == 5'd12);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred456_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred456_state3 <= (trunc_ln106_reg_858 == 5'd11);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred461_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred461_state3 <= (trunc_ln106_reg_858 == 5'd10);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred466_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred466_state3 <= (trunc_ln106_reg_858 == 5'd9);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred471_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred471_state3 <= (trunc_ln106_reg_858 == 5'd8);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred476_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred476_state3 <= (trunc_ln106_reg_858 == 5'd7);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred481_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred481_state3 <= (trunc_ln106_reg_858 == 5'd6);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred486_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred486_state3 <= (trunc_ln106_reg_858 == 5'd5);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred491_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred491_state3 <= (trunc_ln106_reg_858 == 5'd4);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred496_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred496_state3 <= (trunc_ln106_reg_858 == 5'd3);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred501_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred501_state3 <= (trunc_ln106_reg_858 == 5'd2);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred506_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred506_state3 <= (trunc_ln106_reg_858 == 5'd1);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred511_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred511_state3 <= (trunc_ln106_reg_858 == 5'd0);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        ap_predicate_pred516_state3 <= 1'b0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            ap_predicate_pred516_state3 <= (trunc_ln106_reg_858 == 5'd31);
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        item_2_fu_178 <= 10'd0;
-    end else begin
-        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            if (((icmp_ln106_fu_746_p2 == 1'd0) & (ap_enable_reg_pp0_iter0 == 1'b1))) begin
-                item_2_fu_178 <= item_4_fu_752_p2;
+            if (((icmp_ln106_fu_410_p2 == 1'd0) & (ap_enable_reg_pp0_iter0 == 1'b1))) begin
+                item_2_fu_114 <= item_4_fu_416_p2;
             end else if ((ap_loop_init == 1'b1)) begin
-                item_2_fu_178 <= 10'd0;
+                item_2_fu_114 <= 9'd0;
             end
         end
     end
@@ -875,46 +333,56 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        kernel_read_reg_867 <= 32'd0;
+        kernel_read_reg_499 <= 32'd0;
     end else begin
         if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            kernel_read_reg_867 <= kernel_dout;
+            kernel_read_reg_499 <= kernel_dout;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        lshr_ln2_reg_862 <= 4'd0;
+        lshr_ln2_reg_494 <= 4'd0;
     end else begin
         if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            lshr_ln2_reg_862 <= {{ap_sig_allocacmp_item[8:5]}};
+            lshr_ln2_reg_494 <= {{ap_sig_allocacmp_item[7:4]}};
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        lshr_ln2_reg_862_pp0_iter1_reg <= 4'd0;
+        lshr_ln2_reg_494_pp0_iter1_reg <= 4'd0;
     end else begin
         if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            lshr_ln2_reg_862_pp0_iter1_reg <= lshr_ln2_reg_862;
+            lshr_ln2_reg_494_pp0_iter1_reg <= lshr_ln2_reg_494;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        trunc_ln106_reg_858 <= 5'd0;
+        trunc_ln106_reg_490 <= 4'd0;
     end else begin
         if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            trunc_ln106_reg_858 <= trunc_ln106_fu_758_p1;
+            trunc_ln106_reg_490 <= trunc_ln106_fu_422_p1;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        trunc_ln106_reg_490_pp0_iter1_reg <= 4'd0;
+    end else begin
+        if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
+            trunc_ln106_reg_490_pp0_iter1_reg <= trunc_ln106_reg_490;
         end
     end
 end
 
 always @ (*) begin
-    if (((icmp_ln106_fu_746_p2 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone) & (ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
+    if (((icmp_ln106_fu_410_p2 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone) & (ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b1;
     end else begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b0;
@@ -922,7 +390,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_loop_exit_ready_pp0_iter1_reg == 1'b1) & (1'b0 == ap_block_pp0_stage0_subdone) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
+    if (((1'b0 == ap_block_pp0_stage0_subdone) & (ap_loop_exit_ready_pp0_iter1_reg == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
         ap_done_int = 1'b1;
     end else begin
         ap_done_int = ap_done_reg;
@@ -955,9 +423,9 @@ end
 
 always @ (*) begin
     if (((1'b0 == ap_block_pp0_stage0) & (ap_loop_init == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-        ap_sig_allocacmp_item = 10'd0;
+        ap_sig_allocacmp_item = 9'd0;
     end else begin
-        ap_sig_allocacmp_item = item_2_fu_178;
+        ap_sig_allocacmp_item = item_2_fu_114;
     end
 end
 
@@ -970,7 +438,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred461_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd10))) begin
         kernel_10_we1 = 1'b1;
     end else begin
         kernel_10_we1 = 1'b0;
@@ -986,7 +454,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred456_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd11))) begin
         kernel_11_we1 = 1'b1;
     end else begin
         kernel_11_we1 = 1'b0;
@@ -1002,7 +470,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred451_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd12))) begin
         kernel_12_we1 = 1'b1;
     end else begin
         kernel_12_we1 = 1'b0;
@@ -1018,7 +486,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred446_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd13))) begin
         kernel_13_we1 = 1'b1;
     end else begin
         kernel_13_we1 = 1'b0;
@@ -1034,7 +502,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred441_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd14))) begin
         kernel_14_we1 = 1'b1;
     end else begin
         kernel_14_we1 = 1'b0;
@@ -1050,74 +518,10 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred436_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd15))) begin
         kernel_15_we1 = 1'b1;
     end else begin
         kernel_15_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_16_ce1 = 1'b1;
-    end else begin
-        kernel_16_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred431_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_16_we1 = 1'b1;
-    end else begin
-        kernel_16_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_17_ce1 = 1'b1;
-    end else begin
-        kernel_17_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred426_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_17_we1 = 1'b1;
-    end else begin
-        kernel_17_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_18_ce1 = 1'b1;
-    end else begin
-        kernel_18_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred421_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_18_we1 = 1'b1;
-    end else begin
-        kernel_18_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_19_ce1 = 1'b1;
-    end else begin
-        kernel_19_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred416_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_19_we1 = 1'b1;
-    end else begin
-        kernel_19_we1 = 1'b0;
     end
 end
 
@@ -1130,7 +534,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred506_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd1))) begin
         kernel_1_83_we1 = 1'b1;
     end else begin
         kernel_1_83_we1 = 1'b0;
@@ -1146,170 +550,10 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred511_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd0))) begin
         kernel_1_we1 = 1'b1;
     end else begin
         kernel_1_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_20_ce1 = 1'b1;
-    end else begin
-        kernel_20_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred411_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_20_we1 = 1'b1;
-    end else begin
-        kernel_20_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_21_ce1 = 1'b1;
-    end else begin
-        kernel_21_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred406_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_21_we1 = 1'b1;
-    end else begin
-        kernel_21_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_22_ce1 = 1'b1;
-    end else begin
-        kernel_22_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred401_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_22_we1 = 1'b1;
-    end else begin
-        kernel_22_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_23_ce1 = 1'b1;
-    end else begin
-        kernel_23_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred396_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_23_we1 = 1'b1;
-    end else begin
-        kernel_23_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_24_ce1 = 1'b1;
-    end else begin
-        kernel_24_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred391_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_24_we1 = 1'b1;
-    end else begin
-        kernel_24_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_25_ce1 = 1'b1;
-    end else begin
-        kernel_25_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred386_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_25_we1 = 1'b1;
-    end else begin
-        kernel_25_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_26_ce1 = 1'b1;
-    end else begin
-        kernel_26_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred381_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_26_we1 = 1'b1;
-    end else begin
-        kernel_26_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_27_ce1 = 1'b1;
-    end else begin
-        kernel_27_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred376_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_27_we1 = 1'b1;
-    end else begin
-        kernel_27_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_28_ce1 = 1'b1;
-    end else begin
-        kernel_28_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred371_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_28_we1 = 1'b1;
-    end else begin
-        kernel_28_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_29_ce1 = 1'b1;
-    end else begin
-        kernel_29_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred366_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_29_we1 = 1'b1;
-    end else begin
-        kernel_29_we1 = 1'b0;
     end
 end
 
@@ -1322,42 +566,10 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred501_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd2))) begin
         kernel_2_we1 = 1'b1;
     end else begin
         kernel_2_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_30_ce1 = 1'b1;
-    end else begin
-        kernel_30_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_predicate_pred360_state3 == 1'b1) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_30_we1 = 1'b1;
-    end else begin
-        kernel_30_we1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_31_ce1 = 1'b1;
-    end else begin
-        kernel_31_ce1 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if (((ap_predicate_pred516_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
-        kernel_31_we1 = 1'b1;
-    end else begin
-        kernel_31_we1 = 1'b0;
     end
 end
 
@@ -1370,7 +582,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred496_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd3))) begin
         kernel_3_we1 = 1'b1;
     end else begin
         kernel_3_we1 = 1'b0;
@@ -1386,7 +598,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred491_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd4))) begin
         kernel_4_we1 = 1'b1;
     end else begin
         kernel_4_we1 = 1'b0;
@@ -1402,7 +614,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred486_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd5))) begin
         kernel_5_we1 = 1'b1;
     end else begin
         kernel_5_we1 = 1'b0;
@@ -1418,7 +630,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred481_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd6))) begin
         kernel_6_we1 = 1'b1;
     end else begin
         kernel_6_we1 = 1'b0;
@@ -1434,7 +646,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred476_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd7))) begin
         kernel_7_we1 = 1'b1;
     end else begin
         kernel_7_we1 = 1'b0;
@@ -1450,7 +662,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred471_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd8))) begin
         kernel_8_we1 = 1'b1;
     end else begin
         kernel_8_we1 = 1'b0;
@@ -1466,7 +678,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_predicate_pred466_state3 == 1'b1) & (1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1))) begin
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (ap_enable_reg_pp0_iter2 == 1'b1) & (trunc_ln106_reg_490_pp0_iter1_reg == 4'd9))) begin
         kernel_9_we1 = 1'b1;
     end else begin
         kernel_9_we1 = 1'b0;
@@ -1522,142 +734,78 @@ assign ap_enable_reg_pp0_iter0 = ap_start_int;
 
 assign ap_loop_exit_ready = ap_condition_exit_pp0_iter0_stage0;
 
-assign bitcast_ln108_fu_777_p1 = kernel_read_reg_867;
+assign bitcast_ln108_fu_441_p1 = kernel_read_reg_499;
 
-assign icmp_ln106_fu_746_p2 = ((ap_sig_allocacmp_item == mul) ? 1'b1 : 1'b0);
+assign icmp_ln106_fu_410_p2 = ((ap_sig_allocacmp_item == mul) ? 1'b1 : 1'b0);
 
-assign item_4_fu_752_p2 = (ap_sig_allocacmp_item + 10'd1);
+assign item_4_fu_416_p2 = (ap_sig_allocacmp_item + 9'd1);
 
-assign kernel_10_address1 = zext_ln108_fu_812_p1;
+assign kernel_10_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_10_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_10_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_11_address1 = zext_ln108_fu_812_p1;
+assign kernel_11_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_11_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_11_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_12_address1 = zext_ln108_fu_812_p1;
+assign kernel_12_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_12_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_12_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_13_address1 = zext_ln108_fu_812_p1;
+assign kernel_13_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_13_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_13_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_14_address1 = zext_ln108_fu_812_p1;
+assign kernel_14_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_14_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_14_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_15_address1 = zext_ln108_fu_812_p1;
+assign kernel_15_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_15_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_15_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_16_address1 = zext_ln108_fu_812_p1;
+assign kernel_1_83_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_16_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_1_83_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_17_address1 = zext_ln108_fu_812_p1;
+assign kernel_1_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_17_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_1_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_18_address1 = zext_ln108_fu_812_p1;
+assign kernel_2_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_18_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_2_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_19_address1 = zext_ln108_fu_812_p1;
+assign kernel_3_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_19_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_3_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_1_83_address1 = zext_ln108_fu_812_p1;
+assign kernel_4_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_1_83_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_4_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_1_address1 = zext_ln108_fu_812_p1;
+assign kernel_5_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_1_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_5_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_20_address1 = zext_ln108_fu_812_p1;
+assign kernel_6_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_20_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_6_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_21_address1 = zext_ln108_fu_812_p1;
+assign kernel_7_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_21_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_7_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_22_address1 = zext_ln108_fu_812_p1;
+assign kernel_8_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_22_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_8_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_23_address1 = zext_ln108_fu_812_p1;
+assign kernel_9_address1 = zext_ln108_fu_460_p1;
 
-assign kernel_23_d1 = bitcast_ln108_fu_777_p1;
+assign kernel_9_d1 = bitcast_ln108_fu_441_p1;
 
-assign kernel_24_address1 = zext_ln108_fu_812_p1;
+assign trunc_ln106_fu_422_p1 = ap_sig_allocacmp_item[3:0];
 
-assign kernel_24_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_25_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_25_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_26_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_26_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_27_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_27_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_28_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_28_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_29_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_29_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_2_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_2_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_30_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_30_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_31_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_31_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_3_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_3_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_4_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_4_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_5_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_5_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_6_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_6_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_7_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_7_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_8_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_8_d1 = bitcast_ln108_fu_777_p1;
-
-assign kernel_9_address1 = zext_ln108_fu_812_p1;
-
-assign kernel_9_d1 = bitcast_ln108_fu_777_p1;
-
-assign trunc_ln106_fu_758_p1 = ap_sig_allocacmp_item[4:0];
-
-assign zext_ln108_fu_812_p1 = lshr_ln2_reg_862_pp0_iter1_reg;
+assign zext_ln108_fu_460_p1 = lshr_ln2_reg_494_pp0_iter1_reg;
 
 endmodule //unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_106_12

@@ -129,8 +129,8 @@ input  [8:0] kernel_num_data_valid;
 input  [8:0] kernel_fifo_cap;
 input   kernel_full_n;
 output   kernel_write;
-input  [9:0] select_ln40;
-input  [24:0] add_ln57_4;
+input  [8:0] select_ln40;
+input  [25:0] add_ln57_4;
 input  [22:0] zext_ln57;
 input  [31:0] weights1;
 
@@ -158,7 +158,7 @@ reg    ap_idle_pp0;
 reg    ap_block_state12_pp0_stage0_iter11;
 reg    ap_block_state13_pp0_stage0_iter12;
 reg    ap_block_pp0_stage0_subdone;
-wire   [0:0] icmp_ln53_fu_155_p2;
+wire   [0:0] icmp_ln53_fu_153_p2;
 reg    ap_condition_exit_pp0_iter0_stage0;
 wire    ap_loop_exit_ready;
 reg    ap_ready_int;
@@ -167,30 +167,30 @@ wire    ap_block_pp0_stage0;
 reg    weights_blk_n_R;
 reg    kernel_blk_n;
 reg    ap_block_pp0_stage0_11001;
-reg   [24:0] tmp_s_reg_282;
-wire   [23:0] add_ln57_1_fu_207_p2;
-reg   [23:0] add_ln57_1_reg_287;
-wire   [29:0] add_ln57_2_fu_228_p2;
-reg   [29:0] add_ln57_2_reg_292;
-reg   [29:0] trunc_ln57_1_reg_297;
-reg   [31:0] weights_addr_read_reg_308;
-wire  signed [31:0] sext_ln57_fu_256_p1;
-reg   [9:0] item_fu_96;
-wire   [9:0] item_2_fu_161_p2;
+reg   [25:0] tmp_s_reg_280;
+wire   [23:0] add_ln57_1_fu_205_p2;
+reg   [23:0] add_ln57_1_reg_285;
+wire   [29:0] add_ln57_2_fu_226_p2;
+reg   [29:0] add_ln57_2_reg_290;
+reg   [29:0] trunc_ln57_1_reg_295;
+reg   [31:0] weights_addr_read_reg_306;
+wire  signed [31:0] sext_ln57_fu_254_p1;
+reg   [8:0] item_fu_94;
+wire   [8:0] item_2_fu_159_p2;
 wire    ap_loop_init;
-reg   [9:0] ap_sig_allocacmp_item_1;
+reg   [8:0] ap_sig_allocacmp_item_1;
 reg    ap_block_pp0_stage0_01001;
-wire   [8:0] trunc_ln55_fu_167_p1;
-wire   [29:0] shl_ln6_fu_179_p3;
-wire   [29:0] zext_ln55_fu_171_p1;
-wire   [4:0] trunc_ln57_fu_175_p1;
-wire   [29:0] add_ln57_fu_187_p2;
-wire   [23:0] zext_ln57_cast_fu_143_p1;
-wire   [23:0] zext_ln57_1_fu_193_p1;
-wire   [29:0] and_ln1_fu_218_p3;
-wire   [29:0] zext_ln57_2_fu_225_p1;
-wire   [31:0] shl_ln57_1_fu_234_p3;
-wire   [31:0] add_ln57_3_fu_241_p2;
+wire   [7:0] trunc_ln55_fu_165_p1;
+wire   [29:0] shl_ln6_fu_177_p3;
+wire   [29:0] zext_ln55_fu_169_p1;
+wire   [3:0] trunc_ln57_fu_173_p1;
+wire   [29:0] add_ln57_fu_185_p2;
+wire   [23:0] zext_ln57_cast_fu_141_p1;
+wire   [23:0] zext_ln57_1_fu_191_p1;
+wire   [29:0] and_ln1_fu_216_p3;
+wire   [29:0] zext_ln57_2_fu_223_p1;
+wire   [31:0] shl_ln57_1_fu_232_p3;
+wire   [31:0] add_ln57_3_fu_239_p2;
 reg    ap_done_reg;
 wire    ap_continue_int;
 reg    ap_done_int;
@@ -225,12 +225,12 @@ initial begin
 #0 ap_enable_reg_pp0_iter10 = 1'b0;
 #0 ap_enable_reg_pp0_iter11 = 1'b0;
 #0 ap_enable_reg_pp0_iter12 = 1'b0;
-#0 tmp_s_reg_282 = 25'd0;
-#0 add_ln57_1_reg_287 = 24'd0;
-#0 add_ln57_2_reg_292 = 30'd0;
-#0 trunc_ln57_1_reg_297 = 30'd0;
-#0 weights_addr_read_reg_308 = 32'd0;
-#0 item_fu_96 = 10'd0;
+#0 tmp_s_reg_280 = 26'd0;
+#0 add_ln57_1_reg_285 = 24'd0;
+#0 add_ln57_2_reg_290 = 30'd0;
+#0 trunc_ln57_1_reg_295 = 30'd0;
+#0 weights_addr_read_reg_306 = 32'd0;
+#0 item_fu_94 = 9'd0;
 #0 ap_done_reg = 1'b0;
 #0 ap_loop_exit_ready_pp0_iter1_reg = 1'b0;
 #0 ap_loop_exit_ready_pp0_iter2_reg = 1'b0;
@@ -262,20 +262,20 @@ unet_ddr_core_flow_control_loop_pipe_sequential_init flow_control_loop_pipe_sequ
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        add_ln57_1_reg_287 <= 24'd0;
+        add_ln57_1_reg_285 <= 24'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_pp0_stage0) & (1'b0 == ap_block_pp0_stage0_11001))) begin
-            add_ln57_1_reg_287 <= add_ln57_1_fu_207_p2;
+            add_ln57_1_reg_285 <= add_ln57_1_fu_205_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        add_ln57_2_reg_292 <= 30'd0;
+        add_ln57_2_reg_290 <= 30'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_pp0_stage0) & (1'b0 == ap_block_pp0_stage0_11001))) begin
-            add_ln57_2_reg_292 <= add_ln57_2_fu_228_p2;
+            add_ln57_2_reg_290 <= add_ln57_2_fu_226_p2;
         end
     end
 end
@@ -534,13 +534,13 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        item_fu_96 <= 10'd0;
+        item_fu_94 <= 9'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_pp0_stage0) & (1'b0 == ap_block_pp0_stage0_11001))) begin
-            if (((ap_enable_reg_pp0_iter0 == 1'b1) & (icmp_ln53_fu_155_p2 == 1'd0))) begin
-                item_fu_96 <= item_2_fu_161_p2;
+            if (((ap_enable_reg_pp0_iter0 == 1'b1) & (icmp_ln53_fu_153_p2 == 1'd0))) begin
+                item_fu_94 <= item_2_fu_159_p2;
             end else if ((ap_loop_init == 1'b1)) begin
-                item_fu_96 <= 10'd0;
+                item_fu_94 <= 9'd0;
             end
         end
     end
@@ -548,36 +548,36 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        tmp_s_reg_282 <= 25'd0;
+        tmp_s_reg_280 <= 26'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_pp0_stage0) & (1'b0 == ap_block_pp0_stage0_11001))) begin
-            tmp_s_reg_282 <= {{add_ln57_fu_187_p2[29:5]}};
+            tmp_s_reg_280 <= {{add_ln57_fu_185_p2[29:4]}};
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        trunc_ln57_1_reg_297 <= 30'd0;
+        trunc_ln57_1_reg_295 <= 30'd0;
     end else begin
         if ((1'b0 == ap_block_pp0_stage0_11001)) begin
-            trunc_ln57_1_reg_297 <= {{add_ln57_3_fu_241_p2[31:2]}};
+            trunc_ln57_1_reg_295 <= {{add_ln57_3_fu_239_p2[31:2]}};
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        weights_addr_read_reg_308 <= 32'd0;
+        weights_addr_read_reg_306 <= 32'd0;
     end else begin
         if ((1'b0 == ap_block_pp0_stage0_11001)) begin
-            weights_addr_read_reg_308 <= m_axi_weights_RDATA;
+            weights_addr_read_reg_306 <= m_axi_weights_RDATA;
         end
     end
 end
 
 always @ (*) begin
-    if (((ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0) & (icmp_ln53_fu_155_p2 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone))) begin
+    if (((ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0) & (icmp_ln53_fu_153_p2 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone))) begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b1;
     end else begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b0;
@@ -618,9 +618,9 @@ end
 
 always @ (*) begin
     if (((ap_loop_init == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0) & (1'b0 == ap_block_pp0_stage0))) begin
-        ap_sig_allocacmp_item_1 = 10'd0;
+        ap_sig_allocacmp_item_1 = 9'd0;
     end else begin
-        ap_sig_allocacmp_item_1 = item_fu_96;
+        ap_sig_allocacmp_item_1 = item_fu_94;
     end
 end
 
@@ -683,15 +683,15 @@ always @ (*) begin
     endcase
 end
 
-assign add_ln57_1_fu_207_p2 = (zext_ln57_cast_fu_143_p1 + zext_ln57_1_fu_193_p1);
+assign add_ln57_1_fu_205_p2 = (zext_ln57_cast_fu_141_p1 + zext_ln57_1_fu_191_p1);
 
-assign add_ln57_2_fu_228_p2 = (and_ln1_fu_218_p3 + zext_ln57_2_fu_225_p1);
+assign add_ln57_2_fu_226_p2 = (and_ln1_fu_216_p3 + zext_ln57_2_fu_223_p1);
 
-assign add_ln57_3_fu_241_p2 = (shl_ln57_1_fu_234_p3 + weights1);
+assign add_ln57_3_fu_239_p2 = (shl_ln57_1_fu_232_p3 + weights1);
 
-assign add_ln57_fu_187_p2 = (shl_ln6_fu_179_p3 + zext_ln55_fu_171_p1);
+assign add_ln57_fu_185_p2 = (shl_ln6_fu_177_p3 + zext_ln55_fu_169_p1);
 
-assign and_ln1_fu_218_p3 = {{tmp_s_reg_282}, {5'd0}};
+assign and_ln1_fu_216_p3 = {{tmp_s_reg_280}, {4'd0}};
 
 assign ap_CS_fsm_pp0_stage0 = ap_CS_fsm[32'd0];
 
@@ -723,13 +723,13 @@ assign ap_enable_reg_pp0_iter0 = ap_start_int;
 
 assign ap_loop_exit_ready = ap_condition_exit_pp0_iter0_stage0;
 
-assign icmp_ln53_fu_155_p2 = ((ap_sig_allocacmp_item_1 == select_ln40) ? 1'b1 : 1'b0);
+assign icmp_ln53_fu_153_p2 = ((ap_sig_allocacmp_item_1 == select_ln40) ? 1'b1 : 1'b0);
 
-assign item_2_fu_161_p2 = (ap_sig_allocacmp_item_1 + 10'd1);
+assign item_2_fu_159_p2 = (ap_sig_allocacmp_item_1 + 9'd1);
 
-assign kernel_din = weights_addr_read_reg_308;
+assign kernel_din = weights_addr_read_reg_306;
 
-assign m_axi_weights_ARADDR = sext_ln57_fu_256_p1;
+assign m_axi_weights_ARADDR = sext_ln57_fu_254_p1;
 
 assign m_axi_weights_ARBURST = 2'd0;
 
@@ -789,22 +789,22 @@ assign m_axi_weights_WUSER = 1'd0;
 
 assign m_axi_weights_WVALID = 1'b0;
 
-assign sext_ln57_fu_256_p1 = $signed(trunc_ln57_1_reg_297);
+assign sext_ln57_fu_254_p1 = $signed(trunc_ln57_1_reg_295);
 
-assign shl_ln57_1_fu_234_p3 = {{add_ln57_2_reg_292}, {2'd0}};
+assign shl_ln57_1_fu_232_p3 = {{add_ln57_2_reg_290}, {2'd0}};
 
-assign shl_ln6_fu_179_p3 = {{add_ln57_4}, {5'd0}};
+assign shl_ln6_fu_177_p3 = {{add_ln57_4}, {4'd0}};
 
-assign trunc_ln55_fu_167_p1 = ap_sig_allocacmp_item_1[8:0];
+assign trunc_ln55_fu_165_p1 = ap_sig_allocacmp_item_1[7:0];
 
-assign trunc_ln57_fu_175_p1 = ap_sig_allocacmp_item_1[4:0];
+assign trunc_ln57_fu_173_p1 = ap_sig_allocacmp_item_1[3:0];
 
-assign zext_ln55_fu_171_p1 = trunc_ln55_fu_167_p1;
+assign zext_ln55_fu_169_p1 = trunc_ln55_fu_165_p1;
 
-assign zext_ln57_1_fu_193_p1 = trunc_ln57_fu_175_p1;
+assign zext_ln57_1_fu_191_p1 = trunc_ln57_fu_173_p1;
 
-assign zext_ln57_2_fu_225_p1 = add_ln57_1_reg_287;
+assign zext_ln57_2_fu_223_p1 = add_ln57_1_reg_285;
 
-assign zext_ln57_cast_fu_143_p1 = zext_ln57;
+assign zext_ln57_cast_fu_141_p1 = zext_ln57;
 
 endmodule //unet_ddr_core_conv_weight_fetch_Pipeline_VITIS_LOOP_53_8

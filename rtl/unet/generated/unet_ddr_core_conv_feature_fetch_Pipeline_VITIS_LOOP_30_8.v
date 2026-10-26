@@ -18,8 +18,7 @@ module unet_ddr_core_conv_feature_fetch_Pipeline_VITIS_LOOP_30_8 (
         feature_fifo_cap,
         feature_full_n,
         feature_write,
-        c_2_ph,
-        cond29
+        c_2_ph
 );
 
 parameter    ap_ST_fsm_pp0_stage0 = 1'd1;
@@ -35,8 +34,7 @@ input  [10:0] feature_num_data_valid;
 input  [10:0] feature_fifo_cap;
 input   feature_full_n;
 output   feature_write;
-input  [5:0] c_2_ph;
-input  [5:0] cond29;
+input  [4:0] c_2_ph;
 
 reg ap_idle;
 reg feature_write;
@@ -48,17 +46,17 @@ reg    ap_enable_reg_pp0_iter1;
 reg    ap_idle_pp0;
 reg    ap_block_state2_pp0_stage0_iter1;
 reg    ap_block_pp0_stage0_subdone;
-wire   [0:0] icmp_ln30_fu_70_p2;
+wire   [0:0] tmp_fu_66_p3;
 reg    ap_condition_exit_pp0_iter0_stage0;
 wire    ap_loop_exit_ready;
 reg    ap_ready_int;
 reg    feature_blk_n;
 wire    ap_block_pp0_stage0;
-reg   [5:0] c_2_fu_38;
-wire   [5:0] c_3_fu_76_p2;
+reg   [4:0] c_2_fu_40;
+wire   [4:0] c_3_fu_74_p2;
 wire    ap_loop_init;
 reg    ap_block_pp0_stage0_11001;
-reg   [5:0] ap_sig_allocacmp_c;
+reg   [4:0] ap_sig_allocacmp_c;
 reg    ap_block_pp0_stage0_01001;
 reg    ap_done_reg;
 wire    ap_continue_int;
@@ -72,7 +70,7 @@ wire    ap_ce_reg;
 initial begin
 #0 ap_CS_fsm = 1'd1;
 #0 ap_enable_reg_pp0_iter1 = 1'b0;
-#0 c_2_fu_38 = 6'd0;
+#0 c_2_fu_40 = 5'd0;
 #0 ap_done_reg = 1'b0;
 end
 
@@ -125,20 +123,20 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        c_2_fu_38 <= 6'd0;
+        c_2_fu_40 <= 5'd0;
     end else begin
         if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-            if (((icmp_ln30_fu_70_p2 == 1'd1) & (ap_enable_reg_pp0_iter0 == 1'b1))) begin
-                c_2_fu_38 <= c_3_fu_76_p2;
+            if (((tmp_fu_66_p3 == 1'd0) & (ap_enable_reg_pp0_iter0 == 1'b1))) begin
+                c_2_fu_40 <= c_3_fu_74_p2;
             end else if ((ap_loop_init == 1'b1)) begin
-                c_2_fu_38 <= c_2_ph;
+                c_2_fu_40 <= c_2_ph;
             end
         end
     end
 end
 
 always @ (*) begin
-    if (((icmp_ln30_fu_70_p2 == 1'd0) & (1'b0 == ap_block_pp0_stage0_subdone) & (ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
+    if (((tmp_fu_66_p3 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone) & (ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b1;
     end else begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b0;
@@ -181,7 +179,7 @@ always @ (*) begin
     if (((ap_loop_init == 1'b1) & (1'b0 == ap_block_pp0_stage0) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
         ap_sig_allocacmp_c = c_2_ph;
     end else begin
-        ap_sig_allocacmp_c = c_2_fu_38;
+        ap_sig_allocacmp_c = c_2_fu_40;
     end
 end
 
@@ -238,10 +236,10 @@ assign ap_enable_reg_pp0_iter0 = ap_start_int;
 
 assign ap_loop_exit_ready = ap_condition_exit_pp0_iter0_stage0;
 
-assign c_3_fu_76_p2 = (ap_sig_allocacmp_c + 6'd1);
+assign c_3_fu_74_p2 = (ap_sig_allocacmp_c + 5'd1);
 
 assign feature_din = 32'd0;
 
-assign icmp_ln30_fu_70_p2 = ((ap_sig_allocacmp_c < cond29) ? 1'b1 : 1'b0);
+assign tmp_fu_66_p3 = ap_sig_allocacmp_c[32'd4];
 
 endmodule //unet_ddr_core_conv_feature_fetch_Pipeline_VITIS_LOOP_30_8

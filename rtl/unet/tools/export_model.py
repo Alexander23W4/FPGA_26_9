@@ -191,7 +191,9 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--source',type=Path)
     p.add_argument('--out',type=Path,default=ROOT/'build/unet/model')
     p.add_argument('--header',type=Path,default=ROOT/'rtl/unet/hls/model_ops.h')
-    p.add_argument('--lanes',type=int,default=32);p.add_argument('--size',type=int,default=256)
+    # XC7Z015 placement has insufficient LUT/slice margin for the 32-lane
+    # FP32 core when integrated with the existing video/medical datapaths.
+    p.add_argument('--lanes',type=int,default=16);p.add_argument('--size',type=int,default=256)
     args=p.parse_args()
     source=args.source or next((ROOT/'ip/ai4chamberseger').glob('*.zip'))
     arrays=read_float_weights(source);graph,blob=build_graph(arrays,args.lanes,args.size)

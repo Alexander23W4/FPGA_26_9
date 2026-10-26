@@ -1,5 +1,11 @@
-set here [file dirname [file normalize [info script]]]
-set root [file normalize [file join $here .. .. ..]]
+if {[info exists ::env(FPGA_26_9_ROOT)] && $::env(FPGA_26_9_ROOT) ne ""} {
+    set root [string map [list "\\" "/"] $::env(FPGA_26_9_ROOT)]
+    set here [file join $root rtl inter_fr ddr]
+} else {
+    set here [file dirname [file normalize [info script]]]
+    set root [file normalize [file join $here .. .. ..]]
+}
+cd $root
 open_project -reset [file join $root build unet registration_hls]
 set_top registration_ddr_core
 add_files [file join $here registration_ddr.cpp] -cflags "-std=c++14"

@@ -128,7 +128,7 @@ output   m_axi_features_BREADY;
 input  [1:0] m_axi_features_BRESP;
 input  [0:0] m_axi_features_BID;
 input  [0:0] m_axi_features_BUSER;
-input  [7:0] sext_ln140;
+input  [6:0] sext_ln140;
 input  [29:0] sext_ln145;
 input  [31:0] memory_load;
 

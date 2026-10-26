@@ -127,7 +127,7 @@ input  [5:0] bias_num_data_valid;
 input  [5:0] bias_fifo_cap;
 input   bias_full_n;
 output   bias_write;
-input  [6:0] and_ln;
+input  [5:0] and_ln;
 input  [29:0] sext_ln44;
 
 reg ap_idle;
@@ -152,10 +152,10 @@ wire    ap_block_pp0_stage0;
 reg    bias_blk_n;
 reg    ap_block_pp0_stage0_11001;
 reg   [31:0] weights_addr_read_reg_145;
-reg   [6:0] q_fu_66;
-wire   [6:0] add_ln44_fu_112_p2;
+reg   [5:0] q_fu_66;
+wire   [5:0] add_ln44_fu_112_p2;
 wire    ap_loop_init;
-reg   [6:0] ap_sig_allocacmp_q_1;
+reg   [5:0] ap_sig_allocacmp_q_1;
 reg    ap_block_pp0_stage0_01001;
 reg    ap_done_reg;
 wire    ap_continue_int;
@@ -172,7 +172,7 @@ initial begin
 #0 ap_enable_reg_pp0_iter1 = 1'b0;
 #0 ap_enable_reg_pp0_iter2 = 1'b0;
 #0 weights_addr_read_reg_145 = 32'd0;
-#0 q_fu_66 = 7'd0;
+#0 q_fu_66 = 6'd0;
 #0 ap_done_reg = 1'b0;
 #0 ap_loop_exit_ready_pp0_iter1_reg = 1'b0;
 end
@@ -246,13 +246,13 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        q_fu_66 <= 7'd0;
+        q_fu_66 <= 6'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_pp0_stage0) & (1'b0 == ap_block_pp0_stage0_11001))) begin
             if (((ap_enable_reg_pp0_iter0 == 1'b1) & (icmp_ln44_fu_106_p2 == 1'd0))) begin
                 q_fu_66 <= add_ln44_fu_112_p2;
             end else if ((ap_loop_init == 1'b1)) begin
-                q_fu_66 <= 7'd0;
+                q_fu_66 <= 6'd0;
             end
         end
     end
@@ -310,7 +310,7 @@ end
 
 always @ (*) begin
     if (((1'b1 == ap_CS_fsm_pp0_stage0) & (ap_loop_init == 1'b1) & (1'b0 == ap_block_pp0_stage0))) begin
-        ap_sig_allocacmp_q_1 = 7'd0;
+        ap_sig_allocacmp_q_1 = 6'd0;
     end else begin
         ap_sig_allocacmp_q_1 = q_fu_66;
     end
@@ -359,7 +359,7 @@ always @ (*) begin
     endcase
 end
 
-assign add_ln44_fu_112_p2 = (ap_sig_allocacmp_q_1 + 7'd1);
+assign add_ln44_fu_112_p2 = (ap_sig_allocacmp_q_1 + 6'd1);
 
 assign ap_CS_fsm_pp0_stage0 = ap_CS_fsm[32'd0];
 

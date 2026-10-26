@@ -69,10 +69,10 @@ module unet_ddr_core_unet_ddr_core_Pipeline_VITIS_LOOP_112_1 (
         pixel_last_out,
         pixel_last_out_ap_vld,
         ap_return,
-        grp_fu_1264_p_din0,
-        grp_fu_1264_p_din1,
-        grp_fu_1264_p_dout0,
-        grp_fu_1264_p_ce
+        grp_fu_1262_p_din0,
+        grp_fu_1262_p_din1,
+        grp_fu_1262_p_dout0,
+        grp_fu_1262_p_ce
 );
 
 parameter    ap_ST_fsm_state1 = 4'd1;
@@ -142,10 +142,10 @@ input  [31:0] features_offset;
 output  [0:0] pixel_last_out;
 output   pixel_last_out_ap_vld;
 output  [0:0] ap_return;
-output  [31:0] grp_fu_1264_p_din0;
-output  [31:0] grp_fu_1264_p_din1;
-input  [31:0] grp_fu_1264_p_dout0;
-output   grp_fu_1264_p_ce;
+output  [31:0] grp_fu_1262_p_din0;
+output  [31:0] grp_fu_1262_p_din1;
+input  [31:0] grp_fu_1262_p_dout0;
+output   grp_fu_1262_p_ce;
 
 reg ap_done;
 reg ap_idle;
@@ -853,7 +853,7 @@ always @ (posedge ap_clk) begin
         mul_reg_308 <= 32'd0;
     end else begin
         if ((1'b0 == ap_block_pp0_stage0_11001)) begin
-            mul_reg_308 <= grp_fu_1264_p_dout0;
+            mul_reg_308 <= grp_fu_1262_p_dout0;
         end
     end
 end
@@ -1264,11 +1264,11 @@ always @ (*) begin
     ap_predicate_tran23to24_state2 = ((xor_ln116_fu_203_p2 == 1'd1) & (icmp_ln112_fu_173_p2 == 1'd0));
 end
 
-assign grp_fu_1264_p_ce = grp_fu_157_ce;
+assign grp_fu_1262_p_ce = grp_fu_157_ce;
 
-assign grp_fu_1264_p_din0 = conv_reg_298;
+assign grp_fu_1262_p_din0 = conv_reg_298;
 
-assign grp_fu_1264_p_din1 = 32'd998277249;
+assign grp_fu_1262_p_din1 = 32'd998277249;
 
 assign grp_fu_162_p0 = pixel_data_reg_274;
 
