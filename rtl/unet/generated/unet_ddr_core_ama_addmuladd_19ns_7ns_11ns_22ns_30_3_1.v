@@ -7,7 +7,7 @@
 // ==============================================================
 `timescale 1 ns / 1 ps
 
-module unet_ddr_core_ama_addmuladd_19ns_7ns_11ns_22ns_30_3_1_DSP48_2 (
+module unet_ddr_core_ama_addmuladd_19ns_7ns_11ns_22ns_30_3_1_DSP48_3 (
     input clk,
     input rst,
     input ce,
@@ -82,7 +82,7 @@ output[dout_WIDTH - 1:0] dout;
 
 
 
-unet_ddr_core_ama_addmuladd_19ns_7ns_11ns_22ns_30_3_1_DSP48_2 unet_ddr_core_ama_addmuladd_19ns_7ns_11ns_22ns_30_3_1_DSP48_2_U(
+unet_ddr_core_ama_addmuladd_19ns_7ns_11ns_22ns_30_3_1_DSP48_3 unet_ddr_core_ama_addmuladd_19ns_7ns_11ns_22ns_30_3_1_DSP48_3_U(
     .clk( clk ),
     .rst( reset ),
     .ce( ce ),

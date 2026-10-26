@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Processing modes: 0 gray, 1 white contour, 2 binary mask, 3 red overlay, 4 heatmap.
-// Medical pixels use four-color alpha masks and solid contours, independent of mode.
+// Medical mode 1: colored contours only; mode 3: alpha masks only.
 // Alpha is overlay opacity: 0 = transparent, 100 = solid red.
 // No real arithmetic or per-pixel division. All video signals have equal latency.
 module video_colorizer #(parameter integer CHAMBERS=1) (
@@ -338,12 +338,11 @@ module video_colorizer #(parameter integer CHAMBERS=1) (
             hs <= s1_hs; vs <= s1_vs; de <= s1_de;
             r <= 0; g <= 0; b <= 0;
             if (s1_image && s1_de) begin
-                // Medical output always overlays the four masks and solid contours.
-                // The processing branch retains all five original display modes.
+                // The same choice applies to HDMI and independent TCP return.
                 if (s1_medical) begin
-                    if (s1_contour) begin
+                    if (s1_mode == 1 && s1_contour) begin
                         r<=s1_contour_color[23:16]; g<=s1_contour_color[15:8]; b<=s1_contour_color[7:0];
-                    end else if (s1_mask) begin
+                    end else if (s1_mode == 3 && s1_mask) begin
                         r<=divide_100(s1_med_r); g<=divide_100(s1_med_g); b<=divide_100(s1_med_b);
                     end else begin r<=s1_gray; g<=s1_gray; b<=s1_gray; end
                 end else case (s1_mode)

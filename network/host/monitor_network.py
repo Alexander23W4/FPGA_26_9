@@ -129,6 +129,7 @@ TAIL_SCRIPT = r"""<script>
 let dshTransferBusy = false;
 let dshCurrentFile = null;
 let dshNeedsUpload = false;
+function dshOutputMode(){return document.getElementById(document.getElementById('systemMode').value==='medical'?'medicalOutputMode':'fpgaOutputMode').value;}
 let dshStreamMode = false;
 let dshStreamRunning = false;
 let dshFastStream = false, dshStreamWorker = null, dshPreviewGeneration = 0;
@@ -177,7 +178,7 @@ async function dshRun(action) {
         if (typeof resumeFrameRate === 'function') resumeFrameRate();
     }
   const status = document.getElementById('processingStatus');
-  const controls = ['imageFile', 'chooseImage', 'chooseStream', 'streamFolder', 'fpgaOutputMode', 'thresholdMode',
+  const controls = ['imageFile', 'chooseImage', 'chooseStream', 'streamFolder', 'fpgaOutputMode', 'medicalOutputMode', 'thresholdMode',
     'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'];
   const disabled = controls.map(id => document.getElementById(id).disabled);
   dshTransferBusy = true;
@@ -199,7 +200,7 @@ async function dshRun(action) {
 }
 async function dshProcess(upload) {
   if (dshNeedsUpload && (dshCurrentFile || document.getElementById('imageFile').files[0])) upload = true;
-  const mode = document.getElementById('fpgaOutputMode').value;
+  const mode = dshOutputMode();
   let response;
   if (upload) {
     const file = dshCurrentFile || document.getElementById('imageFile').files[0];
@@ -257,8 +258,11 @@ function dshApplyReadback(j, updateMedical = true) {
     document.getElementById('dshRbAlpha').textContent = j.mask_transparency + '%';
     if (j.hdmi_enabled !== undefined) dshSetHdmiState(j.hdmi_enabled === 1);
     lastConfirmedVideoMode = j.video_mode;
-    if (!dshStreamMode && !dshTransferBusy && document.getElementById('fpgaOutputMode').value !== '5')
-      document.getElementById('fpgaOutputMode').value = j.video_mode;
+    if (!dshStreamMode && !dshTransferBusy) {
+      if(document.getElementById('systemMode').value==='medical') {
+        if(j.video_mode===1||j.video_mode===3)document.getElementById('medicalOutputMode').value=String(j.video_mode);
+      } else if(document.getElementById('fpgaOutputMode').value!=='5') document.getElementById('fpgaOutputMode').value=j.video_mode;
+    }
     if (!dshStreamMode) {
       document.getElementById('maskOpacity').value = j.mask_transparency;
       document.getElementById('maskOpacityValue').textContent = j.mask_transparency;
@@ -301,7 +305,7 @@ document.getElementById('imageFile').addEventListener('change', async e => {
   });
 });
 let lastConfirmedVideoMode = 0;
-document.getElementById('fpgaOutputMode').addEventListener('change', async e => {
+async function dshOutputModeChanged(e) {
   if (dshStreamMode) {
     if(dshStreamWorker)dshStreamWorker.postMessage({type:'mode',mode:e.target.value});
     return; // The next input frame carries the requested mode.
@@ -309,7 +313,9 @@ document.getElementById('fpgaOutputMode').addEventListener('change', async e => 
   await dshRun(async () => {
     const message = await dshProcess(false); await dshReadback(); return message;
   });
-});
+}
+document.getElementById('fpgaOutputMode').addEventListener('change',dshOutputModeChanged);
+document.getElementById('medicalOutputMode').addEventListener('change',dshOutputModeChanged);
 document.getElementById('maskOpacityUpdate').addEventListener('click', async e => {
   const button = e.currentTarget;
   const value = document.getElementById('maskOpacity').value;
@@ -344,7 +350,7 @@ function dshStreamControls() {
   document.getElementById('chooseImage').disabled = dshStreamRunning || dshTransferBusy;
   document.getElementById('chooseStream').textContent = dshStreamRunning ? '停止流' : '选择流文件夹';
   document.getElementById('chooseStream').disabled = !dshStreamRunning && dshTransferBusy;
-  for (const id of ['fpgaOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'])
+  for (const id of ['fpgaOutputMode', 'medicalOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'])
     document.getElementById(id).disabled = stopping;
   document.getElementById('fullDisplayOption').disabled = dshStreamMode;
   updateModeMenu(); updateThresholdControls(); updatePreviewLayout();
@@ -355,7 +361,7 @@ function dshStopStream() {
     dshFpsPaused = true; dshStreamSamples = []; resetFrameRate(true); dshUpdateStreamFps();
   dshStreamControls();
   document.getElementById('chooseStream').disabled = true;
-  document.getElementById('chooseStream').textContent = '等待当前帧完成…';
+  document.getElementById('chooseStream').textContent = '已停止排队，本帧收尾中…';
 }
 async function dshDrainStreamControls() {
   while (dshStreamQueue.length) {
@@ -466,7 +472,7 @@ function dshRunStreamWorker(entries,streamChanged) {
     };
     const offset=Date.now()-dshNow();
     worker.postMessage({type:'start',files:entries,index:dshStreamIndex,folder:dshStreamFolder,
-      mode:document.getElementById('fpgaOutputMode').value,
+      mode:dshOutputMode(),
       sourceFps:Number(document.getElementById('sourceFps').value),times:dshStreamSamples.map(t=>t+offset)});
   });
 }
@@ -1441,8 +1447,9 @@ class NetworkServer(web_common.ThreadingHTTPServer):
                 # Bound upload bursts while the GEM is also transmitting results.
                 # On this Windows/board pair, 3 KiB batches eliminated RX overruns
                 # and retransmission timeouts in a 1000-frame full-duplex run.
-                pipeline = FramePipeline(client.host, client.port, client.timeout,
-                                         capacity=8, send_chunk=3072, send_pause=.0001,
+                medical = state.system_mode == 'medical'
+                pipeline = FramePipeline(client.host, client.port, 300 if medical else client.timeout,
+                                         capacity=1 if medical else 8, send_chunk=3072, send_pause=.0001,
                                          source_frame_us=source_us)
                 curves=MedicalCurveHistory()
 

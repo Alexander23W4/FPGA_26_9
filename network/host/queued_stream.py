@@ -144,6 +144,15 @@ class QueuedStream:
         Pause waits for the current callback to finish. Stop clears pending
         inputs immediately and permits an in-flight callback to finish.
         """
+        # Stop must preempt a pause waiting for a long medical inference.
+        if action == 'stop':
+            with self._condition:
+                self._touch_locked()
+                if mode is not None:
+                    self._validate_mode(mode)
+                    self._mode = mode
+                self._request_stop_locked()
+                return self._snapshot_locked()
         with self._controls, self._condition:
             self._touch_locked()
             if action not in ('resume', 'pause', 'stop', 'mode'):

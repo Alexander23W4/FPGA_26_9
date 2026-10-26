@@ -77,21 +77,21 @@ module unet_ddr_core_convolution_Pipeline_VITIS_LOOP_33_2 (
         acc_ce1,
         acc_we1,
         acc_d1,
-        p_reload771,
-        p_reload770,
-        p_reload769,
-        p_reload768,
-        p_reload767,
-        p_reload766,
-        p_reload765,
-        p_reload764,
-        p_reload763,
-        p_reload762,
-        p_reload761,
-        p_reload760,
-        p_reload759,
-        p_reload758,
-        p_reload757,
+        p_reload910,
+        p_reload909,
+        p_reload908,
+        p_reload907,
+        p_reload906,
+        p_reload905,
+        p_reload904,
+        p_reload903,
+        p_reload902,
+        p_reload901,
+        p_reload900,
+        p_reload899,
+        p_reload898,
+        p_reload897,
+        p_reload896,
         p_reload
 );
 
@@ -103,85 +103,85 @@ input   ap_start;
 output   ap_done;
 output   ap_idle;
 output   ap_ready;
-output  [4:0] acc_15_address1;
+output  [5:0] acc_15_address1;
 output   acc_15_ce1;
 output   acc_15_we1;
 output  [31:0] acc_15_d1;
-output  [4:0] acc_14_address1;
+output  [5:0] acc_14_address1;
 output   acc_14_ce1;
 output   acc_14_we1;
 output  [31:0] acc_14_d1;
-output  [4:0] acc_13_address1;
+output  [5:0] acc_13_address1;
 output   acc_13_ce1;
 output   acc_13_we1;
 output  [31:0] acc_13_d1;
-output  [4:0] acc_12_address1;
+output  [5:0] acc_12_address1;
 output   acc_12_ce1;
 output   acc_12_we1;
 output  [31:0] acc_12_d1;
-output  [4:0] acc_11_address1;
+output  [5:0] acc_11_address1;
 output   acc_11_ce1;
 output   acc_11_we1;
 output  [31:0] acc_11_d1;
-output  [4:0] acc_10_address1;
+output  [5:0] acc_10_address1;
 output   acc_10_ce1;
 output   acc_10_we1;
 output  [31:0] acc_10_d1;
-output  [4:0] acc_9_address1;
+output  [5:0] acc_9_address1;
 output   acc_9_ce1;
 output   acc_9_we1;
 output  [31:0] acc_9_d1;
-output  [4:0] acc_8_address1;
+output  [5:0] acc_8_address1;
 output   acc_8_ce1;
 output   acc_8_we1;
 output  [31:0] acc_8_d1;
-output  [4:0] acc_7_address1;
+output  [5:0] acc_7_address1;
 output   acc_7_ce1;
 output   acc_7_we1;
 output  [31:0] acc_7_d1;
-output  [4:0] acc_6_address1;
+output  [5:0] acc_6_address1;
 output   acc_6_ce1;
 output   acc_6_we1;
 output  [31:0] acc_6_d1;
-output  [4:0] acc_5_address1;
+output  [5:0] acc_5_address1;
 output   acc_5_ce1;
 output   acc_5_we1;
 output  [31:0] acc_5_d1;
-output  [4:0] acc_4_address1;
+output  [5:0] acc_4_address1;
 output   acc_4_ce1;
 output   acc_4_we1;
 output  [31:0] acc_4_d1;
-output  [4:0] acc_3_address1;
+output  [5:0] acc_3_address1;
 output   acc_3_ce1;
 output   acc_3_we1;
 output  [31:0] acc_3_d1;
-output  [4:0] acc_2_address1;
+output  [5:0] acc_2_address1;
 output   acc_2_ce1;
 output   acc_2_we1;
 output  [31:0] acc_2_d1;
-output  [4:0] acc_1_address1;
+output  [5:0] acc_1_address1;
 output   acc_1_ce1;
 output   acc_1_we1;
 output  [31:0] acc_1_d1;
-output  [4:0] acc_address1;
+output  [5:0] acc_address1;
 output   acc_ce1;
 output   acc_we1;
 output  [31:0] acc_d1;
-input  [31:0] p_reload771;
-input  [31:0] p_reload770;
-input  [31:0] p_reload769;
-input  [31:0] p_reload768;
-input  [31:0] p_reload767;
-input  [31:0] p_reload766;
-input  [31:0] p_reload765;
-input  [31:0] p_reload764;
-input  [31:0] p_reload763;
-input  [31:0] p_reload762;
-input  [31:0] p_reload761;
-input  [31:0] p_reload760;
-input  [31:0] p_reload759;
-input  [31:0] p_reload758;
-input  [31:0] p_reload757;
+input  [31:0] p_reload910;
+input  [31:0] p_reload909;
+input  [31:0] p_reload908;
+input  [31:0] p_reload907;
+input  [31:0] p_reload906;
+input  [31:0] p_reload905;
+input  [31:0] p_reload904;
+input  [31:0] p_reload903;
+input  [31:0] p_reload902;
+input  [31:0] p_reload901;
+input  [31:0] p_reload900;
+input  [31:0] p_reload899;
+input  [31:0] p_reload898;
+input  [31:0] p_reload897;
+input  [31:0] p_reload896;
 input  [31:0] p_reload;
 
 reg ap_idle;
@@ -226,11 +226,11 @@ reg    ap_condition_exit_pp0_iter0_stage0;
 wire    ap_loop_exit_ready;
 reg    ap_ready_int;
 wire   [31:0] zext_ln37_fu_508_p1;
-reg   [5:0] p_fu_96;
-wire   [5:0] add_ln33_fu_498_p2;
+reg   [6:0] p_fu_96;
+wire   [6:0] add_ln33_fu_498_p2;
 wire    ap_loop_init;
-reg   [5:0] ap_sig_allocacmp_p_1;
-wire   [4:0] trunc_ln37_fu_504_p1;
+reg   [6:0] ap_sig_allocacmp_p_1;
+wire   [5:0] trunc_ln37_fu_504_p1;
 reg    ap_done_reg;
 wire    ap_continue_int;
 reg    ap_done_int;
@@ -242,7 +242,7 @@ wire    ap_ce_reg;
 // power-on initialization
 initial begin
 #0 ap_CS_fsm = 1'd1;
-#0 p_fu_96 = 6'd0;
+#0 p_fu_96 = 7'd0;
 #0 ap_done_reg = 1'b0;
 end
 
@@ -283,13 +283,13 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        p_fu_96 <= 6'd0;
+        p_fu_96 <= 7'd0;
     end else begin
         if (((1'b0 == ap_block_state1_pp0_stage0_iter0) & (1'b1 == ap_CS_fsm_state1))) begin
             if ((icmp_ln33_fu_492_p2 == 1'd0)) begin
                 p_fu_96 <= add_ln33_fu_498_p2;
             end else if ((ap_loop_init == 1'b1)) begin
-                p_fu_96 <= 6'd0;
+                p_fu_96 <= 7'd0;
             end
         end
     end
@@ -593,7 +593,7 @@ end
 
 always @ (*) begin
     if (((1'b1 == ap_CS_fsm_state1) & (ap_loop_init == 1'b1))) begin
-        ap_sig_allocacmp_p_1 = 6'd0;
+        ap_sig_allocacmp_p_1 = 7'd0;
     end else begin
         ap_sig_allocacmp_p_1 = p_fu_96;
     end
@@ -612,23 +612,23 @@ end
 
 assign acc_10_address1 = zext_ln37_fu_508_p1;
 
-assign acc_10_d1 = p_reload761;
+assign acc_10_d1 = p_reload900;
 
 assign acc_11_address1 = zext_ln37_fu_508_p1;
 
-assign acc_11_d1 = p_reload760;
+assign acc_11_d1 = p_reload899;
 
 assign acc_12_address1 = zext_ln37_fu_508_p1;
 
-assign acc_12_d1 = p_reload759;
+assign acc_12_d1 = p_reload898;
 
 assign acc_13_address1 = zext_ln37_fu_508_p1;
 
-assign acc_13_d1 = p_reload758;
+assign acc_13_d1 = p_reload897;
 
 assign acc_14_address1 = zext_ln37_fu_508_p1;
 
-assign acc_14_d1 = p_reload757;
+assign acc_14_d1 = p_reload896;
 
 assign acc_15_address1 = zext_ln37_fu_508_p1;
 
@@ -636,45 +636,45 @@ assign acc_15_d1 = p_reload;
 
 assign acc_1_address1 = zext_ln37_fu_508_p1;
 
-assign acc_1_d1 = p_reload770;
+assign acc_1_d1 = p_reload909;
 
 assign acc_2_address1 = zext_ln37_fu_508_p1;
 
-assign acc_2_d1 = p_reload769;
+assign acc_2_d1 = p_reload908;
 
 assign acc_3_address1 = zext_ln37_fu_508_p1;
 
-assign acc_3_d1 = p_reload768;
+assign acc_3_d1 = p_reload907;
 
 assign acc_4_address1 = zext_ln37_fu_508_p1;
 
-assign acc_4_d1 = p_reload767;
+assign acc_4_d1 = p_reload906;
 
 assign acc_5_address1 = zext_ln37_fu_508_p1;
 
-assign acc_5_d1 = p_reload766;
+assign acc_5_d1 = p_reload905;
 
 assign acc_6_address1 = zext_ln37_fu_508_p1;
 
-assign acc_6_d1 = p_reload765;
+assign acc_6_d1 = p_reload904;
 
 assign acc_7_address1 = zext_ln37_fu_508_p1;
 
-assign acc_7_d1 = p_reload764;
+assign acc_7_d1 = p_reload903;
 
 assign acc_8_address1 = zext_ln37_fu_508_p1;
 
-assign acc_8_d1 = p_reload763;
+assign acc_8_d1 = p_reload902;
 
 assign acc_9_address1 = zext_ln37_fu_508_p1;
 
-assign acc_9_d1 = p_reload762;
+assign acc_9_d1 = p_reload901;
 
 assign acc_address1 = zext_ln37_fu_508_p1;
 
-assign acc_d1 = p_reload771;
+assign acc_d1 = p_reload910;
 
-assign add_ln33_fu_498_p2 = (ap_sig_allocacmp_p_1 + 6'd1);
+assign add_ln33_fu_498_p2 = (ap_sig_allocacmp_p_1 + 7'd1);
 
 assign ap_CS_fsm_state1 = ap_CS_fsm[32'd0];
 
@@ -684,9 +684,9 @@ end
 
 assign ap_loop_exit_ready = ap_condition_exit_pp0_iter0_stage0;
 
-assign icmp_ln33_fu_492_p2 = ((ap_sig_allocacmp_p_1 == 6'd32) ? 1'b1 : 1'b0);
+assign icmp_ln33_fu_492_p2 = ((ap_sig_allocacmp_p_1 == 7'd64) ? 1'b1 : 1'b0);
 
-assign trunc_ln37_fu_504_p1 = ap_sig_allocacmp_p_1[4:0];
+assign trunc_ln37_fu_504_p1 = ap_sig_allocacmp_p_1[5:0];
 
 assign zext_ln37_fu_508_p1 = trunc_ln37_fu_504_p1;
 

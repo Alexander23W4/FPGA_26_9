@@ -116,10 +116,10 @@ module tb_medical_output #(
             v=gray(f,i);r=v;g=v;b=v;
             if(f%2)begin
                 k=mbit(f,i);c=cbit(f,i);
-                if(c!=0)k=c;
+                if(md==1)k=c;
                 cr=(k&3)?255:0;cg=(k&6)?255:0;cb=(k&8)?255:0;
-                if(c!=0)begin r=cr;g=cg;b=cb;end
-                else if(k!=0)begin
+                if(md==1 && c!=0)begin r=cr;g=cg;b=cb;end
+                else if(md==3 && k!=0)begin
                     r=((100-a)*v+a*cr)/100;g=((100-a)*v+a*cg)/100;b=((100-a)*v+a*cb)/100;
                 end
             end else case(md)

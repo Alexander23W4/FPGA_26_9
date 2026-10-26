@@ -17,8 +17,8 @@ module unet_ddr_core_convolution_acc_RAM_2P_LUTRAM_1R1W (
     reset, clk);
 
 parameter DataWidth = 32;
-parameter AddressWidth = 5;
-parameter AddressRange = 32;
+parameter AddressWidth = 6;
+parameter AddressRange = 64;
  
 input[AddressWidth-1:0] address0;
 input ce0;

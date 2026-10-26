@@ -35,6 +35,13 @@ async function settle() {while (pending.size) await Promise.all([...pending]);}
     assert.strictEqual(elements.dshRbThr.textContent, 120, 'display the active STATUS threshold, not manual DATA_REG=37');
     assert.strictEqual(Number(select.value), mode);
   }
+  document.getElementById('systemMode').value='medical';
+  const medicalSelect = elements.medicalOutputMode;
+  for (const mode of [1,3,1]) {
+    medicalSelect.value=String(mode);
+    await medicalSelect.listeners.change({target:medicalSelect}); await settle();
+    assert.strictEqual(Number(medicalSelect.value),mode,'medical contour/mask selection survives readback');
+  }
   for (const system of ['processing','medical']) {
     document.getElementById('systemMode').value=system;
     for (const alpha of [0,45,100]) {
@@ -48,6 +55,7 @@ async function settle() {while (pending.size) await Promise.all([...pending]);}
     await elements.hdmiOutputToggle.listeners.click();
     assert.strictEqual(elements.hdmiOutputToggle.getAttribute('aria-checked'),String(enabled));
   }
+  document.getElementById('systemMode').value='processing';
   select.value = '5';
   await select.listeners.change({target: select});
   await ctx.dshReadback();

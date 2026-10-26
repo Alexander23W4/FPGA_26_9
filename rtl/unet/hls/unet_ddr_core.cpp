@@ -1,7 +1,7 @@
 #include "unet_ddr_core.h"
 #include "model_ops.h"
 
-static const int TILE=32, INPUT_TILE=16;
+static const int TILE=64, INPUT_TILE=16;
 static const unsigned MODEL_MAGIC=0x554e4554;
 static unsigned float_bits(float x){union {float f;unsigned u;} p;p.f=x;return p.u;}
 static float activate(float x,unsigned mode){
@@ -51,11 +51,22 @@ static void convolution(const UnetOp &op,const float *weights,float *memory){
                     int iy=int((pos>>op.wlog)*op.stride+ky)-int(op.kernel/2);
                     int ix=int((pos&(op.ow-1))*op.stride+kx)-int(op.kernel/2);
                     bool inside=pos<total && iy>=0 && ix>=0 && iy<int(op.ih) && ix<int(op.iw);
-                    unsigned width=dw?UNET_LANES:count;
-                    for(unsigned c=0;c<width;c++){
+                    unsigned capacity=dw?UNET_LANES:count;
+                    unsigned channel_base=dw?oc:cb;
+                    unsigned width=op.cin-channel_base;
+                    if(width>capacity)width=capacity;
+                    if(inside) {
+                        // Keep validity tests OUTSIDE this contiguous AXI loop.
+                        // A per-element predicate prevented feature bursts and
+                        // turned hundreds of MB of reads into single-word AXI.
+                        for(unsigned c=0;c<width;c++){
 #pragma HLS PIPELINE II=1
-                        unsigned channel=(dw?oc:cb)+c;
-                        patch[p][c]=(inside && channel<op.cin)?memory[op.src+(iy*op.iw+ix)*op.cin+channel]:0.0f;
+                            patch[p][c]=memory[op.src+(iy*op.iw+ix)*op.cin+channel_base+c];
+                        }
+                    }
+                    for(unsigned c=inside?width:0;c<capacity;c++){
+#pragma HLS PIPELINE II=1
+                        patch[p][c]=0.0f;
                     }
                 }
                 DOT_INPUT:for(unsigned c=0;c<count;c++)
@@ -71,10 +82,11 @@ static void convolution(const UnetOp &op,const float *weights,float *memory){
                     }
                 }
             }
-            for(unsigned p=0;p<TILE;p++)for(unsigned l=0;l<UNET_LANES;l++){
+            unsigned pixels=total-base<TILE?total-base:TILE;
+            unsigned channels=op.cout-oc<UNET_LANES?op.cout-oc:UNET_LANES;
+            for(unsigned p=0;p<pixels;p++)for(unsigned l=0;l<channels;l++){
 #pragma HLS PIPELINE II=1
-                if(base+p<total && oc+l<op.cout)
-                    memory[op.dst+(base+p)*op.cout+oc+l]=activate(acc[p][l],op.activation);
+                memory[op.dst+(base+p)*op.cout+oc+l]=activate(acc[p][l],op.activation);
             }
         }
     }
@@ -127,24 +139,23 @@ static void emit_result(float *memory,Stream<Axis16> &output,unsigned class_map)
     unsigned char rows[3][UNET_SIZE];
 #pragma HLS ARRAY_PARTITION variable=rows complete dim=1
 #pragma HLS BIND_STORAGE variable=rows type=ram_2p impl=lutram
-    for(unsigned i=0;i<UNET_SIZE*UNET_SIZE;i++){
-        unsigned best=0;float score=memory[UNET_LOGITS_OFFSET+i*5];
-        for(unsigned c=1;c<5;c++){
+    // Feed integer classes directly from argmax into three line buffers.
+    // DDR labels remain a diagnostic copy; pixel output never rereads or
+    // converts that floating-point copy back into class IDs.
+    for(unsigned next_y=0;next_y<=UNET_SIZE;next_y++){
+        if(next_y<UNET_SIZE)for(unsigned x=0;x<UNET_SIZE;x++){
+            unsigned i=next_y*UNET_SIZE+x;
+            unsigned best=0;float score=memory[UNET_LOGITS_OFFSET+i*5];
+            for(unsigned c=1;c<5;c++){
 #pragma HLS PIPELINE II=1
-            float candidate=memory[UNET_LOGITS_OFFSET+i*5+c];
-            if(candidate>score){score=candidate;best=c;}
+                float candidate=memory[UNET_LOGITS_OFFSET+i*5+c];
+                if(candidate>score){score=candidate;best=c;}
+            }
+            rows[next_y%3][x]=best;
+            memory[UNET_LABEL_OFFSET+i]=float(best);
         }
-        memory[UNET_LABEL_OFFSET+i]=float(best);
-    }
-    for(unsigned x=0;x<UNET_SIZE;x++){
-#pragma HLS PIPELINE II=1
-        rows[0][x]=(unsigned)memory[UNET_LABEL_OFFSET+x];
-    }
-    for(unsigned y=0;y<UNET_SIZE;y++){
-        if(y+1<UNET_SIZE)for(unsigned x=0;x<UNET_SIZE;x++){
-#pragma HLS PIPELINE II=1
-            rows[(y+1)%3][x]=(unsigned)memory[UNET_LABEL_OFFSET+(y+1)*UNET_SIZE+x];
-        }
+        if(next_y==0)continue;
+        unsigned y=next_y-1;
         for(unsigned x=0;x<UNET_SIZE;x++){
 #pragma HLS PIPELINE II=1
             unsigned label=rows[y%3][x];

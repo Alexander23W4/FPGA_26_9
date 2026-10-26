@@ -17,7 +17,7 @@ static u32 medical_raw[4]={40000000,30000000,100000000,80000000};
 static u32 medical_sequence=1,medical_status=31;
 static unsigned medical_reads,medical_publish_at;
 static int medical_unstable;
-static unsigned dma_starts,ack_writes,flushes,invalidates,timer_calls;
+static unsigned dma_starts,ack_writes,flushes,invalidates,timer_calls,registration_restarts;
 static u64 clock_ticks;
 static u8 wire_bytes[2000000];static size_t wire_used;
 static u32 dma_input_address=IMG_DDR_BASE,window_returned;
@@ -55,6 +55,7 @@ u32 Xil_In32(UINTPTR address)
 }
 void Xil_Out32(UINTPTR address,u32 value)
 {
+    if(address==PL_REG_ADDRESS(MODE_ADDR)) {assert(!pipe_active&&phase!=RUNNING);if(value==1)++registration_restarts;system_mode=value;return;}
     if(address==(PL_CTRL_BASE+0xc0u)) {assert(value==1&&phase==RESULT_READY);++ack_writes;return;}
     if(address==PL_REG_ADDRESS(VIDEO_MODE_ADDR)) {
         if(has_frame||pipe_pl_frame)assert(dma_regs[0x30/4]==1&&dma_regs[0x58/4]==IMG_RES_DDR_SIZE);
@@ -312,6 +313,9 @@ int main(void)
     assert(pl_timeout()==COUNTS_PER_SECOND*300ull);
     model_status=1;assert(unet_ready());
     system_mode=0;assert(pl_timeout()==COUNTS_PER_SECOND*30ull);
+    restart_medical_registration();assert(!registration_restarts);
+    system_mode=1;restart_medical_registration();
+    assert(system_mode==1&&registration_restarts==1);system_mode=0;
     puts("FIRMWARE_UNET_GUARD_OK: unloaded model rejected before DMA, ready flag, per-mode deadlines");
     request(RENDER,6,0,0,4);assert(phase==IDLE&&get32(tx_header+4)==CONFIGURED&&dma_starts==0);
     upload(7,0);assert(phase==READY&&dma_starts==0);

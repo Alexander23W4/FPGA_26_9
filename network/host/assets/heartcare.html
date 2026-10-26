@@ -107,8 +107,9 @@
         <section class="setting-group" data-system-mode="processing">
           <div class="group-heading"><span class="step-number">01</span><h4>输出显示</h4></div>
           <div class="threshold-mode hdmi-output-mode"><label id="hdmiOutputLabel" for="hdmiOutputToggle">HDMI 输出：开</label><button id="hdmiOutputToggle" class="switch" type="button" role="switch" aria-checked="true" aria-label="切换 HDMI 输出开关"></button></div>
-          <label for="fpgaOutputMode">FPGA 输出显示模式</label>
-          <select id="fpgaOutputMode"><option value="0">去噪处理</option><option value="1">轮廓处理</option><option value="2">二值掩膜处理</option><option value="3">叠加掩膜处理</option><option value="4">伪彩色热力图处理</option><option id="fullDisplayOption" value="5">全显示</option></select>
+          <div class="processing-display-mode"><label for="fpgaOutputMode">FPGA 输出显示模式</label>
+          <select id="fpgaOutputMode"><option value="0">去噪处理</option><option value="1">轮廓处理</option><option value="2">二值掩膜处理</option><option value="3">叠加掩膜处理</option><option value="4">伪彩色热力图处理</option><option id="fullDisplayOption" value="5">全显示</option></select></div>
+          <div data-system-mode="medical" hidden><label for="medicalOutputMode">医学显示模式</label><select id="medicalOutputMode"><option value="1">显示轮廓</option><option value="3">显示掩膜</option></select></div>
         </section>
         <section class="setting-group" data-system-mode="processing">
           <div class="group-heading"><span class="step-number">02</span><h4>图像分割</h4></div>

@@ -14,8 +14,10 @@ static unsigned char pattern(int x,int y){
 }
 int main(){
     std::vector<unsigned> ddr(131072,0);
-    for(unsigned f=0;f<4;f++){
-        int dx=f==3?0:2*f,dy=f==3?0:-int(f);unsigned epoch=f==3?2:1,status=99;
+    const int xs[]={0,2,4,0,6,-6,6,-6,0};
+    const int ys[]={0,-1,-2,0,3,-3,3,-3,0};
+    for(unsigned f=0;f<sizeof(xs)/sizeof(xs[0]);f++){
+        int dx=xs[f],dy=ys[f];unsigned epoch=f>=3?2:1,status=99;
         Stream<Axis8> input,output;
         for(int y=0;y<256;y++)for(int x=0;x<256;x++){
             Axis8 p;p.data=pattern(x-dx,y-dy);p.last=(x==255&&y==255);input.write(p);
@@ -32,5 +34,5 @@ int main(){
         }
         if(!output.empty())throw std::runtime_error("extra registered pixel");
     }
-    puts("REGISTRATION_DDR_VERIFIED: first frame, (+2,-1), cumulative (+4,-2), epoch reset, full pixels/EOF");
+    puts("REGISTRATION_DDR_VERIFIED: sequence anchor, (+2,-1), (+4,-2), epoch reset, +/-6 oscillation without cumulative drift, full pixels/EOF");
 }

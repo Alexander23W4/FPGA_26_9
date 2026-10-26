@@ -54,7 +54,7 @@ function control(run,action,mode){
     if(run.stopTask)return run.stopTask;
   }else if(action==='pause')run.desiredPaused=true;
   else if(action==='resume')run.desiredPaused=false;
-  const task=run.controlTail.then(async()=>{
+  const operation=async()=>{
     await run.sessionReady.promise;
     if(!run.session||run.serverStopped)return;
     if(action!=='stop'&&run.stopRequested)return;
@@ -68,7 +68,9 @@ function control(run,action,mode){
     if(action==='pause'&&!run.stopRequested)self.postMessage({type:'paused'});
     wakeProducer(run);
     return reply;
-  });
+  };
+  // A pending pause can take an entire inference; stop must not queue behind it.
+  const task=action==='stop'?operation():run.controlTail.then(operation);
   // Keep later controls ordered even if an earlier HTTP request fails.
   run.controlTail=task.catch(()=>{});
   if(action==='stop'){

@@ -27,6 +27,9 @@ input clk;
 
 (* ram_style = "block"  *)reg [DataWidth-1:0] ram[0:AddressRange-1];
 
+initial begin
+    $readmemh("./registration_ddr_core_reference_RAM_1P_BRAM_1R1W.dat", ram);
+end 
 
  
 

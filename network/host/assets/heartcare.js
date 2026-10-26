@@ -6,6 +6,7 @@ const menuToggle=document.getElementById('menuToggle');
 const systemDrawer=document.getElementById('systemDrawer');
 const workspace=document.querySelector('.workspace');
 const fpgaOutputMode=document.getElementById('fpgaOutputMode');
+function selectedOutputMode(){return systemMode.value==='medical'?document.getElementById('medicalOutputMode').value:fpgaOutputMode.value;}
 const singlePreview=document.getElementById('singlePreview');
 const comparisonPreview=document.getElementById('comparisonPreview');
 const fullPreview=document.getElementById('fullPreview');
@@ -91,16 +92,16 @@ function renderProcessedResults(results,revision=null){
       return updated;
     }else{image.removeAttribute('src');image.removeAttribute('data-result-job');image.title='等待 FPGA 回传';return false;}
   }
-  let comparisonResult=processedResults[fpgaOutputMode.value];
+  let comparisonResult=processedResults[selectedOutputMode()];
   if(isStreamMode()){
     // Requested mode may already have changed while the previous frame is still in flight.
     const entries=Object.entries(processedResults);
     const last=entries.length?entries[entries.length-1]:null;
     comparisonResult=last&&last[1];
-    const actualMode=comparisonResult&&comparisonResult.mode!==undefined?Number(comparisonResult.mode):last?Number(last[0]):Number(fpgaOutputMode.value);
-    document.getElementById('comparisonProcessedLabel').textContent=systemMode.value==='medical'?'处理流':(streamModeLabels[actualMode]||'处理流');
+    const actualMode=comparisonResult&&comparisonResult.mode!==undefined?Number(comparisonResult.mode):last?Number(last[0]):Number(selectedOutputMode());
+    document.getElementById('comparisonProcessedLabel').textContent=systemMode.value==='medical'?(actualMode===3?'掩膜流':'轮廓流'):(streamModeLabels[actualMode]||'处理流');
   }else{
-    document.getElementById('comparisonProcessedLabel').textContent=systemMode.value==='medical'?'处理流':fpgaOutputMode.selectedOptions[0].textContent;
+    document.getElementById('comparisonProcessedLabel').textContent=systemMode.value==='medical'?(Number(selectedOutputMode())===3?'掩膜流':'轮廓流'):fpgaOutputMode.selectedOptions[0].textContent;
   }
   let visibleResultChanged=show('comparisonProcessed',comparisonResult)&&!comparisonPreview.hidden;
   for(let mode=0;mode<5;mode++){

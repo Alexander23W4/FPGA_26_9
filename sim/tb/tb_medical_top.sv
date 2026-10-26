@@ -62,7 +62,7 @@ module tb_medical_top;
             rr=(50*y+50*chamber[23:16])/100;
             gg=(50*y+50*chamber[15:8])/100;
             bb=(50*y+50*chamber[7:0])/100;
-            expected=(i%17==0)?chamber:{rr[7:0],gg[7:0],bb[7:0]};
+            expected={rr[7:0],gg[7:0],bb[7:0]};
         end
     endfunction
     integer got=0,hpixels=0;
@@ -104,7 +104,7 @@ module tb_medical_top;
             med_mask[0],med_mask[1],med_mask[2],med_mask[3],med_pixel};
         force dut.u_medical.full=med_valid;
         repeat(8)@(negedge clk);rst=0;wait(!dut.rst_clk);
-        wr(9'h00,1);wr(9'h88,50); // MODE=medical, shared MASK_TRANSP=50%.
+        wr(9'h00,1);wr(9'h08,3);wr(9'h88,50); // Medical mask-only overlay, 50%.
         for(i=0;i<65536;i++)begin
             @(negedge clk);med_valid=1;med_pixel=i%256;
             med_mask=1<<((i/256)%4);med_ctr=(i%17==0)?med_mask:0;med_eof=(i==65535);

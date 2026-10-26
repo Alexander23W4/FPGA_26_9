@@ -263,6 +263,28 @@ class QueuedStreamTests(unittest.TestCase):
         self.assertTrue(stream.wait(2))
         self.assertIn('lost board', stream.snapshot()['error'])
 
+    def test_stop_preempts_pause_waiting_for_a_long_frame(self):
+        started,release,paused=threading.Event(),threading.Event(),threading.Event()
+        self.addCleanup(release.set)
+        def process(source,mode):
+            started.set();self.assertTrue(release.wait(2));return {}
+        stream=self.session(process)
+        stream.enqueue(frame(0));stream.enqueue(frame(1));stream.control('resume')
+        self.assertTrue(started.wait(2))
+        waiter=threading.Thread(target=lambda:(stream.control('pause'),paused.set()))
+        waiter.start()
+        self.await_state(stream,lambda state:state['paused'])
+        stopped=threading.Event()
+        controller=threading.Thread(target=lambda:(stream.control('stop'),stopped.set()))
+        controller.start()
+        try:
+            self.assertTrue(stopped.wait(.5),'stop waited behind pause/current inference')
+            self.assertEqual(stream.snapshot()['pending'],0)
+            self.assertFalse(paused.is_set())
+        finally:
+            release.set();waiter.join(2);controller.join(2)
+        self.assertTrue(stream.wait(2));self.assertEqual(stream.snapshot()['completed'],1)
+
     def test_close_callback_failure_still_finishes_shutdown(self):
         def close():
             raise RuntimeError('owner cleanup failed')

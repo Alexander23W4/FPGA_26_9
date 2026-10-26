@@ -5,10 +5,11 @@ module tb_medical_colorizer;
     reg [7:0] gray=0;
     reg [3:0] mask=0,ctr=0;
     reg [6:0] alpha=0;
+    reg [31:0] mode=3;
     wire [7:0] r,g,b;
     wire hs,vs,de;
     video_colorizer #(.CHAMBERS(4)) dut(.pclk(clk),.rst(rst),.gray(gray),.mask(mask),.contour(ctr),
-        .medical(medical),.mode(32'd0),.alpha(alpha),.image_active(active),
+        .medical(medical),.mode(mode),.alpha(alpha),.image_active(active),
         .in_hs(hs_in),.in_vs(vs_in),.in_de(de_in),.r(r),.g(g),.b(b),.hs(hs),.vs(vs),.de(de));
     function automatic [23:0] color(input integer bits_in);
         if(bits_in&1)color=24'hff0000;
@@ -26,13 +27,13 @@ module tb_medical_colorizer;
         begin
             @(negedge clk);gray=y;mask=k;ctr=c;alpha=a;active=en;de_in=d;hs_in=h;vs_in=v;
             aa=(a>100)?100:a;rgb=color(k);rr=y;gg=y;bb=y;
-            if(k)begin
+            if(mode==3 && k)begin
                 rr=((100-aa)*y+aa*rgb[23:16])/100;
                 gg=((100-aa)*y+aa*rgb[15:8])/100;
                 bb=((100-aa)*y+aa*rgb[7:0])/100;
             end
             expected={rr[7:0],gg[7:0],bb[7:0]};
-            if(c)expected=color(c);
+            if(mode==1 && c)expected=color(c);
             if(!en||!d)expected=0;
             @(posedge clk);#1;
             if({r,g,b}!==previous||{hs,vs,de}!==prev_control)
@@ -45,8 +46,9 @@ module tb_medical_colorizer;
         repeat(3)@(negedge clk);rst=0;
         for(a=0;a<=100;a++)for(y=0;y<256;y++)for(k=0;k<4;k++)
             sample(y,1<<k,0,a,1,1,1,1);
-        for(k=0;k<16;k++)for(c=0;c<16;c++)
+        for(mode=0;mode<5;mode++)for(k=0;k<16;k++)for(c=0;c<16;c++)
             sample(123,k,c,45,1,1,1,1);
+        mode=1;
         for(y=0;y<256;y++)sample(y,8,4,127,y%3!=0,y%5!=0,y%7!=0,y%11!=0);
         sample(0,0,0,0,0,0,1,1);
         $display("[PASS] tb_medical_colorizer: %0d samples, four colors, all gray/alpha values, overlap priority, contour precedence, aligned controls",count);$finish;

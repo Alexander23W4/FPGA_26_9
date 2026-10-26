@@ -1,6 +1,7 @@
 #include "../../unet/hls/unet_ddr_core.h"
 typedef Axis8 RegistrationPixel;
-// Same centered 48x48 SAD, +/-8 displacement, accumulated integer alignment.
+// Centered 48x48 SAD, +/-8 displacement relative to the sequence's FIRST frame.
+// Do not integrate local myocardial motion into an unbounded global drift.
 // Full frames live in DDR (one byte per 32-bit word); only the 48/64 ROIs
 // live on-chip. This frees 30+ RAMB36s for the complete U-Net and display.
 void registration_ddr_core(unsigned *frames,
@@ -15,13 +16,14 @@ void registration_ddr_core(unsigned *frames,
     static bool bank=false,have_previous=false;
     static unsigned previous_epoch=0;
     static int accumulated_x=0,accumulated_y=0;
-    unsigned char reference[48*48],current[64*64];
+    static unsigned char reference[48*48];
+    unsigned char current[64*64];
 #pragma HLS BIND_STORAGE variable=reference type=ram_1p impl=bram
 #pragma HLS BIND_STORAGE variable=current type=ram_1p impl=bram
     RegistrationPixel first=input.read();
     if(epoch!=previous_epoch){have_previous=false;accumulated_x=0;accumulated_y=0;previous_epoch=epoch;}
     status=1;
-    unsigned base=bank?65536:0,prev=bank?0:65536;
+    unsigned base=bank?65536:0;
     for(unsigned i=0;i<65536;i++){
 #pragma HLS PIPELINE II=1
         RegistrationPixel p=(i==0)?first:input.read();frames[base+i]=p.data;
@@ -31,11 +33,13 @@ void registration_ddr_core(unsigned *frames,
             return;
         }
     }
-    if(have_previous){
+    if(!have_previous){
         for(unsigned y=0;y<48;y++)for(unsigned x=0;x<48;x++){
 #pragma HLS PIPELINE II=1
-            reference[y*48+x]=frames[prev+(y+104)*256+x+104];
+            reference[y*48+x]=frames[base+(y+104)*256+x+104];
         }
+        accumulated_x=0;accumulated_y=0;
+    }else{
         for(unsigned y=0;y<64;y++)for(unsigned x=0;x<64;x++){
 #pragma HLS PIPELINE II=1
             current[y*64+x]=frames[base+(y+96)*256+x+96];
@@ -61,8 +65,8 @@ void registration_ddr_core(unsigned *frames,
             }
             if(candidate==0 && sad==0)finished=true;
         }
-        accumulated_x+=best_x;accumulated_y+=best_y;
-    }else{accumulated_x=0;accumulated_y=0;}
+        accumulated_x=best_x;accumulated_y=best_y;
+    }
     status=2;
     for(unsigned y=0;y<256;y++)for(unsigned x=0;x<256;x++){
 #pragma HLS PIPELINE II=1

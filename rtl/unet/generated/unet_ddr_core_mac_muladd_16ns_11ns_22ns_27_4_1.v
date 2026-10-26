@@ -7,7 +7,7 @@
 // ==============================================================
 `timescale 1 ns / 1 ps
 
-module unet_ddr_core_mac_muladd_16ns_11ns_22ns_27_4_1_DSP48_4(
+module unet_ddr_core_mac_muladd_16ns_11ns_22ns_27_4_1_DSP48_2(
     input clk,
     input rst,
     input ce,
@@ -76,7 +76,7 @@ output[dout_WIDTH - 1:0] dout;
 
 
 
-unet_ddr_core_mac_muladd_16ns_11ns_22ns_27_4_1_DSP48_4 unet_ddr_core_mac_muladd_16ns_11ns_22ns_27_4_1_DSP48_4_U(
+unet_ddr_core_mac_muladd_16ns_11ns_22ns_27_4_1_DSP48_2 unet_ddr_core_mac_muladd_16ns_11ns_22ns_27_4_1_DSP48_2_U(
     .clk( clk ),
     .rst( reset ),
     .ce( ce ),

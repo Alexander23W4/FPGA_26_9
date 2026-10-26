@@ -95,6 +95,16 @@ static void medical_metadata(u8 *meta)
     for(i=0;i<4;++i)put32(meta+144+4*i,m.current_ml_x100[i]);
 }
 static u32 back_state(void) {return Xil_In32(PL_REG_ADDRESS(BACK_STATUS));}
+/* A new patient / loop must not inherit the previous sequence's registration.
+ * With no input DMA active, pulse image mode then restore medical mode. The
+ * top's existing rising-edge epoch invalidates only the registration reference.
+ * These are completed AXI-Lite writes before a new stream beat can arrive. */
+static void restart_medical_registration(void) {
+    if(Xil_In32(PL_REG_ADDRESS(MODE_ADDR))==PL_SYSTEM_MEDICAL) {
+        Xil_Out32(PL_REG_ADDRESS(MODE_ADDR),PL_SYSTEM_IMAGE);dsb();
+        Xil_Out32(PL_REG_ADDRESS(MODE_ADDR),PL_SYSTEM_MEDICAL);dsb();
+    }
+}
 static int unet_ready(void) {
     return Xil_In32(PL_REG_ADDRESS(MODE_ADDR))==0u ||
            ((Xil_In32(PL_REG_ADDRESS(UNET_STATUS))&1u)!=0u &&
@@ -436,6 +446,7 @@ void net_frame_poll(void)
         else if(!vdma_alive()||(vdma_mm2s_status()&1u)==0u) {fail_job("input VDMA is unavailable or busy");}
         else if(vdma_mm2s_reset()!=0||s2mm_arm(IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE)!=0) {fail_job("DMA preparation failed");}
         else {
+            restart_medical_registration(); /* Each standalone image is a new sequence. */
             Xil_DCacheFlushRange(IMG_DDR_BASE,NET_INPUT_BYTES);dsb();
             if(vdma_mm2s_config(IMG_DDR_BASE,256u,256u,256u)!=0||vdma_mm2s_start()!=0)fail_job("MM2S start failed");
             else {phase=RUNNING;job_started=now;dma_started=ticks();}

@@ -213,7 +213,10 @@ static void pipe_start(void)
         }
     }
     if(!pipe_redraw) {
-        if(input->boundary)medical_analysis_boundary();
+        if(input->boundary) {
+            medical_analysis_boundary();
+            restart_medical_registration();
+        }
         Xil_DCacheFlushRange(pipe_input_address(pipe_in_read),NET_INPUT_BYTES);dsb();
         if(vdma_mm2s_config(pipe_input_address(pipe_in_read),256u,256u,256u)!=0||vdma_mm2s_start()!=0) {
             pipe_fail("pipeline MM2S start failed",1);return;

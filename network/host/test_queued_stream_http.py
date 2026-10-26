@@ -81,6 +81,26 @@ def enqueue(base, token, sequence, *, data=INPUT, index=None, path=None, name=No
 
 
 class QueuedStreamHTTPTests(unittest.TestCase):
+    def test_medical_stop_has_only_one_dispatched_inference(self):
+        with fast_server() as (board,client,server,state,base):
+            state.system_mode='medical';board.stall_next=True
+            _,started,_=request(base,'start',{'folder':'Patient','mode':1})
+            token=started['session']
+            try:
+                self.assertEqual(server.stream._pipeline.capacity,1)
+                self.assertEqual(server.stream._pipeline.timeout,300)
+                for n in range(4):self.assertEqual(enqueue(base,token,n)[0],200)
+                request(base,'control',{'session':token,'action':'resume'})
+                self.assertTrue(wait_for(lambda:board.uploads==1))
+                _,stopping,_=request(base,'control',{'session':token,'action':'stop'})
+                self.assertEqual(stopping['pending'],0)
+                self.assertEqual(board.uploads,1)
+                board.release_late.set()
+                self.assertTrue(server.stream.wait(3))
+                self.assertEqual(board.uploads,1)
+            finally:
+                board.release_late.set();server.stream.close(3)
+
     def test_python_sends_prefetched_frames_without_gui_consuming_results_or_disk_work(self):
         with queued_server() as (board, client, server, state, base, token, started):
             self.assertEqual(started['capacity'], 4)
