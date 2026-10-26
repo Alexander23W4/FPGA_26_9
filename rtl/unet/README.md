@@ -12,6 +12,8 @@ AXI-Stream → 医学模式选择
 
 U-Net 输出原灰度、LA/RA/LV/RV 四路 mask 和 contour。像素流使用 `valid/ready/eof` 握手；下游反压时数据与标记保持。网络按完整帧接收、计算并输出，不能像逐像素滤波器那样即时产生对应像素。
 
+U-Net 专用复位 `rst_unet` 的外部复位高有效，辅助复位低有效。因此 `aux_reset_in` 必须接常数 **1**，`mb_debug_sys_rst` 接常数 **0**。旧脚本把两者都接 0，会让内核及其 AXI 时钟转换器永久复位：即使 DDR 权重头正确，`UNET_STATUS` 仍为 0。`unet_clock.tcl` 已修正既有/新建 BD 的接线并加入 `UNET_RESET_OK` 检查；已有位流必须重新构建才能包含修复。局部回归 `python rtl/unet/tests/run_reset_boot.py` 使用实际 Vivado 复位 IP 和生成的 U-Net RTL，验证旧接法阻止所有 DDR 请求，改为辅助复位接 1 后读完 7 个权重头字段并发布模型就绪。
+
 ## 模型与精度
 
 - 78 个算子覆盖 MobileNetV2 编码器、深度/逐点/普通卷积、残差、U-Net 解码器、跳跃连接和五分类输出；62 个 BatchNorm 依 eval 公式折叠。
@@ -78,7 +80,7 @@ UNET_WEIGHTS="$(cygpath -w build/unet/model/weights.bin)" bash scripts/flash_cur
 已通过：
 
 1. 32 路内核在普通卷积、深度卷积和尾通道场景下完成 Vitis HLS C/RTL 协同仿真：`build/unet/production32_kernel_cosim.log`。
-2. 完整模型数值参考对 256×256 样本的 65,536 个类别全部一致，最大 logit 误差 `1.69e-5`：`build/unet/production32_check/verification.json`。这验证实现与现有模型相符，不证明临床精度。
+2. 当前 16 路完整模型数值参考对 256×256 样本的 65,536 个类别全部一致，最大 logit 误差 `1.86e-5`：`build/unet/production16_check/verification.json`。这验证实现与现有模型相符，不证明临床精度。
 3. 32 路 U-Net 核心 OOC 160 MHz 路由；当前完整顶层 RTL 综合预算；医疗缓存顶层握手/反压、空掩膜无旧值残留、PC 网络协议与 GUI 工作流测试。
 4. 主机侧 112 个测试通过，1 个测试因 Windows 禁止创建符号链接而跳过；`freshness.py --check` 和 GUI JavaScript 语法检查通过。
 

@@ -34,17 +34,34 @@ proc ensure_unet_clock {} {
     unet_clock_connect unet_clocks_locked/Res rst_ps7_50M/dcm_locked
     if {[get_bd_cells -quiet rst_unet] eq ""} {
         create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_unet
-        set_property CONFIG.C_EXT_RESET_HIGH {1} [get_bd_cells rst_unet]
+        set_property -dict [list CONFIG.C_EXT_RESET_HIGH {1} CONFIG.C_AUX_RESET_HIGH {0}] [get_bd_cells rst_unet]
     }
+    # The auxiliary reset is active LOW: tying it to unet_zero holds the core
+    # and AXI converters in reset forever, even with a locked MMCM and weights.
+    # Repair the connection on existing projects too; propagated reset polarity
+    # parameters can be read-only after the BD interfaces have been connected.
     if {[get_bd_cells -quiet unet_zero] eq ""} {
         create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 unet_zero
         set_property -dict [list CONFIG.CONST_WIDTH {1} CONFIG.CONST_VAL {0}] [get_bd_cells unet_zero]
     }
+    if {[get_bd_cells -quiet unet_one] eq ""} {
+        create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 unet_one
+    }
+    set_property -dict [list CONFIG.CONST_WIDTH {1} CONFIG.CONST_VAL {1}] [get_bd_cells unet_one]
     unet_clock_connect clk_wiz_unet/clk_out1 rst_unet/slowest_sync_clk
     unet_clock_connect clk_wiz_unet/locked rst_unet/dcm_locked
     unet_clock_connect rst_ps7_50M/peripheral_reset rst_unet/ext_reset_in
     unet_clock_connect rst_unet/peripheral_reset top1_0/unet_rst
-    foreach pin {aux_reset_in mb_debug_sys_rst} {unet_clock_connect unet_zero/dout rst_unet/$pin}
+    unet_clock_connect unet_one/dout rst_unet/aux_reset_in
+    unet_clock_connect unet_zero/dout rst_unet/mb_debug_sys_rst
+    set auxiliary_net [get_bd_nets -of_objects [get_bd_pins rst_unet/aux_reset_in]]
+    if {$auxiliary_net ne [get_bd_nets -of_objects [get_bd_pins unet_one/dout]] ||
+        [get_property CONFIG.C_EXT_RESET_HIGH [get_bd_cells rst_unet]] != 1 ||
+        [get_property CONFIG.C_AUX_RESET_HIGH [get_bd_cells rst_unet]] != 0 ||
+        [get_property CONFIG.CONST_VAL [get_bd_cells unet_one]] != 1} {
+        error "U-Net auxiliary reset must be inactive: active-low input driven HIGH"
+    }
+    puts "UNET_RESET_OK external=active-high auxiliary=active-low/tied-high debug=tied-low"
     set xdc [file normalize [file join $::unet_root constrs unet_clock_cdc.xdc]]
     if {[llength [get_files -quiet $xdc]]==0} {add_files -fileset constrs_1 -norecurse $xdc}
     set_property PROCESSING_ORDER LATE [get_files $xdc]
