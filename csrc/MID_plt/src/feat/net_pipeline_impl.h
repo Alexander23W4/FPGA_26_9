@@ -2,6 +2,7 @@
  * one lwIP connection and the main-loop DMA owner; single-image jobs stay intact.
  * TCP receive-window backpressure limits input; a full output ring limits DMA.
  * No result acknowledgement or completed return gates the next input frame. */
+#define HELLO_MEDICAL 24u
 #define HELLO_PIPE 18u
 #define PIPE_READY 19u
 #define PIPE_UPLOAD 20u
@@ -11,7 +12,7 @@
 enum pipe_state {P_FREE, P_RECEIVE, P_READY, P_DMA, P_RESULT};
 struct pipe_input {
     enum pipe_state state;
-    u32 id, checksum, mode, boundary;
+    u32 id, checksum, mode, boundary, bytes, medical_job, raw_semantic;
     u64 started, finished, crc_ticks, copy_ticks;
 };
 struct pipe_output {
@@ -24,6 +25,7 @@ static struct pipe_input pipe_in[STREAM_INPUT_SLOTS];
 static struct pipe_output pipe_out[STREAM_OUTPUT_SLOTS];
 static int pipe_enabled, pipe_abandoned, pipe_active, pipe_redraw, pipe_rx_slot=-1;
 static int pipe_pl_frame;
+static int pipe_medical_session,pipe_cached_only,medical_cache_verified;
 static u32 pipe_in_read, pipe_in_write, pipe_out_read, pipe_out_write;
 static u32 pipe_hused, pipe_used;
 static u8 pipe_header[HEADER_BYTES], pipe_txheader[HEADER_BYTES];
@@ -34,7 +36,7 @@ static u32 pipe_tx_offset, pipe_tx_calls, pipe_tx_waits;
 static u64 pipe_tx_started, pipe_tx_copy;
 static u32 pipe_credit_pending;
 
-static u32 pipe_input_address(u32 slot) {return STREAM_INPUT_BASE+slot*NET_INPUT_BYTES;}
+static u32 pipe_input_address(u32 slot) {return pipe_medical_session?MEDICAL_INPUT_BASE+slot*MEDICAL_INPUT_BYTES:STREAM_INPUT_BASE+slot*NET_INPUT_BYTES;}
 static u32 pipe_output_address(u32 slot) {return STREAM_OUTPUT_BASE+slot*IMG_RES_DDR_SIZE;}
 static int pipe_busy(void)
 {
@@ -70,6 +72,7 @@ static void pipe_fail(const char *reason,int hardware)
 }
 static void pipe_begin(void)
 {
+    pipe_medical_session=pipe_cached_only=0;
     memset(pipe_in,0,sizeof(pipe_in));memset(pipe_out,0,sizeof(pipe_out));
     pipe_in_read=pipe_in_write=pipe_out_read=pipe_out_write=0;
     pipe_hused=pipe_used=0;pipe_rx_slot=-1;pipe_active=pipe_abandoned=0;
@@ -92,28 +95,33 @@ static u32 pipe_consume(const u8 *bytes,u32 length)
                 pipe_hused+=amount;bytes+=amount;length-=amount;
                 if(pipe_hused<HEADER_BYTES)continue;
             }
+            u32 extra=get32(pipe_header+20),kind=(extra>>10)&3u;
+            u32 expected=kind?MEDICAL_INPUT_BYTES:NET_INPUT_BYTES;
             if(get32(pipe_header)!=MAGIC||get32(pipe_header+4)!=PIPE_UPLOAD||
-               !get32(pipe_header+8)||get32(pipe_header+12)!=NET_INPUT_BYTES||
-               (get32(pipe_header+20)&~0x107u)||
-               (get32(pipe_header+20)&7u)>4u) {pipe_fail("invalid pipeline frame header",0);break;}
+               !get32(pipe_header+8)||get32(pipe_header+12)!=expected||kind>2u||
+               (extra&~(pipe_medical_session?0xf07u:0x107u))||
+               (pipe_cached_only&&kind!=2u)||(extra&7u)>4u) {pipe_fail("invalid pipeline frame header",0);break;}
             if(pipe_in[pipe_in_write].state!=P_FREE)break;
             pipe_rx_slot=(int)pipe_in_write;
             pipe_in[pipe_rx_slot].state=P_RECEIVE;
             pipe_in[pipe_rx_slot].id=get32(pipe_header+8);
             pipe_in[pipe_rx_slot].checksum=get32(pipe_header+16);
             pipe_in[pipe_rx_slot].mode=get32(pipe_header+20)&7u;
+            pipe_in[pipe_rx_slot].bytes=expected;
+            pipe_in[pipe_rx_slot].medical_job=kind;
+            pipe_in[pipe_rx_slot].raw_semantic=(extra&0x200u)!=0;
             pipe_in[pipe_rx_slot].boundary=(get32(pipe_header+20)&0x100u)!=0;
             pipe_in[pipe_rx_slot].started=ticks();
             pipe_in[pipe_rx_slot].copy_ticks=0;pipe_used=0;pipe_hused=0;
         }
-        amount=NET_INPUT_BYTES-pipe_used;if(amount>length)amount=length;
+        amount=pipe_in[pipe_rx_slot].bytes-pipe_used;if(amount>length)amount=length;
         before=ticks();memcpy((void *)(UINTPTR)(pipe_input_address((u32)pipe_rx_slot)+pipe_used),bytes,amount);
         pipe_in[pipe_rx_slot].copy_ticks+=ticks()-before;
         pipe_used+=amount;bytes+=amount;length-=amount;
-        if(pipe_used==NET_INPUT_BYTES) {
+        if(pipe_used==pipe_in[pipe_rx_slot].bytes) {
             struct pipe_input *input=&pipe_in[pipe_rx_slot];
             input->finished=ticks();before=ticks();
-            actual=crc32_calc((const u8 *)(UINTPTR)pipe_input_address((u32)pipe_rx_slot),NET_INPUT_BYTES);
+            actual=crc32_calc((const u8 *)(UINTPTR)pipe_input_address((u32)pipe_rx_slot),input->bytes);
             input->crc_ticks=ticks()-before;
             if(actual!=input->checksum) {pipe_fail("pipeline upload CRC mismatch",0);break;}
             input->state=P_READY;
@@ -171,7 +179,7 @@ static void pipe_finish(void)
     if(mode!=input->mode||i<IMG_RES_DDR_SIZE) {pipe_fail("pipeline RGBA/frame mode mismatch",1);return;}
     output->id=input->id;output->mode=mode;
     output->input_crc_ticks=input->crc_ticks;output->copy_ticks=input->copy_ticks;
-    if(Xil_In32(PL_REG_ADDRESS(MODE_ADDR))) (void)medical_collect_frame();
+    if(input->medical_job!=1u&&Xil_In32(PL_REG_ADDRESS(MODE_ADDR))) (void)medical_collect_frame();
     put32(output->meta,7u);
     for(i=0;i<7;++i)put32(output->meta+4u*(i+1u),i==2?mode:Xil_In32(PL_REG_ADDRESS(regs[i])));
     put32(output->meta+32,micros(input->finished-input->started));
@@ -196,7 +204,7 @@ static void pipe_start(void)
     u32 current;
     if(pipe_active||pipe_abandoned||input->state!=P_READY||output->state!=P_FREE)return;
     if(back_state()&1u)return;
-    if(!unet_ready()) {pipe_fail("U-Net model not ready; load matching DDR weights first",0);return;}
+    if(!input->medical_job&&!unet_ready()) {pipe_fail("U-Net model not ready; load matching DDR weights first",0);return;}
     if(!vdma_alive()||(vdma_mm2s_status()&1u)==0u) {pipe_fail("input VDMA unavailable",1);return;}
     current=Xil_In32(PL_REG_ADDRESS(VIDEO_MODE_ADDR));
     /* A mode write can emit the PREVIOUS PL image. Capture and discard that
@@ -213,12 +221,17 @@ static void pipe_start(void)
         }
     }
     if(!pipe_redraw) {
-        if(input->boundary) {
+        if(input->boundary&&input->medical_job!=1u) {
             medical_analysis_boundary();
-            restart_medical_registration();
+            if(!input->medical_job)restart_medical_registration();
         }
-        Xil_DCacheFlushRange(pipe_input_address(pipe_in_read),NET_INPUT_BYTES);dsb();
-        if(vdma_mm2s_config(pipe_input_address(pipe_in_read),256u,256u,256u)!=0||vdma_mm2s_start()!=0) {
+        if(medical_cache_verified) {
+            u32 setting=input->medical_job|(input->raw_semantic?0x100u:0u);
+            Xil_Out32(PL_REG_ADDRESS(MEDICAL_JOB),setting);dsb();
+            if(Xil_In32(PL_REG_ADDRESS(MEDICAL_JOB))!=setting) {pipe_fail("medical packet mode readback mismatch",1);return;}
+        }
+        Xil_DCacheFlushRange(pipe_input_address(pipe_in_read),input->bytes);dsb();
+        if(vdma_mm2s_config(pipe_input_address(pipe_in_read),input->bytes/256u,256u,input->bytes/256u)!=0||vdma_mm2s_start()!=0) {
             pipe_fail("pipeline MM2S start failed",1);return;
         }
         input->state=P_DMA;

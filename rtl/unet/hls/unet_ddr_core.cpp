@@ -1,7 +1,6 @@
 #include "unet_ddr_core.h"
 #include "model_ops.h"
 
-static const int TILE=64, INPUT_TILE=16;
 static const unsigned MODEL_MAGIC=0x554e4554;
 static unsigned float_bits(float x){union {float f;unsigned u;} p;p.f=x;return p.u;}
 static float activate(float x,unsigned mode){
@@ -9,88 +8,8 @@ static float activate(float x,unsigned mode){
     if(mode==2 && x>6.0f)x=6.0f;
     return x;
 }
-// Shared tiled engine executes every encoder/decoder convolution. Weights
-// are reused across TILE pixels; features are reused across parallel lanes.
-static void convolution(const UnetOp &op,const float *weights,float *memory){
-#pragma HLS INLINE off
-    float acc[TILE][UNET_LANES],patch[TILE][INPUT_TILE],kernel[INPUT_TILE][UNET_LANES];
-#pragma HLS ARRAY_PARTITION variable=acc complete dim=2
-#pragma HLS ARRAY_PARTITION variable=patch complete dim=2
-#pragma HLS ARRAY_PARTITION variable=kernel complete dim=2
-#pragma HLS BIND_STORAGE variable=acc type=ram_2p impl=lutram
-#pragma HLS BIND_STORAGE variable=patch type=ram_2p impl=lutram
-#pragma HLS BIND_STORAGE variable=kernel type=ram_2p impl=lutram
-    const bool dw=op.kind==1;
-    const unsigned reduce=dw?1:op.cin,total=op.oh*op.ow;
-    SPATIAL:for(unsigned base=0;base<total;base+=TILE){
-        CHANNEL_BLOCK:for(unsigned oc=0;oc<op.cout;oc+=UNET_LANES){
-            float bias[UNET_LANES];
-#pragma HLS ARRAY_PARTITION variable=bias complete
-            for(unsigned l=0;l<UNET_LANES;l++){
-#pragma HLS PIPELINE II=1
-                bias[l]=weights[op.bias+oc+l];
-            }
-            for(unsigned p=0;p<TILE;p++){
-#pragma HLS PIPELINE II=1
-                for(unsigned l=0;l<UNET_LANES;l++){
-#pragma HLS UNROLL
-                    acc[p][l]=bias[l];
-                }
-            }
-            KERNEL_Y:for(unsigned ky=0;ky<op.kernel;ky++)
-            KERNEL_X:for(unsigned kx=0;kx<op.kernel;kx++)
-            INPUT_CHANNEL_BLOCK:for(unsigned cb=0;cb<reduce;cb+=INPUT_TILE){
-                unsigned count=dw?1:((reduce-cb<INPUT_TILE)?reduce-cb:INPUT_TILE);
-                for(unsigned c=0;c<count;c++)for(unsigned l=0;l<UNET_LANES;l++){
-#pragma HLS PIPELINE II=1
-                    unsigned wi=((oc/UNET_LANES*op.kernel+ky)*op.kernel+kx)*reduce+cb+c;
-                    kernel[c][l]=weights[op.weights+wi*UNET_LANES+l];
-                }
-                for(unsigned p=0;p<TILE;p++){
-                    unsigned pos=base+p;
-                    int iy=int((pos>>op.wlog)*op.stride+ky)-int(op.kernel/2);
-                    int ix=int((pos&(op.ow-1))*op.stride+kx)-int(op.kernel/2);
-                    bool inside=pos<total && iy>=0 && ix>=0 && iy<int(op.ih) && ix<int(op.iw);
-                    unsigned capacity=dw?UNET_LANES:count;
-                    unsigned channel_base=dw?oc:cb;
-                    unsigned width=op.cin-channel_base;
-                    if(width>capacity)width=capacity;
-                    if(inside) {
-                        // Keep validity tests OUTSIDE this contiguous AXI loop.
-                        // A per-element predicate prevented feature bursts and
-                        // turned hundreds of MB of reads into single-word AXI.
-                        for(unsigned c=0;c<width;c++){
-#pragma HLS PIPELINE II=1
-                            patch[p][c]=memory[op.src+(iy*op.iw+ix)*op.cin+channel_base+c];
-                        }
-                    }
-                    for(unsigned c=inside?width:0;c<capacity;c++){
-#pragma HLS PIPELINE II=1
-                        patch[p][c]=0.0f;
-                    }
-                }
-                DOT_INPUT:for(unsigned c=0;c<count;c++)
-                DOT_PIXEL:for(unsigned p=0;p<TILE;p++){
-#pragma HLS PIPELINE II=1
-#pragma HLS DEPENDENCE variable=acc inter false
-                    DOT_LANE:for(unsigned l=0;l<UNET_LANES;l++){
-#pragma HLS UNROLL
-                        float a=dw?patch[p][l]:patch[p][c];
-                        float product=a*kernel[c][l];
-#pragma HLS BIND_OP variable=product op=fmul impl=fulldsp
-                        acc[p][l]=acc[p][l]+product;
-                    }
-                }
-            }
-            unsigned pixels=total-base<TILE?total-base:TILE;
-            unsigned channels=op.cout-oc<UNET_LANES?op.cout-oc:UNET_LANES;
-            for(unsigned p=0;p<pixels;p++)for(unsigned l=0;l<channels;l++){
-#pragma HLS PIPELINE II=1
-                memory[op.dst+(base+p)*op.cout+oc+l]=activate(acc[p][l],op.activation);
-            }
-        }
-    }
-}
+#include "unet_conv.h"
+
 static void elementwise(const UnetOp &op,float *memory){
 #pragma HLS INLINE off
     // The exporter proves destination lifetime is disjoint from both sources.

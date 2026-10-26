@@ -16,6 +16,7 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
     output reg [31:0] s_axi_rdata, output reg [1:0] s_axi_rresp,
     output reg s_axi_rvalid, input wire s_axi_rready,
 
+    output reg [31:0] reg_medical_job,
     output reg [31:0] reg_mode, output reg [31:0] reg_cmd,
     output reg [7:0] reg_threshold, output reg host_wr_en,
     input wire [31:0] status_in,
@@ -71,6 +72,7 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
         end
     endfunction
 
+    wire [31:0] next_medical_job = merge_bytes(reg_medical_job, write_data, write_strb);
     wire [31:0] next_alpha = merge_bytes(reg_mask_transparency, write_data, write_strb);
 
     // AW and W can arrive in either order. Retain each until paired.
@@ -83,7 +85,7 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
             aw_pending <= 0; w_pending <= 0;
             aw_saved <= 0; w_saved <= 0; strb_saved <= 0;
             s_axi_bvalid <= 0; s_axi_bresp <= 0;
-            reg_mode <= 0; reg_cmd <= 0; reg_threshold <= 0;
+            reg_medical_job <= 0; reg_mode <= 0; reg_cmd <= 0; reg_threshold <= 0;
             reg_video_mode <= 0; reg_mask_transparency <= 32'd45;
             reg_hdmi_en <= 1;
             host_wr_en <= 0;
@@ -100,6 +102,7 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
                 if (write_addr[1:0] != 2'b00) s_axi_bresp <= 2'b10;
                 else begin
                     case (write_addr[8:2])
+                        7'h2b: if(next_medical_job[1:0]==3 || (next_medical_job & ~32'h103)!=0) s_axi_bresp<=2'b10; else reg_medical_job<=next_medical_job;
                         ADDR_MODE: reg_mode <= merge_bytes(reg_mode, write_data, write_strb);
                         ADDR_CMD: reg_cmd <= merge_bytes(reg_cmd, write_data, write_strb);
                         ADDR_VIDEO_MODE: reg_video_mode <= merge_bytes(reg_video_mode, write_data, write_strb);
@@ -129,6 +132,8 @@ module axi_lite_slave #(parameter integer CLK_HZ = 80000000) (
                         7'h15: s_axi_rdata <= VOLUME_STATUS;
                         7'h16: s_axi_rdata <= 32'h564f4c31; // VOL1 ABI
                         7'h2a: s_axi_rdata <= unet_status;
+                        7'h2b: s_axi_rdata <= reg_medical_job;
+                        7'h2c: s_axi_rdata <= 32'h43414331;
                         ADDR_VOLUME_LA: s_axi_rdata <= VOLUME_LA;
                         ADDR_VOLUME_RA: s_axi_rdata <= VOLUME_RA;
                         ADDR_VOLUME_LV: s_axi_rdata <= VOLUME_LV;

@@ -55,6 +55,7 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
     output wire        auto_mode_out,     // 1 = auto, 0 = manual
     output wire        frame_done_out,     // frame done forwarded
 
+    output wire [31:0] medical_job_out,
     output wire reg_mode_out,
     output wire [31:0] video_mode_out,
     output wire hdmi_enable_out,
@@ -121,7 +122,7 @@ module top_threshold_demo #(parameter integer CLK_HZ = 80000000) (
         .VOLUME_RA(VOLUME_RA),
         .VOLUME_LV(VOLUME_LV),
         .VOLUME_RV(VOLUME_RV), .unet_status(unet_status),
-        .reg_mode      (reg_mode),
+        .reg_medical_job(medical_job_out), .reg_mode(reg_mode),
         .reg_cmd       (reg_cmd),
         .reg_threshold (reg_threshold),
         .host_wr_en    (host_wr_en),

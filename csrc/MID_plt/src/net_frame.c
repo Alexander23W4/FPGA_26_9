@@ -262,13 +262,21 @@ static void handle_header(void)
     u32 type=get32(rx_header+4),id=get32(rx_header+8),length=get32(rx_header+12);
     u32 checksum=get32(rx_header+16),extra=get32(rx_header+20);
     if(get32(rx_header)!=MAGIC) {error_response(id,FAILED,"unsupported protocol; update host and firmware together");return;}
-    if(type==HELLO_PIPE) {
-        if(!unet_ready()) {error_response(id,FAILED,"U-Net model not ready; load matching DDR weights first");return;}
-        if(!id||length||checksum||extra>1000000u||phase!=IDLE||pipe_enabled) {
+    if(type==HELLO_PIPE||type==HELLO_MEDICAL) {
+        int extended=type==HELLO_MEDICAL,cached=extended&&(extra&0x80000000u);
+        u32 source_us=extended?(extra&0x7fffffffu):extra;
+        if(extended&&(Xil_In32(PL_REG_ADDRESS(MODE_ADDR))!=PL_SYSTEM_MEDICAL||
+           Xil_In32(PL_REG_ADDRESS(MEDICAL_CACHE_ABI))!=MEDICAL_CACHE_ABI_V1)) {
+            error_response(id,FAILED,"medical cache PL ABI unavailable; rebuild and flash PL and PS");return;
+        }
+        if(!cached&&!unet_ready()) {error_response(id,FAILED,"U-Net model not ready; load matching DDR weights first");return;}
+        if(!id||length||checksum||source_us>1000000u||phase!=IDLE||pipe_enabled) {
             error_response(id,BUSY,"pipeline unavailable; finish the current job first");return;
         }
-        medical_analysis_reset(extra);
-        pipe_begin();response(PIPE_READY,id,0,0,0,7u);return;
+        medical_analysis_reset(source_us);
+        pipe_begin();pipe_medical_session=extended;pipe_cached_only=cached;
+        if(extended)medical_cache_verified=1;
+        response(PIPE_READY,id,0,0,0,extended?8u:7u);return;
     }
     if(type==HELLO_FAST) {
         if(!id||length||checksum||extra) {error_response(id,FAILED,"invalid stream capability request");return;}
@@ -446,6 +454,7 @@ void net_frame_poll(void)
         else if(!vdma_alive()||(vdma_mm2s_status()&1u)==0u) {fail_job("input VDMA is unavailable or busy");}
         else if(vdma_mm2s_reset()!=0||s2mm_arm(IMG_RES_DDR_BASE,IMG_RES_DDR_SIZE)!=0) {fail_job("DMA preparation failed");}
         else {
+            if(medical_cache_verified) {Xil_Out32(PL_REG_ADDRESS(MEDICAL_JOB),0u);dsb();}
             restart_medical_registration(); /* Each standalone image is a new sequence. */
             Xil_DCacheFlushRange(IMG_DDR_BASE,NET_INPUT_BYTES);dsb();
             if(vdma_mm2s_config(IMG_DDR_BASE,256u,256u,256u)!=0||vdma_mm2s_start()!=0)fail_job("MM2S start failed");

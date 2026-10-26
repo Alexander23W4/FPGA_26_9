@@ -8,7 +8,7 @@ module out_arr #(parameter integer CHAMBERS=1) (
     input wire pclk, input wire rst,
     input wire [7:0] buf_data,
     input wire [CHAMBERS-1:0] buf_mask, input wire [CHAMBERS-1:0] buf_contour,
-    input tri0 buf_medical,
+    input tri0 buf_medical, raw_semantic,
     // Settings must belong to this instance's clock domain. HDMI uses CDC;
     // the return instance receives the processing-domain registers directly.
     input wire [31:0] video_mode, input wire [31:0] mask_transparency,
@@ -19,6 +19,17 @@ module out_arr #(parameter integer CHAMBERS=1) (
     output wire [31:0] video_mode_out
 );
     reg [31:0] video_mode_active;
+    reg raw_active;
+    reg [23:0] raw_s1,raw_s2;
+    wire [7:0] color_r,color_g,color_b;
+    assign {vid_r,vid_g,vid_b}=raw_active?raw_s2:{color_r,color_g,color_b};
+    always @(posedge pclk)begin
+        if(rst)begin raw_s1<=0;raw_s2<=0;raw_active<=0;end
+        else begin
+            raw_s1<={buf_data,{{(8-CHAMBERS){1'b0}},buf_mask},{{(8-CHAMBERS){1'b0}},buf_contour}};raw_s2<=raw_s1;
+            if(frame_start)raw_active<=raw_semantic;
+        end
+    end
     reg [6:0] mask_transparency_active;
     reg [1:0] valid_pipe, sof_pipe;
     reg return_pending;
@@ -65,6 +76,6 @@ module out_arr #(parameter integer CHAMBERS=1) (
         .mode(video_mode_active), .alpha(mask_transparency_active),
         // Only RGB leaves this module; hdmi_out aligns its own HS/VS/DE.
         .image_active(image_active), .in_hs(1'b1), .in_vs(1'b1), .in_de(1'b1),
-        .r(vid_r), .g(vid_g), .b(vid_b), .hs(), .vs(), .de()
+        .r(color_r), .g(color_g), .b(color_b), .hs(), .vs(), .de()
     );
 endmodule

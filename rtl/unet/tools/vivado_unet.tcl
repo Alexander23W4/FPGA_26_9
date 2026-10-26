@@ -1,6 +1,8 @@
 # Source inside a Vivado project. IP sources under ip/ are never touched.
 set ::unet_root [file normalize [file join [file dirname [info script]] .. .. ..]]
+source [file join $::unet_root rtl unet tools unet_clock.tcl]
 proc prepare_unet_operators {} {
+    set_property XPM_LIBRARIES {XPM_CDC XPM_FIFO XPM_MEMORY} [current_project]
     # Vivado exports its own PYTHONHOME/PYTHONPATH. Isolate the external
     # interpreter so it uses its matching standard library instead.
     puts [exec python -I [file join $::unet_root rtl unet tools freshness.py] --check]
@@ -23,10 +25,13 @@ proc ensure_unet_ddr {} {
     if {[get_property CONFIG.NUM_SI [get_bd_cells axi_ic_hp]]<5} {
         set_property CONFIG.NUM_SI 5 [get_bd_cells axi_ic_hp]
     }
-    foreach {source port} {M_AXI_UNET_WEIGHTS S02 M_AXI_UNET_FEATURES S03 M_AXI_REGISTRATION S04} {
-        return_intf top1_0/$source axi_ic_hp/${port}_AXI
-        return_connect clk_wiz_0/clk_out1 axi_ic_hp/${port}_ACLK
-        return_connect rst_ps7_50M/peripheral_aresetn axi_ic_hp/${port}_ARESETN
+    ensure_unet_clock
+    ensure_unet_axi_clock M_AXI_UNET_WEIGHTS S02 unet_weights_clock 1
+    ensure_unet_axi_clock M_AXI_UNET_FEATURES S03 unet_features_clock 0
+    return_intf top1_0/M_AXI_REGISTRATION axi_ic_hp/S04_AXI
+    return_connect clk_wiz_0/clk_out1 axi_ic_hp/S04_ACLK
+    return_connect rst_ps7_50M/peripheral_aresetn axi_ic_hp/S04_ARESETN
+    foreach source {M_AXI_UNET_WEIGHTS M_AXI_UNET_FEATURES M_AXI_REGISTRATION} {
         set space [get_bd_addr_spaces -of_objects [get_bd_intf_pins top1_0/$source]]
         if {[llength $space]!=1} {error "Cannot infer U-Net address space $source"}
         set ddr [get_bd_addr_segs -of_objects [get_bd_intf_pins processing_system7_0/S_AXI_HP0] -filter {NAME =~ *DDR*}]

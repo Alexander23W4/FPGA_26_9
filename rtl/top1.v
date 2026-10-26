@@ -11,8 +11,14 @@ module top1 #(
 )(
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS:M_AXIS:M_AXI_UNET_WEIGHTS:M_AXI_UNET_FEATURES:M_AXI_REGISTRATION, ASSOCIATED_RESET rst" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:S_AXIS:M_AXIS:M_AXI_REGISTRATION, ASSOCIATED_RESET rst" *)
     input  wire        clk,
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 unet_clk CLK" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF M_AXI_UNET_WEIGHTS:M_AXI_UNET_FEATURES, ASSOCIATED_RESET unet_rst" *)
+    input wire unet_clk,
+    (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 unet_rst RST" *)
+    (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_HIGH" *)
+    input wire unet_rst,
 
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst RST" *)
     (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_HIGH" *)
@@ -327,7 +333,7 @@ module top1 #(
     wire [7:0] hdl_data, medical_out_data;
     wire [3:0] hdl_mask, hdl_contour, medical_out_mask, medical_out_contour;
     wire medical_out_valid, medical_out_eof, medical_out_ready;
-    wire [31:0] video_mode, mask_transparency;
+    wire [31:0] video_mode, mask_transparency, medical_job;
     wire hdmi_enable, hdmi_enable_pclk, display_armed, hdmi_read_lock, hdmi_read_en;
     wire [7:0] back_frame_mode;
     (* MARK_DEBUG = "TRUE" *) wire back_busy, back_overflow, back_frame_sent;
@@ -336,12 +342,41 @@ module top1 #(
     reset_sync u_rst_pclk(.clk(pclk), .arst(rst), .rst(rst_pclk));
     reset_sync u_rst_x5(.clk(pclk_x5), .arst(rst), .rst(rst_x5));
     wire reg_mode, selected_mode;
+    wire cached_pixels=reg_mode&&(medical_job[1:0]!=0);
+    wire normal_px_ready,cache_byte_ready,cache_valid,cache_eof,cache_ready;
+    wire [7:0] cache_data,edge_data,metrics_in_data,metrics_data;
+    wire [3:0] cache_mask,cache_contour,edge_mask,edge_contour,metrics_in_mask,metrics_in_contour,metrics_mask,metrics_contour;
+    wire edge_valid,edge_eof,edge_ready,edge_in_ready,metrics_in_valid,metrics_in_eof,metrics_in_ready,metrics_valid,metrics_eof,metrics_ready;
+    assign px_ready=cached_pixels?cache_byte_ready:normal_px_ready;
+    medical_cache_input u_cache_input(.clk(clk),.rst(rst_clk),.enable(cached_pixels),
+        .in_data(px_data[7:0]),.in_valid(px_valid&&cached_pixels),.in_ready(cache_byte_ready),
+        .out_data(cache_data),.out_mask(cache_mask),.out_contour(cache_contour),
+        .out_valid(cache_valid),.out_eof(cache_eof),.out_ready(cache_ready));
+    mask_to_contour u_mask_contour(.clk(clk),.rst(rst_clk||!cached_pixels||medical_job[1:0]!=1),
+        .in_data(cache_data),.in_mask(cache_mask),.in_valid(cache_valid&&medical_job[1:0]==1),
+        .in_eof(cache_eof),.in_ready(edge_in_ready),
+        .out_data(edge_data),.out_mask(edge_mask),.out_contour(edge_contour),
+        .out_valid(edge_valid),.out_eof(edge_eof),.out_ready(edge_ready),.frame_error());
+    assign cache_ready=medical_job[1:0]==1?edge_in_ready:metrics_in_ready;
+    assign metrics_in_data=cached_pixels?cache_data:unet_data;
+    assign metrics_in_mask=cached_pixels?cache_mask:unet_mask;
+    assign metrics_in_contour=cached_pixels?cache_contour:unet_contour;
+    assign metrics_in_valid=cached_pixels?(cache_valid&&medical_job[1:0]==2):unet_valid;
+    assign metrics_in_eof=cached_pixels?cache_eof:unet_eof;
+    assign unet_ready=!cached_pixels&&metrics_in_ready;
+    assign medical_out_data=medical_job[1:0]==1?edge_data:metrics_data;
+    assign medical_out_mask=medical_job[1:0]==1?edge_mask:metrics_mask;
+    assign medical_out_contour=medical_job[1:0]==1?edge_contour:metrics_contour;
+    assign medical_out_valid=medical_job[1:0]==1?edge_valid:metrics_valid;
+    assign medical_out_eof=medical_job[1:0]==1?edge_eof:metrics_eof;
+    assign edge_ready=medical_job[1:0]==1&&medical_out_ready;
+    assign metrics_ready=medical_job[1:0]!=1&&medical_out_ready;
     wire [7:0] image_data, medical_data;
     wire image_valid, image_eof, image_ready;
     wire medical_valid, medical_eof, medical_ready;
     frame_xbar u_input_xbar (
         .clk(clk), .rst(rst_clk), .reg_mode(reg_mode),
-        .in_data(px_data[7:0]), .in_valid(px_valid), .in_eof(px_eof), .in_ready(px_ready),
+        .in_data(px_data[7:0]), .in_valid(px_valid&&!cached_pixels), .in_eof(px_eof), .in_ready(normal_px_ready),
         .image_data(image_data), .image_valid(image_valid), .image_eof(image_eof), .image_ready(image_ready),
         .medical_data(medical_data), .medical_valid(medical_valid), .medical_eof(medical_eof), .medical_ready(medical_ready),
         .selected_mode(selected_mode)
@@ -433,8 +468,8 @@ registration_top u_registration (
         assign M_AXI_REGISTRATION_RREADY=0;
     end endgenerate
     generate if (ENABLE_UNET) begin : g_unet
-        unet #(.CLASS_MAP(UNET_CLASS_MAP)) u_unet(
-            .clk(clk),.rst(rst_clk),.enable(reg_mode),
+        unet #(.CLASS_MAP(UNET_CLASS_MAP),.ASYNC_CORE_CLOCK(1)) u_unet(
+            .clk(clk),.unet_clk(unet_clk),.core_arst(unet_rst),.rst(rst_clk),.enable(reg_mode),
             .in_data(registered_data),.in_valid(registered_valid),.in_eof(registered_eof),.in_ready(registered_ready),
             .out_data(unet_data),.out_valid(unet_valid),.out_eof(unet_eof),.out_ready(unet_ready),
             .LA_mask(unet_mask[0]),.RA_mask(unet_mask[1]),.LV_mask(unet_mask[2]),.RV_mask(unet_mask[3]),
@@ -540,14 +575,14 @@ registration_top u_registration (
     // Medical metrics and payload use the SAME segmented, registered frame.
     medical_accel_top u_medical (
         .clk(clk), .rst(rst_clk),
-        .in_data(unet_data), .in_valid(unet_valid), .in_eof(unet_eof), .in_ready(unet_ready),
-        .in_LA_ctr(unet_contour[0]), .in_RA_ctr(unet_contour[1]), .in_LV_ctr(unet_contour[2]), .in_RV_ctr(unet_contour[3]),
-        .in_LA_mask(unet_mask[0]), .in_RA_mask(unet_mask[1]), .in_LV_mask(unet_mask[2]), .in_RV_mask(unet_mask[3]),
-        .out_data(medical_out_data), .out_valid(medical_out_valid), .out_eof(medical_out_eof), .out_ready(medical_out_ready),
-        .out_LA_ctr(medical_out_contour[0]), .out_RA_ctr(medical_out_contour[1]),
-        .out_LV_ctr(medical_out_contour[2]), .out_RV_ctr(medical_out_contour[3]),
-        .out_LA_mask(medical_out_mask[0]), .out_RA_mask(medical_out_mask[1]),
-        .out_LV_mask(medical_out_mask[2]), .out_RV_mask(medical_out_mask[3]),
+        .in_data(metrics_in_data), .in_valid(metrics_in_valid), .in_eof(metrics_in_eof), .in_ready(metrics_in_ready),
+        .in_LA_ctr(metrics_in_contour[0]), .in_RA_ctr(metrics_in_contour[1]), .in_LV_ctr(metrics_in_contour[2]), .in_RV_ctr(metrics_in_contour[3]),
+        .in_LA_mask(metrics_in_mask[0]), .in_RA_mask(metrics_in_mask[1]), .in_LV_mask(metrics_in_mask[2]), .in_RV_mask(metrics_in_mask[3]),
+        .out_data(metrics_data), .out_valid(metrics_valid), .out_eof(metrics_eof), .out_ready(metrics_ready),
+        .out_LA_ctr(metrics_contour[0]), .out_RA_ctr(metrics_contour[1]),
+        .out_LV_ctr(metrics_contour[2]), .out_RV_ctr(metrics_contour[3]),
+        .out_LA_mask(metrics_mask[0]), .out_RA_mask(metrics_mask[1]),
+        .out_LV_mask(metrics_mask[2]), .out_RV_mask(metrics_mask[3]),
         .VOLUME_LA(VOLUME_LA), .VOLUME_RA(VOLUME_RA),
         .VOLUME_LV(VOLUME_LV), .VOLUME_RV(VOLUME_RV), .VOLUME_SEQ(VOLUME_SEQ), .VOLUME_STATUS(VOLUME_STATUS)
     );
@@ -573,7 +608,7 @@ registration_top u_registration (
         .m_axis_tready(ts_ready), .m_axis_tlast(ts_eof),
         .m_axis_tmask(ts_mask), .m_axis_tcontour(ts_contour),
         .threshold_out(), .auto_mode_out(), .frame_done_out(),
-        .reg_mode_out(reg_mode),
+        .reg_mode_out(reg_mode), .medical_job_out(medical_job),
         .video_mode_out(video_mode), .mask_transparency_out(mask_transparency),
         .hdmi_enable_out(hdmi_enable),
         .back_frame_mode(back_frame_mode),
@@ -679,7 +714,7 @@ registration_top u_registration (
         .job_start(back_job_start), .new_image_start(back_new_image_start), .pixel_valid(back_pixel_valid)
     );
     out_arr #(.CHAMBERS(4)) u_back_out_arr (
-        .pclk(clk), .rst(rst_clk), .buf_data(back_read_data),
+        .pclk(clk), .rst(rst_clk), .raw_semantic(medical_job[8]&&reg_mode), .buf_data(back_read_data),
         .buf_mask(back_read_mask), .buf_contour(back_read_contour), .buf_medical(back_read_medical),
         .video_mode(video_mode), .mask_transparency(mask_transparency),
         .frame_start(back_job_start), .image_active(back_pixel_valid),

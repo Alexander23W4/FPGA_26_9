@@ -7,7 +7,7 @@ set_top unet_ddr_core
 add_files [file join $here unet_ddr_core.cpp] -cflags "-std=c++14 -I$here"
 open_solution -reset solution -flow_target vivado
 set_part xc7z015clg485-2
-create_clock -period 12.5 -name default
+create_clock -period 4.0 -name default
 config_interface -m_axi_addr64=false
 config_rtl -reset all -reset_level high
 config_compile -unsafe_math_optimizations=false

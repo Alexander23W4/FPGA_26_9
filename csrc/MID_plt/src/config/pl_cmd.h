@@ -33,6 +33,9 @@
 #ifndef PL_VOLUME_SCALE_ASSUMED
 #define PL_VOLUME_SCALE_ASSUMED 0u /* Explicit coefficient supplied by the build. */
 #endif
+#define MEDICAL_JOB      0x2bu /* 0 full chain, 1 mask-to-contour only, 2 cached metrics; bit8 raw semantic return */
+#define MEDICAL_CACHE_ABI 0x2cu /* RO CAC1; cached packets require this PL ABI */
+#define MEDICAL_CACHE_ABI_V1 0x43414331u
 #define UNET_STATUS      0x2au /* bit0 model ready, bit1 computing, bit2 malformed frame */
 #define VOLUME_LA        0x10u /* RO: per-frame pixel^3 * 100 */
 #define VOLUME_RA        0x11u

@@ -23,10 +23,12 @@ PIPE_CREDIT = 23
 
 class FramePipeline:
     def __init__(self, host, port, timeout=60, *, capacity=8, send_buffer=None,
-                 send_chunk=None, send_pause=0, source_frame_us=0):
+                 send_chunk=None, send_pause=0, source_frame_us=0, medical_workflow=None):
         self.host, self.port, self.timeout = host, port, timeout
         self.capacity = capacity
         self.source_frame_us=source_frame_us
+        if medical_workflow not in (None,"segmentation","analysis"):raise ValueError("invalid medical workflow")
+        self.medical_workflow=medical_workflow
         self._capability=6
         self.send_buffer = send_buffer
         if send_chunk is not None and (isinstance(send_chunk, bool)
@@ -52,9 +54,10 @@ class FramePipeline:
             if self.send_buffer is not None:
                 sock.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,self.send_buffer)
             sock.settimeout(self.timeout)
-            sock.sendall(packet(HELLO_PIPE, self._next_job,extra=self.source_frame_us))
+            sock.sendall(packet(24 if self.medical_workflow else HELLO_PIPE, self._next_job,
+                                extra=self.source_frame_us|(0x80000000 if self.medical_workflow=="analysis" else 0)))
             kind,length,checksum,capability=receive_header(sock,self._next_job)
-            if (kind,length,checksum)!=(PIPE_READY,0,0) or capability not in (6,7):
+            if (kind,length,checksum)!=(PIPE_READY,0,0) or capability not in (6,7,8) or (self.medical_workflow and capability!=8):
                 raise ValueError('continuous stream protocol unavailable; rebuild and flash PS')
             self._capability=capability
         except BaseException:
@@ -68,7 +71,9 @@ class FramePipeline:
 
     def submit(self, source, mode):
         data = source['data']
-        if len(data) != INPUT_BYTES or mode not in range(5):
+        kind=int(source.get('medical_job',0));semantic=bool(source.get('semantic_return',False))
+        if (kind not in (0,1,2) or (kind or semantic) and not self.medical_workflow
+                or len(data) != INPUT_BYTES*(3 if kind else 1) or mode not in range(5)):
             raise ValueError('invalid pipeline input or mode')
         with self._condition:
             if self._closed or self._error:
@@ -81,6 +86,7 @@ class FramePipeline:
             self._next_job = (job + 1) & 0xffffffff or 1
             future = Future()
             context = {'job': job, 'mode': mode, 'data': data, 'future': future,
+                       'medical_job':kind,'semantic_return':semantic,
                        'started': time.perf_counter(), 'sent': threading.Event(),
                        'upload_queue_ms': 0.0, 'upload_ms': 0.0}
             context['boundary']=source.get('index')==0 and self._capability>=7
@@ -126,7 +132,8 @@ class FramePipeline:
                 context['upload_queue_ms'] = (started-context['started'])*1000
                 data = context['data']
                 payload = packet(PIPE_UPLOAD, context['job'], len(data), crc(data),
-                                 context['mode'] | (0x100 if context['boundary'] else 0)) + data
+                                 context['mode'] | (0x100 if context['boundary'] else 0) |
+                                 (context['medical_job']<<10) | (0x200 if context['semantic_return'] else 0)) + data
                 if self.send_chunk is None:
                     self._socket.sendall(payload)
                 else:

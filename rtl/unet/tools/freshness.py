@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[3]
 def configuration(name):
     if name=='unet':
         directory=ROOT/'rtl/unet/generated'
-        source=[ROOT/'rtl/unet/hls'/n for n in ('unet_ddr_core.cpp','unet_ddr_core.h','model_ops.h','build_hls.tcl')]
+        source=[ROOT/'rtl/unet/hls'/n for n in ('unet_ddr_core.cpp','unet_ddr_core.h','unet_conv.h','model_ops.h','build_hls.tcl')]
         source += [ROOT/'rtl/unet/tools/export_model.py',next((ROOT/'ip/ai4chamberseger').glob('*.zip'))]
     else:
         directory=ROOT/'rtl/inter_fr/ddr/generated'

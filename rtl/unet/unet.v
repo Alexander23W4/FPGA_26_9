@@ -3,9 +3,11 @@
 module unet #(
     parameter [31:0] WEIGHTS_BASE=32'h28000000, FEATURE_BASE=32'h2c000000,
     // Class IDs follow colleague conv.cpp; confirm the training annotation legend.
-    parameter [15:0] CLASS_MAP=16'h4321
+    parameter [15:0] CLASS_MAP=16'h4321,
+    parameter integer ASYNC_CORE_CLOCK=0
 ) (
     input wire clk,rst,enable,
+    input wire unet_clk,core_arst,
     input wire in_valid, input wire [7:0] in_data, input wire in_eof,
     output wire in_ready,
     output wire [7:0] out_data,
@@ -123,19 +125,53 @@ module unet #(
     output wire M_AXI_UNET_FEATURES_RREADY,
     output wire [31:0] status
 );
-    wire [15:0] packed_pixel;
+    wire [15:0] packed_pixel,core_pixel;
+    wire [7:0] core_in_data;
+    wire core_in_valid,core_in_ready,core_in_eof;
+    wire core_out_valid,core_out_ready,core_out_eof,core_enable,core_rst;
+    wire [31:0] core_status;
+    wire exec_clk=ASYNC_CORE_CLOCK?unet_clk:clk;
+    generate if(ASYNC_CORE_CLOCK)begin:g_async
+        reset_sync core_reset(.clk(exec_clk),.arst(core_arst),.rst(core_rst));
+        (* ASYNC_REG="TRUE",SHREG_EXTRACT="NO" *)reg [1:0] enable_pipe;
+        always @(posedge exec_clk)begin
+            if(core_rst)enable_pipe<=0;else enable_pipe<={enable_pipe[0],enable};
+        end
+        assign core_enable=enable_pipe[1];
+        wire [8:0] input_packet;
+        wire [16:0] output_packet;
+        unet_stream_cdc #(.WIDTH(9)) input_fifo(
+            .s_clk(clk),.s_rst(rst),.m_clk(exec_clk),.m_rst(core_rst),
+            .s_data({in_eof,in_data}),.s_valid(in_valid),.s_ready(in_ready),
+            .m_data(input_packet),.m_valid(core_in_valid),.m_ready(core_in_ready));
+        assign {core_in_eof,core_in_data}=input_packet;
+        unet_stream_cdc #(.WIDTH(17)) output_fifo(
+            .s_clk(exec_clk),.s_rst(core_rst),.m_clk(clk),.m_rst(rst),
+            .s_data({core_out_eof,core_pixel}),.s_valid(core_out_valid),.s_ready(core_out_ready),
+            .m_data(output_packet),.m_valid(out_valid),.m_ready(out_ready));
+        assign {out_eof,packed_pixel}=output_packet;
+        unet_status_cdc status_sync(.src_clk(exec_clk),.src_rst(core_rst),
+            .dst_clk(clk),.dst_rst(rst),.data_in(core_status),.data_out(status));
+    end else begin:g_same_clock
+        assign core_rst=rst;assign core_enable=enable;
+        assign core_in_data=in_data;assign core_in_eof=in_eof;
+        assign core_in_valid=in_valid;assign in_ready=core_in_ready;
+        assign packed_pixel=core_pixel;assign out_eof=core_out_eof;
+        assign out_valid=core_out_valid;assign core_out_ready=out_ready;
+        assign status=core_status;
+    end endgenerate
     wire [1:0] weight_arlock,feature_arlock,feature_awlock;
     assign M_AXI_UNET_WEIGHTS_ARLOCK=weight_arlock[0];
     assign M_AXI_UNET_FEATURES_ARLOCK=feature_arlock[0];
     assign M_AXI_UNET_FEATURES_AWLOCK=feature_awlock[0];
     assign {RV_ctr,LV_ctr,RA_ctr,LA_ctr,RV_mask,LV_mask,RA_mask,LA_mask,out_data}=packed_pixel;
     unet_ddr_core core(
-        .ap_clk(clk),.ap_rst_n(~rst),.ap_start(enable),.ap_done(),.ap_idle(),.ap_ready(),
-        .weights_offset(WEIGHTS_BASE),.features_offset(FEATURE_BASE),.class_map({16'd0,CLASS_MAP}),.status(status),
-        .input_r_TDATA(in_data),.input_r_TVALID(in_valid),.input_r_TREADY(in_ready),
-        .input_r_TLAST(in_eof),.input_r_TKEEP(1'b1),.input_r_TSTRB(1'b1),
-        .output_r_TDATA(packed_pixel),.output_r_TVALID(out_valid),.output_r_TREADY(out_ready),
-        .output_r_TLAST(out_eof),.output_r_TKEEP(),.output_r_TSTRB(),
+        .ap_clk(exec_clk),.ap_rst_n(~core_rst),.ap_start(core_enable),.ap_done(),.ap_idle(),.ap_ready(),
+        .weights_offset(WEIGHTS_BASE),.features_offset(FEATURE_BASE),.class_map({16'd0,CLASS_MAP}),.status(core_status),
+        .input_r_TDATA(core_in_data),.input_r_TVALID(core_in_valid),.input_r_TREADY(core_in_ready),
+        .input_r_TLAST(core_in_eof),.input_r_TKEEP(1'b1),.input_r_TSTRB(1'b1),
+        .output_r_TDATA(core_pixel),.output_r_TVALID(core_out_valid),.output_r_TREADY(core_out_ready),
+        .output_r_TLAST(core_out_eof),.output_r_TKEEP(),.output_r_TSTRB(),
         .m_axi_weights_ARADDR(M_AXI_UNET_WEIGHTS_ARADDR),
         .m_axi_weights_ARID(M_AXI_UNET_WEIGHTS_ARID),
         .m_axi_weights_ARLEN(M_AXI_UNET_WEIGHTS_ARLEN),

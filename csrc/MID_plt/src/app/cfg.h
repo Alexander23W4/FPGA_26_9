@@ -35,6 +35,8 @@
 #define FRAME_TCP_PORT       5002u
 /* Continuous streams have separate, bounded DDR ownership. Keep these beyond
  * the legacy 16 MiB image scratch region. Input: 256 KiB; output: 768 KiB. */
+#define MEDICAL_INPUT_BYTES   196608u /* gray, mask bits, contour bits */
+#define MEDICAL_INPUT_BASE    0x21200000u /* four 192KiB slots; disjoint from normal rings */
 #define STREAM_INPUT_BASE    0x21000000u
 #define STREAM_INPUT_SLOTS   4u
 #define STREAM_OUTPUT_BASE   0x21040000u
