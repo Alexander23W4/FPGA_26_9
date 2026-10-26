@@ -1,87 +1,55 @@
-# 四腔 U-Net：完整 FP32 模型与硬件边界
+# 四腔小模型 U-Net：INT8 权重 / Q12 激活
 
-本目录保留同事提供的完整 `smp.Unet(encoder_name="mobilenet_v2", in_channels=1, classes=5)` 推理模型。原始 `ip/ai4chamberseger` 未改动。此实现用于验证模型和 PL 数据通路；它不是实时分割引擎，医学准确性也尚未验证。
+当前医学通路采用 `smallerseger/cardiac_fpga_ip` 提供的已训练学生模型：8/16/32/64 通道、五分类、122,357 个参数、约 667,942,912 MAC/帧。原始交付目录和 `ip/ai4chamberseger` 均不修改。原完整 FP32 模型的导出程序、HLS 源码和已成功构建的历史归档仍保留；当前构建默认启用小模型。
 
-## PL 数据通路
+## 保持的系统接口
 
 ```text
-AXI-Stream → 医学模式选择
-              → DDR 配准 → 完整 U-Net → EDV/ESV 容积统计
-              → 四腔室颜色/轮廓 → 双帧缓存 → HDMI / S2MM 回传
+AXI-Stream -> 配准 -> 小模型 U-Net -> 医学指标 -> hdl_out -> double_buf
+                                                        -> HDMI / S2MM / PS / PC
 ```
 
-U-Net 输出原灰度、LA/RA/LV/RV 四路 mask 和 contour。像素流使用 `valid/ready/eof` 握手；下游反压时数据与标记保持。网络按完整帧接收、计算并输出，不能像逐像素滤波器那样即时产生对应像素。
+`rtl/unet/unet.v` 的像素、四腔 mask/contour、valid/ready/eof 和两路 AXI DDR 主口保持原接口。处理时钟仍为 80 MHz，HDMI 仍为 25.2 MHz，U-Net 使用独立时钟；输入/输出异步 FIFO、完整状态字 CDC 和两路 AXI 时钟转换器沿用。默认 U-Net 时钟目标 200 MHz，最终可用频率必须以整工程实现时序为准。
 
-U-Net 专用复位 `rst_unet` 的外部复位高有效，辅助复位低有效。因此 `aux_reset_in` 必须接常数 **1**，`mb_debug_sys_rst` 接常数 **0**。旧脚本把两者都接 0，会让内核及其 AXI 时钟转换器永久复位：即使 DDR 权重头正确，`UNET_STATUS` 仍为 0。`unet_clock.tcl` 已修正既有/新建 BD 的接线并加入 `UNET_RESET_OK` 检查；已有位流必须重新构建才能包含修复。局部回归 `python rtl/unet/tests/run_reset_boot.py` 使用实际 Vivado 复位 IP 和生成的 U-Net RTL，验证旧接法阻止所有 DDR 请求，改为辅助复位接 1 后读完 7 个权重头字段并发布模型就绪。
+每帧先完整接收、推理，再输出 65,536 个与原灰度逐像素对齐的结果。输出字为 `{四腔轮廓[3:0], 四腔掩膜[3:0], 原灰度[7:0]}`，不是交付 IP 的类别字节。类别沿用 0 背景、1 LA、2 RA、3 LV、4 RV，颜色沿用红、黄、绿、蓝。下游反压时输出握手保持数据及 EOF；每个输入/输出像素各完成一次握手。
 
-## 模型与精度
+## 定点运算与缓存
 
-- 78 个算子覆盖 MobileNetV2 编码器、深度/逐点/普通卷积、残差、U-Net 解码器、跳跃连接和五分类输出；62 个 BatchNorm 依 eval 公式折叠。
-- 推理使用 FP32，BN epsilon 为 `1e-5`；没有量化或蒸馏。权重是同事导出的六位小数参数，不等同于未提供的训练 checkpoint 逐位数据。
-- 输入是 256×256、8-bit 灰度，按 `pixel/255` 归一化；网络输入先经过帧配准。
-- 最终类别用 argmax 直接写入行缓存，再形成四路 one-hot 掩膜和四邻域轮廓。输出类别不再从 DDR 浮点副本读回转换。
-- 类别暂按同事代码沿用：0 背景、1 LA、2 RA、3 LV、4 RV，`UNET_CLASS_MAP=16'h4321`。尚未用训练标注图确认解剖对应关系。
+- 保留交付模型的 INT8 逐输出通道权重、Q20 缩放系数、Q12 折叠偏置和有符号 16 位激活；不重新训练或改变权重。
+- 输入按 `(pixel*4096+127)/255` 转为 Q12，输出灰度用精确逆映射恢复，已穷举检查全部 256 个灰度值。
+- 卷积八输出通道并行，每通道并行 3x3 九个乘法；共用一套卷积核，兼容跳跃拼接、1x1 分类头和尾通道。40 位累加、72 位乘系数后按交付规则对称舍入，再饱和至 int16。
+- 输出八通道的权重重排成两个连续 32 位 AXI 字；行缓存、累加缓存、权重 tile、量化参数采用 LUTRAM，优先保留现有系统的 BRAM 预算。
+- 双线性插值保留 `align_corners=False` 的坐标与舍入，拆成寄存加法流水级。输出缓存分银行采用 2 的幂，避免额外除法器。
 
-与模型结构对应的公开实现版本见 [SMP MobileNet 编码器](https://github.com/qubvel-org/segmentation_models.pytorch/blob/v0.3.4/segmentation_models_pytorch/encoders/mobilenet.py)、[SMP U-Net 解码器](https://github.com/qubvel-org/segmentation_models.pytorch/blob/v0.3.4/segmentation_models_pytorch/decoders/unet/decoder.py)和 [Torchvision MobileNetV2](https://github.com/pytorch/vision/blob/v0.17.2/torchvision/models/mobilenetv2.py)。
+## DDR 布局和加载格式
 
-## 卷积核与时钟
+| 区域 | 起址 | 当前大小 / 保留范围 |
+|---|---|---|
+| 小模型头、重排权重、量化参数 | `0x28000000` | 124,592 B / 原 64 MiB 区域 |
+| 中间特征和输入灰度 | `0x2C000000` | 25,034,752 B，到 `0x2D7DFFFF` / 原 32 MiB 区域 |
+| 配准参考与当前帧 | `0x2E000000` | 原 512 KiB，不变 |
 
-卷积核心采用 **32 路 FP32 乘加并行**、64 像素 tile、16 输入通道 tile、每组最多 64 输出通道。Feature fetch、weight fetch、MAC 和结果写回由四个 HLS dataflow 任务重叠执行。Feature tile 在输出通道间复用，显式 4 KiB feature cache 配合 4 KiB feature FIFO 和 1 KiB kernel FIFO；累加器和逐通道临时值用 LUTRAM。继续增加 BRAM cache 会与整机存储预算冲突。
+激活数值为 int16，但在 DDR 按 32 位字存储，以保持现有 AXI32 -> HP0 AXI64 适配结构；相邻像素地址不能按 16 位间距解释。模型格式为版本 2，15 个卷积、8 路并行、256x256，带独立 program ID。XSCT 加载完整 blob 后才提交 magic；大模型权重不能用于小模型位流。
 
-U-Net 使用单独 MMCM 时钟，默认 **160 MHz**；输入、网络、输出流用异步 FIFO 搬运，状态采用请求/应答握手同步。两路 U-Net AXI 主口经异步 AXI clock converter 回到 80 MHz AXI/DDR 路径；原 HDMI 和图像处理时钟不变。160 MHz 是当前 OOC 路由验证值，整工程实现仍须重新检查时序。
-
-## DDR、片上资源与性能
-
-| 区域 | 起址 | 实际数据 | 保留窗口 |
-|---|---:|---:|---:|
-| 权重、偏置和头部 | `0x28000000` | 26,501,440 B | 64 MiB |
-| 中间特征、输入、类别 | `0x2C000000` | 19,398,656 B | 32 MiB |
-| 配准参考/当前帧 | `0x2E000000` | 524,288 B | 512 KiB |
-
-DDR 由权重口和 feature 读写口访问；另有配准 AXI 口。PL 不缓存整张 U-Net 特征图，特征张量仍存于 DDR，片上 cache 用于 tile 内复用。
-
-| 综合/实现层次 | LUT | FF | DSP | BRAM tile |
-|---|---:|---:|---:|---:|
-| U-Net 核心 OOC 放置布线，160 MHz | 26,646 | 45,187 | 90 | 4 |
-| 当前 `top1` RTL 综合预算 | 37,450 / 46,200 | 54,545 | 116 / 160 | 92 / 95 |
-
-U-Net 核心 OOC 160 MHz 报告 WNS **+0.161 ns**、WHS **+0.048 ns**。整顶层预算不包含 Block Design 的 DMA、AXI interconnect、时钟转换器等资源，不能当成完整工程已经通过实现。AXI clock converter 的 FIFO 配置使用 BRAM；当前整机只剩 3 个 tile 的预算，不能据此继续堆大块 BRAM cache。请以新生成的整工程 implementation 报告为最终依据。
-
-模型约 **3,373,326,336 MAC/帧**。XC7Z015 的现有完整系统无法放置 32 路 FP32 配置，因此当前默认改为 **16 路 MAC、160 MHz**。仅乘加理论下限约 **1.318 秒/帧**，理想上限约 **0.76 FPS**；真实速度还会受 DDR、数据搬运、层间处理影响而更慢。此配置优先解决可实现性，不满足 10 FPS 底线。达到 10 FPS 至少需要约 211 个并行 MAC 单元在 160 MHz 连续满载，尚未计访存和控制开销，需要 INT8/定点推理结构等进一步重构，单纯增加 BRAM cache 无法达成。
-
-## Patient 离线分割缓存
-
-Cardiac patient 的模型分割与后续流分析流程见[医学 patient 缓存说明](../../docs/design/medical_patient_cache.md)。分割完成后，后续流分析读取本地注册灰度、掩膜和轮廓，跳过配准和 U-Net；仍执行医学指标、显示与回传。
-
-## 生成、综合和加载
-
-重新生成 HLS RTL 与权重：
+## 构建与验证
 
 ```bash
+# 重新导出小模型并生成 HLS RTL；原始交付数据不修改
 bash rtl/unet/tools/build.sh
-```
 
-完整构建：
-
-```bash
+# 整工程构建和下载
 ./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f
-```
-
-把与 32 路程序 ID 匹配的权重装入 DDR 并运行 PS：
-
-```bash
 UNET_WEIGHTS="$(cygpath -w build/unet/model/weights.bin)" bash scripts/flash_current.sh init
 ```
 
-位流、PS、DDR 权重必须来自同一版本。断电会清除 DDR 权重；加载脚本完成权重校验后才启动 PS。未加载匹配权重时仍可运行图像处理模式，但医学分割会明确拒绝启动。
+`small_hls/` 是适配后的源代码，`small_generated/` 是生成 RTL；`generated/` 中的原 FP32 源码从当前 Vivado 工程排除。`freshness.py --check` 校验小模型、量化参数和生成 RTL 的一致性。
 
-## 验证状态
+独立定点参考：`python rtl/unet/tests/verify_small.py`。真实图、空白图、另一真实图的完整网络 C 仿真逐点检查 logits、灰度、四腔掩膜、轮廓和 EOF；另有卷积核与输出器 C/RTL 协同仿真、专用复位启动测试。数值相符验证硬件计算一致性，不会改善模型本身的分割精度。
 
-已通过：
+交付方验证集 mean Dice：学生浮点 0.385914，INT8 0.385718，教师 0.457698。替换是用户选择的速度/模型规模实验，不能声称比原教师精度更好。完整网络的实际板端耗时和目标患者效果仍需上板测量。
 
-1. 32 路内核在普通卷积、深度卷积和尾通道场景下完成 Vitis HLS C/RTL 协同仿真：`build/unet/production32_kernel_cosim.log`。
-2. 当前 16 路完整模型数值参考对 256×256 样本的 65,536 个类别全部一致，最大 logit 误差 `1.86e-5`：`build/unet/production16_check/verification.json`。这验证实现与现有模型相符，不证明临床精度。
-3. 32 路 U-Net 核心 OOC 160 MHz 路由；当前完整顶层 RTL 综合预算；医疗缓存顶层握手/反压、空掩膜无旧值残留、PC 网络协议与 GUI 工作流测试。
-4. 主机侧 112 个测试通过，1 个测试因 Windows 禁止创建符号链接而跳过；`freshness.py --check` 和 GUI JavaScript 语法检查通过。
+## 复位与 patient 缓存
 
-尚未通过或尚未进行：完整模型全网 RTL 仿真、完整 Vivado BD/整工程布线、当前版本上板运行与速度测量。旧位流不支持新的医学缓存协议；修改后必须重新构建硬件和 PS 并烧录，再加载匹配权重。类别与真实解剖标注的对应关系也仍需数据集核验。
+U-Net 复位模块辅助复位低有效，必须由常数 1 置为不活动；调试复位高有效，接常数 0。`UNET_RESET_OK` 在每次构建时检查接线。模型就绪状态 bit0、计算状态 bit1、畸形帧状态 bit2 与原 PS 协议保持一致。
+
+医学 patient 缓存按模型身份校验。换成小模型后，原大模型结果不应当成小模型结果使用，需要重新分割；原图不修改。后续缓存流分析仍绕过配准和 U-Net，直接复用原医学指标、HDMI 和 PC 回传链路。

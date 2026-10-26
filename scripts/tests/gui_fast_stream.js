@@ -6,7 +6,10 @@ const assets=path.join(path.dirname(process.argv[2]),'assets');
 const elements={},alerts=[],calls=[],paints=[],parameters=[],returned=[],accepted=[],delivered=[];
 let uploads=0,ctx,controlsStarted=false,controlsDone=false,stopSent=false;
 const expectFailure=process.argv[4]==='failure';
-const medical=process.argv[4]==='medical';let medicalAnalysisStarted=false;
+const medical=(process.argv[4]||'').startsWith('medical');let medicalAnalysisStarted=false;
+const resume=process.argv[4]==='medical-resume';let confirmAnswer=false;const confirmations=[];
+const transient=process.argv[4]==='transient';let transientInjected=false;
+const loseFinal=process.argv[4]==='medical-loss';let finalLost=false;
 function element(){
   const context={createImageData:()=>({data:new Uint8ClampedArray(256*256*4)}),
     clearRect(){},putImageData(image){this.last=image.data.slice();this.writes=(this.writes||0)+1;}};
@@ -33,6 +36,9 @@ class ScriptWorker{
     this.env=vm.createContext({self,URLSearchParams,TextDecoder,DataView,Uint8Array,performance,Date,setTimeout,clearTimeout,
       fetch:async(url,options)=>{
         calls.push(url);
+        if(transient&&!transientInjected&&url.startsWith('/api/network/stream/result')){
+          transientInjected=true;throw new TypeError('Failed to fetch');
+        }
         const response=await fetch(process.argv[3]+url,options);
         if(url.startsWith('/api/network/stream/enqueue')&&response.ok){
           uploads++;accepted.push(new URL('http://x'+url));
@@ -43,6 +49,10 @@ class ScriptWorker{
         const size=new DataView(bytes).getUint32(0);
         const metadata=JSON.parse(new TextDecoder().decode(new Uint8Array(bytes,4,size)));
         returned.push(metadata);
+        if(loseFinal&&!medicalAnalysisStarted&&!finalLost&&metadata.stream.completed===3){
+          finalLost=true;
+          response.arrayBuffer=async()=>{throw new TypeError('Failed to fetch final result body');};
+        }
         if(!controlsStarted&&!expectFailure&&!medical){
           controlsStarted=true;
           elements.thresholdMode.setAttribute('aria-checked','true');elements.threshold.value='77';
@@ -71,7 +81,8 @@ ctx=vm.createContext({document,URLSearchParams,performance,Worker:ScriptWorker,U
   ImageData:class{constructor(data,width,height){this.data=data;this.width=width;this.height=height;}},
   setInterval(){},setTimeout,requestAnimationFrame:fn=>paints.push(fn),
   window:{matchMedia:()=>({matches:false,addEventListener(){}})},
-  alert:text=>alerts.push(text),fetch:(url,options)=>{calls.push(url);return fetch(process.argv[3]+url,options);}});
+  alert:text=>alerts.push(text),confirm:text=>{confirmations.push(text);return confirmAnswer;},
+  fetch:(url,options)=>{calls.push(url);return fetch(process.argv[3]+url,options);}});
 vm.runInContext(fs.readFileSync(path.join(assets,'heartcare.js'),'utf8'),ctx);
 vm.runInContext(script,ctx);
 function frame(name,value){return {name,size:65536,webkitRelativePath:'CaseA/'+name,
@@ -81,18 +92,34 @@ function frame(name,value){return {name,size:65536,webkitRelativePath:'CaseA/'+n
     await ctx.dshSelectMedicalPatient('cardiac');
     assert.strictEqual(vm.runInContext('dshMedicalEntries.length',ctx),3);
     assert.strictEqual(vm.runInContext('dshMedicalStatus.complete',ctx),false);
+    if(resume)assert.strictEqual(vm.runInContext('dshMedicalStatus.completed',ctx),1);
     assert.strictEqual(elements.medicalAnalyze.disabled,true);
     await ctx.dshStartStream(null,null,'segmentation');
     assert.deepStrictEqual(alerts,[]);
-    assert.strictEqual(uploads,3,'finite segmentation must upload each source exactly once');
+    assert.strictEqual(uploads,resume?2:3,'finite segmentation must upload each missing source exactly once');
     assert.strictEqual(vm.runInContext('dshMedicalStatus.complete',ctx),true);
     assert.strictEqual(elements.medicalAnalyze.disabled,false);
     assert.match(elements.medicalCacheLamp.className,/cache-complete/);
+    if(loseFinal)assert(finalLost,'the last preview response must actually be interrupted');
+    if(resume){
+      assert.strictEqual(uploads,2,'only missing frames may be uploaded for segmentation');
+      assert.deepStrictEqual(accepted.map(url=>url.searchParams.get('name')),['frame1.bin','frame2.bin']);
+      assert.match(elements.medicalCacheLamp.textContent,/已完成/);
+    }
     medicalAnalysisStarted=true;
     await ctx.dshStartStream(null,null,'analysis');
     assert.deepStrictEqual(alerts,[]);
     assert(returned.at(-1).stream.completed>=3);
     assert(calls.some(url=>url.startsWith('/api/network/medical/cache?')));
+    if(resume){
+      await ctx.dshClearMedicalCache();
+      assert(!calls.some(url=>url==='/api/network/medical/clear'),'cancelled confirmation must not send a deletion');
+      confirmAnswer=true;await ctx.dshClearMedicalCache();
+      assert.strictEqual(confirmations.length,2);
+      assert.strictEqual(vm.runInContext('dshMedicalStatus.completed',ctx),0);
+      assert.strictEqual(elements.medicalAnalyze.disabled,true);
+      console.log('MEDICAL_GUI_RESUME_CLEAR_OK');
+    }
     console.log('MEDICAL_GUI_CACHE_OK: patient selection, finite two-pass segmentation, green completion, cached looping analysis, previews independent of paint');
     return;
   }

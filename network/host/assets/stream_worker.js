@@ -34,9 +34,25 @@ async function jsonResponse(response){
   if(!response.ok||!body.ok)throw new Error(body.log||body.error||'流传输请求失败');
   return body;
 }
+async function networkRequest(url,options,read=null,attempts=3){
+  for(let attempt=0;;attempt++){
+    try{
+      const response=await fetch(url,options);
+      return read?await read(response):response;
+    }catch(error){
+      const transient=error&&error.name==='TypeError';
+      if(!transient||attempt+1>=attempts){
+        if(transient)throw new Error('本机 GUI 请求中断（'+url.split('?')[0]+'）：'+error.message+
+          '。请检查 Python 服务窗口；重新打开后可以继续已保存的分割进度。');
+        throw error;
+      }
+      await new Promise(resolve=>setTimeout(resolve,150*(attempt+1)));
+    }
+  }
+}
 function postJson(url,body){
-  return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(body)}).then(jsonResponse);
+  return networkRequest(url,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)},jsonResponse,url.endsWith('/start')?1:3);
 }
 function reportError(run,error){
   if(run.error)return;
@@ -90,9 +106,10 @@ async function produce(run){
         const start=performance.now();
         if(entry.file)data=await entry.file.arrayBuffer();
         else{
-          const source=await fetch(entry.sourceUrl,{cache:'no-store'});
-          if(!source.ok)throw new Error('读取预设流帧失败: '+(entry.name||'未知文件'));
-          data=await source.arrayBuffer();
+          data=await networkRequest(entry.sourceUrl,{cache:'no-store'},async source=>{
+            if(!source.ok)throw new Error('读取预设流帧失败: '+(entry.name||'未知文件'));
+            return source.arrayBuffer();
+          });
         }
         sourceMs=performance.now()-start;
         if(!run.running)break;
@@ -100,9 +117,10 @@ async function produce(run){
       }
       const query=new URLSearchParams({session:run.session,name:entry.name||entry.file.name,
         path:entry.path,index:String(index),sequence:String(sequence)});
-      const response=await fetch('/api/network/stream/enqueue?'+query,{method:'POST',
-        headers:{'Content-Type':'application/octet-stream'},body:data});
-      const reply=await response.json();
+      // Sequence receipts make retry safe even if Python accepted the upload
+      // but the HTTP response was lost. Never run the same board frame twice.
+      const {response,reply}=await networkRequest('/api/network/stream/enqueue?'+query,{method:'POST',
+        headers:{'Content-Type':'application/octet-stream'},body:data},async response=>({response,reply:await response.json()}));
       if(!run.running)break;
       if(response.status===409&&reply.full){await waitForSpace(run);continue;}
       if(!response.ok||!reply.ok)throw new Error(reply.log||reply.error||'缓存输入帧失败');
@@ -128,12 +146,17 @@ async function consume(run){
   while(!run.serverStopped){
     if(run.stopFailed)return;
     const started=performance.now();
-    const response=await fetch('/api/network/stream/result?'+new URLSearchParams({session:run.session}));
-    const headersReceived=performance.now();
+    const {response,body:receivedBody,headersReceived}=await networkRequest('/api/network/stream/result?'+new URLSearchParams({session:run.session}),undefined,
+      async response=>({response,headersReceived:performance.now(),body:response.status===204?null:
+        (!response.ok||(response.headers.get('Content-Type')||'').includes('application/json'))?
+          await response.json():await response.arrayBuffer()}));
     if(response.status===204)continue;
     const contentType=response.headers?response.headers.get('Content-Type')||'':'';
     if(!response.ok||contentType.includes('application/json')){
-      const reply=await response.json();
+      const reply=receivedBody;
+      if(reply.finished&&!reply.stopped){
+        run.running=false;wakeProducer(run);await control(run,'stop');continue;
+      }
       if(reply.stopped){
         run.serverStopped=true;run.running=false;wakeProducer(run);
         if(reply.error)throw new Error(reply.error);
@@ -142,7 +165,7 @@ async function consume(run){
       }
       throw new Error(reply.log||reply.error||'流状态响应错误');
     }
-    const body=await response.arrayBuffer(),bodyReceived=performance.now();
+    const body=receivedBody,bodyReceived=performance.now();
     if(body.byteLength<4)throw new Error('回传响应不完整');
     const size=new DataView(body).getUint32(0);
     if(size>65536||body.byteLength!==4+size+65536+262144)throw new Error('回传 BIN 长度错误');

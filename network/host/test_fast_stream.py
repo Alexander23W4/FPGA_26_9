@@ -74,6 +74,22 @@ class FastStreamTests(unittest.TestCase):
             self.assertEqual([image[0] for image in board.input_images],
                              [index%2+1 for index in range(board.uploads)])
             self.assertEqual(hdmi_changes, [0,1])
+    @unittest.skipUnless(shutil.which('node'), 'Node.js is required')
+    def test_local_http_disconnect_recovers_without_stopping_stream(self):
+        with fast_server() as (board,client,server,state,base):
+            def uart(payload,wait=1.5):
+                if payload[:1]==b'T':
+                    board.manual,board.threshold=payload[1:]
+                    return line('CMD_REG',board.manual)+line('DATA_REG',board.threshold)
+                if payload[:1]==b'P':board.alpha=payload[1];return line('MASK_TRANSP',board.alpha)
+                if payload[:1]==b'H':return line('HDMI_EN',payload[1])
+                raise AssertionError('unexpected UART command')
+            with patch.object(gui,'_board_talk_locked',side_effect=uart):
+                script=Path(gui.__file__).parents[2]/'scripts/tests/gui_fast_stream.js'
+                run=subprocess.run([shutil.which('node'),str(script),gui.__file__,base,'transient'],
+                                   capture_output=True,text=True,encoding='utf-8',timeout=15)
+            self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+            self.assertIn('FAST_GUI_OK',run.stdout)
     def test_full_receive_releases_ddr_without_any_png_or_disk_work(self):
         with running_board() as board, tempfile.TemporaryDirectory() as folder:
             client = transfer.FrameTransferClient('127.0.0.1', board.server_address[1], folder, 2)

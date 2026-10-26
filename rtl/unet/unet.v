@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-// Complete U-Net core. Payload bit order: {RV,LV,RA,LA} for each label plane.
+// Quantized student U-Net. Payload bit order: {RV,LV,RA,LA} for each label plane.
 module unet #(
     parameter [31:0] WEIGHTS_BASE=32'h28000000, FEATURE_BASE=32'h2c000000,
     // Class IDs follow colleague conv.cpp; confirm the training annotation legend.
@@ -165,7 +165,7 @@ module unet #(
     assign M_AXI_UNET_FEATURES_ARLOCK=feature_arlock[0];
     assign M_AXI_UNET_FEATURES_AWLOCK=feature_awlock[0];
     assign {RV_ctr,LV_ctr,RA_ctr,LA_ctr,RV_mask,LV_mask,RA_mask,LA_mask,out_data}=packed_pixel;
-    unet_ddr_core core(
+    small_unet_ddr_core core(
         .ap_clk(exec_clk),.ap_rst_n(~core_rst),.ap_start(core_enable),.ap_done(),.ap_idle(),.ap_ready(),
         .weights_offset(WEIGHTS_BASE),.features_offset(FEATURE_BASE),.class_map({16'd0,CLASS_MAP}),.status(core_status),
         .input_r_TDATA(core_in_data),.input_r_TVALID(core_in_valid),.input_r_TREADY(core_in_ready),

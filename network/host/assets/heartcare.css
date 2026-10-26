@@ -94,3 +94,4 @@ body.image-viewer-open{overflow:hidden}
 #streamDatasetCancel:hover{background:#f5dce6}
 @keyframes stream-modal-in{from{opacity:0;transform:translateY(5px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:540px){.stream-dataset-card{padding:20px}.stream-dataset-card h3{font-size:20px}.stream-dataset-option{grid-template-columns:36px minmax(0,1fr) 14px;gap:10px;padding:12px}.stream-dataset-icon{width:36px;height:36px}.stream-dataset-copy small{font-size:9px}}
+.medical-cache-actions .cache-clear{background:transparent;color:#aa3d50;box-shadow:inset 0 0 0 1px #e8bdc8}.medical-cache-actions .cache-clear:hover:not(:disabled){background:#fff0f2}

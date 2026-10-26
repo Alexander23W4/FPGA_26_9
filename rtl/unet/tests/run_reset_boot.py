@@ -70,11 +70,11 @@ endmodule
 """
 tb=tb.replace("DECL",decl).replace("CONN",conn).replace("HEAD\n","\n".join(f"header[{i}]=32'h{v:08x};" for i,v in enumerate(head))+"\n")
 (out/"tb_model_boot.sv").write_text(tb)
-files=[root/"rtl/unet/unet.v",root/"rtl/unet/unet_status_cdc.v",root/"rtl/unet/unet_stream_cdc.v",root/"rtl/reset_sync.v",*sorted((root/"rtl/unet/generated").glob("*.v")),out/"tb_model_boot.sv",Path("E:/Xilinx/Vivado/2023.2/data/verilog/src/glbl.v")]
+files=[root/"rtl/unet/unet.v",root/"rtl/unet/unet_status_cdc.v",root/"rtl/unet/unet_stream_cdc.v",root/"rtl/reset_sync.v",*sorted((root/"rtl/unet/small_generated").glob("*.v")),out/"tb_model_boot.sv",Path("E:/Xilinx/Vivado/2023.2/data/verilog/src/glbl.v")]
 files += [root/"build/vivado/fpga_26/fpga_26.gen/sources_1/bd/system/ip/system_rst_unet_0/system_rst_unet_0_sim_netlist.v"]
 files += list((root/"build/vivado/fpga_26/fpga_26.gen/sources_1/ip").glob("*/sim/*_ip.v"))
 (out/"sources.prj").write_text("".join(f'sv xil_defaultlib "{p.as_posix()}"\n' for p in files))
-for f in (root/"rtl/unet/generated").glob("*.dat"):shutil.copy2(f,out/f.name)
+for f in (root/"rtl/unet/small_generated").glob("*.dat"):shutil.copy2(f,out/f.name)
 (out/"run.tcl").write_text("run all\nquit\n")
 bin=Path("E:/Xilinx/Vivado/2023.2/bin")
 commands=[("compile",[str(bin/"xvlog.bat"),"--relax","-prj","sources.prj"]),("elaborate",[str(bin/"xelab.bat"),"--relax","-L","floating_point_v7_1_16","-L","xpm","-L","unisims_ver","xil_defaultlib.tb_model_boot","xil_defaultlib.glbl","-s","boot"]),("run",[str(bin/"xsim.bat"),"boot","-tclbatch","run.tcl"])]

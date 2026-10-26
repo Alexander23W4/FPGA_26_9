@@ -6,6 +6,12 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
 def configuration(name):
     if name=='unet':
+        config=ROOT/'rtl/unet/model_config.json'
+        if config.is_file() and json.loads(config.read_text())['backend']=='small-int8':
+            source=[ROOT/'rtl/unet/small_hls'/n for n in ('small_unet.cpp','small_unet.h','model_layout_small.h','model_load.tcl','build_hls.tcl')]
+            source += [config,ROOT/'rtl/unet/tools/export_small_model.py']
+            source += [ROOT/'smallerseger/cardiac_fpga_ip'/n for n in ('weights_fpga_q8.bin','quant_params_fpga_q20_q12.bin','hls_src/model_layout_fpga5.h')]
+            return ROOT/'rtl/unet/small_generated',source
         directory=ROOT/'rtl/unet/generated'
         source=[ROOT/'rtl/unet/hls'/n for n in ('unet_ddr_core.cpp','unet_ddr_core.h','unet_conv.h','model_ops.h','build_hls.tcl')]
         source += [ROOT/'rtl/unet/tools/export_model.py',next((ROOT/'ip/ai4chamberseger').glob('*.zip'))]

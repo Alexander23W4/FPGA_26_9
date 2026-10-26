@@ -1,0 +1,9 @@
+发给王浩鑫的使用说明：
+
+这是心脏腔室分割 AXI-Stream HLS IP 工程包，目标器件 xc7z015clg485-2，像素输入保持 256×256。接口是单像素 8-bit AXI-Stream：输入 in_valid/in_ready/in_data/in_eof；输出 out_valid/out_ready/out_data/out_eof；另有 LA/RA/LV/RV_mask 和 LA/RA/LV/RV_ctr，以及 clk/rst。
+
+导入：Vivado 打开 IP Catalog -> Settings -> IP -> Repository，将解压后的 ip_repo 目录加入仓库，然后在 Block Design 里加入 cardiac_unet_axis。或者从 HLS 源码和 run_hls_axis.tcl 重新生成 IP。
+
+注意：这个 IP 还需要通过 AXI Master 从 Zynq DDR 读取 weights_fpga_q8.bin、quant_params_fpga_q20_q12.bin 和工作区，并由 PS/软件侧初始化地址、写入参数并启动控制寄存器；不是只拖入 IP 就能独立推理。请把具体板卡/载板型号、PS-DMA/视频流连接方式和引脚约束发我，以便继续做 .bit 和板上验证。
+
+当前 Vivado synth_1 综合通过，20 MHz 约束 WNS +35.145 ns；尚未完成 place-and-route、生成 bitstream 或实板测试。约 3.88 秒/帧只是分析估算，不是实测。

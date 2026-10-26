@@ -53,5 +53,22 @@ class CacheTests(unittest.TestCase):
   raw=bytearray(self.raw);raw[1]=3
   with self.assertRaises(ValueError):semantic_planes(raw)
   with self.assertRaises(ValueError):self.cache.save_async('../bad.bin',bytes(PIXELS),self.raw)
+ def test_clear_only_patient_cache(self):
+  self.cache.save_async('frame1.bin',self.sources[0].read_bytes(),self.raw).result()
+  unrelated=self.folder/'notes.txt';unrelated.write_text('keep')
+  self.cache.clear()
+  self.assertFalse(self.cache.directory.exists())
+  self.assertEqual(self.sources[0].read_bytes(),bytes([1])*PIXELS)
+  self.assertEqual(unrelated.read_text(),'keep')
+  self.assertEqual(self.cache.status()['completed'],0)
+ def test_legacy_commits_still_resume(self):
+  self.cache.save_async('frame1.bin',self.sources[0].read_bytes(),self.raw).result()
+  migrated=PatientCache(self.folder,self.sources,'stable-key',compatible_model_keys=('original-model',))
+  try:
+   self.assertEqual(migrated.status()['completed_files'],['frame1.bin'])
+   self.cache._paths('frame2.bin')['gray'].parent.mkdir(parents=True,exist_ok=True)
+   self.cache._paths('frame2.bin')['gray'].write_bytes(bytes(PIXELS))
+   self.assertFalse(migrated.status()['complete'])
+  finally:migrated.close()
 
 if __name__=='__main__':unittest.main()

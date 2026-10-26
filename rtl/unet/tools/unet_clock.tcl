@@ -8,7 +8,7 @@ proc unet_clock_connect {source target} {
     connect_bd_net $src $dst
 }
 proc ensure_unet_clock {} {
-    set mhz 160.0
+    set mhz 200.0
     if {[info exists ::env(UNET_CLK_MHZ)]} {set mhz $::env(UNET_CLK_MHZ)}
     if {![string is double -strict $mhz] || $mhz < 25 || $mhz > 250} {
         error "UNET_CLK_MHZ must be 25..250; implementation must pass timing"

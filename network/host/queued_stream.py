@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections import deque
 import math
+import hashlib
 from queue import Full
 import threading
 import time
@@ -61,6 +62,7 @@ class QueuedStream:
         self._stopped = False
         self._error = None
         self._next_sequence = 0
+        self._receipts = {}
         self._completed = 0
         self._dropped = 0
         self._started_at = self._last_contact = time.monotonic()
@@ -121,7 +123,7 @@ class QueuedStream:
                 raise ValueError('frame must be a dictionary')
             sequence = frame.get('sequence')
             if (isinstance(sequence, bool) or not isinstance(sequence, int) or
-                    sequence != self._next_sequence):
+                    sequence < 0 or sequence > self._next_sequence):
                 raise ValueError('expected frame sequence %d' % self._next_sequence)
             data = frame.get('data')
             if not isinstance(data, (bytes, bytearray, memoryview)):
@@ -129,12 +131,19 @@ class QueuedStream:
             data = bytes(data)
             if len(data) != FRAME_BYTES:
                 raise ValueError('source frame must contain exactly 65536 bytes')
+            receipt=(frame.get('name'),frame.get('path'),frame.get('index'),hashlib.sha256(data).digest())
+            if sequence < self._next_sequence:
+                if self._receipts.get(sequence)!=receipt:
+                    raise ValueError('repeated frame sequence has different or expired input')
+                return {**self._snapshot_locked(),'duplicate':True}
             if len(self._pending) >= self._capacity:
                 raise QueueFull('stream source queue is full')
             source = dict(frame)
             source['data'] = data
             self._pending.append(source)
             self._next_sequence += 1
+            self._receipts[sequence]=receipt
+            while len(self._receipts)>32:self._receipts.pop(next(iter(self._receipts)))
             self._condition.notify_all()
             return self._snapshot_locked()
 

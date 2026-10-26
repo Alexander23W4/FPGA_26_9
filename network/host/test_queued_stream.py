@@ -13,6 +13,16 @@ def frame(sequence):
 
 
 class QueuedStreamTests(unittest.TestCase):
+    def test_lost_enqueue_response_retry_is_idempotent(self):
+        calls=[]
+        stream=self.session(lambda source,mode:(calls.append(source['sequence']) or {'raw':b'rgba','mode':mode}))
+        original=frame(0);stream.enqueue(original)
+        self.assertTrue(stream.enqueue(dict(original))['duplicate'])
+        changed=dict(original);changed['data']=bytes([99])*FRAME_BYTES
+        with self.assertRaises(ValueError):stream.enqueue(changed)
+        stream.control('resume')
+        self.await_state(stream,lambda s:s['completed']==1)
+        self.assertEqual(calls,[0])
     def session(self, process, close=lambda: None, **kwargs):
         stream = QueuedStream(process, close, **kwargs)
         self.addCleanup(lambda: self.assertTrue(stream.close(2), 'worker did not close'))
@@ -79,8 +89,7 @@ class QueuedStreamTests(unittest.TestCase):
         mutable['data'][0] = 123
         self.assertFalse(started.is_set())
         self.assertEqual(stream.snapshot()['pending'], 1)
-        with self.assertRaises(ValueError):
-            stream.enqueue(frame(0))
+        self.assertTrue(stream.enqueue(frame(0))['duplicate'])
         stream.control('resume')
         result = stream.take_result(2)
         self.assertIsNotNone(result)

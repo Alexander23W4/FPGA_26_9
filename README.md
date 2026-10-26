@@ -2,7 +2,7 @@
 
 本项目运行于小梅哥 ACZ7015，FPGA 型号 xc7z015clg485-2。GUI 用于发送 256×256、8-bit 灰度图或 patient 图像流；PL 执行图像处理或医学分析，并可将 HDMI 画面及处理图回传 PC。
 
-> 当前 U-Net 保留完整 FP32 模型，目标是正确接通并验证硬件路径。完整网络尚未做当前版本的整工程实现和上板测试；不要把局部仿真通过理解为医学结果已验证或流式帧率已达标。
+> 当前构建已切换为交付的 INT8 四腔小模型，原完整 FP32 模型源码和历史构建保留。小模型正进行整工程实现验证；实际帧率与分割质量以新位流上板结果为准。
 
 ## 当前数据通路
 
@@ -20,7 +20,7 @@ GUI → 本机 Python/TCP → PS DDR/VDMA → AXI-Stream
 ### 医学分析模式
 
 ```text
-AXI-Stream → DDR 帧配准 → 完整四腔 U-Net → EDV/ESV 容积统计
+AXI-Stream → DDR 帧配准 → INT8 四腔小模型 U-Net → 容积统计 / PS 心动周期分析
             → LA/RA/LV/RV 掩膜和轮廓 → HDMI/PC 回传
 ```
 
@@ -28,7 +28,7 @@ AXI-Stream → DDR 帧配准 → 完整四腔 U-Net → EDV/ESV 容积统计
 
 ## U-Net 性能和限制
 
-当前 PL 实现保留完整原网络，FP32、16 路乘加并行、单独 160 MHz U-Net 时钟，权重和中间特征放 DDR，BRAM 用于可复用 tile。32 路版本在 XC7Z015 上因 LUT 与切片打包超限无法完成放置；16 路版本用于恢复可实现性。模型约 33.73 亿 MAC/帧；仅乘加的理想下限约 1.318 s/帧，理想上限约 0.76 FPS，真实速度还会更低。因此当前配置仍达不到 10 FPS，也不能用作实时 U-Net 视频分割。离线缓存避免重复推理，但首次分割仍需等待模型计算。
+当前采用 122,357 参数的小模型，约 6.68 亿 MAC/帧；INT8 权重、16 位 Q12 激活，8 个输出通道与每通道 3×3 乘法并行。U-Net 独立时钟目标 200 MHz，实际可用频率须通过整工程布线时序检查。权重和中间特征放 DDR，LUTRAM 缓存权重 tile、输入行和累加结果，保留现有 BRAM 预算。权重与量化参数加载文件为 124,592 B，中间特征 DDR 为 25,034,752 B。完整网络数值测试与卷积、输出器 RTL 协同仿真已通过；尚不能据此保证 10 FPS 或医学分割质量。离线缓存仍用于避免重复推理。
 
 模型资源、时钟跨域、DDR 地址、数值精度及验证结果详见 [U-Net 设计说明](rtl/unet/README.md)。缓存分析和 GUI 本地流程详见 [医学 patient 缓存说明](docs/design/medical_patient_cache.md)。
 
@@ -56,7 +56,7 @@ Python GUI 可连接真实板端，也提供本地 mock PS 服务用于无板开
 UNET_WEIGHTS="$(cygpath -w build/unet/model/weights.bin)" bash scripts/flash_current.sh init
 ```
 
-断电会清除 DDR 权重。图像处理模式不要求加载 U-Net 权重；医学 U-Net 分割在权重缺失或版本不匹配时会报错停止。修改 32 路 HLS 或权重后，先运行 bash rtl/unet/tools/build.sh 重新生成，再完整构建和加载。
+断电会清除 DDR 权重。图像处理模式不要求加载 U-Net 权重；医学 U-Net 分割在权重缺失或版本不匹配时会报错停止。修改小模型 HLS 或权重后，先运行 bash rtl/unet/tools/build.sh 重新生成，再完整构建和加载。
 
 ## 目录
 

@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import threading
 import numpy as np
@@ -46,9 +47,9 @@ def preview_rgba(raw, mode, alpha=45):
     return rgba.tobytes()
 
 class PatientCache:
-    def __init__(self, patient, sources, model_key):
+    def __init__(self, patient, sources, model_key, compatible_model_keys=()):
         self.patient=Path(patient).resolve();self.directory=self.patient/CACHE_DIR
-        self.model_key=str(model_key);self.sources={}
+        self.model_key=str(model_key);self.model_keys={self.model_key,*compatible_model_keys};self.sources={}
         for path in sources:
             path=Path(path).resolve();name=path.relative_to(self.patient).as_posix()
             if CACHE_DIR in Path(name).parts or not name.lower().endswith('.bin') or path.stat().st_size!=PIXELS:
@@ -106,7 +107,7 @@ class PatientCache:
 
     def read(self,name,source=None):
         paths=self._paths(name);record=json.loads(paths['record'].read_text(encoding='utf-8'))
-        if record.get('version')!=2 or record.get('model')!=self.model_key or record.get('source')!=name:
+        if record.get('version')!=2 or record.get('model') not in self.model_keys or record.get('source')!=name:
             raise ValueError('cache belongs to another model or format')
         original=self.sources[name].read_bytes() if source is None else source
         if len(original)!=PIXELS or sha(original)!=record.get('source_sha256'):
@@ -134,3 +135,13 @@ class PatientCache:
         with self._lock:self._closed=True
         self._executor.shutdown(wait=True)
         for future in self._pending:future.result()
+
+    def clear(self):
+        """Only remove this patient's dedicated cache, after all writes stop."""
+        self.close()
+        target=self.patient/CACHE_DIR
+        if target.is_symlink() or target.resolve()!=target or target.parent!=self.patient:
+            raise ValueError('拒绝清除链接或患者目录之外的缓存')
+        if target.exists():
+            if not target.is_dir():raise ValueError('分割缓存路径不是文件夹')
+            shutil.rmtree(target)

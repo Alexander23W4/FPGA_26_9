@@ -4,11 +4,15 @@ import tempfile
 import unittest
 import shutil
 import subprocess
+import os
+import json
+from urllib.request import Request,urlopen
+from urllib.error import HTTPError
 from unittest.mock import patch
 import numpy as np
 from frame_pipeline import FramePipeline
 from medical_cache import PatientCache, PIXELS, preview_rgba
-from medical_workflow import SegmentationPipeline, AnalysisPipeline, model_key
+from medical_workflow import SegmentationPipeline, AnalysisPipeline, model_key, register_to_reference
 from test_frame_transfer import running_board
 from test_fast_stream import fast_server
 import monitor_network as gui
@@ -27,6 +31,30 @@ def edges(mask):
 
 
 class MedicalWorkflowTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('node'), 'Node.js is required')
+    def test_gui_resumes_partial_patient_and_confirms_clear(self):
+        with tempfile.TemporaryDirectory() as temp,fast_server() as (board,client,server,state,base):
+            root=Path(temp);patient=root/'Site_G_29'/'patient-2-4';patient.mkdir(parents=True)
+            for index in range(3):(patient/('frame%d.bin'%index)).write_bytes(bytes([index+1])*PIXELS)
+            state.system_mode='medical';mask=np.zeros(PIXELS,dtype=np.uint8);mask[200:500]=4
+            def semantic(image,kind,raw,mode):
+                if kind==0:return result_bytes(np.frombuffer(image,dtype=np.uint8),mask,edges(mask))
+                planes=np.frombuffer(image,dtype=np.uint8).reshape(PIXELS,3)
+                result=result_bytes(planes[:,0],planes[:,1],edges(planes[:,1]) if kind==1 else planes[:,2])
+                return result if raw else preview_rgba(result,mode)
+            board.semantic_factory=semantic
+            with patch.dict(gui.STREAM_DATASETS,{'cardiac':('Cardiac',root)}), \
+                 patch.object(gui,'_choose_dataset_folder',return_value=('Cardiac',root,patient)):
+                cache,_=gui._patient_cache('cardiac','Site_G_29/patient-2-4')
+                cache.save_async('frame0.bin',(patient/'frame0.bin').read_bytes(),semantic(bytes([1])*PIXELS,0,True,1)).result();cache.close()
+                script=Path(gui.__file__).parents[2]/'scripts/tests/gui_fast_stream.js'
+                run=subprocess.run([shutil.which('node'),str(script),gui.__file__,base,'medical-resume'],
+                                   capture_output=True,text=True,encoding='utf-8',timeout=30)
+            self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+            self.assertIn('MEDICAL_GUI_RESUME_CLEAR_OK',run.stdout)
+            self.assertEqual([entry[0] for entry in board.medical_packets[:4]],[0,1]*2)
+            self.assertEqual(len(list(patient.glob('*.bin'))),3)
+            self.assertFalse((patient/'.heartcare_unet').exists())
     def test_model_cache_key_tracks_inference_and_postprocess_sources(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
@@ -45,6 +73,9 @@ class MedicalWorkflowTests(unittest.TestCase):
                 path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(name.encode())
             top=root/'rtl/top1.v';top.write_text("UNET_CLASS_MAP=16'h4321;",encoding='utf-8')
             initial=model_key(root)
+            stamp=(root/'rtl/unet/hls/unet_conv.h').stat()
+            os.utime(root/'rtl/unet/hls/unet_conv.h',ns=(stamp.st_atime_ns,stamp.st_mtime_ns+1000000))
+            self.assertEqual(model_key(root),initial,'metadata-only changes must not discard completed segmentation')
             changed=root/'rtl/unet/hls/unet_conv.h';changed.write_bytes(b'updated kernel')
             self.assertNotEqual(model_key(root),initial)
             contour=root/'rtl/heart_analysis/mask_to_contour.v';contour.write_bytes(b'updated contour')
@@ -54,6 +85,13 @@ class MedicalWorkflowTests(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which('node'), 'Node.js is required')
     def test_gui_finite_segmentation_then_cached_stream(self):
+        self._gui_finite_workflow('medical')
+
+    @unittest.skipUnless(shutil.which('node'), 'Node.js is required')
+    def test_lost_final_http_preview_still_finishes_patient(self):
+        self._gui_finite_workflow('medical-loss')
+
+    def _gui_finite_workflow(self, scenario):
         with tempfile.TemporaryDirectory() as temp,fast_server() as (board,client,server,state,base):
             root=Path(temp);patient=root/'Site_G_29'/'patient-2-4';patient.mkdir(parents=True)
             for index in range(3):(patient/('frame%d.bin'%index)).write_bytes(bytes([index+1])*PIXELS)
@@ -68,7 +106,7 @@ class MedicalWorkflowTests(unittest.TestCase):
             with patch.dict(gui.STREAM_DATASETS,{'cardiac':('Cardiac',root)}), \
                  patch.object(gui,'_choose_dataset_folder',return_value=('Cardiac',root,patient)):
                 script=Path(gui.__file__).parents[2]/'scripts/tests/gui_fast_stream.js'
-                run=subprocess.run([shutil.which('node'),str(script),gui.__file__,base,'medical'],
+                run=subprocess.run([shutil.which('node'),str(script),gui.__file__,base,scenario],
                                    capture_output=True,text=True,encoding='utf-8',timeout=30)
             self.assertEqual(run.returncode,0,run.stdout+run.stderr)
             self.assertIn('MEDICAL_GUI_CACHE_OK',run.stdout)
@@ -140,6 +178,47 @@ class MedicalWorkflowTests(unittest.TestCase):
                 with self.assertRaises(OSError):analysis.submit({'data':bytes(PIXELS),'path':'patient/frame.bin'},1)
                 self.assertEqual(board.uploads,0)
             finally:analysis.close()
+
+    def test_resume_skips_committed_frame_without_connecting_board(self):
+        with tempfile.TemporaryDirectory() as temp:
+            patient=Path(temp);source=patient/'frame.bin';source.write_bytes(bytes(PIXELS))
+            raw=result_bytes(np.zeros(PIXELS,dtype=np.uint8),np.zeros(PIXELS,dtype=np.uint8),np.zeros(PIXELS,dtype=np.uint8))
+            cache=PatientCache(patient,[source],'model');cache.save_async('frame.bin',source.read_bytes(),raw).result();cache.close()
+            cache=PatientCache(patient,[source],'model')
+            class NoBoard:
+                def submit(self,*args):raise AssertionError('completed frame must not be sent to the FPGA')
+                def close(self):pass
+            segment=SegmentationPipeline(NoBoard(),cache,'patient')
+            try:
+                result=segment.submit({'data':source.read_bytes(),'path':'patient/frame.bin'},1).result(3)
+                self.assertTrue(result['cached']);self.assertEqual(result['frames'],0)
+            finally:segment.close()
+
+    def test_resume_registration_keeps_original_reference(self):
+        rng=np.random.default_rng(26);reference=rng.integers(0,256,(256,256),dtype=np.uint8)
+        shifted=np.zeros_like(reference);shifted[:-1,2:]=reference[1:,:-2]
+        aligned=np.frombuffer(register_to_reference(reference.tobytes(),shifted.tobytes()),dtype=np.uint8).reshape(256,256)
+        np.testing.assert_array_equal(aligned[1:,:-2],reference[1:,:-2])
+        self.assertFalse(aligned[0].any());self.assertFalse(aligned[:,-2:].any())
+
+    def test_clear_endpoint_requires_confirmation_and_idle_session(self):
+        with tempfile.TemporaryDirectory() as temp,fast_server() as (_,_,_,state,base):
+            root=Path(temp);patient=root/'patient';patient.mkdir();source=patient/'frame.bin';source.write_bytes(bytes(PIXELS))
+            a=np.zeros((PIXELS,4),dtype=np.uint8);a[:,3]=255
+            cache=PatientCache(patient,[source],'model');cache.save_async('frame.bin',source.read_bytes(),a.tobytes()).result();cache.close()
+            def cache_for(*args):return PatientCache(patient,[source],'model'),[]
+            def request(confirm):
+                body=json.dumps({'dataset':'cardiac','patient':'patient','confirm':confirm}).encode()
+                return urlopen(Request(base+'/api/network/medical/clear',body,{'Content-Type':'application/json'}),timeout=3)
+            with patch.object(gui,'_patient_cache',side_effect=cache_for):
+                with self.assertRaises(HTTPError) as rejected:request(False)
+                rejected.exception.close()
+                self.assertTrue((patient/'.heartcare_unet').exists())
+                with gui._TRANSFER_LOCK:
+                    with self.assertRaises(HTTPError) as rejected:request(True)
+                    rejected.exception.close()
+                with request(True) as response:self.assertEqual(json.load(response)['completed'],0)
+            self.assertTrue(source.exists());self.assertFalse((patient/'.heartcare_unet').exists())
 
 
 if __name__=='__main__':unittest.main()

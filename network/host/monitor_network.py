@@ -25,7 +25,7 @@ from queued_stream import QueuedStream, QueueFull
 from frame_pipeline import FramePipeline
 from medical_metrics import parse_ps_medical, MedicalCurveHistory
 from medical_cache import PatientCache, CACHE_DIR
-from medical_workflow import SegmentationPipeline, AnalysisPipeline, model_key
+from medical_workflow import SegmentationPipeline, AnalysisPipeline, model_key, legacy_model_key
 
 
 def load_gray(path):
@@ -181,7 +181,7 @@ async function dshRun(action) {
         if (typeof resumeFrameRate === 'function') resumeFrameRate();
     }
   const status = document.getElementById('processingStatus');
-  const controls = ['imageFile', 'chooseImage', 'chooseStream', 'medicalSegment', 'medicalAnalyze', 'streamFolder', 'fpgaOutputMode', 'medicalOutputMode', 'thresholdMode',
+  const controls = ['imageFile', 'chooseImage', 'chooseStream', 'medicalSegment', 'medicalAnalyze', 'medicalClear', 'streamFolder', 'fpgaOutputMode', 'medicalOutputMode', 'thresholdMode',
     'threshold', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'];
   const disabled = controls.map(id => document.getElementById(id).disabled);
   dshTransferBusy = true;
@@ -356,7 +356,8 @@ function dshStreamControls() {
   for (const id of ['fpgaOutputMode', 'medicalOutputMode', 'thresholdUpdate', 'maskOpacity', 'maskOpacityUpdate', 'hdmiOutputToggle', 'sourceFps', 'request'])
     document.getElementById(id).disabled = stopping;
   document.getElementById('fullDisplayOption').disabled = dshStreamMode;
-  document.getElementById('medicalSegment').disabled = dshTransferBusy || dshStreamRunning || !dshMedicalPatient;
+  document.getElementById('medicalSegment').disabled = dshTransferBusy || dshStreamRunning || !dshMedicalPatient || !!(dshMedicalStatus&&dshMedicalStatus.complete);
+  document.getElementById('medicalClear').disabled = dshTransferBusy || dshStreamRunning || !dshMedicalPatient;
   document.getElementById('medicalAnalyze').disabled = dshTransferBusy || dshStreamRunning || !dshMedicalPatient || !dshMedicalStatus || !dshMedicalStatus.complete;
   updateModeMenu(); updateThresholdControls(); updatePreviewLayout();
 }
@@ -463,6 +464,7 @@ function dshRunStreamWorker(entries,streamChanged,workflow=null) {
           schedulePaint();worker.postMessage({type:'preview_consumed',kind:'source'});
         }else if(message.type==='result'){
           processed=message;processed.queuedAt=dshNow();dshApplyFastStats(message);dshApplyReadback(message.metadata.readback,false);
+          if(workflow==='segmentation')dshSetMedicalSegmentationProgress(dshSegmentationBase+message.completed,dshSegmentationTotal);
           dshNeedsUpload=false;schedulePaint();
           worker.postMessage({type:'preview_consumed',kind:'result'});
         }else if(message.type==='paused'){
@@ -491,6 +493,12 @@ function dshSetMedicalCacheStatus(status,error=null){
   lamp.textContent=error?'未完成模型分割 · '+error:(status&&status.complete?'已完成模型分割':
     '未完成模型分割'+(status?' · '+status.completed+'/'+status.total+' 帧':''));
   dshStreamControls();
+}
+function dshSetMedicalSegmentationProgress(completed,total){
+  const lamp=document.getElementById('medicalCacheLamp');
+  const done=Number.isFinite(completed)?Math.max(0,Math.min(total,completed)):0;
+  lamp.className='cache-state cache-working';
+  lamp.textContent='模型分割中 '+done+'/'+total+' 帧';
 }
 async function dshRefreshMedicalCache(){
   if(!dshMedicalPatient)return;
@@ -529,6 +537,22 @@ async function dshSelectMedicalPatient(dataset){
   }catch(error){document.getElementById('processingStatus').textContent='';alert('患者目录读取失败: '+error.message);}
 }
 let dshMedicalPoll=null;
+let dshSegmentationBase=0,dshSegmentationTotal=0;
+async function dshClearMedicalCache(){
+  if(!dshMedicalPatient||dshTransferBusy||dshStreamRunning)return;
+  const patient={...dshMedicalPatient};
+  if(!confirm('确定清除患者 '+patient.patient+' 的全部分割结果吗？\n已保存的掩膜和轮廓将被删除，需要重新运行 U-Net。原始 BIN 图像不会删除。\n此操作无法撤销。'))return;
+  dshTransferBusy=true;dshStreamControls();
+  try{
+    const response=await fetch('/api/network/medical/clear',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({dataset:patient.dataset,patient:patient.patient,confirm:true})});
+    const status=await response.json();
+    if(!response.ok||!status.ok)throw new Error(status.error||'清除分割结果失败');
+    dshSetMedicalCacheStatus(status);
+    document.getElementById('streamProcessedCanvas').getContext('2d').clearRect(0,0,256,256);
+  }catch(error){alert('清除分割结果失败: '+error.message);}
+  finally{dshTransferBusy=false;dshStreamControls();}
+}
 async function dshStartStream(files, preset=null, workflow=null) {
   if (dshTransferBusy || dshStreamRunning || systemModePending) return;
   let performanceStarted = false;
@@ -542,9 +566,13 @@ async function dshStartStream(files, preset=null, workflow=null) {
       entries=dshMedicalEntries;folder=dshMedicalPatient.folder;
       await dshRefreshMedicalCache();
       if(workflow==='analysis'&&(!dshMedicalStatus||!dshMedicalStatus.complete))throw new Error('全部图像完成模型分割后才能开始流分析');
-      // Registration uses the first source as a fixed reference. A partial
-      // restart must replay from that same first frame, never the first miss.
       if(workflow==='segmentation'&&dshMedicalStatus&&dshMedicalStatus.complete)return;
+      if(workflow==='segmentation'){
+        if(!dshMedicalStatus)throw new Error('无法核对已有分割进度，请重试');
+        dshSegmentationBase=dshMedicalStatus.completed;dshSegmentationTotal=dshMedicalStatus.total;
+        const completed=new Set(dshMedicalStatus.completed_files||[]),prefix=dshMedicalPatient.patient+'/';
+        entries=entries.filter(entry=>!completed.has(entry.path.slice(prefix.length)));
+      }
       if(!entries.length){await dshRefreshMedicalCache();return;}
     } else if (preset) {
       document.getElementById('processingStatus').textContent =
@@ -611,8 +639,7 @@ async function dshStartStream(files, preset=null, workflow=null) {
     dshFpsPaused = false; resumeFrameRate();
     dshStreamRunning = true; dshStreamControls();
     if(workflow==='segmentation'){
-      document.getElementById('medicalCacheLamp').className='cache-state cache-incomplete';
-      document.getElementById('medicalCacheLamp').textContent='未完成模型分割 · 分割中…';
+      dshSetMedicalSegmentationProgress(dshSegmentationBase,dshSegmentationTotal);
     }
     dshResetPerformance(streamChanged);
     performanceStarted = true;
@@ -641,6 +668,7 @@ document.querySelectorAll('[data-stream-dataset]').forEach(button => button.addE
 }));
 document.getElementById('medicalSegment').addEventListener('click',()=>void dshStartStream(null,null,'segmentation'));
 document.getElementById('medicalAnalyze').addEventListener('click',()=>void dshStartStream(null,null,'analysis'));
+document.getElementById('medicalClear').addEventListener('click',()=>void dshClearMedicalCache());
 document.getElementById('streamDatasetClose').addEventListener('click', () =>
   document.getElementById('streamDatasetDialog').close());
 document.getElementById('streamDatasetCancel').addEventListener('click', () =>
@@ -1015,7 +1043,8 @@ def _patient_cache(dataset, patient_relative):
     # reference invalidates the whole cache, even when later files are unchanged.
     reference=sources[0].relative_to(patient).as_posix().encode('utf-8')+sources[0].read_bytes()
     key=hashlib.sha256(model_key(_REPO).encode('ascii')+reference).hexdigest()
-    return PatientCache(patient, sources, key), entries
+    legacy=hashlib.sha256(legacy_model_key(_REPO).encode('ascii')+reference).hexdigest()
+    return PatientCache(patient, sources, key, compatible_model_keys=(legacy,)), entries
 
 
 def _state_versions(state):
@@ -1182,6 +1211,24 @@ class NetworkHandler(web_common.Handler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/network/medical/clear':
+            cache=None;locked=False
+            try:
+                size=int(self.headers.get('Content-Length','0'))
+                if not 0<size<=4096:raise ValueError('无效的清除请求')
+                options=json.loads(self.rfile.read(size))
+                if not isinstance(options,dict) or options.get('confirm') is not True:
+                    raise ValueError('清除分割结果必须先确认')
+                locked=_TRANSFER_LOCK.acquire(blocking=False)
+                if not locked:raise ValueError('请先停止流并等待当前帧完成后再清除分割结果')
+                cache,_=_patient_cache(options.get('dataset',''),options.get('patient',''))
+                cache.clear()
+                self.send_json({'ok':True,**cache.status()})
+            except Exception as error:self.send_json({'ok':False,'error':str(error)},status=400)
+            finally:
+                if cache is not None:cache.close()
+                if locked:_TRANSFER_LOCK.release()
+            return
         if parsed.path.startswith('/api/network/stream/'):
             self.stream_request(parsed)
             return
@@ -1288,6 +1335,14 @@ class NetworkHandler(web_common.Handler):
             received = time.perf_counter()
             status = session.snapshot()
             if result is None:
+                expected=getattr(session,'expected_total',None)
+                if (expected is not None and status['completed']>=expected and
+                    not status['busy'] and not status['pending'] and not status['stopped']):
+                    # The final preview HTTP response may have been lost after
+                    # dequeue. Disk commits and board completion remain valid.
+                    session.control('stop')
+                    self.send_json({'ok':True,'finished':True,**session.snapshot()})
+                    return
                 if status['stopped']:
                     self.send_json({'ok': not bool(status['error']), **status})
                 else:
@@ -1538,6 +1593,9 @@ class NetworkHandler(web_common.Handler):
 
 class NetworkServer(web_common.ThreadingHTTPServer):
     daemon_threads = True
+    # Concurrent preview, control and result polling can otherwise overflow
+    # Windows' small default accept backlog during a brief scheduling stall.
+    request_queue_size = 64
 
     def __init__(self, *args, **kwargs):
         self.stream_lock = threading.Lock()
@@ -1602,7 +1660,8 @@ class NetworkServer(web_common.ThreadingHTTPServer):
                                          source_frame_us=source_us, medical_workflow=workflow)
                 if workflow == 'segmentation':
                     pipeline=SegmentationPipeline(pipeline,cache,patient_prefix,
-                        alpha=lambda:int(options.get('mask_transparency',45)))
+                        alpha=lambda:int(options.get('mask_transparency',45)),
+                        resume_reference=next(iter(cache.sources.values())).read_bytes() if cache_status['completed'] else None)
                 elif workflow == 'analysis':
                     pipeline=AnalysisPipeline(pipeline,cache,patient_prefix)
                 curves=MedicalCurveHistory()
@@ -1629,6 +1688,7 @@ class NetworkServer(web_common.ThreadingHTTPServer):
                 session = QueuedStream(None, release, mode=mode, pipeline=pipeline, on_result=publish)
                 session.folder = folder
                 session.workflow = workflow
+                session.expected_total=(cache_status['total']-cache_status['completed']) if workflow=='segmentation' else None
                 session.patient = patient_relative
                 self.stream = session
                 self.stream_token = token
