@@ -17,8 +17,8 @@ module unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W (
     reset, clk);
 
 parameter DataWidth = 32;
-parameter AddressWidth = 8;
-parameter AddressRange = 256;
+parameter AddressWidth = 7;
+parameter AddressRange = 128;
  
 input[AddressWidth-1:0] address0;
 input ce0;

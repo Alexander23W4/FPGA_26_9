@@ -1,119 +1,85 @@
-# 完整四腔 U-Net：DDR 推理试验版
+# 四腔 U-Net：完整 FP32 模型与硬件边界
 
-此目录实现现有 `smp.Unet(encoder_name="mobilenet_v2", in_channels=1, classes=5)` 的完整推理。未修改 `ip/ai4chamberseger`，也未使用其中 mask/contour 固定为零的 RTL。
+本目录保留同事提供的完整 `smp.Unet(encoder_name="mobilenet_v2", in_channels=1, classes=5)` 推理模型。原始 `ip/ai4chamberseger` 未改动。此实现用于验证模型和 PL 数据通路；它不是实时分割引擎，医学准确性也尚未验证。
 
-## 当前链路
+## PL 数据通路
 
-```
-AXI 输入 → 输入 xbar
-              ├─ 图像处理：denoise → threshold ──────────────┐
-              └─ 医学分析：DDR 配准 → u_unet → u_medical ────┤
-                                                           ↓
-                                                       输出 xbar
-                                                           ↓
-                                                  hdl_out → double_buf
-                                                     ├─ HDMI 着色输出
-                                                     └─ 回传着色 → S2MM → DDR → PS/TCP → PC
+```text
+AXI-Stream → 医学模式选择
+              → DDR 配准 → 完整 U-Net → EDV/ESV 容积统计
+              → 四腔室颜色/轮廓 → 双帧缓存 → HDMI / S2MM 回传
 ```
 
-`top1` 默认 `ENABLE_UNET=1`。`ENABLE_UNET=0` 只用于旧显示通路的短仿真，保留旧 BRAM 配准并让分割输入空闲。真正启用网络的顶层另有完整 IP 展开验证。
+U-Net 输出原灰度、LA/RA/LV/RV 四路 mask 和 contour。像素流使用 `valid/ready/eof` 握手；下游反压时数据与标记保持。网络按完整帧接收、计算并输出，不能像逐像素滤波器那样即时产生对应像素。
 
-## 模型保留范围
+## 模型与精度
 
-- 从同事 ZIP 中的浮点头文件恢复全部 312 组有效参数；62 个 BatchNorm 训练计数器不参与 eval 推理。
-- 78 个操作：普通/逐点卷积、深度卷积、ReLU6、线性投影、残差相加、最近邻上采样、跳跃连接拼接、解码器 ReLU、最终五类分数。
-- 计算保持 FP32。BatchNorm 按 eval 公式折叠到卷积权重/偏置，epsilon 为 `1e-5`。这保持原数学模型，不沿用同事的统一乘 128 截断转换。
-- 输入严格为 256×256×8-bit，按 `pixel/255` 归一化。输入已由 `u_registration` 配准；输出灰度与这张配准图一致。
-- 最终按五类分数 argmax，整数类别直接进入三行缓存，生成四路 one-hot mask，再通过四邻域生成各腔室的内轮廓。DDR 仍保存浮点类别用于调试；像素输出不再从这份副本重新读取并转换类别。
-- 没有 `.pth` 可用于额外核验；使用的是同事导出的六位小数浮点权重，不能宣称与未提供的原始 checkpoint 逐位相同。
+- 78 个算子覆盖 MobileNetV2 编码器、深度/逐点/普通卷积、残差、U-Net 解码器、跳跃连接和五分类输出；62 个 BatchNorm 依 eval 公式折叠。
+- 推理使用 FP32，BN epsilon 为 `1e-5`；没有量化或蒸馏。权重是同事导出的六位小数参数，不等同于未提供的训练 checkpoint 逐位数据。
+- 输入是 256×256、8-bit 灰度，按 `pixel/255` 归一化；网络输入先经过帧配准。
+- 最终类别用 argmax 直接写入行缓存，再形成四路 one-hot 掩膜和四邻域轮廓。输出类别不再从 DDR 浮点副本读回转换。
+- 类别暂按同事代码沿用：0 背景、1 LA、2 RA、3 LV、4 RV，`UNET_CLASS_MAP=16'h4321`。尚未用训练标注图确认解剖对应关系。
 
-架构依据可核对 [SMP MobileNet 编码器](https://github.com/qubvel-org/segmentation_models.pytorch/blob/v0.3.4/segmentation_models_pytorch/encoders/mobilenet.py)、[SMP U-Net 解码器](https://github.com/qubvel-org/segmentation_models.pytorch/blob/v0.3.4/segmentation_models_pytorch/decoders/unet/decoder.py)、[Torchvision MobileNetV2](https://github.com/pytorch/vision/blob/v0.17.2/torchvision/models/mobilenetv2.py)。导出器逐项核对数组名称、形状和全部参数消费情况，不默默丢弃网络层。
+与模型结构对应的公开实现版本见 [SMP MobileNet 编码器](https://github.com/qubvel-org/segmentation_models.pytorch/blob/v0.3.4/segmentation_models_pytorch/encoders/mobilenet.py)、[SMP U-Net 解码器](https://github.com/qubvel-org/segmentation_models.pytorch/blob/v0.3.4/segmentation_models_pytorch/decoders/unet/decoder.py)和 [Torchvision MobileNetV2](https://github.com/pytorch/vision/blob/v0.17.2/torchvision/models/mobilenetv2.py)。
 
-## 接口与编号
+## 卷积核与时钟
 
-`unet.v` 提供要求的 `in_data/in_valid/in_ready/in_eof`、`out_data/out_valid/out_ready/out_eof`、四路 mask/contour。另外有 `enable`、状态输出和两个 DDR AXI 主口。
+卷积核心采用 **32 路 FP32 乘加并行**、64 像素 tile、16 输入通道 tile、每组最多 64 输出通道。Feature fetch、weight fetch、MAC 和结果写回由四个 HLS dataflow 任务重叠执行。Feature tile 在输出通道间复用，显式 4 KiB feature cache 配合 4 KiB feature FIFO 和 1 KiB kernel FIFO；累加器和逐通道临时值用 LUTRAM。继续增加 BRAM cache 会与整机存储预算冲突。
 
-输入/输出只在 valid 与 ready 同时有效时推进。每帧完整输出 65,536 个像素，包括背景。下游停顿时灰度、八个标记和 EOF 一起保持。网络分帧接收、计算、输出，不能把它理解成收到一个像素马上推理出这个像素。
+U-Net 使用单独 MMCM 时钟，默认 **160 MHz**；输入、网络、输出流用异步 FIFO 搬运，状态采用请求/应答握手同步。两路 U-Net AXI 主口经异步 AXI clock converter 回到 80 MHz AXI/DDR 路径；原 HDMI 和图像处理时钟不变。160 MHz 是当前 OOC 路由验证值，整工程实现仍须重新检查时序。
 
-类别编号暂按用户选择沿用同事代码：背景 0、LA 1、RA 2、LV 3、RV 4；尚未据训练标注确认解剖学对应关系。`top1.UNET_CLASS_MAP=16'h4321`，从低到高四个 nibble 对应 LA/RA/LV/RV 的类别 ID。若确认训练使用 `1=LV,2=LA,3=RA,4=RV`，可改为 `16'h4132`，无需改变网络或重新训练，但需要重新生成位流。
+## DDR、片上资源与性能
 
-## DDR 和片上资源
+| 区域 | 起址 | 实际数据 | 保留窗口 |
+|---|---:|---:|---:|
+| 权重、偏置和头部 | `0x28000000` | 26,501,440 B | 64 MiB |
+| 中间特征、输入、类别 | `0x2C000000` | 19,398,656 B | 32 MiB |
+| 配准参考/当前帧 | `0x2E000000` | 524,288 B | 512 KiB |
 
-| 区域 | 起址 | 本版本实际大小 | 保留窗口 |
-|---|---|---:|---:|
-| 网络权重、折叠偏置及头部 | `0x28000000` | 26,457,792 B | 64 MiB |
-| 中间特征、输入和类别结果 | `0x2C000000` | 19,398,656 B | 32 MiB |
-| 配准前/当前原帧 | `0x2E000000` | 524,288 B | 512 KiB |
+DDR 由权重口和 feature 读写口访问；另有配准 AXI 口。PL 不缓存整张 U-Net 特征图，特征张量仍存于 DDR，片上 cache 用于 tile 内复用。
 
-避开了原图缓冲 `0x20000000`、回传缓冲和 `0x21000000` 附近的连续流 DDR 环。
-
-计算核心使用 16 路并行 FP32 乘加、64 像素空间 tile、16 输入通道 tile。权重在空间 tile 内复用，输入在输出通道间复用；中间特征根据生命周期复用 DDR 地址，并保留解码器需要的跳跃连接。
-
-片上完整配准双帧会使工程 BRAM 超过 Z-7015 总量。因此启用网络时，配准改用 `rtl/inter_fr/ddr`：全帧进 DDR，仅 48×48 参考 ROI 与 64×64 当前 ROI 留片上，保持 ±8 SAD、相同平局规则、相对本序列首帧的位移和越界补零。每次重新进入医学模式增加 epoch，下一帧重建参考。
-
-| 独立 HLS 估计，非整工程实现结果 | DSP | LUT | BRAM_18K | 估计最长周期 |
+| 综合/实现层次 | LUT | FF | DSP | BRAM tile |
 |---|---:|---:|---:|---:|
-| 完整 U-Net 核心（64 像素 tile、直接类别行缓存） | 98 | 28,475 | 13 | 9.125 ns |
-| DDR 配准核心 | 4 | 3,864 | 8 | 9.125 ns |
+| U-Net 核心 OOC 放置布线，160 MHz | 26,646 | 45,187 | 90 | 4 |
+| 当前 `top1` RTL 综合预算 | 37,450 / 46,200 | 54,545 | 116 / 160 | 92 / 95 |
 
-目标处理时钟是 80 MHz；卷积 MAC 循环达到 II=1。上述不包含所有显示、阈值、互连和医学统计资源。最终容量、时序必须以用户运行的整工程 Vivado 实现为准。
+U-Net 核心 OOC 160 MHz 报告 WNS **+0.161 ns**、WHS **+0.048 ns**。整顶层预算不包含 Block Design 的 DMA、AXI interconnect、时钟转换器等资源，不能当成完整工程已经通过实现。AXI clock converter 的 FIFO 配置使用 BRAM；当前整机只剩 3 个 tile 的预算，不能据此继续堆大块 BRAM cache。请以新生成的整工程 implementation 报告为最终依据。
 
-三个新 32-bit AXI4 主口通过原 HP0 互连的 S02/S03/S04 接入 64-bit HP0。宽度转换由互连实现，按 32-bit 地址和 WSTRB 传递全部数据；不改变原 VDMA/S2MM 配置，也没有丢弃半个数据字。
+模型约 **3,373,326,336 MAC/帧**。按 32 个 MAC/周期、160 MHz 计算，只有乘加的理论下限约 **0.659 秒/帧**，也就是理想上限约 **1.52 FPS**；真实速度还会受 DDR、数据搬运、层间处理影响而更慢。因此此硬件配置达不到 10 FPS 底线。达到 10 FPS 至少需要约 211 个并行 MAC 单元在 160 MHz 连续满载，尚未计任何访存和控制开销，不能靠加 BRAM cache 达成。
 
-### 整工程 BRAM 与调试核
+## Patient 离线分割缓存
 
-完整原模型的实际优化后网表使用 115 个 RAMB36 和 9 个 RAMB18，合计 119.5 个 BRAM tile，超过器件的 95 个。层级报告定位：双帧缓存 68、Otsu 帧缓存 16、DDR 配准 3、U-Net 1.5、两个 ILA 调试核 27.5，其余功能 3.5（均按 RAMB36 等效计）。
+Cardiac patient 的模型分割与后续流分析流程见[医学 patient 缓存说明](../../docs/design/medical_patient_cache.md)。分割完成后，后续流分析读取本地注册灰度、掩膜和轮廓，跳过配准和 U-Net；仍执行医学指标、显示与回传。
 
-普通构建现在默认通过 `scripts/tcl/debug_budget.tcl` 移除历史 HDMI、AXI-Lite、VDMA 采集 ILA，同时迁移已有 BD；功能逻辑按原网表计为 **92/95 BRAM tile**。完整模型、权重、HDMI 与回传数据路径保持原样。关闭 ILA 后无法使用这些探针抓波形，串口/网络状态读取仍可用。
+## 生成、综合和加载
 
-`FPGA_DEBUG_ILA=1` 可显式保留已有调试核，用于另行控制资源的调试配置；当前完整模型工程不能直接恢复原深度的两个 ILA，否则会再次超容量。
-
-### 性能边界
-
-该完整模型每帧 **3,373,326,336 MAC**。按 16 路、80 MHz 算，只有算术的理想下限也约为 **2.64 秒/帧**；DDR、缓存装填、层间操作还会增加耗时。因此本版用于保留完整模型并验证硬件路径，不具有 100 FPS 能力。提高时钟或并行度不能无视这块器件的资源容量。需要高帧率时，应在此正确基线之上进行量化、缓存调度优化，并重新评估是否需要缩小/重训模型。
-
-## 构建和加载
-
-已生成的 Verilog 位于 `generated/`，配准 Verilog 位于 `rtl/inter_fr/ddr/generated/`。浮点算子的 Vivado 创建脚本随 RTL 一起提供；普通构建会自动生成这些标准算子 IP、接入 DDR，并验证源文件指纹。
-
-完整模型文件在本机 `build/unet/model/weights.bin`。若换电脑或修改模型/HLS 源码，在仓库根目录 Git Bash 中重新生成：
+重新生成 HLS RTL 与权重：
 
 ```bash
 bash rtl/unet/tools/build.sh
 ```
 
-随后使用原有完整构建命令：
+完整构建：
 
 ```bash
 ./scripts/build.sh zynq -n fpga_26 -H && ./scripts/build.sh app -n MID_plt -p fpga_26 -f
 ```
 
-烧录位流、ELF，并将匹配的模型加载 DDR：
+把与 32 路程序 ID 匹配的权重装入 DDR 并运行 PS：
 
 ```bash
 UNET_WEIGHTS="$(cygpath -w build/unet/model/weights.bin)" bash scripts/flash_current.sh init
 ```
 
-加载脚本在 CPU 启动前写入完整文件，最后才提交模型 magic。核心检查版本、操作数、workspace 大小、并行度、分辨率、程序 ID；不匹配时不接收图像。断电后 DDR 权重消失，需要重新加载。常规不带 `UNET_WEIGHTS` 的烧录仍可使用图像处理模式，但不能直接开始医学分割。
+位流、PS、DDR 权重必须来自同一版本。断电会清除 DDR 权重；加载脚本完成权重校验后才启动 PS。未加载匹配权重时仍可运行图像处理模式，但医学分割会明确拒绝启动。
 
-新增只读 `UNET_STATUS`，字索引 `0x2A`，AXI 字节地址 `0xA8`：bit0 模型已就绪，bit1 正在计算，bit2 输入帧格式错误。PS 在医学任务开始前检查就绪位，缺模型时直接返回错误，不让 DMA 无期限等待。医学任务超时扩为 300 秒，图像处理仍用原期限。
+## 验证状态
 
-## 已验证与未验证
+已通过：
 
-已完成：
+1. 32 路内核在普通卷积、深度卷积和尾通道场景下完成 Vitis HLS C/RTL 协同仿真：`build/unet/production32_kernel_cosim.log`。
+2. 完整模型数值参考对 256×256 样本的 65,536 个类别全部一致，最大 logit 误差 `1.69e-5`：`build/unet/production32_check/verification.json`。这验证实现与现有模型相符，不证明临床精度。
+3. 32 路 U-Net 核心 OOC 160 MHz 路由；当前完整顶层 RTL 综合预算；医疗缓存顶层握手/反压、空掩膜无旧值残留、PC 网络协议与 GUI 工作流测试。
+4. 主机侧 112 个测试通过，1 个测试因 Windows 禁止创建符号链接而跳过；`freshness.py --check` 和 GUI JavaScript 语法检查通过。
 
-1. 完整 HLS 算法 C 模型与独立 NumPy **原始浮点参数 + 未折叠 BN** 解释器对比：真实 Cardiac 256×256 输入的全部 65,536 个类别一致；最大分数误差约 `1.86e-5`；原灰度、四路 mask、二维 contour 均一致。
-2. 共享 16 路 MAC 的普通/深度卷积 **实际 Verilog C/RTL 联合仿真通过**，覆盖 stride、padding、输出通道尾块。
-3. DDR 配准 **实际 Verilog C/RTL 联合仿真通过**，覆盖九张完整帧、`(+2,-1)`、`(+4,-2)`、epoch 重建参考、反复 ±6 位移不累积漂移和 EOF。
-4. 启用完整网络的真实 `top1` 含浮点 IP 编译/展开通过；独立 BD 地址、时钟、复位、HP0 宽度和原 DMA 连接验证通过。
-5. PS 原始 C 网络状态机测试和 GUI/网络测试；原显示路径局部回归。
-
-新版本尚未进行：整张网络所有计算的完整 RTL 仿真、新版整工程实现和新版上板性能验证。旧版已测单帧 27.74 秒，其中 PL→DDR 27.71 秒，PC 收图约 4.4 ms；DDR logits/类别与独立软件参考一致，但最终回传仅 49 个黄色像素，分类之后存在异常。新版去掉类别 DDR 往返读取并通过完整尺寸输出 RTL 仿真，仍需上板确认是否消除该异常。详见 `docs/design/medical_debug_2026-10-26.md`。样本类别一致说明实现对应现有模型，不等于模型已具备医学准确性。
-
-本地重跑完整数值对比：
-
-```bash
-python rtl/unet/tools/check_model.py --frame "你的256x256.bin"
-```
-
-验证报告和日志在 `build/unet/`：`verification.json`、`kernel_cosim.log`、`registration_cosim.log`、`bd_validate_final.log`、`display_regression.log`。`source_fingerprint.json` 防止修改 HLS 或权重后继续综合旧 RTL；Python 缓存文件不计入 PL 源码指纹。
+尚未通过或尚未进行：完整模型全网 RTL 仿真、完整 Vivado BD/整工程布线、当前版本上板运行与速度测量。旧位流不支持新的医学缓存协议；修改后必须重新构建硬件和 PS 并烧录，再加载匹配权重。类别与真实解剖标注的对应关系也仍需数据集核验。

@@ -64,7 +64,7 @@ module unet_ddr_core_conv_feature_fetch_Pipeline_VITIS_LOOP_26_7 (
         feature_fifo_cap,
         feature_full_n,
         feature_write,
-        select_ln17_4,
+        sext_ln17,
         sext_ln26
 );
 
@@ -127,7 +127,7 @@ input  [10:0] feature_num_data_valid;
 input  [10:0] feature_fifo_cap;
 input   feature_full_n;
 output   feature_write;
-input  [31:0] select_ln17_4;
+input  [6:0] sext_ln17;
 input  [29:0] sext_ln26;
 
 reg ap_idle;
@@ -143,7 +143,7 @@ reg    ap_idle_pp0;
 reg    ap_block_state2_pp0_stage0_iter1;
 reg    ap_block_state3_pp0_stage0_iter2;
 reg    ap_block_pp0_stage0_subdone;
-wire   [0:0] icmp_ln26_fu_94_p2;
+wire   [0:0] icmp_ln26_fu_98_p2;
 reg    ap_condition_exit_pp0_iter0_stage0;
 wire    ap_loop_exit_ready;
 reg    ap_ready_int;
@@ -151,12 +151,13 @@ reg    features_blk_n_R;
 wire    ap_block_pp0_stage0;
 reg    feature_blk_n;
 reg    ap_block_pp0_stage0_11001;
-reg   [31:0] features_addr_read_reg_133;
+reg   [31:0] features_addr_read_reg_137;
 reg   [31:0] c_fu_54;
-wire   [31:0] add_ln26_fu_100_p2;
+wire   [31:0] add_ln26_fu_104_p2;
 wire    ap_loop_init;
 reg   [31:0] ap_sig_allocacmp_c_4;
 reg    ap_block_pp0_stage0_01001;
+wire  signed [31:0] sext_ln17_cast_fu_86_p1;
 reg    ap_done_reg;
 wire    ap_continue_int;
 reg    ap_done_int;
@@ -171,7 +172,7 @@ initial begin
 #0 ap_CS_fsm = 1'd1;
 #0 ap_enable_reg_pp0_iter1 = 1'b0;
 #0 ap_enable_reg_pp0_iter2 = 1'b0;
-#0 features_addr_read_reg_133 = 32'd0;
+#0 features_addr_read_reg_137 = 32'd0;
 #0 c_fu_54 = 32'd0;
 #0 ap_done_reg = 1'b0;
 #0 ap_loop_exit_ready_pp0_iter1_reg = 1'b0;
@@ -249,8 +250,8 @@ always @ (posedge ap_clk) begin
         c_fu_54 <= 32'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_pp0_stage0) & (1'b0 == ap_block_pp0_stage0_11001))) begin
-            if (((ap_enable_reg_pp0_iter0 == 1'b1) & (icmp_ln26_fu_94_p2 == 1'd0))) begin
-                c_fu_54 <= add_ln26_fu_100_p2;
+            if (((ap_enable_reg_pp0_iter0 == 1'b1) & (icmp_ln26_fu_98_p2 == 1'd0))) begin
+                c_fu_54 <= add_ln26_fu_104_p2;
             end else if ((ap_loop_init == 1'b1)) begin
                 c_fu_54 <= 32'd0;
             end
@@ -260,16 +261,16 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        features_addr_read_reg_133 <= 32'd0;
+        features_addr_read_reg_137 <= 32'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_pp0_stage0) & (1'b0 == ap_block_pp0_stage0_11001))) begin
-            features_addr_read_reg_133 <= m_axi_features_RDATA;
+            features_addr_read_reg_137 <= m_axi_features_RDATA;
         end
     end
 end
 
 always @ (*) begin
-    if (((ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0) & (icmp_ln26_fu_94_p2 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone))) begin
+    if (((ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0) & (icmp_ln26_fu_98_p2 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone))) begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b1;
     end else begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b0;
@@ -359,7 +360,7 @@ always @ (*) begin
     endcase
 end
 
-assign add_ln26_fu_100_p2 = (ap_sig_allocacmp_c_4 + 32'd1);
+assign add_ln26_fu_104_p2 = (ap_sig_allocacmp_c_4 + 32'd1);
 
 assign ap_CS_fsm_pp0_stage0 = ap_CS_fsm[32'd0];
 
@@ -391,9 +392,9 @@ assign ap_enable_reg_pp0_iter0 = ap_start_int;
 
 assign ap_loop_exit_ready = ap_condition_exit_pp0_iter0_stage0;
 
-assign feature_din = features_addr_read_reg_133;
+assign feature_din = features_addr_read_reg_137;
 
-assign icmp_ln26_fu_94_p2 = ((ap_sig_allocacmp_c_4 == select_ln17_4) ? 1'b1 : 1'b0);
+assign icmp_ln26_fu_98_p2 = ((ap_sig_allocacmp_c_4 == sext_ln17_cast_fu_86_p1) ? 1'b1 : 1'b0);
 
 assign m_axi_features_ARADDR = 32'd0;
 
@@ -456,5 +457,7 @@ assign m_axi_features_WSTRB = 4'd0;
 assign m_axi_features_WUSER = 1'd0;
 
 assign m_axi_features_WVALID = 1'b0;
+
+assign sext_ln17_cast_fu_86_p1 = $signed(sext_ln17);
 
 endmodule //unet_ddr_core_conv_feature_fetch_Pipeline_VITIS_LOOP_26_7

@@ -70,11 +70,11 @@ module unet_ddr_core_elementwise (
         m_axi_features_BID,
         m_axi_features_BUSER,
         memory,
-        grp_fu_1266_p_din0,
-        grp_fu_1266_p_din1,
-        grp_fu_1266_p_opcode,
-        grp_fu_1266_p_dout0,
-        grp_fu_1266_p_ce
+        grp_fu_1268_p_din0,
+        grp_fu_1268_p_din1,
+        grp_fu_1268_p_opcode,
+        grp_fu_1268_p_dout0,
+        grp_fu_1268_p_ce
 );
 
 parameter    ap_ST_fsm_state1 = 19'd1;
@@ -160,11 +160,11 @@ input  [1:0] m_axi_features_BRESP;
 input  [0:0] m_axi_features_BID;
 input  [0:0] m_axi_features_BUSER;
 input  [31:0] memory;
-output  [31:0] grp_fu_1266_p_din0;
-output  [31:0] grp_fu_1266_p_din1;
-output  [1:0] grp_fu_1266_p_opcode;
-input  [31:0] grp_fu_1266_p_dout0;
-output   grp_fu_1266_p_ce;
+output  [31:0] grp_fu_1268_p_din0;
+output  [31:0] grp_fu_1268_p_din1;
+output  [1:0] grp_fu_1268_p_opcode;
+input  [31:0] grp_fu_1268_p_dout0;
+output   grp_fu_1268_p_ce;
 
 reg ap_done;
 reg ap_idle;
@@ -633,7 +633,7 @@ unet_ddr_core_elementwise_Pipeline_VITIS_LOOP_18_1 grp_elementwise_Pipeline_VITI
     .grp_fu_559_p_din0(grp_elementwise_Pipeline_VITIS_LOOP_18_1_fu_197_grp_fu_559_p_din0),
     .grp_fu_559_p_din1(grp_elementwise_Pipeline_VITIS_LOOP_18_1_fu_197_grp_fu_559_p_din1),
     .grp_fu_559_p_opcode(grp_elementwise_Pipeline_VITIS_LOOP_18_1_fu_197_grp_fu_559_p_opcode),
-    .grp_fu_559_p_dout0(grp_fu_1266_p_dout0),
+    .grp_fu_559_p_dout0(grp_fu_1268_p_dout0),
     .grp_fu_559_p_ce(grp_elementwise_Pipeline_VITIS_LOOP_18_1_fu_197_grp_fu_559_p_ce)
 );
 
@@ -643,7 +643,7 @@ unet_ddr_core_mul_30s_11ns_30_3_1 #(
     .din0_WIDTH( 30 ),
     .din1_WIDTH( 11 ),
     .dout_WIDTH( 30 ))
-mul_30s_11ns_30_3_1_U382(
+mul_30s_11ns_30_3_1_U560(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(input_pixel_reg_539),
@@ -658,7 +658,7 @@ unet_ddr_core_mul_9ns_9ns_18_3_1 #(
     .din0_WIDTH( 9 ),
     .din1_WIDTH( 9 ),
     .dout_WIDTH( 18 ))
-mul_9ns_9ns_18_3_1_U383(
+mul_9ns_9ns_18_3_1_U561(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(grp_fu_220_p0),
@@ -674,7 +674,7 @@ unet_ddr_core_lshr_18ns_4ns_18_2_1 #(
     .din0_WIDTH( 18 ),
     .din1_WIDTH( 4 ),
     .dout_WIDTH( 18 ))
-lshr_18ns_4ns_18_2_1_U384(
+lshr_18ns_4ns_18_2_1_U562(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(pos_fu_104),
@@ -689,7 +689,7 @@ unet_ddr_core_mul_18ns_11ns_29_3_1 #(
     .din0_WIDTH( 18 ),
     .din1_WIDTH( 11 ),
     .dout_WIDTH( 29 ))
-mul_18ns_11ns_29_3_1_U385(
+mul_18ns_11ns_29_3_1_U563(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(grp_fu_311_p0),
@@ -705,7 +705,7 @@ unet_ddr_core_shl_32ns_32s_32_2_1 #(
     .din0_WIDTH( 32 ),
     .din1_WIDTH( 32 ),
     .dout_WIDTH( 32 ))
-shl_32ns_32s_32_2_1_U386(
+shl_32ns_32s_32_2_1_U564(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(grp_fu_334_p0),
@@ -720,7 +720,7 @@ unet_ddr_core_mul_18ns_8ns_26_3_1 #(
     .din0_WIDTH( 18 ),
     .din1_WIDTH( 8 ),
     .dout_WIDTH( 26 ))
-mul_18ns_8ns_26_3_1_U387(
+mul_18ns_8ns_26_3_1_U565(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(grp_fu_377_p0),
@@ -735,7 +735,7 @@ unet_ddr_core_mul_18ns_11ns_29_2_1 #(
     .din0_WIDTH( 18 ),
     .din1_WIDTH( 11 ),
     .dout_WIDTH( 29 ))
-mul_18ns_11ns_29_2_1_U388(
+mul_18ns_11ns_29_2_1_U566(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(grp_fu_382_p0),
@@ -1673,13 +1673,13 @@ assign grp_elementwise_Pipeline_VITIS_LOOP_34_3_fu_174_ap_start = grp_elementwis
 
 assign grp_elementwise_Pipeline_VITIS_LOOP_39_4_fu_185_ap_start = grp_elementwise_Pipeline_VITIS_LOOP_39_4_fu_185_ap_start_reg;
 
-assign grp_fu_1266_p_ce = grp_fu_559_ce;
+assign grp_fu_1268_p_ce = grp_fu_559_ce;
 
-assign grp_fu_1266_p_din0 = grp_elementwise_Pipeline_VITIS_LOOP_18_1_fu_197_grp_fu_559_p_din0;
+assign grp_fu_1268_p_din0 = grp_elementwise_Pipeline_VITIS_LOOP_18_1_fu_197_grp_fu_559_p_din0;
 
-assign grp_fu_1266_p_din1 = grp_elementwise_Pipeline_VITIS_LOOP_18_1_fu_197_grp_fu_559_p_din1;
+assign grp_fu_1268_p_din1 = grp_elementwise_Pipeline_VITIS_LOOP_18_1_fu_197_grp_fu_559_p_din1;
 
-assign grp_fu_1266_p_opcode = 2'd0;
+assign grp_fu_1268_p_opcode = 2'd0;
 
 assign grp_fu_208_p1 = zext_ln28_reg_452;
 

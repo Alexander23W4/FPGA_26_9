@@ -542,10 +542,9 @@ async function dshStartStream(files, preset=null, workflow=null) {
       entries=dshMedicalEntries;folder=dshMedicalPatient.folder;
       await dshRefreshMedicalCache();
       if(workflow==='analysis'&&(!dshMedicalStatus||!dshMedicalStatus.complete))throw new Error('全部图像完成模型分割后才能开始流分析');
-      if(workflow==='segmentation'&&dshMedicalStatus&&dshMedicalStatus.completed_files){
-        const done=new Set(dshMedicalStatus.completed_files.map(name=>dshMedicalPatient.patient+'/'+name));
-        entries=entries.filter(entry=>!done.has(entry.path));
-      }
+      // Registration uses the first source as a fixed reference. A partial
+      // restart must replay from that same first frame, never the first miss.
+      if(workflow==='segmentation'&&dshMedicalStatus&&dshMedicalStatus.complete)return;
       if(!entries.length){await dshRefreshMedicalCache();return;}
     } else if (preset) {
       document.getElementById('processingStatus').textContent =
@@ -588,7 +587,7 @@ async function dshStartStream(files, preset=null, workflow=null) {
     if (!entries.length) throw new Error('所选文件夹没有 BIN 图像');
     if (entries.some(entry => !entry.name.toLowerCase().endsWith('.bin') || entry.size !== 65536))
       throw new Error('流数据集中存在不是 65536 字节的 BIN 文件');
-    if (!preset) {
+    if (!preset && !workflow) {
       if (entries.some(entry => entry.folder !== folder)) throw new Error('一次只能选择一个流文件夹');
       entries.sort((a,b) => a.path.localeCompare(b.path, 'zh-CN', {numeric:true, sensitivity:'base'}));
     }
@@ -611,8 +610,10 @@ async function dshStartStream(files, preset=null, workflow=null) {
     if (document.getElementById('fpgaOutputMode').value === '5') document.getElementById('fpgaOutputMode').value = '0';
     dshFpsPaused = false; resumeFrameRate();
     dshStreamRunning = true; dshStreamControls();
-    document.getElementById('medicalCacheLamp').className='cache-state cache-working';
-    if(workflow==='segmentation')document.getElementById('medicalCacheLamp').textContent='模型分割处理中…';
+    if(workflow==='segmentation'){
+      document.getElementById('medicalCacheLamp').className='cache-state cache-incomplete';
+      document.getElementById('medicalCacheLamp').textContent='未完成模型分割 · 分割中…';
+    }
     dshResetPerformance(streamChanged);
     performanceStarted = true;
     await dshRunStreamWorker(entries,streamChanged,workflow);
@@ -1010,7 +1011,11 @@ def _patient_context(dataset, patient_relative):
 
 def _patient_cache(dataset, patient_relative):
     _, _, patient, entries, sources = _patient_context(dataset, patient_relative)
-    return PatientCache(patient, sources, model_key(_REPO)), entries
+    # All registered frames share the first frame's coordinates. Changing that
+    # reference invalidates the whole cache, even when later files are unchanged.
+    reference=sources[0].relative_to(patient).as_posix().encode('utf-8')+sources[0].read_bytes()
+    key=hashlib.sha256(model_key(_REPO).encode('ascii')+reference).hexdigest()
+    return PatientCache(patient, sources, key), entries
 
 
 def _state_versions(state):
@@ -1596,8 +1601,6 @@ class NetworkServer(web_common.ThreadingHTTPServer):
                                          send_chunk=3072, send_pause=.0001,
                                          source_frame_us=source_us, medical_workflow=workflow)
                 if workflow == 'segmentation':
-                    skip={patient_prefix+'/'+name for name in cache_status.get('completed_files',[])}
-                    options['_skip_paths']=skip
                     pipeline=SegmentationPipeline(pipeline,cache,patient_prefix,
                         alpha=lambda:int(options.get('mask_transparency',45)))
                 elif workflow == 'analysis':

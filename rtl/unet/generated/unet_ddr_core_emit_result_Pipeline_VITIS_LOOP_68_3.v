@@ -231,7 +231,7 @@ unet_ddr_core_fcmp_32ns_32ns_1_4_no_dsp_1 #(
     .din0_WIDTH( 32 ),
     .din1_WIDTH( 32 ),
     .dout_WIDTH( 1 ))
-fcmp_32ns_32ns_1_4_no_dsp_1_U407(
+fcmp_32ns_32ns_1_4_no_dsp_1_U585(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(grp_fu_98_p0),

@@ -6,6 +6,7 @@ const assets=path.join(path.dirname(process.argv[2]),'assets');
 const elements={},alerts=[],calls=[],paints=[],parameters=[],returned=[],accepted=[],delivered=[];
 let uploads=0,ctx,controlsStarted=false,controlsDone=false,stopSent=false;
 const expectFailure=process.argv[4]==='failure';
+const medical=process.argv[4]==='medical';let medicalAnalysisStarted=false;
 function element(){
   const context={createImageData:()=>({data:new Uint8ClampedArray(256*256*4)}),
     clearRect(){},putImageData(image){this.last=image.data.slice();this.writes=(this.writes||0)+1;}};
@@ -19,7 +20,7 @@ function element(){
 const document={getElementById:id=>elements[id]||=element(),querySelector:element,querySelectorAll:()=>[],
   createElement:element,createDocumentFragment:element,createTextNode:text=>({textContent:text}),addEventListener(){},
   body:{classList:{toggle(){},contains:()=>false,remove(){}}}};
-for(const [id,value] of Object.entries({systemMode:'processing',width:'255',center:'128'}))document.getElementById(id).value=value;
+for(const [id,value] of Object.entries({systemMode:medical?'medical':'processing',medicalOutputMode:'1',maskOpacity:'45',sourceFps:'30',width:'255',center:'128'}))document.getElementById(id).value=value;
 async function emit(id,event){for(const fn of elements[id].listeners[event]||[])await fn({target:elements[id],currentTarget:elements[id]});}
 class ScriptWorker{
   constructor(url){
@@ -42,7 +43,7 @@ class ScriptWorker{
         const size=new DataView(bytes).getUint32(0);
         const metadata=JSON.parse(new TextDecoder().decode(new Uint8Array(bytes,4,size)));
         returned.push(metadata);
-        if(!controlsStarted&&!expectFailure){
+        if(!controlsStarted&&!expectFailure&&!medical){
           controlsStarted=true;
           elements.thresholdMode.setAttribute('aria-checked','true');elements.threshold.value='77';
           parameters.push(ctx.dshThrUpdate());
@@ -58,6 +59,7 @@ class ScriptWorker{
            metadata.readback.actual_threshold===77&&metadata.readback.mask_transparency===35){
           stopSent=true;ctx.dshStopStream();
         }
+        if(medical&&medicalAnalysisStarted&&!stopSent&&metadata.stream.completed>=3){stopSent=true;ctx.dshStopStream();}
         return response;
       }});
     vm.runInContext(fs.readFileSync(path.join(assets,'stream_worker.js'),'utf8'),this.env);
@@ -75,6 +77,25 @@ vm.runInContext(script,ctx);
 function frame(name,value){return {name,size:65536,webkitRelativePath:'CaseA/'+name,
   arrayBuffer:async()=>new Uint8Array(65536).fill(value).buffer};}
 (async()=>{
+  if(medical){
+    await ctx.dshSelectMedicalPatient('cardiac');
+    assert.strictEqual(vm.runInContext('dshMedicalEntries.length',ctx),3);
+    assert.strictEqual(vm.runInContext('dshMedicalStatus.complete',ctx),false);
+    assert.strictEqual(elements.medicalAnalyze.disabled,true);
+    await ctx.dshStartStream(null,null,'segmentation');
+    assert.deepStrictEqual(alerts,[]);
+    assert.strictEqual(uploads,3,'finite segmentation must upload each source exactly once');
+    assert.strictEqual(vm.runInContext('dshMedicalStatus.complete',ctx),true);
+    assert.strictEqual(elements.medicalAnalyze.disabled,false);
+    assert.match(elements.medicalCacheLamp.className,/cache-complete/);
+    medicalAnalysisStarted=true;
+    await ctx.dshStartStream(null,null,'analysis');
+    assert.deepStrictEqual(alerts,[]);
+    assert(returned.at(-1).stream.completed>=3);
+    assert(calls.some(url=>url.startsWith('/api/network/medical/cache?')));
+    console.log('MEDICAL_GUI_CACHE_OK: patient selection, finite two-pass segmentation, green completion, cached looping analysis, previews independent of paint');
+    return;
+  }
   await ctx.dshStartStream([frame('002.bin',2),frame('001.bin',1)]);await Promise.all(parameters);
   if(expectFailure){
     assert(uploads>=1&&uploads<=12,'failure may retain at most four pending and eight in-flight inputs');

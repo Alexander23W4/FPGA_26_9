@@ -2,7 +2,7 @@
 // Dedicated BRAM feature cache + one-block prefetch. Unlike a generic cache,
 // lifetime and reuse are explicit: each feature tile feeds up to 64 outputs.
 // Four independent tasks overlap DDR fetches, MACs and result stores.
-static const unsigned TILE=64, INPUT_TILE=16, OUTPUT_GROUPS=4;
+static const unsigned TILE=64, INPUT_TILE=16, OUTPUT_GROUPS=2;
 static unsigned output_span(const UnetOp &op){return op.kind==1?UNET_LANES:OUTPUT_GROUPS*UNET_LANES;}
 static unsigned groups_at(const UnetOp &op,unsigned oc){
     unsigned left=op.cout-oc,span=output_span(op);if(left>span)left=span;
@@ -16,7 +16,7 @@ static void conv_feature_fetch(const UnetOp &op,const float *memory,Stream<float
     for(unsigned ky=0;ky<op.kernel;ky++)for(unsigned kx=0;kx<op.kernel;kx++)
     for(unsigned cb=0;cb<reduce;cb+=INPUT_TILE){
         unsigned count=dw?1:((reduce-cb<INPUT_TILE)?reduce-cb:INPUT_TILE);
-        unsigned capacity=INPUT_TILE,channel=dw?oc:cb;
+        unsigned capacity=dw?UNET_LANES:INPUT_TILE,channel=dw?oc:cb;
         unsigned width=op.cin-channel;if(width>capacity)width=capacity;
         for(unsigned p=0;p<TILE;p++){
             unsigned pos=base+p;
@@ -96,10 +96,10 @@ static void conv_mac(const UnetOp &op,Stream<float> &feature,Stream<float> &bias
         for(unsigned ky=0;ky<op.kernel;ky++)for(unsigned kx=0;kx<op.kernel;kx++)
         for(unsigned cb=0;cb<reduce;cb+=INPUT_TILE){
             unsigned count=dw?1:((reduce-cb<INPUT_TILE)?reduce-cb:INPUT_TILE);
-            for(unsigned item=0;item<TILE*INPUT_TILE;item++){
+            for(unsigned item=0;item<TILE*(dw?UNET_LANES:INPUT_TILE);item++){
 #pragma HLS PIPELINE II=1
                 float v=feature.read();
-                if(dw)dw_patch[item/INPUT_TILE][item%INPUT_TILE]=v;
+                if(dw)dw_patch[item/UNET_LANES][item%UNET_LANES]=v;
                 else feature_cache[item]=v;
             }
             for(unsigned g=0;g<groups;g++){

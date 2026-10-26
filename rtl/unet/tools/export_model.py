@@ -36,8 +36,8 @@ def read_float_weights(path):
     return arrays
 
 def build_graph(arrays, lanes=16, image_size=256):
-    if lanes not in (4,8,16) or image_size < 32 or image_size & (image_size-1):
-        raise ValueError('lanes=4/8/16 and power-of-two image size >=32 required')
+    if lanes not in (4,8,16,32) or image_size < 32 or image_size & (image_size-1):
+        raise ValueError('lanes=4/8/16/32 and power-of-two image size >=32 required')
     used = set()
     tensors = [dict(name='input', h=image_size, w=image_size, c=1)]
     ops, blocks = [], [np.zeros(16, dtype='<f4')]
@@ -191,7 +191,7 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--source',type=Path)
     p.add_argument('--out',type=Path,default=ROOT/'build/unet/model')
     p.add_argument('--header',type=Path,default=ROOT/'rtl/unet/hls/model_ops.h')
-    p.add_argument('--lanes',type=int,default=16);p.add_argument('--size',type=int,default=256)
+    p.add_argument('--lanes',type=int,default=32);p.add_argument('--size',type=int,default=256)
     args=p.parse_args()
     source=args.source or next((ROOT/'ip/ai4chamberseger').glob('*.zip'))
     arrays=read_float_weights(source);graph,blob=build_graph(arrays,args.lanes,args.size)

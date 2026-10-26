@@ -44,7 +44,11 @@ class CacheTests(unittest.TestCase):
   g,m,c=semantic_planes(self.raw);packet=packed_input(g,m,c)
   self.assertEqual(len(packet),196608);self.assertEqual(packet[300:303],bytes([73,4,4]))
   rgb=preview_rgba(self.raw,1)
-  self.assertEqual(rgb[400:404],bytes([0,210,96,255]));self.assertEqual(rgb[404:408],bytes([73,73,73,255]))
+  self.assertEqual(rgb[400:404],bytes([0,255,0,255]));self.assertEqual(rgb[404:408],bytes([73,73,73,255]))
+ def test_preview_corruption_invalidates_completion(self):
+  self.cache.save_async('frame1.bin',self.sources[0].read_bytes(),self.raw).result()
+  self.cache._paths('frame1.bin')['mask_preview'].write_bytes(b'broken')
+  self.assertEqual(self.cache.status()['completed'],0)
  def test_invalid_flags_and_names(self):
   raw=bytearray(self.raw);raw[1]=3
   with self.assertRaises(ValueError):semantic_planes(raw)

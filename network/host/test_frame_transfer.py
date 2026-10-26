@@ -42,6 +42,7 @@ class MockBoard(socketserver.ThreadingTCPServer):
         self.cardiac_values=None
         self.source_frame_us=0
         self.boundaries=[]
+        self.medical_packets=[];self.medical_cached_only=False;self.semantic_factory=None
 
     def metadata(self, mode):
         prefix=(4,0,self.manual,mode,self.threshold,self.threshold,1234,self.alpha,
@@ -73,7 +74,7 @@ class MockHandler(socketserver.BaseRequestHandler):
             while True:
                 entry=self.pipeline_queue.get()
                 if entry is None:return
-                job,image,mode=entry
+                job,image,mode,medical_kind,semantic=entry
                 if board.pipeline_min_before_return:
                     if not board.pipeline_received.wait(3):raise AssertionError('sender waited for first return before next upload')
                 if board.stall_next:
@@ -85,6 +86,7 @@ class MockHandler(socketserver.BaseRequestHandler):
                 board.mode=mode
                 raw=bytes([33,22,11,255])*65536
                 if board.raw_factory is not None:raw=board.raw_factory(board,image)
+                if board.semantic_factory is not None:raw=board.semantic_factory(image,medical_kind,semantic,mode)
                 board.raw=raw
                 if board.error_next:
                     message=board.error_next.encode();board.error_next=None
@@ -104,22 +106,29 @@ class MockHandler(socketserver.BaseRequestHandler):
         try:
             magic,kind,job,length,checksum,extra=transfer.HEADER.unpack(transfer.recv_exact(self.request,24))
             if magic!=transfer.MAGIC:raise AssertionError('magic')
-            if kind==HELLO_PIPE:
-                board.source_frame_us=extra
-                self.request.sendall(transfer.packet(PIPE_READY,job,extra=7 if board.cardiac_values is not None else 6)+transfer.packet(PIPE_CREDIT,0,extra=4))
+            if kind in (HELLO_PIPE,24):
+                self.medical_session=kind==24
+                board.medical_cached_only=self.medical_session and bool(extra&0x80000000)
+                board.source_frame_us=extra&0x7fffffff
+                capability=8 if self.medical_session else 7 if board.cardiac_values is not None else 6
+                self.request.sendall(transfer.packet(PIPE_READY,job,extra=capability)+transfer.packet(PIPE_CREDIT,0,extra=4))
                 self.pipeline_queue=queue.Queue()
                 self.pipeline_sender=threading.Thread(target=self.pipeline_send,daemon=True)
                 self.pipeline_sender.start()
                 return True
             if kind==PIPE_UPLOAD:
-                assert self.pipeline_queue is not None and length==65536 and extra&7 in range(5) and not extra&~0x107
+                medical_kind=(extra>>10)&3;semantic=bool(extra&0x200)
+                allowed=0xf07 if self.medical_session else 0x107
+                assert self.pipeline_queue is not None and length==65536*(3 if medical_kind else 1) and extra&7 in range(5) and not extra&~allowed
+                assert medical_kind<=2 and (not board.medical_cached_only or medical_kind==2)
+                if self.medical_session:board.medical_packets.append((medical_kind,semantic,length))
                 board.boundaries.append(bool(extra&0x100));extra&=7
                 image=transfer.recv_exact(self.request,length)
                 assert transfer.crc(image)==checksum
                 board.input_images.append(image);board.uploads+=1;board.has_frame=True
                 board.events.append(('upload',extra))
                 if board.uploads>=board.pipeline_min_before_return:board.pipeline_received.set()
-                self.pipeline_queue.put((job,image,extra))
+                self.pipeline_queue.put((job,image,extra,medical_kind,semantic))
                 return True
             if kind==transfer.HELLO_FAST:
                 self.request.sendall(transfer.packet(transfer.FAST_READY,job,extra=4))

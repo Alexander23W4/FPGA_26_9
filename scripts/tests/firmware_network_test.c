@@ -13,6 +13,7 @@
 
 static u32 dma_regs[32],vdma_status=1,back_flags,video_mode=4,captured_mode=4;
 static u32 processing_hz=100000000,system_mode,model_status;
+static u32 medical_packet_mode,dma_input_width;
 static u32 medical_raw[4]={40000000,30000000,100000000,80000000};
 static u32 medical_sequence=1,medical_status=31;
 static unsigned medical_reads,medical_publish_at;
@@ -35,6 +36,8 @@ u32 Xil_In32(UINTPTR address)
     if(address==PL_REG_ADDRESS(CLOCK_HZ))return processing_hz;
     if(address==PL_REG_ADDRESS(MODE_ADDR))return system_mode;
     if(address==PL_REG_ADDRESS(UNET_STATUS))return model_status;
+    if(address==PL_REG_ADDRESS(MEDICAL_CACHE_ABI))return MEDICAL_CACHE_ABI_V1;
+    if(address==PL_REG_ADDRESS(MEDICAL_JOB))return medical_packet_mode;
     if(address==PL_REG_ADDRESS(CMD_REG_ADDR))return 1;
     if(address==PL_REG_ADDRESS(DATA_REG_ADDR)||address==PL_REG_ADDRESS(STATUS_ADDR))return 123;
     if(address==PL_REG_ADDRESS(LESION_ADDR))return 65432;
@@ -55,6 +58,7 @@ u32 Xil_In32(UINTPTR address)
 }
 void Xil_Out32(UINTPTR address,u32 value)
 {
+    if(address==PL_REG_ADDRESS(MEDICAL_JOB)) {assert((value&~0x103u)==0&&(value&3u)<3);medical_packet_mode=value;return;}
     if(address==PL_REG_ADDRESS(MODE_ADDR)) {assert(!pipe_active&&phase!=RUNNING);if(value==1)++registration_restarts;system_mode=value;return;}
     if(address==(PL_CTRL_BASE+0xc0u)) {assert(value==1&&phase==RESULT_READY);++ack_writes;return;}
     if(address==PL_REG_ADDRESS(VIDEO_MODE_ADDR)) {
@@ -70,6 +74,7 @@ void Xil_Out32(UINTPTR address,u32 value)
 void Xil_DCacheFlushRange(UINTPTR address,u32 bytes)
 {assert((address==IMG_DDR_BASE&&bytes==NET_INPUT_BYTES)||(address==IMG_RES_DDR_BASE&&bytes==IMG_RES_DDR_SIZE)||
  (address>=STREAM_INPUT_BASE&&address<STREAM_INPUT_BASE+STREAM_INPUT_SLOTS*NET_INPUT_BYTES&&bytes==NET_INPUT_BYTES)||
+ (address>=MEDICAL_INPUT_BASE&&address<MEDICAL_INPUT_BASE+STREAM_INPUT_SLOTS*MEDICAL_INPUT_BYTES&&(bytes==NET_INPUT_BYTES||bytes==MEDICAL_INPUT_BYTES))||
  (address>=STREAM_OUTPUT_BASE&&address<STREAM_OUTPUT_BASE+STREAM_OUTPUT_SLOTS*IMG_RES_DDR_SIZE&&bytes==IMG_RES_DDR_SIZE));++flushes;}
 void Xil_DCacheInvalidateRange(UINTPTR address,u32 bytes)
 {assert(bytes==IMG_RES_DDR_SIZE&&(address==IMG_RES_DDR_BASE||
@@ -115,7 +120,9 @@ void tcp_abort(struct tcp_pcb *p) {(void)p;}
 int vdma_alive(void) {return 1;}u32 vdma_mm2s_status(void) {return vdma_status;}
 int vdma_mm2s_reset(void) {vdma_status=1;return 0;}
 int vdma_mm2s_config(u32 address,u32 width,u32 height,u32 stride)
-{assert((address==IMG_DDR_BASE||(address>=STREAM_INPUT_BASE&&address<STREAM_OUTPUT_BASE))&&width==256&&height==256&&stride==256);dma_input_address=address;return 0;}
+{assert((address==IMG_DDR_BASE||(address>=STREAM_INPUT_BASE&&address<STREAM_OUTPUT_BASE)||
+ (address>=MEDICAL_INPUT_BASE&&address<MEDICAL_INPUT_BASE+STREAM_INPUT_SLOTS*MEDICAL_INPUT_BYTES))&&
+ (width==256||width==768)&&height==256&&stride==width);dma_input_address=address;dma_input_width=width;return 0;}
 int vdma_mm2s_start(void)
 {assert(dma_regs[0x30/4]==1&&(dma_regs[0x48/4]==IMG_RES_DDR_BASE||dma_regs[0x48/4]>=STREAM_OUTPUT_BASE)&&dma_regs[0x58/4]==IMG_RES_DDR_SIZE);++dma_starts;vdma_status=0;return 0;}
 
@@ -300,6 +307,46 @@ static void test_medical_snapshot(void)
     medical_analysis_reset(0);
     puts("FIRMWARE_MEDICAL_OK: atomic per-frame snapshot, duplicate read ignored, unstable publication rejected");
 }
+static void test_medical_cache_pipeline(void)
+{
+    static u8 bytes[MEDICAL_INPUT_BYTES];u8 header[24];u32 kind,amount,i,before,pos;
+    void *normal=VirtualAlloc((void *)(UINTPTR)STREAM_INPUT_BASE,0x100000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
+    void *cached=VirtualAlloc((void *)(UINTPTR)MEDICAL_INPUT_BASE,0x100000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
+    assert(normal==(void *)(UINTPTR)STREAM_INPUT_BASE&&cached==(void *)(UINTPTR)MEDICAL_INPUT_BASE);
+    system_mode=1;model_status=0;connect_host();
+    request(HELLO_MEDICAL,800,0,0,33333);
+    assert(!pipe_enabled&&get32(tx_header+4)==ERROR); /* Segmentation still requires weights. */
+    model_status=1;connect_host();request(HELLO_MEDICAL,801,0,0,33333);
+    credit=65535;net_frame_poll();assert(get32(wire_bytes+4)==PIPE_READY&&get32(wire_bytes+20)==8);
+    for(kind=0;kind<3;++kind) {
+        if(kind==2) {
+            receive(0,&peer,0,ERR_OK);model_status=0;connect_host();
+            request(HELLO_MEDICAL,802,0,0,0x80000000u|33333u);
+            credit=65535;net_frame_poll();assert(pipe_enabled&&pipe_cached_only);
+        }
+        amount=kind?MEDICAL_INPUT_BYTES:NET_INPUT_BYTES;memset(bytes,60+kind,amount);
+        put32(header,MAGIC);put32(header+4,PIPE_UPLOAD);put32(header+8,810+kind);
+        put32(header+12,amount);put32(header+16,crc32_calc(bytes,amount));
+        put32(header+20,video_mode|(kind<<10)|(kind==2?0u:0x200u));
+        assert(pipe_consume(header,24)==24);
+        for(i=0;i<amount;) {u32 count=amount-i;if(count>113)count=113;assert(pipe_consume(bytes+i,count)==count);i+=count;}
+        before=dma_starts;medical_reads=0;++medical_sequence;wire_used=0;
+        net_frame_poll();assert(pipe_active&&dma_starts==before+1);
+        assert(dma_input_address>=MEDICAL_INPUT_BASE&&dma_input_address<MEDICAL_INPUT_BASE+0x100000);
+        assert(dma_input_width==(kind?768u:256u));
+        assert(medical_packet_mode==(kind|(kind==2?0u:0x100u)));
+        assert(memcmp((const void *)(UINTPTR)dma_input_address,bytes,amount)==0);
+        complete_dma(0);net_frame_poll();
+        assert(kind==1?medical_reads==0:medical_reads>0);
+        for(i=0;i<1000&&pipe_busy();++i) {credit=65535;net_frame_poll();}
+        assert(i<1000);pos=skip_grants(0);
+        assert(get32(wire_bytes+pos+4)==PIPE_RESULT&&get32(wire_bytes+pos+8)==810+kind);
+        assert(get32(wire_bytes+pos+16)==crc32_calc(wire_bytes+pos+24,META_BYTES+IMG_RES_DDR_SIZE));
+    }
+    receive(0,&peer,0,ERR_OK);VirtualFree(normal,0,MEM_RELEASE);VirtualFree(cached,0,MEM_RELEASE);
+    system_mode=0;model_status=1;connect_host();
+    puts("FIRMWARE_MEDICAL_CACHE_OK: two-pass segmentation, 192 KiB packets/768-byte stride, job readback, contour bypass, cached analysis without weights");
+}
 int main(void)
 {
     void *memory=VirtualAlloc((void *)(UINTPTR)IMG_DDR_BASE,0x50000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
@@ -418,6 +465,7 @@ int main(void)
     }
     test_pipeline();
     test_pipeline_burst();
+    test_medical_cache_pipeline();
     before=dma_starts;
     upload(11,0);net_frame_poll();assert(dma_starts==before+1);complete_dma(1);net_frame_poll();
     assert(phase==FAULT&&ack_writes==0&&get32(tx_header+4)==ERROR);

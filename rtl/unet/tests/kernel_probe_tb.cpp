@@ -9,8 +9,8 @@ int main(){
         bool dw=testcase==1;unsigned cout=testcase==0?67:dw?19:5;
         unsigned cin=19,red=dw?1:cin;
         unsigned bias=((cout+UNET_LANES-1)/UNET_LANES)*UNET_LANES*red*9;
-        std::vector<float> weights(16384),memory(16384);
-        for(unsigned i=0;i<16384;i++)weights[i]=float(int(i%13)-6)/11;
+        std::vector<float> weights(32768),memory(16384);
+        for(unsigned i=0;i<32768;i++)weights[i]=float(int(i%13)-6)/11;
         for(unsigned i=0;i<16*16*cin;i++)memory[i]=float(int(i%17)-8)/7;
         unet_kernel_probe(weights.data(),memory.data(),testcase);
         for(unsigned y=0;y<8;y++)for(unsigned x=0;x<8;x++)for(unsigned oc=0;oc<cout;oc++){

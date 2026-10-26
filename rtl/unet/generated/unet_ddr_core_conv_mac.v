@@ -91,33 +91,34 @@ module unet_ddr_core_conv_mac (
         op_cout_val24_c_write
 );
 
-parameter    ap_ST_fsm_state1 = 27'd1;
-parameter    ap_ST_fsm_state2 = 27'd2;
-parameter    ap_ST_fsm_state3 = 27'd4;
-parameter    ap_ST_fsm_state4 = 27'd8;
-parameter    ap_ST_fsm_state5 = 27'd16;
-parameter    ap_ST_fsm_state6 = 27'd32;
-parameter    ap_ST_fsm_state7 = 27'd64;
-parameter    ap_ST_fsm_state8 = 27'd128;
-parameter    ap_ST_fsm_state9 = 27'd256;
-parameter    ap_ST_fsm_state10 = 27'd512;
-parameter    ap_ST_fsm_state11 = 27'd1024;
-parameter    ap_ST_fsm_state12 = 27'd2048;
-parameter    ap_ST_fsm_state13 = 27'd4096;
-parameter    ap_ST_fsm_state14 = 27'd8192;
-parameter    ap_ST_fsm_state15 = 27'd16384;
-parameter    ap_ST_fsm_state16 = 27'd32768;
-parameter    ap_ST_fsm_state17 = 27'd65536;
-parameter    ap_ST_fsm_state18 = 27'd131072;
-parameter    ap_ST_fsm_state19 = 27'd262144;
-parameter    ap_ST_fsm_state20 = 27'd524288;
-parameter    ap_ST_fsm_state21 = 27'd1048576;
-parameter    ap_ST_fsm_state22 = 27'd2097152;
-parameter    ap_ST_fsm_state23 = 27'd4194304;
-parameter    ap_ST_fsm_state24 = 27'd8388608;
-parameter    ap_ST_fsm_state25 = 27'd16777216;
-parameter    ap_ST_fsm_state26 = 27'd33554432;
-parameter    ap_ST_fsm_state27 = 27'd67108864;
+parameter    ap_ST_fsm_state1 = 28'd1;
+parameter    ap_ST_fsm_state2 = 28'd2;
+parameter    ap_ST_fsm_state3 = 28'd4;
+parameter    ap_ST_fsm_state4 = 28'd8;
+parameter    ap_ST_fsm_state5 = 28'd16;
+parameter    ap_ST_fsm_state6 = 28'd32;
+parameter    ap_ST_fsm_state7 = 28'd64;
+parameter    ap_ST_fsm_state8 = 28'd128;
+parameter    ap_ST_fsm_state9 = 28'd256;
+parameter    ap_ST_fsm_state10 = 28'd512;
+parameter    ap_ST_fsm_state11 = 28'd1024;
+parameter    ap_ST_fsm_state12 = 28'd2048;
+parameter    ap_ST_fsm_state13 = 28'd4096;
+parameter    ap_ST_fsm_state14 = 28'd8192;
+parameter    ap_ST_fsm_state15 = 28'd16384;
+parameter    ap_ST_fsm_state16 = 28'd32768;
+parameter    ap_ST_fsm_state17 = 28'd65536;
+parameter    ap_ST_fsm_state18 = 28'd131072;
+parameter    ap_ST_fsm_state19 = 28'd262144;
+parameter    ap_ST_fsm_state20 = 28'd524288;
+parameter    ap_ST_fsm_state21 = 28'd1048576;
+parameter    ap_ST_fsm_state22 = 28'd2097152;
+parameter    ap_ST_fsm_state23 = 28'd4194304;
+parameter    ap_ST_fsm_state24 = 28'd8388608;
+parameter    ap_ST_fsm_state25 = 28'd16777216;
+parameter    ap_ST_fsm_state26 = 28'd33554432;
+parameter    ap_ST_fsm_state27 = 28'd67108864;
+parameter    ap_ST_fsm_state28 = 28'd134217728;
 
 input   ap_clk;
 input   ap_rst;
@@ -222,7 +223,7 @@ reg op_ow_val20_c_write;
 reg op_cout_val24_c_write;
 
 reg    ap_done_reg;
-(* fsm_encoding = "none" *) reg   [26:0] ap_CS_fsm;
+(* fsm_encoding = "none" *) reg   [27:0] ap_CS_fsm;
 wire    ap_CS_fsm_state1;
 reg    op_kind_val_blk_n;
 reg    op_cin_val_blk_n;
@@ -235,207 +236,323 @@ reg    op_kind_val5_c_blk_n;
 reg    op_oh_val16_c_blk_n;
 reg    op_ow_val20_c_blk_n;
 reg    op_cout_val24_c_blk_n;
-reg   [1:0] op_activation_val_read_reg_1406;
+reg   [1:0] op_activation_val_read_reg_1978;
 reg    ap_block_state1;
-reg   [1:0] op_kernel_val_read_reg_1412;
-reg   [10:0] op_cout_val_read_reg_1418;
-reg   [8:0] op_ow_val_read_reg_1424;
-reg   [8:0] op_oh_val_read_reg_1429;
-reg   [0:0] dw_reg_1434;
-wire   [10:0] reduce_fu_822_p3;
-reg   [10:0] reduce_reg_1444;
-wire   [11:0] zext_ln77_1_fu_835_p1;
-reg   [11:0] zext_ln77_1_reg_1450;
+reg   [1:0] op_kernel_val_read_reg_1984;
+reg   [10:0] op_cout_val_read_reg_1990;
+reg   [8:0] op_ow_val_read_reg_1996;
+reg   [8:0] op_oh_val_read_reg_2001;
+reg   [10:0] op_cin_val_read_reg_2006;
+reg   [0:0] dw_reg_2011;
+wire   [11:0] zext_ln77_1_fu_1240_p1;
+reg   [11:0] zext_ln77_1_reg_2023;
 wire    ap_CS_fsm_state2;
-reg   [7:0] tmp_s_reg_1456;
-wire   [0:0] icmp_ln97_fu_854_p2;
-reg   [0:0] icmp_ln97_reg_1461;
+reg   [7:0] tmp_s_reg_2029;
+wire   [0:0] icmp_ln97_fu_1260_p2;
+reg   [0:0] icmp_ln97_reg_2034;
 wire    ap_CS_fsm_state3;
 wire    ap_CS_fsm_state5;
-wire   [9:0] grp_fu_865_p2;
-reg   [9:0] bound_reg_1486;
+wire   [9:0] grp_fu_1272_p2;
+reg   [9:0] bound_reg_2059;
 wire    ap_CS_fsm_state6;
-wire   [17:0] grp_fu_877_p2;
-reg   [17:0] total_reg_1502;
+wire   [17:0] grp_fu_1284_p2;
+reg   [17:0] total_reg_2075;
 wire    ap_CS_fsm_state7;
-wire   [31:0] op_cout_val_cast4_fu_895_p1;
-reg   [31:0] op_cout_val_cast4_reg_1508;
+wire   [31:0] op_cout_val_cast4_fu_1302_p1;
+reg   [31:0] op_cout_val_cast4_reg_2081;
 wire    ap_CS_fsm_state8;
-wire   [31:0] span_cast_cast_cast_fu_904_p3;
-reg   [31:0] span_cast_cast_cast_reg_1513;
-wire   [0:0] tobool_i_fu_911_p2;
-reg   [0:0] tobool_i_reg_1519;
-wire   [0:0] cmp1_i_fu_916_p2;
-reg   [0:0] cmp1_i_reg_1524;
-wire   [7:0] select_ln78_1_fu_921_p3;
-reg   [7:0] select_ln78_1_reg_1529;
-wire   [31:0] select_ln78_2_fu_928_p3;
-reg   [31:0] select_ln78_2_reg_1534;
-wire  signed [31:0] sext_ln78_fu_941_p1;
-reg  signed [31:0] sext_ln78_reg_1539;
-wire   [13:0] bound_cast748_fu_955_p1;
-reg   [13:0] bound_cast748_reg_1544;
-wire   [10:0] grp_fu_889_p2;
-reg   [10:0] bound4_reg_1549;
-wire  signed [31:0] sext_ln78_2_fu_991_p1;
-reg  signed [31:0] sext_ln78_2_reg_1560;
+wire   [11:0] select_ln78_fu_1311_p3;
+reg   [11:0] select_ln78_reg_2086;
+wire   [31:0] span_cast_cast_cast_fu_1318_p3;
+reg   [31:0] span_cast_cast_cast_reg_2091;
+wire   [0:0] tobool_i_fu_1325_p2;
+reg   [0:0] tobool_i_reg_2097;
+wire   [0:0] cmp1_i_fu_1330_p2;
+reg   [0:0] cmp1_i_reg_2102;
+wire   [7:0] select_ln78_2_fu_1335_p3;
+reg   [7:0] select_ln78_2_reg_2107;
+wire   [31:0] select_ln78_3_fu_1342_p3;
+reg   [31:0] select_ln78_3_reg_2112;
+wire  signed [31:0] sext_ln78_fu_1355_p1;
+reg  signed [31:0] sext_ln78_reg_2117;
+wire   [13:0] bound_cast1468_fu_1369_p1;
+reg   [13:0] bound_cast1468_reg_2122;
+wire   [10:0] grp_fu_1296_p2;
+reg   [10:0] bound4_reg_2127;
+wire  signed [31:0] sext_ln78_2_fu_1405_p1;
+reg  signed [31:0] sext_ln78_2_reg_2138;
 wire    ap_CS_fsm_state9;
-wire   [0:0] icmp_ln79_fu_1000_p2;
-reg   [0:0] icmp_ln79_reg_1568;
+wire   [0:0] icmp_ln79_fu_1414_p2;
+reg   [0:0] icmp_ln79_reg_2146;
 wire    ap_CS_fsm_state10;
-wire   [7:0] xor_ln79_fu_1019_p2;
-reg   [7:0] xor_ln79_reg_1573;
+wire   [7:0] xor_ln79_fu_1433_p2;
+reg   [7:0] xor_ln79_reg_2151;
 wire    ap_CS_fsm_state11;
-reg   [2:0] trunc_ln79_2_reg_1578;
-wire   [2:0] add_ln81_fu_1046_p2;
-reg   [2:0] add_ln81_reg_1587;
+reg   [1:0] trunc_ln79_2_reg_2156;
+wire   [1:0] add_ln81_fu_1460_p2;
+reg   [1:0] add_ln81_reg_2165;
 wire    ap_CS_fsm_state12;
-wire   [1:0] trunc_ln92_fu_1052_p1;
-reg   [1:0] trunc_ln92_reg_1592;
-wire   [10:0] add_ln96_1_fu_1125_p2;
-reg   [10:0] add_ln96_1_reg_1648;
+wire   [0:0] trunc_ln92_fu_1466_p1;
+reg   [0:0] trunc_ln92_reg_2170;
+wire   [10:0] add_ln96_1_fu_1603_p2;
+reg   [10:0] add_ln96_1_reg_2274;
 wire    ap_CS_fsm_state16;
-wire   [0:0] icmp_ln96_1_fu_1131_p2;
-reg   [0:0] icmp_ln96_1_reg_1653;
-wire   [11:0] select_ln96_2_fu_1156_p3;
-reg   [11:0] select_ln96_2_reg_1658;
-wire   [11:0] sub_ln98_fu_1164_p2;
-reg   [11:0] sub_ln98_reg_1664;
+wire   [0:0] icmp_ln96_1_fu_1609_p2;
+reg   [0:0] icmp_ln96_1_reg_2279;
+wire   [11:0] select_ln96_2_fu_1634_p3;
+reg   [11:0] select_ln96_2_reg_2284;
+wire   [11:0] sub_ln98_fu_1642_p2;
+reg   [11:0] sub_ln98_reg_2290;
 wire    ap_CS_fsm_state17;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_done;
-wire   [0:0] icmp_ln98_fu_1178_p2;
-reg   [0:0] icmp_ln98_reg_1669;
-wire   [8:0] mul_fu_1201_p3;
-reg   [8:0] mul_reg_1674;
+wire   [0:0] icmp_ln98_fu_1656_p2;
+reg   [0:0] icmp_ln98_reg_2295;
+wire   [4:0] count_fu_1672_p3;
+reg   [4:0] count_reg_2300;
 wire    ap_CS_fsm_state18;
-wire   [10:0] mul1_fu_1209_p3;
-reg   [10:0] mul1_reg_1679;
-wire   [2:0] add_ln105_fu_1222_p2;
-reg   [2:0] add_ln105_reg_1687;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_done;
+wire   [9:0] mul_fu_1679_p3;
+reg   [9:0] mul_reg_2306;
 wire    ap_CS_fsm_state19;
-wire   [1:0] trunc_ln120_fu_1228_p1;
-reg   [1:0] trunc_ln120_reg_1692;
-wire   [11:0] cb_2_fu_1232_p2;
-wire   [13:0] select_ln96_3_fu_1243_p3;
-wire   [31:0] add_ln127_fu_1255_p2;
-reg   [31:0] add_ln127_reg_1710;
-wire    ap_CS_fsm_state24;
-wire   [7:0] trunc_ln131_fu_1261_p1;
-reg   [7:0] trunc_ln131_reg_1715;
-wire   [31:0] oc_3_fu_1265_p2;
-wire   [31:0] add_ln79_fu_1270_p2;
-reg   [7:0] acc_address0;
+wire   [10:0] mul1_fu_1686_p3;
+reg   [10:0] mul1_reg_2311;
+wire   [1:0] add_ln105_fu_1698_p2;
+reg   [1:0] add_ln105_reg_2319;
+wire    ap_CS_fsm_state20;
+wire   [0:0] trunc_ln120_fu_1704_p1;
+reg   [0:0] trunc_ln120_reg_2324;
+wire   [11:0] cb_2_fu_1708_p2;
+wire   [13:0] select_ln96_3_fu_1719_p3;
+wire   [31:0] add_ln127_fu_1731_p2;
+reg   [31:0] add_ln127_reg_2342;
+wire    ap_CS_fsm_state25;
+wire   [6:0] trunc_ln131_fu_1737_p1;
+reg   [6:0] trunc_ln131_reg_2347;
+wire   [31:0] oc_3_fu_1741_p2;
+wire   [31:0] add_ln79_fu_1746_p2;
+reg   [6:0] acc_address0;
 reg    acc_ce0;
 wire   [31:0] acc_q0;
-reg   [7:0] acc_address1;
+reg   [6:0] acc_address1;
 reg    acc_ce1;
 reg    acc_we1;
 reg   [31:0] acc_d1;
-reg   [7:0] acc_1_address0;
+reg   [6:0] acc_1_address0;
 reg    acc_1_ce0;
 wire   [31:0] acc_1_q0;
-reg   [7:0] acc_1_address1;
+reg   [6:0] acc_1_address1;
 reg    acc_1_ce1;
 reg    acc_1_we1;
 reg   [31:0] acc_1_d1;
-reg   [7:0] acc_2_address0;
+reg   [6:0] acc_2_address0;
 reg    acc_2_ce0;
 wire   [31:0] acc_2_q0;
-reg   [7:0] acc_2_address1;
+reg   [6:0] acc_2_address1;
 reg    acc_2_ce1;
 reg    acc_2_we1;
 reg   [31:0] acc_2_d1;
-reg   [7:0] acc_3_address0;
+reg   [6:0] acc_3_address0;
 reg    acc_3_ce0;
 wire   [31:0] acc_3_q0;
-reg   [7:0] acc_3_address1;
+reg   [6:0] acc_3_address1;
 reg    acc_3_ce1;
 reg    acc_3_we1;
 reg   [31:0] acc_3_d1;
-reg   [7:0] acc_4_address0;
+reg   [6:0] acc_4_address0;
 reg    acc_4_ce0;
 wire   [31:0] acc_4_q0;
-reg   [7:0] acc_4_address1;
+reg   [6:0] acc_4_address1;
 reg    acc_4_ce1;
 reg    acc_4_we1;
 reg   [31:0] acc_4_d1;
-reg   [7:0] acc_5_address0;
+reg   [6:0] acc_5_address0;
 reg    acc_5_ce0;
 wire   [31:0] acc_5_q0;
-reg   [7:0] acc_5_address1;
+reg   [6:0] acc_5_address1;
 reg    acc_5_ce1;
 reg    acc_5_we1;
 reg   [31:0] acc_5_d1;
-reg   [7:0] acc_6_address0;
+reg   [6:0] acc_6_address0;
 reg    acc_6_ce0;
 wire   [31:0] acc_6_q0;
-reg   [7:0] acc_6_address1;
+reg   [6:0] acc_6_address1;
 reg    acc_6_ce1;
 reg    acc_6_we1;
 reg   [31:0] acc_6_d1;
-reg   [7:0] acc_7_address0;
+reg   [6:0] acc_7_address0;
 reg    acc_7_ce0;
 wire   [31:0] acc_7_q0;
-reg   [7:0] acc_7_address1;
+reg   [6:0] acc_7_address1;
 reg    acc_7_ce1;
 reg    acc_7_we1;
 reg   [31:0] acc_7_d1;
-reg   [7:0] acc_8_address0;
+reg   [6:0] acc_8_address0;
 reg    acc_8_ce0;
 wire   [31:0] acc_8_q0;
-reg   [7:0] acc_8_address1;
+reg   [6:0] acc_8_address1;
 reg    acc_8_ce1;
 reg    acc_8_we1;
 reg   [31:0] acc_8_d1;
-reg   [7:0] acc_9_address0;
+reg   [6:0] acc_9_address0;
 reg    acc_9_ce0;
 wire   [31:0] acc_9_q0;
-reg   [7:0] acc_9_address1;
+reg   [6:0] acc_9_address1;
 reg    acc_9_ce1;
 reg    acc_9_we1;
 reg   [31:0] acc_9_d1;
-reg   [7:0] acc_10_address0;
+reg   [6:0] acc_10_address0;
 reg    acc_10_ce0;
 wire   [31:0] acc_10_q0;
-reg   [7:0] acc_10_address1;
+reg   [6:0] acc_10_address1;
 reg    acc_10_ce1;
 reg    acc_10_we1;
 reg   [31:0] acc_10_d1;
-reg   [7:0] acc_11_address0;
+reg   [6:0] acc_11_address0;
 reg    acc_11_ce0;
 wire   [31:0] acc_11_q0;
-reg   [7:0] acc_11_address1;
+reg   [6:0] acc_11_address1;
 reg    acc_11_ce1;
 reg    acc_11_we1;
 reg   [31:0] acc_11_d1;
-reg   [7:0] acc_12_address0;
+reg   [6:0] acc_12_address0;
 reg    acc_12_ce0;
 wire   [31:0] acc_12_q0;
-reg   [7:0] acc_12_address1;
+reg   [6:0] acc_12_address1;
 reg    acc_12_ce1;
 reg    acc_12_we1;
 reg   [31:0] acc_12_d1;
-reg   [7:0] acc_13_address0;
+reg   [6:0] acc_13_address0;
 reg    acc_13_ce0;
 wire   [31:0] acc_13_q0;
-reg   [7:0] acc_13_address1;
+reg   [6:0] acc_13_address1;
 reg    acc_13_ce1;
 reg    acc_13_we1;
 reg   [31:0] acc_13_d1;
-reg   [7:0] acc_14_address0;
+reg   [6:0] acc_14_address0;
 reg    acc_14_ce0;
 wire   [31:0] acc_14_q0;
-reg   [7:0] acc_14_address1;
+reg   [6:0] acc_14_address1;
 reg    acc_14_ce1;
 reg    acc_14_we1;
 reg   [31:0] acc_14_d1;
-reg   [7:0] acc_15_address0;
+reg   [6:0] acc_15_address0;
 reg    acc_15_ce0;
 wire   [31:0] acc_15_q0;
-reg   [7:0] acc_15_address1;
+reg   [6:0] acc_15_address1;
 reg    acc_15_ce1;
 reg    acc_15_we1;
 reg   [31:0] acc_15_d1;
+reg   [6:0] acc_16_address0;
+reg    acc_16_ce0;
+wire   [31:0] acc_16_q0;
+reg   [6:0] acc_16_address1;
+reg    acc_16_ce1;
+reg    acc_16_we1;
+reg   [31:0] acc_16_d1;
+reg   [6:0] acc_17_address0;
+reg    acc_17_ce0;
+wire   [31:0] acc_17_q0;
+reg   [6:0] acc_17_address1;
+reg    acc_17_ce1;
+reg    acc_17_we1;
+reg   [31:0] acc_17_d1;
+reg   [6:0] acc_18_address0;
+reg    acc_18_ce0;
+wire   [31:0] acc_18_q0;
+reg   [6:0] acc_18_address1;
+reg    acc_18_ce1;
+reg    acc_18_we1;
+reg   [31:0] acc_18_d1;
+reg   [6:0] acc_19_address0;
+reg    acc_19_ce0;
+wire   [31:0] acc_19_q0;
+reg   [6:0] acc_19_address1;
+reg    acc_19_ce1;
+reg    acc_19_we1;
+reg   [31:0] acc_19_d1;
+reg   [6:0] acc_20_address0;
+reg    acc_20_ce0;
+wire   [31:0] acc_20_q0;
+reg   [6:0] acc_20_address1;
+reg    acc_20_ce1;
+reg    acc_20_we1;
+reg   [31:0] acc_20_d1;
+reg   [6:0] acc_21_address0;
+reg    acc_21_ce0;
+wire   [31:0] acc_21_q0;
+reg   [6:0] acc_21_address1;
+reg    acc_21_ce1;
+reg    acc_21_we1;
+reg   [31:0] acc_21_d1;
+reg   [6:0] acc_22_address0;
+reg    acc_22_ce0;
+wire   [31:0] acc_22_q0;
+reg   [6:0] acc_22_address1;
+reg    acc_22_ce1;
+reg    acc_22_we1;
+reg   [31:0] acc_22_d1;
+reg   [6:0] acc_23_address0;
+reg    acc_23_ce0;
+wire   [31:0] acc_23_q0;
+reg   [6:0] acc_23_address1;
+reg    acc_23_ce1;
+reg    acc_23_we1;
+reg   [31:0] acc_23_d1;
+reg   [6:0] acc_24_address0;
+reg    acc_24_ce0;
+wire   [31:0] acc_24_q0;
+reg   [6:0] acc_24_address1;
+reg    acc_24_ce1;
+reg    acc_24_we1;
+reg   [31:0] acc_24_d1;
+reg   [6:0] acc_25_address0;
+reg    acc_25_ce0;
+wire   [31:0] acc_25_q0;
+reg   [6:0] acc_25_address1;
+reg    acc_25_ce1;
+reg    acc_25_we1;
+reg   [31:0] acc_25_d1;
+reg   [6:0] acc_26_address0;
+reg    acc_26_ce0;
+wire   [31:0] acc_26_q0;
+reg   [6:0] acc_26_address1;
+reg    acc_26_ce1;
+reg    acc_26_we1;
+reg   [31:0] acc_26_d1;
+reg   [6:0] acc_27_address0;
+reg    acc_27_ce0;
+wire   [31:0] acc_27_q0;
+reg   [6:0] acc_27_address1;
+reg    acc_27_ce1;
+reg    acc_27_we1;
+reg   [31:0] acc_27_d1;
+reg   [6:0] acc_28_address0;
+reg    acc_28_ce0;
+wire   [31:0] acc_28_q0;
+reg   [6:0] acc_28_address1;
+reg    acc_28_ce1;
+reg    acc_28_we1;
+reg   [31:0] acc_28_d1;
+reg   [6:0] acc_29_address0;
+reg    acc_29_ce0;
+wire   [31:0] acc_29_q0;
+reg   [6:0] acc_29_address1;
+reg    acc_29_ce1;
+reg    acc_29_we1;
+reg   [31:0] acc_29_d1;
+reg   [6:0] acc_30_address0;
+reg    acc_30_ce0;
+wire   [31:0] acc_30_q0;
+reg   [6:0] acc_30_address1;
+reg    acc_30_ce1;
+reg    acc_30_we1;
+reg   [31:0] acc_30_d1;
+reg   [6:0] acc_31_address0;
+reg    acc_31_ce0;
+wire   [31:0] acc_31_q0;
+reg   [6:0] acc_31_address1;
+reg    acc_31_ce1;
+reg    acc_31_we1;
+reg   [31:0] acc_31_d1;
 reg    feature_cache_ce0;
 wire   [31:0] feature_cache_q0;
 reg    feature_cache_ce1;
@@ -504,10 +621,74 @@ reg    dw_patch_15_ce0;
 wire   [31:0] dw_patch_15_q0;
 reg    dw_patch_15_ce1;
 reg    dw_patch_15_we1;
-reg    kernel_1_151_ce0;
-wire   [31:0] kernel_1_151_q0;
-reg    kernel_1_151_ce1;
-reg    kernel_1_151_we1;
+reg    dw_patch_16_ce0;
+wire   [31:0] dw_patch_16_q0;
+reg    dw_patch_16_ce1;
+reg    dw_patch_16_we1;
+reg    dw_patch_17_ce0;
+wire   [31:0] dw_patch_17_q0;
+reg    dw_patch_17_ce1;
+reg    dw_patch_17_we1;
+reg    dw_patch_18_ce0;
+wire   [31:0] dw_patch_18_q0;
+reg    dw_patch_18_ce1;
+reg    dw_patch_18_we1;
+reg    dw_patch_19_ce0;
+wire   [31:0] dw_patch_19_q0;
+reg    dw_patch_19_ce1;
+reg    dw_patch_19_we1;
+reg    dw_patch_20_ce0;
+wire   [31:0] dw_patch_20_q0;
+reg    dw_patch_20_ce1;
+reg    dw_patch_20_we1;
+reg    dw_patch_21_ce0;
+wire   [31:0] dw_patch_21_q0;
+reg    dw_patch_21_ce1;
+reg    dw_patch_21_we1;
+reg    dw_patch_22_ce0;
+wire   [31:0] dw_patch_22_q0;
+reg    dw_patch_22_ce1;
+reg    dw_patch_22_we1;
+reg    dw_patch_23_ce0;
+wire   [31:0] dw_patch_23_q0;
+reg    dw_patch_23_ce1;
+reg    dw_patch_23_we1;
+reg    dw_patch_24_ce0;
+wire   [31:0] dw_patch_24_q0;
+reg    dw_patch_24_ce1;
+reg    dw_patch_24_we1;
+reg    dw_patch_25_ce0;
+wire   [31:0] dw_patch_25_q0;
+reg    dw_patch_25_ce1;
+reg    dw_patch_25_we1;
+reg    dw_patch_26_ce0;
+wire   [31:0] dw_patch_26_q0;
+reg    dw_patch_26_ce1;
+reg    dw_patch_26_we1;
+reg    dw_patch_27_ce0;
+wire   [31:0] dw_patch_27_q0;
+reg    dw_patch_27_ce1;
+reg    dw_patch_27_we1;
+reg    dw_patch_28_ce0;
+wire   [31:0] dw_patch_28_q0;
+reg    dw_patch_28_ce1;
+reg    dw_patch_28_we1;
+reg    dw_patch_29_ce0;
+wire   [31:0] dw_patch_29_q0;
+reg    dw_patch_29_ce1;
+reg    dw_patch_29_we1;
+reg    dw_patch_30_ce0;
+wire   [31:0] dw_patch_30_q0;
+reg    dw_patch_30_ce1;
+reg    dw_patch_30_we1;
+reg    dw_patch_31_ce0;
+wire   [31:0] dw_patch_31_q0;
+reg    dw_patch_31_ce1;
+reg    dw_patch_31_we1;
+reg    kernel_1_167_ce0;
+wire   [31:0] kernel_1_167_q0;
+reg    kernel_1_167_ce1;
+reg    kernel_1_167_we1;
 reg    kernel_1_ce0;
 wire   [31:0] kernel_1_q0;
 reg    kernel_1_ce1;
@@ -568,518 +749,998 @@ reg    kernel_15_ce0;
 wire   [31:0] kernel_15_q0;
 reg    kernel_15_ce1;
 reg    kernel_15_we1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_done;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_idle;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_ready;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_bias_read;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out1_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out2;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out2_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out3;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out3_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out4;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out4_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out5;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out5_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out6;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out6_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out7;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out7_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out8;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out8_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out9;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out9_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out10;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out10_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out11;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out11_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out12;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out12_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out13;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out13_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out14;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out14_ap_vld;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out15;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out15_ap_vld;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_done;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_idle;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_ready;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_d1;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_d1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_idle;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_ready;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_read;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_d1;
-wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_d1;
-wire   [9:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_d1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_done;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_idle;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_ready;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_read;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_d1;
-wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_address1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_ce1;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_we1;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_d1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_ap_start;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_ap_done;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_ap_idle;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_ap_ready;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_15_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_15_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_15_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_15_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_15_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_15_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_14_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_14_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_14_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_14_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_14_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_14_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_13_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_13_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_13_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_13_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_13_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_13_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_12_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_12_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_12_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_12_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_12_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_12_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_11_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_11_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_11_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_11_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_11_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_11_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_10_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_10_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_10_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_10_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_10_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_10_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_9_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_9_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_9_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_9_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_9_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_9_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_8_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_8_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_8_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_8_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_8_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_8_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_7_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_7_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_7_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_7_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_7_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_7_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_6_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_6_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_6_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_6_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_6_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_6_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_5_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_5_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_5_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_5_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_5_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_5_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_4_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_4_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_4_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_4_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_4_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_4_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_3_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_3_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_3_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_3_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_3_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_3_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_2_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_2_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_2_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_2_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_2_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_2_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_1_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_1_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_1_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_1_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_1_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_1_d1;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_address1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_ce1;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_acc_we1;
-wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_737_acc_d1;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_84_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_84_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_2_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_2_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_3_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_3_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_4_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_4_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_5_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_5_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_6_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_6_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_7_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_7_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_8_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_8_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_9_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_9_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_10_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_10_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_11_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_11_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_12_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_12_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_13_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_13_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_14_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_14_ce0;
-wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_737_kernel_15_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_kernel_15_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_1_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_1_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_2_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_2_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_3_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_3_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_4_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_4_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_5_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_5_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_6_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_6_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_7_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_7_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_8_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_8_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_9_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_9_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_10_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_10_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_11_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_11_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_12_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_12_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_13_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_13_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_14_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_14_ce0;
-wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_15_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_15_ce0;
-wire   [9:0] grp_conv_mac_Pipeline_DOT_fu_737_feature_cache_address0;
-wire    grp_conv_mac_Pipeline_DOT_fu_737_feature_cache_ce0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_done;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_idle;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_ready;
-wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_result_din;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_result_write;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_1_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_1_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_2_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_2_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_3_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_3_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_4_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_4_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_5_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_5_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_6_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_6_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_7_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_7_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_8_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_8_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_9_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_9_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_10_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_10_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_11_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_11_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_12_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_12_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_13_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_13_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_14_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_14_ce0;
-wire   [7:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_15_address0;
-wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_15_ce0;
-reg   [31:0] indvars_iv1_reg_542;
-wire   [0:0] icmp_ln127_fu_1250_p2;
-wire   [0:0] icmp_ln78_1_fu_966_p2;
-reg   [31:0] oc_reg_552;
-reg   [2:0] g_reg_564;
+reg    kernel_16_ce0;
+wire   [31:0] kernel_16_q0;
+reg    kernel_16_ce1;
+reg    kernel_16_we1;
+reg    kernel_17_ce0;
+wire   [31:0] kernel_17_q0;
+reg    kernel_17_ce1;
+reg    kernel_17_we1;
+reg    kernel_18_ce0;
+wire   [31:0] kernel_18_q0;
+reg    kernel_18_ce1;
+reg    kernel_18_we1;
+reg    kernel_19_ce0;
+wire   [31:0] kernel_19_q0;
+reg    kernel_19_ce1;
+reg    kernel_19_we1;
+reg    kernel_20_ce0;
+wire   [31:0] kernel_20_q0;
+reg    kernel_20_ce1;
+reg    kernel_20_we1;
+reg    kernel_21_ce0;
+wire   [31:0] kernel_21_q0;
+reg    kernel_21_ce1;
+reg    kernel_21_we1;
+reg    kernel_22_ce0;
+wire   [31:0] kernel_22_q0;
+reg    kernel_22_ce1;
+reg    kernel_22_we1;
+reg    kernel_23_ce0;
+wire   [31:0] kernel_23_q0;
+reg    kernel_23_ce1;
+reg    kernel_23_we1;
+reg    kernel_24_ce0;
+wire   [31:0] kernel_24_q0;
+reg    kernel_24_ce1;
+reg    kernel_24_we1;
+reg    kernel_25_ce0;
+wire   [31:0] kernel_25_q0;
+reg    kernel_25_ce1;
+reg    kernel_25_we1;
+reg    kernel_26_ce0;
+wire   [31:0] kernel_26_q0;
+reg    kernel_26_ce1;
+reg    kernel_26_we1;
+reg    kernel_27_ce0;
+wire   [31:0] kernel_27_q0;
+reg    kernel_27_ce1;
+reg    kernel_27_we1;
+reg    kernel_28_ce0;
+wire   [31:0] kernel_28_q0;
+reg    kernel_28_ce1;
+reg    kernel_28_we1;
+reg    kernel_29_ce0;
+wire   [31:0] kernel_29_q0;
+reg    kernel_29_ce1;
+reg    kernel_29_we1;
+reg    kernel_30_ce0;
+wire   [31:0] kernel_30_q0;
+reg    kernel_30_ce1;
+reg    kernel_30_we1;
+reg    kernel_31_ce0;
+wire   [31:0] kernel_31_q0;
+reg    kernel_31_ce1;
+reg    kernel_31_we1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_done;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_idle;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_ready;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_bias_read;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out1_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out2;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out2_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out3;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out3_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out4;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out4_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out5;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out5_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out6;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out6_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out7;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out7_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out8;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out8_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out9;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out9_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out10;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out10_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out11;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out11_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out12;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out12_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out13;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out13_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out14;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out14_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out15;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out15_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out16;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out16_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out17;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out17_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out18;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out18_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out19;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out19_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out20;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out20_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out21;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out21_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out22;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out22_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out23;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out23_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out24;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out24_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out25;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out25_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out26;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out26_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out27;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out27_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out28;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out28_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out29;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out29_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out30;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out30_ap_vld;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out31;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out31_ap_vld;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_done;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_idle;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_ready;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_d1;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_d1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_idle;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_ready;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_read;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_d1;
+wire   [5:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_d1;
+wire   [9:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_d1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_done;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_idle;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_ready;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_read;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_d1;
+wire   [3:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_address1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_ce1;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_we1;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_d1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_ap_start;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_ap_done;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_ap_idle;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_ap_ready;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_d1;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_address1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_ce1;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_acc_we1;
+wire   [31:0] grp_conv_mac_Pipeline_DOT_fu_1080_acc_d1;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_84_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_84_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_2_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_2_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_3_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_3_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_4_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_4_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_5_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_5_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_6_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_6_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_7_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_7_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_8_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_8_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_9_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_9_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_10_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_10_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_11_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_11_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_12_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_12_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_13_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_13_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_14_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_14_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_15_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_15_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_16_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_16_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_17_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_17_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_18_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_18_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_19_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_19_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_20_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_20_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_21_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_21_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_22_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_22_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_23_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_23_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_24_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_24_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_25_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_25_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_26_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_26_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_27_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_27_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_28_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_28_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_29_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_29_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_30_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_30_ce0;
+wire   [3:0] grp_conv_mac_Pipeline_DOT_fu_1080_kernel_31_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_kernel_31_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_1_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_1_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_2_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_2_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_3_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_3_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_4_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_4_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_5_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_5_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_6_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_6_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_7_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_7_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_8_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_8_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_9_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_9_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_10_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_10_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_11_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_11_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_12_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_12_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_13_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_13_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_14_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_14_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_15_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_15_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_16_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_16_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_17_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_17_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_18_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_18_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_19_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_19_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_20_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_20_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_21_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_21_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_22_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_22_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_23_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_23_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_24_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_24_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_25_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_25_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_26_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_26_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_27_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_27_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_28_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_28_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_29_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_29_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_30_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_30_ce0;
+wire   [5:0] grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_31_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_31_ce0;
+wire   [9:0] grp_conv_mac_Pipeline_DOT_fu_1080_feature_cache_address0;
+wire    grp_conv_mac_Pipeline_DOT_fu_1080_feature_cache_ce0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_done;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_idle;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_ready;
+wire   [31:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_result_din;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_result_write;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_1_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_1_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_2_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_2_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_3_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_3_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_4_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_4_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_5_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_5_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_6_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_6_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_7_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_7_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_8_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_8_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_9_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_9_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_10_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_10_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_11_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_11_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_12_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_12_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_13_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_13_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_14_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_14_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_15_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_15_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_16_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_16_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_17_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_17_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_18_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_18_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_19_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_19_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_20_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_20_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_21_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_21_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_22_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_22_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_23_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_23_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_24_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_24_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_25_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_25_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_26_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_26_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_27_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_27_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_28_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_28_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_29_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_29_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_30_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_30_ce0;
+wire   [6:0] grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_31_address0;
+wire    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_31_ce0;
+reg   [31:0] indvars_iv1_reg_804;
+wire   [0:0] icmp_ln127_fu_1726_p2;
+wire   [0:0] icmp_ln78_1_fu_1380_p2;
+reg   [31:0] oc_reg_814;
+reg   [1:0] g_reg_826;
 wire    ap_CS_fsm_state15;
-reg   [10:0] indvar_flatten10_reg_575;
-wire   [0:0] icmp_ln105_fu_1217_p2;
-wire   [0:0] icmp_ln81_fu_1041_p2;
-reg   [13:0] indvar_flatten_reg_586;
-reg   [11:0] cb_reg_598;
-reg   [2:0] g_2_reg_609;
-wire    ap_CS_fsm_state23;
-reg   [31:0] p_reg_620;
-wire    ap_CS_fsm_state26;
-wire   [0:0] icmp_ln96_fu_1120_p2;
-reg    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start_reg;
-wire    ap_CS_fsm_state13;
-reg    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start_reg;
-wire    ap_CS_fsm_state14;
-reg    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start_reg;
-reg    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start_reg;
-wire    ap_CS_fsm_state20;
-wire    ap_CS_fsm_state21;
-reg    grp_conv_mac_Pipeline_DOT_fu_737_ap_start_reg;
-wire    ap_CS_fsm_state22;
-reg    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start_reg;
-wire    ap_CS_fsm_state25;
-reg   [17:0] base_fu_200;
-wire   [17:0] base_5_fu_1275_p2;
+reg   [10:0] indvar_flatten10_reg_837;
+wire   [0:0] icmp_ln105_fu_1693_p2;
+wire   [0:0] icmp_ln81_fu_1455_p2;
+reg   [13:0] indvar_flatten_reg_848;
+reg   [11:0] cb_reg_860;
+reg   [1:0] g_2_reg_871;
+wire    ap_CS_fsm_state24;
+reg   [31:0] p_reg_882;
 wire    ap_CS_fsm_state27;
-reg   [19:0] indvars_iv4_fu_204;
-wire   [19:0] add_ln78_fu_1280_p2;
-wire  signed [19:0] sext_ln78_1_fu_951_p1;
-wire   [11:0] add_ln78_1_fu_838_p2;
-wire   [1:0] grp_fu_865_p0;
-wire   [7:0] grp_fu_865_p1;
-wire   [8:0] grp_fu_877_p0;
-wire   [8:0] grp_fu_877_p1;
-wire   [1:0] grp_fu_889_p0;
-wire   [9:0] grp_fu_889_p1;
-wire   [11:0] op_cout_val_cast_fu_898_p1;
-wire   [11:0] xor_ln78_fu_935_p2;
-wire   [18:0] zext_ln77_fu_901_p1;
-wire   [18:0] xor_ln78_1_fu_945_p2;
-wire   [0:0] icmp_ln78_fu_971_p2;
-wire   [19:0] xor_ln78_2_fu_977_p2;
-wire   [19:0] select_ln78_fu_983_p3;
-wire   [7:0] trunc_ln79_fu_1005_p1;
-wire   [7:0] select_ln79_fu_1009_p3;
-wire   [6:0] trunc_ln79_1_fu_1015_p1;
-wire   [6:0] sub_ln79_fu_1025_p2;
-wire   [0:0] icmp_ln97_1_fu_1144_p2;
-wire   [0:0] select_ln96_1_fu_1149_p3;
-wire   [11:0] select_ln96_fu_1136_p3;
-wire   [7:0] tmp_fu_1168_p4;
-wire   [4:0] trunc_ln98_fu_1184_p1;
-wire   [4:0] select_ln98_fu_1187_p3;
-wire   [4:0] count_fu_1194_p3;
-wire   [13:0] add_ln96_fu_1237_p2;
-wire   [0:0] icmp_ln79_1_fu_995_p2;
-reg   [26:0] ap_NS_fsm;
+wire   [0:0] icmp_ln96_fu_1598_p2;
+reg    grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start_reg;
+wire    ap_CS_fsm_state13;
+reg    grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start_reg;
+wire    ap_CS_fsm_state14;
+reg    grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start_reg;
+reg    grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start_reg;
+wire    ap_CS_fsm_state21;
+wire    ap_CS_fsm_state22;
+reg    grp_conv_mac_Pipeline_DOT_fu_1080_ap_start_reg;
+wire    ap_CS_fsm_state23;
+reg    grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start_reg;
+wire    ap_CS_fsm_state26;
+reg   [17:0] base_fu_206;
+wire   [17:0] base_5_fu_1751_p2;
+wire    ap_CS_fsm_state28;
+reg   [19:0] indvars_iv4_fu_210;
+wire   [19:0] add_ln78_fu_1756_p2;
+wire  signed [19:0] sext_ln78_1_fu_1365_p1;
+wire   [10:0] reduce_fu_1234_p3;
+wire   [11:0] add_ln78_1_fu_1244_p2;
+wire   [1:0] grp_fu_1272_p0;
+wire   [7:0] grp_fu_1272_p1;
+wire   [8:0] grp_fu_1284_p0;
+wire   [8:0] grp_fu_1284_p1;
+wire   [1:0] grp_fu_1296_p0;
+wire   [9:0] grp_fu_1296_p1;
+wire   [11:0] op_cout_val_cast_fu_1305_p1;
+wire   [11:0] xor_ln78_fu_1349_p2;
+wire   [18:0] zext_ln77_fu_1308_p1;
+wire   [18:0] xor_ln78_1_fu_1359_p2;
+wire   [0:0] icmp_ln78_fu_1385_p2;
+wire   [19:0] xor_ln78_2_fu_1391_p2;
+wire   [19:0] select_ln78_1_fu_1397_p3;
+wire   [7:0] trunc_ln79_fu_1419_p1;
+wire   [7:0] select_ln79_fu_1423_p3;
+wire   [6:0] trunc_ln79_1_fu_1429_p1;
+wire   [6:0] sub_ln79_fu_1439_p2;
+wire   [0:0] icmp_ln97_1_fu_1622_p2;
+wire   [0:0] select_ln96_1_fu_1627_p3;
+wire   [11:0] select_ln96_fu_1614_p3;
+wire   [7:0] tmp_fu_1646_p4;
+wire   [4:0] trunc_ln98_fu_1662_p1;
+wire   [4:0] select_ln98_fu_1665_p3;
+wire   [13:0] add_ln96_fu_1713_p2;
+wire   [0:0] icmp_ln79_1_fu_1409_p2;
+reg   [27:0] ap_NS_fsm;
 reg    ap_ST_fsm_state1_blk;
 wire    ap_ST_fsm_state2_blk;
 wire    ap_ST_fsm_state3_blk;
@@ -1096,89 +1757,92 @@ reg    ap_ST_fsm_state13_blk;
 wire    ap_ST_fsm_state14_blk;
 reg    ap_ST_fsm_state15_blk;
 wire    ap_ST_fsm_state16_blk;
-reg    ap_ST_fsm_state17_blk;
-wire    ap_ST_fsm_state18_blk;
+wire    ap_ST_fsm_state17_blk;
+reg    ap_ST_fsm_state18_blk;
 wire    ap_ST_fsm_state19_blk;
 wire    ap_ST_fsm_state20_blk;
-reg    ap_ST_fsm_state21_blk;
-wire    ap_ST_fsm_state22_blk;
-reg    ap_ST_fsm_state23_blk;
-wire    ap_ST_fsm_state24_blk;
+wire    ap_ST_fsm_state21_blk;
+reg    ap_ST_fsm_state22_blk;
+wire    ap_ST_fsm_state23_blk;
+reg    ap_ST_fsm_state24_blk;
 wire    ap_ST_fsm_state25_blk;
-reg    ap_ST_fsm_state26_blk;
-wire    ap_ST_fsm_state27_blk;
-wire   [9:0] grp_fu_865_p00;
-wire   [9:0] grp_fu_865_p10;
-wire   [17:0] grp_fu_877_p00;
-wire   [17:0] grp_fu_877_p10;
-wire   [10:0] grp_fu_889_p00;
-wire   [10:0] grp_fu_889_p10;
+wire    ap_ST_fsm_state26_blk;
+reg    ap_ST_fsm_state27_blk;
+wire    ap_ST_fsm_state28_blk;
+wire   [9:0] grp_fu_1272_p00;
+wire   [9:0] grp_fu_1272_p10;
+wire   [17:0] grp_fu_1284_p00;
+wire   [17:0] grp_fu_1284_p10;
+wire   [10:0] grp_fu_1296_p00;
+wire   [10:0] grp_fu_1296_p10;
 wire    ap_ce_reg;
 
 // power-on initialization
 initial begin
 #0 ap_done_reg = 1'b0;
-#0 ap_CS_fsm = 27'd1;
-#0 op_activation_val_read_reg_1406 = 2'd0;
-#0 op_kernel_val_read_reg_1412 = 2'd0;
-#0 op_cout_val_read_reg_1418 = 11'd0;
-#0 op_ow_val_read_reg_1424 = 9'd0;
-#0 op_oh_val_read_reg_1429 = 9'd0;
-#0 dw_reg_1434 = 1'd0;
-#0 reduce_reg_1444 = 11'd0;
-#0 zext_ln77_1_reg_1450 = 12'd0;
-#0 tmp_s_reg_1456 = 8'd0;
-#0 icmp_ln97_reg_1461 = 1'd0;
-#0 bound_reg_1486 = 10'd0;
-#0 total_reg_1502 = 18'd0;
-#0 op_cout_val_cast4_reg_1508 = 32'd0;
-#0 span_cast_cast_cast_reg_1513 = 32'd0;
-#0 tobool_i_reg_1519 = 1'd0;
-#0 cmp1_i_reg_1524 = 1'd0;
-#0 select_ln78_1_reg_1529 = 8'd0;
-#0 select_ln78_2_reg_1534 = 32'd0;
-#0 sext_ln78_reg_1539 = 32'd0;
-#0 bound_cast748_reg_1544 = 14'd0;
-#0 bound4_reg_1549 = 11'd0;
-#0 sext_ln78_2_reg_1560 = 32'd0;
-#0 icmp_ln79_reg_1568 = 1'd0;
-#0 xor_ln79_reg_1573 = 8'd0;
-#0 trunc_ln79_2_reg_1578 = 3'd0;
-#0 add_ln81_reg_1587 = 3'd0;
-#0 trunc_ln92_reg_1592 = 2'd0;
-#0 add_ln96_1_reg_1648 = 11'd0;
-#0 icmp_ln96_1_reg_1653 = 1'd0;
-#0 select_ln96_2_reg_1658 = 12'd0;
-#0 sub_ln98_reg_1664 = 12'd0;
-#0 icmp_ln98_reg_1669 = 1'd0;
-#0 mul_reg_1674 = 9'd0;
-#0 mul1_reg_1679 = 11'd0;
-#0 add_ln105_reg_1687 = 3'd0;
-#0 trunc_ln120_reg_1692 = 2'd0;
-#0 add_ln127_reg_1710 = 32'd0;
-#0 trunc_ln131_reg_1715 = 8'd0;
-#0 indvars_iv1_reg_542 = 32'd0;
-#0 oc_reg_552 = 32'd0;
-#0 g_reg_564 = 3'd0;
-#0 indvar_flatten10_reg_575 = 11'd0;
-#0 indvar_flatten_reg_586 = 14'd0;
-#0 cb_reg_598 = 12'd0;
-#0 g_2_reg_609 = 3'd0;
-#0 p_reg_620 = 32'd0;
-#0 grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start_reg = 1'b0;
-#0 grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start_reg = 1'b0;
-#0 grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start_reg = 1'b0;
-#0 grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start_reg = 1'b0;
-#0 grp_conv_mac_Pipeline_DOT_fu_737_ap_start_reg = 1'b0;
-#0 grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start_reg = 1'b0;
-#0 base_fu_200 = 18'd0;
-#0 indvars_iv4_fu_204 = 20'd0;
+#0 ap_CS_fsm = 28'd1;
+#0 op_activation_val_read_reg_1978 = 2'd0;
+#0 op_kernel_val_read_reg_1984 = 2'd0;
+#0 op_cout_val_read_reg_1990 = 11'd0;
+#0 op_ow_val_read_reg_1996 = 9'd0;
+#0 op_oh_val_read_reg_2001 = 9'd0;
+#0 op_cin_val_read_reg_2006 = 11'd0;
+#0 dw_reg_2011 = 1'd0;
+#0 zext_ln77_1_reg_2023 = 12'd0;
+#0 tmp_s_reg_2029 = 8'd0;
+#0 icmp_ln97_reg_2034 = 1'd0;
+#0 bound_reg_2059 = 10'd0;
+#0 total_reg_2075 = 18'd0;
+#0 op_cout_val_cast4_reg_2081 = 32'd0;
+#0 select_ln78_reg_2086 = 12'd0;
+#0 span_cast_cast_cast_reg_2091 = 32'd0;
+#0 tobool_i_reg_2097 = 1'd0;
+#0 cmp1_i_reg_2102 = 1'd0;
+#0 select_ln78_2_reg_2107 = 8'd0;
+#0 select_ln78_3_reg_2112 = 32'd0;
+#0 sext_ln78_reg_2117 = 32'd0;
+#0 bound_cast1468_reg_2122 = 14'd0;
+#0 bound4_reg_2127 = 11'd0;
+#0 sext_ln78_2_reg_2138 = 32'd0;
+#0 icmp_ln79_reg_2146 = 1'd0;
+#0 xor_ln79_reg_2151 = 8'd0;
+#0 trunc_ln79_2_reg_2156 = 2'd0;
+#0 add_ln81_reg_2165 = 2'd0;
+#0 trunc_ln92_reg_2170 = 1'd0;
+#0 add_ln96_1_reg_2274 = 11'd0;
+#0 icmp_ln96_1_reg_2279 = 1'd0;
+#0 select_ln96_2_reg_2284 = 12'd0;
+#0 sub_ln98_reg_2290 = 12'd0;
+#0 icmp_ln98_reg_2295 = 1'd0;
+#0 count_reg_2300 = 5'd0;
+#0 mul_reg_2306 = 10'd0;
+#0 mul1_reg_2311 = 11'd0;
+#0 add_ln105_reg_2319 = 2'd0;
+#0 trunc_ln120_reg_2324 = 1'd0;
+#0 add_ln127_reg_2342 = 32'd0;
+#0 trunc_ln131_reg_2347 = 7'd0;
+#0 indvars_iv1_reg_804 = 32'd0;
+#0 oc_reg_814 = 32'd0;
+#0 g_reg_826 = 2'd0;
+#0 indvar_flatten10_reg_837 = 11'd0;
+#0 indvar_flatten_reg_848 = 14'd0;
+#0 cb_reg_860 = 12'd0;
+#0 g_2_reg_871 = 2'd0;
+#0 p_reg_882 = 32'd0;
+#0 grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start_reg = 1'b0;
+#0 grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start_reg = 1'b0;
+#0 grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start_reg = 1'b0;
+#0 grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start_reg = 1'b0;
+#0 grp_conv_mac_Pipeline_DOT_fu_1080_ap_start_reg = 1'b0;
+#0 grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start_reg = 1'b0;
+#0 base_fu_206 = 18'd0;
+#0 indvars_iv4_fu_210 = 20'd0;
 end
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1193,8 +1857,8 @@ acc_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_1_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1209,8 +1873,8 @@ acc_1_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_2_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1225,8 +1889,8 @@ acc_2_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_3_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1241,8 +1905,8 @@ acc_3_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_4_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1257,8 +1921,8 @@ acc_4_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_5_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1273,8 +1937,8 @@ acc_5_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_6_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1289,8 +1953,8 @@ acc_6_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_7_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1305,8 +1969,8 @@ acc_7_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_8_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1321,8 +1985,8 @@ acc_8_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_9_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1337,8 +2001,8 @@ acc_9_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_10_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1353,8 +2017,8 @@ acc_10_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_11_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1369,8 +2033,8 @@ acc_11_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_12_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1385,8 +2049,8 @@ acc_12_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_13_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1401,8 +2065,8 @@ acc_13_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_14_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1417,8 +2081,8 @@ acc_14_U(
 
 unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
-    .AddressRange( 256 ),
-    .AddressWidth( 8 ))
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
 acc_15_U(
     .clk(ap_clk),
     .reset(ap_rst),
@@ -1431,6 +2095,262 @@ acc_15_U(
     .d1(acc_15_d1)
 );
 
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_16_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_16_address0),
+    .ce0(acc_16_ce0),
+    .q0(acc_16_q0),
+    .address1(acc_16_address1),
+    .ce1(acc_16_ce1),
+    .we1(acc_16_we1),
+    .d1(acc_16_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_17_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_17_address0),
+    .ce0(acc_17_ce0),
+    .q0(acc_17_q0),
+    .address1(acc_17_address1),
+    .ce1(acc_17_ce1),
+    .we1(acc_17_we1),
+    .d1(acc_17_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_18_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_18_address0),
+    .ce0(acc_18_ce0),
+    .q0(acc_18_q0),
+    .address1(acc_18_address1),
+    .ce1(acc_18_ce1),
+    .we1(acc_18_we1),
+    .d1(acc_18_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_19_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_19_address0),
+    .ce0(acc_19_ce0),
+    .q0(acc_19_q0),
+    .address1(acc_19_address1),
+    .ce1(acc_19_ce1),
+    .we1(acc_19_we1),
+    .d1(acc_19_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_20_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_20_address0),
+    .ce0(acc_20_ce0),
+    .q0(acc_20_q0),
+    .address1(acc_20_address1),
+    .ce1(acc_20_ce1),
+    .we1(acc_20_we1),
+    .d1(acc_20_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_21_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_21_address0),
+    .ce0(acc_21_ce0),
+    .q0(acc_21_q0),
+    .address1(acc_21_address1),
+    .ce1(acc_21_ce1),
+    .we1(acc_21_we1),
+    .d1(acc_21_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_22_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_22_address0),
+    .ce0(acc_22_ce0),
+    .q0(acc_22_q0),
+    .address1(acc_22_address1),
+    .ce1(acc_22_ce1),
+    .we1(acc_22_we1),
+    .d1(acc_22_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_23_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_23_address0),
+    .ce0(acc_23_ce0),
+    .q0(acc_23_q0),
+    .address1(acc_23_address1),
+    .ce1(acc_23_ce1),
+    .we1(acc_23_we1),
+    .d1(acc_23_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_24_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_24_address0),
+    .ce0(acc_24_ce0),
+    .q0(acc_24_q0),
+    .address1(acc_24_address1),
+    .ce1(acc_24_ce1),
+    .we1(acc_24_we1),
+    .d1(acc_24_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_25_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_25_address0),
+    .ce0(acc_25_ce0),
+    .q0(acc_25_q0),
+    .address1(acc_25_address1),
+    .ce1(acc_25_ce1),
+    .we1(acc_25_we1),
+    .d1(acc_25_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_26_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_26_address0),
+    .ce0(acc_26_ce0),
+    .q0(acc_26_q0),
+    .address1(acc_26_address1),
+    .ce1(acc_26_ce1),
+    .we1(acc_26_we1),
+    .d1(acc_26_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_27_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_27_address0),
+    .ce0(acc_27_ce0),
+    .q0(acc_27_q0),
+    .address1(acc_27_address1),
+    .ce1(acc_27_ce1),
+    .we1(acc_27_we1),
+    .d1(acc_27_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_28_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_28_address0),
+    .ce0(acc_28_ce0),
+    .q0(acc_28_q0),
+    .address1(acc_28_address1),
+    .ce1(acc_28_ce1),
+    .we1(acc_28_we1),
+    .d1(acc_28_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_29_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_29_address0),
+    .ce0(acc_29_ce0),
+    .q0(acc_29_q0),
+    .address1(acc_29_address1),
+    .ce1(acc_29_ce1),
+    .we1(acc_29_we1),
+    .d1(acc_29_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_30_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_30_address0),
+    .ce0(acc_30_ce0),
+    .q0(acc_30_q0),
+    .address1(acc_30_address1),
+    .ce1(acc_30_ce1),
+    .we1(acc_30_we1),
+    .d1(acc_30_d1)
+);
+
+unet_ddr_core_conv_mac_acc_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 128 ),
+    .AddressWidth( 7 ))
+acc_31_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(acc_31_address0),
+    .ce0(acc_31_ce0),
+    .q0(acc_31_q0),
+    .address1(acc_31_address1),
+    .ce1(acc_31_ce1),
+    .we1(acc_31_we1),
+    .d1(acc_31_d1)
+);
+
 unet_ddr_core_conv_mac_feature_cache_RAM_2P_BRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 1024 ),
@@ -1438,13 +2358,13 @@ unet_ddr_core_conv_mac_feature_cache_RAM_2P_BRAM_1R1W #(
 feature_cache_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_feature_cache_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_feature_cache_address0),
     .ce0(feature_cache_ce0),
     .q0(feature_cache_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_address1),
     .ce1(feature_cache_ce1),
     .we1(feature_cache_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1454,13 +2374,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_address0),
     .ce0(dw_patch_ce0),
     .q0(dw_patch_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_address1),
     .ce1(dw_patch_ce1),
     .we1(dw_patch_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1470,13 +2390,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_1_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_1_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_1_address0),
     .ce0(dw_patch_1_ce0),
     .q0(dw_patch_1_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_address1),
     .ce1(dw_patch_1_ce1),
     .we1(dw_patch_1_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1486,13 +2406,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_2_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_2_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_2_address0),
     .ce0(dw_patch_2_ce0),
     .q0(dw_patch_2_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_address1),
     .ce1(dw_patch_2_ce1),
     .we1(dw_patch_2_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1502,13 +2422,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_3_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_3_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_3_address0),
     .ce0(dw_patch_3_ce0),
     .q0(dw_patch_3_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_address1),
     .ce1(dw_patch_3_ce1),
     .we1(dw_patch_3_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1518,13 +2438,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_4_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_4_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_4_address0),
     .ce0(dw_patch_4_ce0),
     .q0(dw_patch_4_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_address1),
     .ce1(dw_patch_4_ce1),
     .we1(dw_patch_4_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1534,13 +2454,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_5_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_5_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_5_address0),
     .ce0(dw_patch_5_ce0),
     .q0(dw_patch_5_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_address1),
     .ce1(dw_patch_5_ce1),
     .we1(dw_patch_5_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1550,13 +2470,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_6_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_6_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_6_address0),
     .ce0(dw_patch_6_ce0),
     .q0(dw_patch_6_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_address1),
     .ce1(dw_patch_6_ce1),
     .we1(dw_patch_6_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1566,13 +2486,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_7_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_7_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_7_address0),
     .ce0(dw_patch_7_ce0),
     .q0(dw_patch_7_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_address1),
     .ce1(dw_patch_7_ce1),
     .we1(dw_patch_7_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1582,13 +2502,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_8_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_8_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_8_address0),
     .ce0(dw_patch_8_ce0),
     .q0(dw_patch_8_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_address1),
     .ce1(dw_patch_8_ce1),
     .we1(dw_patch_8_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1598,13 +2518,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_9_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_9_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_9_address0),
     .ce0(dw_patch_9_ce0),
     .q0(dw_patch_9_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_address1),
     .ce1(dw_patch_9_ce1),
     .we1(dw_patch_9_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1614,13 +2534,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_10_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_10_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_10_address0),
     .ce0(dw_patch_10_ce0),
     .q0(dw_patch_10_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_address1),
     .ce1(dw_patch_10_ce1),
     .we1(dw_patch_10_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1630,13 +2550,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_11_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_11_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_11_address0),
     .ce0(dw_patch_11_ce0),
     .q0(dw_patch_11_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_address1),
     .ce1(dw_patch_11_ce1),
     .we1(dw_patch_11_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1646,13 +2566,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_12_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_12_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_12_address0),
     .ce0(dw_patch_12_ce0),
     .q0(dw_patch_12_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_address1),
     .ce1(dw_patch_12_ce1),
     .we1(dw_patch_12_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1662,13 +2582,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_13_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_13_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_13_address0),
     .ce0(dw_patch_13_ce0),
     .q0(dw_patch_13_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_address1),
     .ce1(dw_patch_13_ce1),
     .we1(dw_patch_13_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1678,13 +2598,13 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_14_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_14_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_14_address0),
     .ce0(dw_patch_14_ce0),
     .q0(dw_patch_14_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_address1),
     .ce1(dw_patch_14_ce1),
     .we1(dw_patch_14_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_d1)
 );
 
 unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
@@ -1694,856 +2614,1865 @@ unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
 dw_patch_15_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_15_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_15_address0),
     .ce0(dw_patch_15_ce0),
     .q0(dw_patch_15_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_address1),
     .ce1(dw_patch_15_ce1),
     .we1(dw_patch_15_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_16_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_16_address0),
+    .ce0(dw_patch_16_ce0),
+    .q0(dw_patch_16_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_address1),
+    .ce1(dw_patch_16_ce1),
+    .we1(dw_patch_16_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_17_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_17_address0),
+    .ce0(dw_patch_17_ce0),
+    .q0(dw_patch_17_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_address1),
+    .ce1(dw_patch_17_ce1),
+    .we1(dw_patch_17_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_18_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_18_address0),
+    .ce0(dw_patch_18_ce0),
+    .q0(dw_patch_18_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_address1),
+    .ce1(dw_patch_18_ce1),
+    .we1(dw_patch_18_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_19_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_19_address0),
+    .ce0(dw_patch_19_ce0),
+    .q0(dw_patch_19_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_address1),
+    .ce1(dw_patch_19_ce1),
+    .we1(dw_patch_19_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_20_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_20_address0),
+    .ce0(dw_patch_20_ce0),
+    .q0(dw_patch_20_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_address1),
+    .ce1(dw_patch_20_ce1),
+    .we1(dw_patch_20_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_21_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_21_address0),
+    .ce0(dw_patch_21_ce0),
+    .q0(dw_patch_21_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_address1),
+    .ce1(dw_patch_21_ce1),
+    .we1(dw_patch_21_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_22_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_22_address0),
+    .ce0(dw_patch_22_ce0),
+    .q0(dw_patch_22_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_address1),
+    .ce1(dw_patch_22_ce1),
+    .we1(dw_patch_22_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_23_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_23_address0),
+    .ce0(dw_patch_23_ce0),
+    .q0(dw_patch_23_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_address1),
+    .ce1(dw_patch_23_ce1),
+    .we1(dw_patch_23_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_24_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_24_address0),
+    .ce0(dw_patch_24_ce0),
+    .q0(dw_patch_24_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_address1),
+    .ce1(dw_patch_24_ce1),
+    .we1(dw_patch_24_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_25_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_25_address0),
+    .ce0(dw_patch_25_ce0),
+    .q0(dw_patch_25_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_address1),
+    .ce1(dw_patch_25_ce1),
+    .we1(dw_patch_25_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_26_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_26_address0),
+    .ce0(dw_patch_26_ce0),
+    .q0(dw_patch_26_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_address1),
+    .ce1(dw_patch_26_ce1),
+    .we1(dw_patch_26_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_27_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_27_address0),
+    .ce0(dw_patch_27_ce0),
+    .q0(dw_patch_27_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_address1),
+    .ce1(dw_patch_27_ce1),
+    .we1(dw_patch_27_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_28_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_28_address0),
+    .ce0(dw_patch_28_ce0),
+    .q0(dw_patch_28_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_address1),
+    .ce1(dw_patch_28_ce1),
+    .we1(dw_patch_28_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_29_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_29_address0),
+    .ce0(dw_patch_29_ce0),
+    .q0(dw_patch_29_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_address1),
+    .ce1(dw_patch_29_ce1),
+    .we1(dw_patch_29_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_30_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_30_address0),
+    .ce0(dw_patch_30_ce0),
+    .q0(dw_patch_30_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_address1),
+    .ce1(dw_patch_30_ce1),
+    .we1(dw_patch_30_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_d1)
+);
+
+unet_ddr_core_conv_mac_dw_patch_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 64 ),
+    .AddressWidth( 6 ))
+dw_patch_31_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_31_address0),
+    .ce0(dw_patch_31_ce0),
+    .q0(dw_patch_31_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_address1),
+    .ce1(dw_patch_31_ce1),
+    .we1(dw_patch_31_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
-kernel_1_151_U(
+kernel_1_167_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_address0),
-    .ce0(kernel_1_151_ce0),
-    .q0(kernel_1_151_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_address1),
-    .ce1(kernel_1_151_ce1),
-    .we1(kernel_1_151_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_d1)
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_address0),
+    .ce0(kernel_1_167_ce0),
+    .q0(kernel_1_167_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_address1),
+    .ce1(kernel_1_167_ce1),
+    .we1(kernel_1_167_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_1_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_84_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_84_address0),
     .ce0(kernel_1_ce0),
     .q0(kernel_1_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_address1),
     .ce1(kernel_1_ce1),
     .we1(kernel_1_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_2_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_2_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_2_address0),
     .ce0(kernel_2_ce0),
     .q0(kernel_2_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_address1),
     .ce1(kernel_2_ce1),
     .we1(kernel_2_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_3_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_3_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_3_address0),
     .ce0(kernel_3_ce0),
     .q0(kernel_3_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_address1),
     .ce1(kernel_3_ce1),
     .we1(kernel_3_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_4_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_4_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_4_address0),
     .ce0(kernel_4_ce0),
     .q0(kernel_4_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_address1),
     .ce1(kernel_4_ce1),
     .we1(kernel_4_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_5_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_5_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_5_address0),
     .ce0(kernel_5_ce0),
     .q0(kernel_5_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_address1),
     .ce1(kernel_5_ce1),
     .we1(kernel_5_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_6_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_6_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_6_address0),
     .ce0(kernel_6_ce0),
     .q0(kernel_6_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_address1),
     .ce1(kernel_6_ce1),
     .we1(kernel_6_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_7_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_7_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_7_address0),
     .ce0(kernel_7_ce0),
     .q0(kernel_7_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_address1),
     .ce1(kernel_7_ce1),
     .we1(kernel_7_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_8_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_8_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_8_address0),
     .ce0(kernel_8_ce0),
     .q0(kernel_8_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_address1),
     .ce1(kernel_8_ce1),
     .we1(kernel_8_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_9_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_9_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_9_address0),
     .ce0(kernel_9_ce0),
     .q0(kernel_9_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_address1),
     .ce1(kernel_9_ce1),
     .we1(kernel_9_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_10_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_10_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_10_address0),
     .ce0(kernel_10_ce0),
     .q0(kernel_10_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_address1),
     .ce1(kernel_10_ce1),
     .we1(kernel_10_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_11_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_11_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_11_address0),
     .ce0(kernel_11_ce0),
     .q0(kernel_11_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_address1),
     .ce1(kernel_11_ce1),
     .we1(kernel_11_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_12_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_12_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_12_address0),
     .ce0(kernel_12_ce0),
     .q0(kernel_12_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_address1),
     .ce1(kernel_12_ce1),
     .we1(kernel_12_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_13_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_13_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_13_address0),
     .ce0(kernel_13_ce0),
     .q0(kernel_13_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_address1),
     .ce1(kernel_13_ce1),
     .we1(kernel_13_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_14_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_14_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_14_address0),
     .ce0(kernel_14_ce0),
     .q0(kernel_14_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_address1),
     .ce1(kernel_14_ce1),
     .we1(kernel_14_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_d1)
 );
 
-unet_ddr_core_conv_mac_kernel_1_151_RAM_2P_LUTRAM_1R1W #(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
     .DataWidth( 32 ),
     .AddressRange( 16 ),
     .AddressWidth( 4 ))
 kernel_15_U(
     .clk(ap_clk),
     .reset(ap_rst),
-    .address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_15_address0),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_15_address0),
     .ce0(kernel_15_ce0),
     .q0(kernel_15_q0),
-    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_address1),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_address1),
     .ce1(kernel_15_ce1),
     .we1(kernel_15_we1),
-    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_d1)
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_d1)
 );
 
-unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_84_4 grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631(
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_16_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_16_address0),
+    .ce0(kernel_16_ce0),
+    .q0(kernel_16_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_address1),
+    .ce1(kernel_16_ce1),
+    .we1(kernel_16_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_17_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_17_address0),
+    .ce0(kernel_17_ce0),
+    .q0(kernel_17_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_address1),
+    .ce1(kernel_17_ce1),
+    .we1(kernel_17_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_18_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_18_address0),
+    .ce0(kernel_18_ce0),
+    .q0(kernel_18_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_address1),
+    .ce1(kernel_18_ce1),
+    .we1(kernel_18_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_19_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_19_address0),
+    .ce0(kernel_19_ce0),
+    .q0(kernel_19_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_address1),
+    .ce1(kernel_19_ce1),
+    .we1(kernel_19_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_20_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_20_address0),
+    .ce0(kernel_20_ce0),
+    .q0(kernel_20_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_address1),
+    .ce1(kernel_20_ce1),
+    .we1(kernel_20_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_21_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_21_address0),
+    .ce0(kernel_21_ce0),
+    .q0(kernel_21_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_address1),
+    .ce1(kernel_21_ce1),
+    .we1(kernel_21_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_22_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_22_address0),
+    .ce0(kernel_22_ce0),
+    .q0(kernel_22_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_address1),
+    .ce1(kernel_22_ce1),
+    .we1(kernel_22_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_23_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_23_address0),
+    .ce0(kernel_23_ce0),
+    .q0(kernel_23_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_address1),
+    .ce1(kernel_23_ce1),
+    .we1(kernel_23_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_24_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_24_address0),
+    .ce0(kernel_24_ce0),
+    .q0(kernel_24_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_address1),
+    .ce1(kernel_24_ce1),
+    .we1(kernel_24_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_25_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_25_address0),
+    .ce0(kernel_25_ce0),
+    .q0(kernel_25_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_address1),
+    .ce1(kernel_25_ce1),
+    .we1(kernel_25_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_26_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_26_address0),
+    .ce0(kernel_26_ce0),
+    .q0(kernel_26_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_address1),
+    .ce1(kernel_26_ce1),
+    .we1(kernel_26_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_27_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_27_address0),
+    .ce0(kernel_27_ce0),
+    .q0(kernel_27_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_address1),
+    .ce1(kernel_27_ce1),
+    .we1(kernel_27_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_28_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_28_address0),
+    .ce0(kernel_28_ce0),
+    .q0(kernel_28_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_address1),
+    .ce1(kernel_28_ce1),
+    .we1(kernel_28_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_29_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_29_address0),
+    .ce0(kernel_29_ce0),
+    .q0(kernel_29_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_address1),
+    .ce1(kernel_29_ce1),
+    .we1(kernel_29_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_30_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_30_address0),
+    .ce0(kernel_30_ce0),
+    .q0(kernel_30_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_address1),
+    .ce1(kernel_30_ce1),
+    .we1(kernel_30_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_d1)
+);
+
+unet_ddr_core_conv_mac_kernel_1_167_RAM_2P_LUTRAM_1R1W #(
+    .DataWidth( 32 ),
+    .AddressRange( 16 ),
+    .AddressWidth( 4 ))
+kernel_31_U(
+    .clk(ap_clk),
+    .reset(ap_rst),
+    .address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_31_address0),
+    .ce0(kernel_31_ce0),
+    .q0(kernel_31_q0),
+    .address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_address1),
+    .ce1(kernel_31_ce1),
+    .we1(kernel_31_we1),
+    .d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_d1)
+);
+
+unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_84_4 grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start),
-    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_done),
-    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_idle),
-    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_ready),
+    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start),
+    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_done),
+    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_idle),
+    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_ready),
     .bias_dout(bias_dout),
     .bias_num_data_valid(6'd0),
     .bias_fifo_cap(6'd0),
     .bias_empty_n(bias_empty_n),
-    .bias_read(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_bias_read),
-    .p_out(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out),
-    .p_out_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out_ap_vld),
-    .p_out1(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out1),
-    .p_out1_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out1_ap_vld),
-    .p_out2(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out2),
-    .p_out2_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out2_ap_vld),
-    .p_out3(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out3),
-    .p_out3_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out3_ap_vld),
-    .p_out4(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out4),
-    .p_out4_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out4_ap_vld),
-    .p_out5(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out5),
-    .p_out5_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out5_ap_vld),
-    .p_out6(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out6),
-    .p_out6_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out6_ap_vld),
-    .p_out7(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out7),
-    .p_out7_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out7_ap_vld),
-    .p_out8(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out8),
-    .p_out8_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out8_ap_vld),
-    .p_out9(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out9),
-    .p_out9_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out9_ap_vld),
-    .p_out10(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out10),
-    .p_out10_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out10_ap_vld),
-    .p_out11(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out11),
-    .p_out11_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out11_ap_vld),
-    .p_out12(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out12),
-    .p_out12_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out12_ap_vld),
-    .p_out13(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out13),
-    .p_out13_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out13_ap_vld),
-    .p_out14(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out14),
-    .p_out14_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out14_ap_vld),
-    .p_out15(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out15),
-    .p_out15_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out15_ap_vld)
+    .bias_read(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_bias_read),
+    .p_out(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out),
+    .p_out_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out_ap_vld),
+    .p_out1(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out1),
+    .p_out1_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out1_ap_vld),
+    .p_out2(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out2),
+    .p_out2_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out2_ap_vld),
+    .p_out3(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out3),
+    .p_out3_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out3_ap_vld),
+    .p_out4(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out4),
+    .p_out4_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out4_ap_vld),
+    .p_out5(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out5),
+    .p_out5_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out5_ap_vld),
+    .p_out6(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out6),
+    .p_out6_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out6_ap_vld),
+    .p_out7(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out7),
+    .p_out7_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out7_ap_vld),
+    .p_out8(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out8),
+    .p_out8_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out8_ap_vld),
+    .p_out9(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out9),
+    .p_out9_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out9_ap_vld),
+    .p_out10(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out10),
+    .p_out10_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out10_ap_vld),
+    .p_out11(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out11),
+    .p_out11_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out11_ap_vld),
+    .p_out12(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out12),
+    .p_out12_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out12_ap_vld),
+    .p_out13(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out13),
+    .p_out13_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out13_ap_vld),
+    .p_out14(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out14),
+    .p_out14_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out14_ap_vld),
+    .p_out15(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out15),
+    .p_out15_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out15_ap_vld),
+    .p_out16(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out16),
+    .p_out16_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out16_ap_vld),
+    .p_out17(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out17),
+    .p_out17_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out17_ap_vld),
+    .p_out18(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out18),
+    .p_out18_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out18_ap_vld),
+    .p_out19(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out19),
+    .p_out19_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out19_ap_vld),
+    .p_out20(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out20),
+    .p_out20_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out20_ap_vld),
+    .p_out21(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out21),
+    .p_out21_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out21_ap_vld),
+    .p_out22(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out22),
+    .p_out22_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out22_ap_vld),
+    .p_out23(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out23),
+    .p_out23_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out23_ap_vld),
+    .p_out24(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out24),
+    .p_out24_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out24_ap_vld),
+    .p_out25(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out25),
+    .p_out25_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out25_ap_vld),
+    .p_out26(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out26),
+    .p_out26_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out26_ap_vld),
+    .p_out27(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out27),
+    .p_out27_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out27_ap_vld),
+    .p_out28(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out28),
+    .p_out28_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out28_ap_vld),
+    .p_out29(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out29),
+    .p_out29_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out29_ap_vld),
+    .p_out30(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out30),
+    .p_out30_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out30_ap_vld),
+    .p_out31(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out31),
+    .p_out31_ap_vld(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out31_ap_vld)
 );
 
-unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_88_5 grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653(
+unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_88_5 grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start),
-    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_done),
-    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_idle),
-    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_ready),
-    .acc_15_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_address1),
-    .acc_15_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_ce1),
-    .acc_15_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_we1),
-    .acc_15_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_d1),
-    .acc_14_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_address1),
-    .acc_14_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_ce1),
-    .acc_14_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_we1),
-    .acc_14_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_d1),
-    .acc_13_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_address1),
-    .acc_13_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_ce1),
-    .acc_13_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_we1),
-    .acc_13_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_d1),
-    .acc_12_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_address1),
-    .acc_12_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_ce1),
-    .acc_12_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_we1),
-    .acc_12_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_d1),
-    .acc_11_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_address1),
-    .acc_11_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_ce1),
-    .acc_11_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_we1),
-    .acc_11_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_d1),
-    .acc_10_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_address1),
-    .acc_10_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_ce1),
-    .acc_10_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_we1),
-    .acc_10_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_d1),
-    .acc_9_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_address1),
-    .acc_9_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_ce1),
-    .acc_9_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_we1),
-    .acc_9_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_d1),
-    .acc_8_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_address1),
-    .acc_8_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_ce1),
-    .acc_8_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_we1),
-    .acc_8_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_d1),
-    .acc_7_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_address1),
-    .acc_7_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_ce1),
-    .acc_7_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_we1),
-    .acc_7_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_d1),
-    .acc_6_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_address1),
-    .acc_6_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_ce1),
-    .acc_6_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_we1),
-    .acc_6_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_d1),
-    .acc_5_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_address1),
-    .acc_5_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_ce1),
-    .acc_5_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_we1),
-    .acc_5_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_d1),
-    .acc_4_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_address1),
-    .acc_4_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_ce1),
-    .acc_4_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_we1),
-    .acc_4_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_d1),
-    .acc_3_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_address1),
-    .acc_3_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_ce1),
-    .acc_3_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_we1),
-    .acc_3_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_d1),
-    .acc_2_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_address1),
-    .acc_2_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_ce1),
-    .acc_2_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_we1),
-    .acc_2_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_d1),
-    .acc_1_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_address1),
-    .acc_1_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_ce1),
-    .acc_1_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_we1),
-    .acc_1_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_d1),
-    .acc_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_address1),
-    .acc_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_ce1),
-    .acc_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_we1),
-    .acc_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_d1),
-    .empty(trunc_ln92_reg_1592),
-    .p_reload741(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out15),
-    .p_reload740(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out14),
-    .p_reload739(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out13),
-    .p_reload738(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out12),
-    .p_reload737(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out11),
-    .p_reload736(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out10),
-    .p_reload735(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out9),
-    .p_reload734(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out8),
-    .p_reload733(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out7),
-    .p_reload732(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out6),
-    .p_reload731(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out5),
-    .p_reload730(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out4),
-    .p_reload729(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out3),
-    .p_reload728(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out2),
-    .p_reload727(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out1),
-    .p_reload(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_p_out)
+    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start),
+    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_done),
+    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_idle),
+    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_ready),
+    .acc_31_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_address1),
+    .acc_31_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_ce1),
+    .acc_31_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_we1),
+    .acc_31_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_d1),
+    .acc_30_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_address1),
+    .acc_30_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_ce1),
+    .acc_30_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_we1),
+    .acc_30_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_d1),
+    .acc_29_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_address1),
+    .acc_29_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_ce1),
+    .acc_29_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_we1),
+    .acc_29_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_d1),
+    .acc_28_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_address1),
+    .acc_28_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_ce1),
+    .acc_28_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_we1),
+    .acc_28_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_d1),
+    .acc_27_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_address1),
+    .acc_27_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_ce1),
+    .acc_27_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_we1),
+    .acc_27_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_d1),
+    .acc_26_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_address1),
+    .acc_26_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_ce1),
+    .acc_26_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_we1),
+    .acc_26_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_d1),
+    .acc_25_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_address1),
+    .acc_25_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_ce1),
+    .acc_25_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_we1),
+    .acc_25_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_d1),
+    .acc_24_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_address1),
+    .acc_24_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_ce1),
+    .acc_24_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_we1),
+    .acc_24_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_d1),
+    .acc_23_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_address1),
+    .acc_23_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_ce1),
+    .acc_23_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_we1),
+    .acc_23_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_d1),
+    .acc_22_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_address1),
+    .acc_22_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_ce1),
+    .acc_22_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_we1),
+    .acc_22_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_d1),
+    .acc_21_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_address1),
+    .acc_21_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_ce1),
+    .acc_21_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_we1),
+    .acc_21_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_d1),
+    .acc_20_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_address1),
+    .acc_20_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_ce1),
+    .acc_20_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_we1),
+    .acc_20_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_d1),
+    .acc_19_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_address1),
+    .acc_19_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_ce1),
+    .acc_19_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_we1),
+    .acc_19_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_d1),
+    .acc_18_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_address1),
+    .acc_18_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_ce1),
+    .acc_18_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_we1),
+    .acc_18_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_d1),
+    .acc_17_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_address1),
+    .acc_17_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_ce1),
+    .acc_17_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_we1),
+    .acc_17_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_d1),
+    .acc_16_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_address1),
+    .acc_16_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_ce1),
+    .acc_16_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_we1),
+    .acc_16_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_d1),
+    .acc_15_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_address1),
+    .acc_15_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_ce1),
+    .acc_15_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_we1),
+    .acc_15_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_d1),
+    .acc_14_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_address1),
+    .acc_14_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_ce1),
+    .acc_14_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_we1),
+    .acc_14_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_d1),
+    .acc_13_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_address1),
+    .acc_13_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_ce1),
+    .acc_13_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_we1),
+    .acc_13_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_d1),
+    .acc_12_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_address1),
+    .acc_12_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_ce1),
+    .acc_12_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_we1),
+    .acc_12_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_d1),
+    .acc_11_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_address1),
+    .acc_11_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_ce1),
+    .acc_11_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_we1),
+    .acc_11_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_d1),
+    .acc_10_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_address1),
+    .acc_10_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_ce1),
+    .acc_10_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_we1),
+    .acc_10_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_d1),
+    .acc_9_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_address1),
+    .acc_9_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_ce1),
+    .acc_9_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_we1),
+    .acc_9_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_d1),
+    .acc_8_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_address1),
+    .acc_8_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_ce1),
+    .acc_8_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_we1),
+    .acc_8_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_d1),
+    .acc_7_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_address1),
+    .acc_7_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_ce1),
+    .acc_7_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_we1),
+    .acc_7_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_d1),
+    .acc_6_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_address1),
+    .acc_6_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_ce1),
+    .acc_6_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_we1),
+    .acc_6_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_d1),
+    .acc_5_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_address1),
+    .acc_5_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_ce1),
+    .acc_5_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_we1),
+    .acc_5_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_d1),
+    .acc_4_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_address1),
+    .acc_4_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_ce1),
+    .acc_4_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_we1),
+    .acc_4_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_d1),
+    .acc_3_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_address1),
+    .acc_3_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_ce1),
+    .acc_3_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_we1),
+    .acc_3_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_d1),
+    .acc_2_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_address1),
+    .acc_2_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_ce1),
+    .acc_2_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_we1),
+    .acc_2_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_d1),
+    .acc_1_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_address1),
+    .acc_1_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_ce1),
+    .acc_1_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_we1),
+    .acc_1_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_d1),
+    .acc_address1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_address1),
+    .acc_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_ce1),
+    .acc_we1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_we1),
+    .acc_d1(grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_d1),
+    .empty(trunc_ln92_reg_2170),
+    .p_reload1461(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out31),
+    .p_reload1460(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out30),
+    .p_reload1459(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out29),
+    .p_reload1458(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out28),
+    .p_reload1457(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out27),
+    .p_reload1456(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out26),
+    .p_reload1455(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out25),
+    .p_reload1454(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out24),
+    .p_reload1453(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out23),
+    .p_reload1452(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out22),
+    .p_reload1451(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out21),
+    .p_reload1450(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out20),
+    .p_reload1449(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out19),
+    .p_reload1448(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out18),
+    .p_reload1447(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out17),
+    .p_reload1446(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out16),
+    .p_reload1445(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out15),
+    .p_reload1444(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out14),
+    .p_reload1443(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out13),
+    .p_reload1442(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out12),
+    .p_reload1441(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out11),
+    .p_reload1440(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out10),
+    .p_reload1439(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out9),
+    .p_reload1438(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out8),
+    .p_reload1437(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out7),
+    .p_reload1436(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out6),
+    .p_reload1435(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out5),
+    .p_reload1434(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out4),
+    .p_reload1433(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out3),
+    .p_reload1432(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out2),
+    .p_reload1431(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out1),
+    .p_reload(grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_p_out)
 );
 
-unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_99_10 grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690(
+unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_99_10 grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start),
-    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_done),
-    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_idle),
-    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_ready),
+    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start),
+    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_done),
+    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_idle),
+    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_ready),
     .feature_dout(feature_dout),
     .feature_num_data_valid(11'd0),
     .feature_fifo_cap(11'd0),
     .feature_empty_n(feature_empty_n),
-    .feature_read(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_read),
-    .dw_patch_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_address1),
-    .dw_patch_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_ce1),
-    .dw_patch_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_we1),
-    .dw_patch_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_d1),
-    .dw_patch_1_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_address1),
-    .dw_patch_1_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_ce1),
-    .dw_patch_1_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_we1),
-    .dw_patch_1_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_d1),
-    .dw_patch_2_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_address1),
-    .dw_patch_2_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_ce1),
-    .dw_patch_2_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_we1),
-    .dw_patch_2_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_d1),
-    .dw_patch_3_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_address1),
-    .dw_patch_3_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_ce1),
-    .dw_patch_3_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_we1),
-    .dw_patch_3_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_d1),
-    .dw_patch_4_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_address1),
-    .dw_patch_4_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_ce1),
-    .dw_patch_4_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_we1),
-    .dw_patch_4_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_d1),
-    .dw_patch_5_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_address1),
-    .dw_patch_5_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_ce1),
-    .dw_patch_5_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_we1),
-    .dw_patch_5_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_d1),
-    .dw_patch_6_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_address1),
-    .dw_patch_6_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_ce1),
-    .dw_patch_6_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_we1),
-    .dw_patch_6_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_d1),
-    .dw_patch_7_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_address1),
-    .dw_patch_7_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_ce1),
-    .dw_patch_7_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_we1),
-    .dw_patch_7_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_d1),
-    .dw_patch_8_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_address1),
-    .dw_patch_8_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_ce1),
-    .dw_patch_8_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_we1),
-    .dw_patch_8_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_d1),
-    .dw_patch_9_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_address1),
-    .dw_patch_9_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_ce1),
-    .dw_patch_9_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_we1),
-    .dw_patch_9_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_d1),
-    .dw_patch_10_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_address1),
-    .dw_patch_10_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_ce1),
-    .dw_patch_10_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_we1),
-    .dw_patch_10_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_d1),
-    .dw_patch_11_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_address1),
-    .dw_patch_11_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_ce1),
-    .dw_patch_11_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_we1),
-    .dw_patch_11_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_d1),
-    .dw_patch_12_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_address1),
-    .dw_patch_12_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_ce1),
-    .dw_patch_12_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_we1),
-    .dw_patch_12_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_d1),
-    .dw_patch_13_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_address1),
-    .dw_patch_13_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_ce1),
-    .dw_patch_13_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_we1),
-    .dw_patch_13_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_d1),
-    .dw_patch_14_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_address1),
-    .dw_patch_14_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_ce1),
-    .dw_patch_14_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_we1),
-    .dw_patch_14_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_d1),
-    .dw_patch_15_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_address1),
-    .dw_patch_15_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_ce1),
-    .dw_patch_15_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_we1),
-    .dw_patch_15_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_d1),
-    .dw(dw_reg_1434),
-    .feature_cache_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_address1),
-    .feature_cache_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_ce1),
-    .feature_cache_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_we1),
-    .feature_cache_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_d1)
+    .feature_read(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_read),
+    .select_ln78(select_ln78_reg_2086),
+    .dw_patch_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_address1),
+    .dw_patch_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_ce1),
+    .dw_patch_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_we1),
+    .dw_patch_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_d1),
+    .dw_patch_1_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_address1),
+    .dw_patch_1_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_ce1),
+    .dw_patch_1_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_we1),
+    .dw_patch_1_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_d1),
+    .dw_patch_2_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_address1),
+    .dw_patch_2_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_ce1),
+    .dw_patch_2_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_we1),
+    .dw_patch_2_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_d1),
+    .dw_patch_3_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_address1),
+    .dw_patch_3_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_ce1),
+    .dw_patch_3_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_we1),
+    .dw_patch_3_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_d1),
+    .dw_patch_4_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_address1),
+    .dw_patch_4_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_ce1),
+    .dw_patch_4_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_we1),
+    .dw_patch_4_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_d1),
+    .dw_patch_5_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_address1),
+    .dw_patch_5_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_ce1),
+    .dw_patch_5_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_we1),
+    .dw_patch_5_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_d1),
+    .dw_patch_6_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_address1),
+    .dw_patch_6_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_ce1),
+    .dw_patch_6_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_we1),
+    .dw_patch_6_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_d1),
+    .dw_patch_7_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_address1),
+    .dw_patch_7_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_ce1),
+    .dw_patch_7_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_we1),
+    .dw_patch_7_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_d1),
+    .dw_patch_8_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_address1),
+    .dw_patch_8_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_ce1),
+    .dw_patch_8_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_we1),
+    .dw_patch_8_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_d1),
+    .dw_patch_9_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_address1),
+    .dw_patch_9_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_ce1),
+    .dw_patch_9_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_we1),
+    .dw_patch_9_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_d1),
+    .dw_patch_10_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_address1),
+    .dw_patch_10_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_ce1),
+    .dw_patch_10_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_we1),
+    .dw_patch_10_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_d1),
+    .dw_patch_11_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_address1),
+    .dw_patch_11_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_ce1),
+    .dw_patch_11_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_we1),
+    .dw_patch_11_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_d1),
+    .dw_patch_12_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_address1),
+    .dw_patch_12_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_ce1),
+    .dw_patch_12_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_we1),
+    .dw_patch_12_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_d1),
+    .dw_patch_13_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_address1),
+    .dw_patch_13_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_ce1),
+    .dw_patch_13_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_we1),
+    .dw_patch_13_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_d1),
+    .dw_patch_14_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_address1),
+    .dw_patch_14_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_ce1),
+    .dw_patch_14_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_we1),
+    .dw_patch_14_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_d1),
+    .dw_patch_15_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_address1),
+    .dw_patch_15_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_ce1),
+    .dw_patch_15_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_we1),
+    .dw_patch_15_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_d1),
+    .dw_patch_16_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_address1),
+    .dw_patch_16_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_ce1),
+    .dw_patch_16_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_we1),
+    .dw_patch_16_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_d1),
+    .dw_patch_17_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_address1),
+    .dw_patch_17_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_ce1),
+    .dw_patch_17_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_we1),
+    .dw_patch_17_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_d1),
+    .dw_patch_18_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_address1),
+    .dw_patch_18_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_ce1),
+    .dw_patch_18_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_we1),
+    .dw_patch_18_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_d1),
+    .dw_patch_19_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_address1),
+    .dw_patch_19_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_ce1),
+    .dw_patch_19_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_we1),
+    .dw_patch_19_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_d1),
+    .dw_patch_20_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_address1),
+    .dw_patch_20_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_ce1),
+    .dw_patch_20_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_we1),
+    .dw_patch_20_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_d1),
+    .dw_patch_21_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_address1),
+    .dw_patch_21_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_ce1),
+    .dw_patch_21_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_we1),
+    .dw_patch_21_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_d1),
+    .dw_patch_22_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_address1),
+    .dw_patch_22_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_ce1),
+    .dw_patch_22_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_we1),
+    .dw_patch_22_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_d1),
+    .dw_patch_23_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_address1),
+    .dw_patch_23_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_ce1),
+    .dw_patch_23_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_we1),
+    .dw_patch_23_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_d1),
+    .dw_patch_24_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_address1),
+    .dw_patch_24_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_ce1),
+    .dw_patch_24_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_we1),
+    .dw_patch_24_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_d1),
+    .dw_patch_25_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_address1),
+    .dw_patch_25_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_ce1),
+    .dw_patch_25_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_we1),
+    .dw_patch_25_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_d1),
+    .dw_patch_26_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_address1),
+    .dw_patch_26_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_ce1),
+    .dw_patch_26_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_we1),
+    .dw_patch_26_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_d1),
+    .dw_patch_27_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_address1),
+    .dw_patch_27_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_ce1),
+    .dw_patch_27_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_we1),
+    .dw_patch_27_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_d1),
+    .dw_patch_28_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_address1),
+    .dw_patch_28_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_ce1),
+    .dw_patch_28_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_we1),
+    .dw_patch_28_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_d1),
+    .dw_patch_29_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_address1),
+    .dw_patch_29_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_ce1),
+    .dw_patch_29_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_we1),
+    .dw_patch_29_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_d1),
+    .dw_patch_30_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_address1),
+    .dw_patch_30_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_ce1),
+    .dw_patch_30_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_we1),
+    .dw_patch_30_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_d1),
+    .dw_patch_31_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_address1),
+    .dw_patch_31_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_ce1),
+    .dw_patch_31_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_we1),
+    .dw_patch_31_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_d1),
+    .dw(dw_reg_2011),
+    .feature_cache_address1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_address1),
+    .feature_cache_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_ce1),
+    .feature_cache_we1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_we1),
+    .feature_cache_d1(grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_d1)
 );
 
-unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_106_12 grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714(
+unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_106_12 grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start),
-    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_done),
-    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_idle),
-    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_ready),
+    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start),
+    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_done),
+    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_idle),
+    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_ready),
     .kernel_dout(kernel_dout),
     .kernel_num_data_valid(9'd0),
     .kernel_fifo_cap(9'd0),
     .kernel_empty_n(kernel_empty_n),
-    .kernel_read(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_read),
-    .mul(mul_reg_1674),
-    .kernel_1_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_address1),
-    .kernel_1_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_ce1),
-    .kernel_1_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_we1),
-    .kernel_1_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_d1),
-    .kernel_1_83_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_address1),
-    .kernel_1_83_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_ce1),
-    .kernel_1_83_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_we1),
-    .kernel_1_83_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_d1),
-    .kernel_2_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_address1),
-    .kernel_2_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_ce1),
-    .kernel_2_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_we1),
-    .kernel_2_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_d1),
-    .kernel_3_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_address1),
-    .kernel_3_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_ce1),
-    .kernel_3_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_we1),
-    .kernel_3_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_d1),
-    .kernel_4_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_address1),
-    .kernel_4_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_ce1),
-    .kernel_4_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_we1),
-    .kernel_4_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_d1),
-    .kernel_5_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_address1),
-    .kernel_5_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_ce1),
-    .kernel_5_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_we1),
-    .kernel_5_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_d1),
-    .kernel_6_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_address1),
-    .kernel_6_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_ce1),
-    .kernel_6_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_we1),
-    .kernel_6_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_d1),
-    .kernel_7_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_address1),
-    .kernel_7_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_ce1),
-    .kernel_7_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_we1),
-    .kernel_7_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_d1),
-    .kernel_8_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_address1),
-    .kernel_8_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_ce1),
-    .kernel_8_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_we1),
-    .kernel_8_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_d1),
-    .kernel_9_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_address1),
-    .kernel_9_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_ce1),
-    .kernel_9_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_we1),
-    .kernel_9_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_d1),
-    .kernel_10_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_address1),
-    .kernel_10_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_ce1),
-    .kernel_10_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_we1),
-    .kernel_10_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_d1),
-    .kernel_11_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_address1),
-    .kernel_11_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_ce1),
-    .kernel_11_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_we1),
-    .kernel_11_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_d1),
-    .kernel_12_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_address1),
-    .kernel_12_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_ce1),
-    .kernel_12_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_we1),
-    .kernel_12_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_d1),
-    .kernel_13_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_address1),
-    .kernel_13_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_ce1),
-    .kernel_13_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_we1),
-    .kernel_13_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_d1),
-    .kernel_14_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_address1),
-    .kernel_14_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_ce1),
-    .kernel_14_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_we1),
-    .kernel_14_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_d1),
-    .kernel_15_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_address1),
-    .kernel_15_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_ce1),
-    .kernel_15_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_we1),
-    .kernel_15_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_d1)
+    .kernel_read(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_read),
+    .mul(mul_reg_2306),
+    .kernel_1_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_address1),
+    .kernel_1_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_ce1),
+    .kernel_1_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_we1),
+    .kernel_1_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_d1),
+    .kernel_1_83_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_address1),
+    .kernel_1_83_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_ce1),
+    .kernel_1_83_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_we1),
+    .kernel_1_83_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_d1),
+    .kernel_2_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_address1),
+    .kernel_2_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_ce1),
+    .kernel_2_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_we1),
+    .kernel_2_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_d1),
+    .kernel_3_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_address1),
+    .kernel_3_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_ce1),
+    .kernel_3_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_we1),
+    .kernel_3_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_d1),
+    .kernel_4_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_address1),
+    .kernel_4_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_ce1),
+    .kernel_4_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_we1),
+    .kernel_4_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_d1),
+    .kernel_5_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_address1),
+    .kernel_5_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_ce1),
+    .kernel_5_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_we1),
+    .kernel_5_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_d1),
+    .kernel_6_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_address1),
+    .kernel_6_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_ce1),
+    .kernel_6_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_we1),
+    .kernel_6_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_d1),
+    .kernel_7_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_address1),
+    .kernel_7_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_ce1),
+    .kernel_7_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_we1),
+    .kernel_7_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_d1),
+    .kernel_8_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_address1),
+    .kernel_8_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_ce1),
+    .kernel_8_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_we1),
+    .kernel_8_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_d1),
+    .kernel_9_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_address1),
+    .kernel_9_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_ce1),
+    .kernel_9_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_we1),
+    .kernel_9_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_d1),
+    .kernel_10_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_address1),
+    .kernel_10_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_ce1),
+    .kernel_10_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_we1),
+    .kernel_10_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_d1),
+    .kernel_11_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_address1),
+    .kernel_11_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_ce1),
+    .kernel_11_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_we1),
+    .kernel_11_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_d1),
+    .kernel_12_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_address1),
+    .kernel_12_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_ce1),
+    .kernel_12_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_we1),
+    .kernel_12_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_d1),
+    .kernel_13_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_address1),
+    .kernel_13_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_ce1),
+    .kernel_13_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_we1),
+    .kernel_13_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_d1),
+    .kernel_14_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_address1),
+    .kernel_14_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_ce1),
+    .kernel_14_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_we1),
+    .kernel_14_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_d1),
+    .kernel_15_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_address1),
+    .kernel_15_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_ce1),
+    .kernel_15_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_we1),
+    .kernel_15_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_d1),
+    .kernel_16_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_address1),
+    .kernel_16_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_ce1),
+    .kernel_16_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_we1),
+    .kernel_16_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_d1),
+    .kernel_17_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_address1),
+    .kernel_17_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_ce1),
+    .kernel_17_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_we1),
+    .kernel_17_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_d1),
+    .kernel_18_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_address1),
+    .kernel_18_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_ce1),
+    .kernel_18_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_we1),
+    .kernel_18_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_d1),
+    .kernel_19_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_address1),
+    .kernel_19_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_ce1),
+    .kernel_19_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_we1),
+    .kernel_19_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_d1),
+    .kernel_20_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_address1),
+    .kernel_20_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_ce1),
+    .kernel_20_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_we1),
+    .kernel_20_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_d1),
+    .kernel_21_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_address1),
+    .kernel_21_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_ce1),
+    .kernel_21_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_we1),
+    .kernel_21_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_d1),
+    .kernel_22_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_address1),
+    .kernel_22_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_ce1),
+    .kernel_22_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_we1),
+    .kernel_22_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_d1),
+    .kernel_23_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_address1),
+    .kernel_23_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_ce1),
+    .kernel_23_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_we1),
+    .kernel_23_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_d1),
+    .kernel_24_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_address1),
+    .kernel_24_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_ce1),
+    .kernel_24_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_we1),
+    .kernel_24_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_d1),
+    .kernel_25_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_address1),
+    .kernel_25_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_ce1),
+    .kernel_25_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_we1),
+    .kernel_25_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_d1),
+    .kernel_26_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_address1),
+    .kernel_26_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_ce1),
+    .kernel_26_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_we1),
+    .kernel_26_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_d1),
+    .kernel_27_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_address1),
+    .kernel_27_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_ce1),
+    .kernel_27_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_we1),
+    .kernel_27_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_d1),
+    .kernel_28_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_address1),
+    .kernel_28_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_ce1),
+    .kernel_28_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_we1),
+    .kernel_28_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_d1),
+    .kernel_29_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_address1),
+    .kernel_29_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_ce1),
+    .kernel_29_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_we1),
+    .kernel_29_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_d1),
+    .kernel_30_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_address1),
+    .kernel_30_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_ce1),
+    .kernel_30_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_we1),
+    .kernel_30_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_d1),
+    .kernel_31_address1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_address1),
+    .kernel_31_ce1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_ce1),
+    .kernel_31_we1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_we1),
+    .kernel_31_d1(grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_d1)
 );
 
-unet_ddr_core_conv_mac_Pipeline_DOT grp_conv_mac_Pipeline_DOT_fu_737(
+unet_ddr_core_conv_mac_Pipeline_DOT grp_conv_mac_Pipeline_DOT_fu_1080(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .ap_start(grp_conv_mac_Pipeline_DOT_fu_737_ap_start),
-    .ap_done(grp_conv_mac_Pipeline_DOT_fu_737_ap_done),
-    .ap_idle(grp_conv_mac_Pipeline_DOT_fu_737_ap_idle),
-    .ap_ready(grp_conv_mac_Pipeline_DOT_fu_737_ap_ready),
-    .mul1(mul1_reg_1679),
-    .acc_15_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_15_address0),
-    .acc_15_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_15_ce0),
+    .ap_start(grp_conv_mac_Pipeline_DOT_fu_1080_ap_start),
+    .ap_done(grp_conv_mac_Pipeline_DOT_fu_1080_ap_done),
+    .ap_idle(grp_conv_mac_Pipeline_DOT_fu_1080_ap_idle),
+    .ap_ready(grp_conv_mac_Pipeline_DOT_fu_1080_ap_ready),
+    .mul1(mul1_reg_2311),
+    .acc_31_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_address0),
+    .acc_31_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_ce0),
+    .acc_31_q0(acc_31_q0),
+    .acc_31_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_address1),
+    .acc_31_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_ce1),
+    .acc_31_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_we1),
+    .acc_31_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_d1),
+    .acc_30_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_address0),
+    .acc_30_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_ce0),
+    .acc_30_q0(acc_30_q0),
+    .acc_30_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_address1),
+    .acc_30_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_ce1),
+    .acc_30_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_we1),
+    .acc_30_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_d1),
+    .acc_29_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_address0),
+    .acc_29_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_ce0),
+    .acc_29_q0(acc_29_q0),
+    .acc_29_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_address1),
+    .acc_29_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_ce1),
+    .acc_29_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_we1),
+    .acc_29_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_d1),
+    .acc_28_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_address0),
+    .acc_28_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_ce0),
+    .acc_28_q0(acc_28_q0),
+    .acc_28_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_address1),
+    .acc_28_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_ce1),
+    .acc_28_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_we1),
+    .acc_28_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_d1),
+    .acc_27_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_address0),
+    .acc_27_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_ce0),
+    .acc_27_q0(acc_27_q0),
+    .acc_27_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_address1),
+    .acc_27_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_ce1),
+    .acc_27_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_we1),
+    .acc_27_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_d1),
+    .acc_26_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_address0),
+    .acc_26_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_ce0),
+    .acc_26_q0(acc_26_q0),
+    .acc_26_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_address1),
+    .acc_26_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_ce1),
+    .acc_26_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_we1),
+    .acc_26_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_d1),
+    .acc_25_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_address0),
+    .acc_25_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_ce0),
+    .acc_25_q0(acc_25_q0),
+    .acc_25_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_address1),
+    .acc_25_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_ce1),
+    .acc_25_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_we1),
+    .acc_25_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_d1),
+    .acc_24_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_address0),
+    .acc_24_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_ce0),
+    .acc_24_q0(acc_24_q0),
+    .acc_24_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_address1),
+    .acc_24_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_ce1),
+    .acc_24_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_we1),
+    .acc_24_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_d1),
+    .acc_23_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_address0),
+    .acc_23_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_ce0),
+    .acc_23_q0(acc_23_q0),
+    .acc_23_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_address1),
+    .acc_23_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_ce1),
+    .acc_23_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_we1),
+    .acc_23_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_d1),
+    .acc_22_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_address0),
+    .acc_22_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_ce0),
+    .acc_22_q0(acc_22_q0),
+    .acc_22_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_address1),
+    .acc_22_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_ce1),
+    .acc_22_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_we1),
+    .acc_22_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_d1),
+    .acc_21_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_address0),
+    .acc_21_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_ce0),
+    .acc_21_q0(acc_21_q0),
+    .acc_21_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_address1),
+    .acc_21_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_ce1),
+    .acc_21_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_we1),
+    .acc_21_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_d1),
+    .acc_20_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_address0),
+    .acc_20_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_ce0),
+    .acc_20_q0(acc_20_q0),
+    .acc_20_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_address1),
+    .acc_20_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_ce1),
+    .acc_20_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_we1),
+    .acc_20_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_d1),
+    .acc_19_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_address0),
+    .acc_19_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_ce0),
+    .acc_19_q0(acc_19_q0),
+    .acc_19_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_address1),
+    .acc_19_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_ce1),
+    .acc_19_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_we1),
+    .acc_19_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_d1),
+    .acc_18_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_address0),
+    .acc_18_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_ce0),
+    .acc_18_q0(acc_18_q0),
+    .acc_18_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_address1),
+    .acc_18_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_ce1),
+    .acc_18_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_we1),
+    .acc_18_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_d1),
+    .acc_17_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_address0),
+    .acc_17_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_ce0),
+    .acc_17_q0(acc_17_q0),
+    .acc_17_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_address1),
+    .acc_17_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_ce1),
+    .acc_17_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_we1),
+    .acc_17_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_d1),
+    .acc_16_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_address0),
+    .acc_16_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_ce0),
+    .acc_16_q0(acc_16_q0),
+    .acc_16_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_address1),
+    .acc_16_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_ce1),
+    .acc_16_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_we1),
+    .acc_16_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_d1),
+    .acc_15_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_address0),
+    .acc_15_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_ce0),
     .acc_15_q0(acc_15_q0),
-    .acc_15_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_15_address1),
-    .acc_15_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_15_ce1),
-    .acc_15_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_15_we1),
-    .acc_15_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_15_d1),
-    .acc_14_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_14_address0),
-    .acc_14_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_14_ce0),
+    .acc_15_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_address1),
+    .acc_15_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_ce1),
+    .acc_15_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_we1),
+    .acc_15_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_d1),
+    .acc_14_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_address0),
+    .acc_14_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_ce0),
     .acc_14_q0(acc_14_q0),
-    .acc_14_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_14_address1),
-    .acc_14_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_14_ce1),
-    .acc_14_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_14_we1),
-    .acc_14_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_14_d1),
-    .acc_13_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_13_address0),
-    .acc_13_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_13_ce0),
+    .acc_14_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_address1),
+    .acc_14_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_ce1),
+    .acc_14_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_we1),
+    .acc_14_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_d1),
+    .acc_13_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_address0),
+    .acc_13_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_ce0),
     .acc_13_q0(acc_13_q0),
-    .acc_13_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_13_address1),
-    .acc_13_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_13_ce1),
-    .acc_13_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_13_we1),
-    .acc_13_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_13_d1),
-    .acc_12_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_12_address0),
-    .acc_12_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_12_ce0),
+    .acc_13_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_address1),
+    .acc_13_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_ce1),
+    .acc_13_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_we1),
+    .acc_13_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_d1),
+    .acc_12_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_address0),
+    .acc_12_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_ce0),
     .acc_12_q0(acc_12_q0),
-    .acc_12_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_12_address1),
-    .acc_12_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_12_ce1),
-    .acc_12_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_12_we1),
-    .acc_12_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_12_d1),
-    .acc_11_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_11_address0),
-    .acc_11_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_11_ce0),
+    .acc_12_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_address1),
+    .acc_12_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_ce1),
+    .acc_12_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_we1),
+    .acc_12_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_d1),
+    .acc_11_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_address0),
+    .acc_11_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_ce0),
     .acc_11_q0(acc_11_q0),
-    .acc_11_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_11_address1),
-    .acc_11_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_11_ce1),
-    .acc_11_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_11_we1),
-    .acc_11_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_11_d1),
-    .acc_10_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_10_address0),
-    .acc_10_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_10_ce0),
+    .acc_11_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_address1),
+    .acc_11_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_ce1),
+    .acc_11_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_we1),
+    .acc_11_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_d1),
+    .acc_10_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_address0),
+    .acc_10_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_ce0),
     .acc_10_q0(acc_10_q0),
-    .acc_10_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_10_address1),
-    .acc_10_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_10_ce1),
-    .acc_10_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_10_we1),
-    .acc_10_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_10_d1),
-    .acc_9_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_9_address0),
-    .acc_9_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_9_ce0),
+    .acc_10_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_address1),
+    .acc_10_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_ce1),
+    .acc_10_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_we1),
+    .acc_10_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_d1),
+    .acc_9_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_address0),
+    .acc_9_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_ce0),
     .acc_9_q0(acc_9_q0),
-    .acc_9_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_9_address1),
-    .acc_9_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_9_ce1),
-    .acc_9_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_9_we1),
-    .acc_9_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_9_d1),
-    .acc_8_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_8_address0),
-    .acc_8_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_8_ce0),
+    .acc_9_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_address1),
+    .acc_9_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_ce1),
+    .acc_9_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_we1),
+    .acc_9_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_d1),
+    .acc_8_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_address0),
+    .acc_8_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_ce0),
     .acc_8_q0(acc_8_q0),
-    .acc_8_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_8_address1),
-    .acc_8_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_8_ce1),
-    .acc_8_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_8_we1),
-    .acc_8_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_8_d1),
-    .acc_7_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_7_address0),
-    .acc_7_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_7_ce0),
+    .acc_8_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_address1),
+    .acc_8_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_ce1),
+    .acc_8_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_we1),
+    .acc_8_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_d1),
+    .acc_7_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_address0),
+    .acc_7_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_ce0),
     .acc_7_q0(acc_7_q0),
-    .acc_7_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_7_address1),
-    .acc_7_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_7_ce1),
-    .acc_7_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_7_we1),
-    .acc_7_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_7_d1),
-    .acc_6_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_6_address0),
-    .acc_6_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_6_ce0),
+    .acc_7_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_address1),
+    .acc_7_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_ce1),
+    .acc_7_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_we1),
+    .acc_7_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_d1),
+    .acc_6_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_address0),
+    .acc_6_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_ce0),
     .acc_6_q0(acc_6_q0),
-    .acc_6_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_6_address1),
-    .acc_6_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_6_ce1),
-    .acc_6_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_6_we1),
-    .acc_6_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_6_d1),
-    .acc_5_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_5_address0),
-    .acc_5_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_5_ce0),
+    .acc_6_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_address1),
+    .acc_6_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_ce1),
+    .acc_6_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_we1),
+    .acc_6_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_d1),
+    .acc_5_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_address0),
+    .acc_5_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_ce0),
     .acc_5_q0(acc_5_q0),
-    .acc_5_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_5_address1),
-    .acc_5_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_5_ce1),
-    .acc_5_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_5_we1),
-    .acc_5_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_5_d1),
-    .acc_4_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_4_address0),
-    .acc_4_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_4_ce0),
+    .acc_5_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_address1),
+    .acc_5_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_ce1),
+    .acc_5_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_we1),
+    .acc_5_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_d1),
+    .acc_4_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_address0),
+    .acc_4_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_ce0),
     .acc_4_q0(acc_4_q0),
-    .acc_4_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_4_address1),
-    .acc_4_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_4_ce1),
-    .acc_4_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_4_we1),
-    .acc_4_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_4_d1),
-    .acc_3_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_3_address0),
-    .acc_3_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_3_ce0),
+    .acc_4_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_address1),
+    .acc_4_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_ce1),
+    .acc_4_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_we1),
+    .acc_4_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_d1),
+    .acc_3_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_address0),
+    .acc_3_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_ce0),
     .acc_3_q0(acc_3_q0),
-    .acc_3_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_3_address1),
-    .acc_3_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_3_ce1),
-    .acc_3_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_3_we1),
-    .acc_3_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_3_d1),
-    .acc_2_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_2_address0),
-    .acc_2_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_2_ce0),
+    .acc_3_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_address1),
+    .acc_3_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_ce1),
+    .acc_3_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_we1),
+    .acc_3_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_d1),
+    .acc_2_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_address0),
+    .acc_2_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_ce0),
     .acc_2_q0(acc_2_q0),
-    .acc_2_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_2_address1),
-    .acc_2_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_2_ce1),
-    .acc_2_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_2_we1),
-    .acc_2_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_2_d1),
-    .acc_1_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_1_address0),
-    .acc_1_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_1_ce0),
+    .acc_2_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_address1),
+    .acc_2_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_ce1),
+    .acc_2_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_we1),
+    .acc_2_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_d1),
+    .acc_1_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_address0),
+    .acc_1_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_ce0),
     .acc_1_q0(acc_1_q0),
-    .acc_1_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_1_address1),
-    .acc_1_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_1_ce1),
-    .acc_1_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_1_we1),
-    .acc_1_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_1_d1),
-    .acc_address0(grp_conv_mac_Pipeline_DOT_fu_737_acc_address0),
-    .acc_ce0(grp_conv_mac_Pipeline_DOT_fu_737_acc_ce0),
+    .acc_1_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_address1),
+    .acc_1_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_ce1),
+    .acc_1_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_we1),
+    .acc_1_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_d1),
+    .acc_address0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_address0),
+    .acc_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_acc_ce0),
     .acc_q0(acc_q0),
-    .acc_address1(grp_conv_mac_Pipeline_DOT_fu_737_acc_address1),
-    .acc_ce1(grp_conv_mac_Pipeline_DOT_fu_737_acc_ce1),
-    .acc_we1(grp_conv_mac_Pipeline_DOT_fu_737_acc_we1),
-    .acc_d1(grp_conv_mac_Pipeline_DOT_fu_737_acc_d1),
-    .empty(trunc_ln120_reg_1692),
-    .kernel_1_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_address0),
-    .kernel_1_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_ce0),
-    .kernel_1_q0(kernel_1_151_q0),
-    .kernel_1_84_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_84_address0),
-    .kernel_1_84_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_84_ce0),
+    .acc_address1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_address1),
+    .acc_ce1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_ce1),
+    .acc_we1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_we1),
+    .acc_d1(grp_conv_mac_Pipeline_DOT_fu_1080_acc_d1),
+    .empty(trunc_ln120_reg_2324),
+    .kernel_1_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_address0),
+    .kernel_1_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_ce0),
+    .kernel_1_q0(kernel_1_167_q0),
+    .kernel_1_84_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_84_address0),
+    .kernel_1_84_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_84_ce0),
     .kernel_1_84_q0(kernel_1_q0),
-    .kernel_2_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_2_address0),
-    .kernel_2_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_2_ce0),
+    .kernel_2_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_2_address0),
+    .kernel_2_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_2_ce0),
     .kernel_2_q0(kernel_2_q0),
-    .kernel_3_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_3_address0),
-    .kernel_3_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_3_ce0),
+    .kernel_3_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_3_address0),
+    .kernel_3_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_3_ce0),
     .kernel_3_q0(kernel_3_q0),
-    .kernel_4_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_4_address0),
-    .kernel_4_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_4_ce0),
+    .kernel_4_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_4_address0),
+    .kernel_4_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_4_ce0),
     .kernel_4_q0(kernel_4_q0),
-    .kernel_5_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_5_address0),
-    .kernel_5_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_5_ce0),
+    .kernel_5_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_5_address0),
+    .kernel_5_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_5_ce0),
     .kernel_5_q0(kernel_5_q0),
-    .kernel_6_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_6_address0),
-    .kernel_6_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_6_ce0),
+    .kernel_6_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_6_address0),
+    .kernel_6_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_6_ce0),
     .kernel_6_q0(kernel_6_q0),
-    .kernel_7_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_7_address0),
-    .kernel_7_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_7_ce0),
+    .kernel_7_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_7_address0),
+    .kernel_7_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_7_ce0),
     .kernel_7_q0(kernel_7_q0),
-    .kernel_8_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_8_address0),
-    .kernel_8_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_8_ce0),
+    .kernel_8_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_8_address0),
+    .kernel_8_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_8_ce0),
     .kernel_8_q0(kernel_8_q0),
-    .kernel_9_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_9_address0),
-    .kernel_9_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_9_ce0),
+    .kernel_9_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_9_address0),
+    .kernel_9_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_9_ce0),
     .kernel_9_q0(kernel_9_q0),
-    .kernel_10_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_10_address0),
-    .kernel_10_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_10_ce0),
+    .kernel_10_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_10_address0),
+    .kernel_10_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_10_ce0),
     .kernel_10_q0(kernel_10_q0),
-    .kernel_11_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_11_address0),
-    .kernel_11_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_11_ce0),
+    .kernel_11_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_11_address0),
+    .kernel_11_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_11_ce0),
     .kernel_11_q0(kernel_11_q0),
-    .kernel_12_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_12_address0),
-    .kernel_12_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_12_ce0),
+    .kernel_12_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_12_address0),
+    .kernel_12_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_12_ce0),
     .kernel_12_q0(kernel_12_q0),
-    .kernel_13_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_13_address0),
-    .kernel_13_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_13_ce0),
+    .kernel_13_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_13_address0),
+    .kernel_13_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_13_ce0),
     .kernel_13_q0(kernel_13_q0),
-    .kernel_14_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_14_address0),
-    .kernel_14_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_14_ce0),
+    .kernel_14_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_14_address0),
+    .kernel_14_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_14_ce0),
     .kernel_14_q0(kernel_14_q0),
-    .kernel_15_address0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_15_address0),
-    .kernel_15_ce0(grp_conv_mac_Pipeline_DOT_fu_737_kernel_15_ce0),
+    .kernel_15_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_15_address0),
+    .kernel_15_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_15_ce0),
     .kernel_15_q0(kernel_15_q0),
-    .dw_patch_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_address0),
-    .dw_patch_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_ce0),
+    .kernel_16_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_16_address0),
+    .kernel_16_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_16_ce0),
+    .kernel_16_q0(kernel_16_q0),
+    .kernel_17_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_17_address0),
+    .kernel_17_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_17_ce0),
+    .kernel_17_q0(kernel_17_q0),
+    .kernel_18_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_18_address0),
+    .kernel_18_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_18_ce0),
+    .kernel_18_q0(kernel_18_q0),
+    .kernel_19_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_19_address0),
+    .kernel_19_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_19_ce0),
+    .kernel_19_q0(kernel_19_q0),
+    .kernel_20_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_20_address0),
+    .kernel_20_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_20_ce0),
+    .kernel_20_q0(kernel_20_q0),
+    .kernel_21_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_21_address0),
+    .kernel_21_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_21_ce0),
+    .kernel_21_q0(kernel_21_q0),
+    .kernel_22_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_22_address0),
+    .kernel_22_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_22_ce0),
+    .kernel_22_q0(kernel_22_q0),
+    .kernel_23_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_23_address0),
+    .kernel_23_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_23_ce0),
+    .kernel_23_q0(kernel_23_q0),
+    .kernel_24_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_24_address0),
+    .kernel_24_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_24_ce0),
+    .kernel_24_q0(kernel_24_q0),
+    .kernel_25_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_25_address0),
+    .kernel_25_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_25_ce0),
+    .kernel_25_q0(kernel_25_q0),
+    .kernel_26_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_26_address0),
+    .kernel_26_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_26_ce0),
+    .kernel_26_q0(kernel_26_q0),
+    .kernel_27_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_27_address0),
+    .kernel_27_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_27_ce0),
+    .kernel_27_q0(kernel_27_q0),
+    .kernel_28_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_28_address0),
+    .kernel_28_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_28_ce0),
+    .kernel_28_q0(kernel_28_q0),
+    .kernel_29_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_29_address0),
+    .kernel_29_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_29_ce0),
+    .kernel_29_q0(kernel_29_q0),
+    .kernel_30_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_30_address0),
+    .kernel_30_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_30_ce0),
+    .kernel_30_q0(kernel_30_q0),
+    .kernel_31_address0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_31_address0),
+    .kernel_31_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_kernel_31_ce0),
+    .kernel_31_q0(kernel_31_q0),
+    .dw_patch_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_address0),
+    .dw_patch_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_ce0),
     .dw_patch_q0(dw_patch_q0),
-    .dw_patch_1_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_1_address0),
-    .dw_patch_1_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_1_ce0),
+    .dw_patch_1_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_1_address0),
+    .dw_patch_1_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_1_ce0),
     .dw_patch_1_q0(dw_patch_1_q0),
-    .dw_patch_2_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_2_address0),
-    .dw_patch_2_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_2_ce0),
+    .dw_patch_2_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_2_address0),
+    .dw_patch_2_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_2_ce0),
     .dw_patch_2_q0(dw_patch_2_q0),
-    .dw_patch_3_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_3_address0),
-    .dw_patch_3_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_3_ce0),
+    .dw_patch_3_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_3_address0),
+    .dw_patch_3_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_3_ce0),
     .dw_patch_3_q0(dw_patch_3_q0),
-    .dw_patch_4_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_4_address0),
-    .dw_patch_4_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_4_ce0),
+    .dw_patch_4_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_4_address0),
+    .dw_patch_4_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_4_ce0),
     .dw_patch_4_q0(dw_patch_4_q0),
-    .dw_patch_5_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_5_address0),
-    .dw_patch_5_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_5_ce0),
+    .dw_patch_5_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_5_address0),
+    .dw_patch_5_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_5_ce0),
     .dw_patch_5_q0(dw_patch_5_q0),
-    .dw_patch_6_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_6_address0),
-    .dw_patch_6_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_6_ce0),
+    .dw_patch_6_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_6_address0),
+    .dw_patch_6_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_6_ce0),
     .dw_patch_6_q0(dw_patch_6_q0),
-    .dw_patch_7_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_7_address0),
-    .dw_patch_7_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_7_ce0),
+    .dw_patch_7_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_7_address0),
+    .dw_patch_7_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_7_ce0),
     .dw_patch_7_q0(dw_patch_7_q0),
-    .dw_patch_8_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_8_address0),
-    .dw_patch_8_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_8_ce0),
+    .dw_patch_8_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_8_address0),
+    .dw_patch_8_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_8_ce0),
     .dw_patch_8_q0(dw_patch_8_q0),
-    .dw_patch_9_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_9_address0),
-    .dw_patch_9_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_9_ce0),
+    .dw_patch_9_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_9_address0),
+    .dw_patch_9_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_9_ce0),
     .dw_patch_9_q0(dw_patch_9_q0),
-    .dw_patch_10_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_10_address0),
-    .dw_patch_10_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_10_ce0),
+    .dw_patch_10_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_10_address0),
+    .dw_patch_10_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_10_ce0),
     .dw_patch_10_q0(dw_patch_10_q0),
-    .dw_patch_11_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_11_address0),
-    .dw_patch_11_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_11_ce0),
+    .dw_patch_11_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_11_address0),
+    .dw_patch_11_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_11_ce0),
     .dw_patch_11_q0(dw_patch_11_q0),
-    .dw_patch_12_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_12_address0),
-    .dw_patch_12_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_12_ce0),
+    .dw_patch_12_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_12_address0),
+    .dw_patch_12_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_12_ce0),
     .dw_patch_12_q0(dw_patch_12_q0),
-    .dw_patch_13_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_13_address0),
-    .dw_patch_13_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_13_ce0),
+    .dw_patch_13_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_13_address0),
+    .dw_patch_13_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_13_ce0),
     .dw_patch_13_q0(dw_patch_13_q0),
-    .dw_patch_14_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_14_address0),
-    .dw_patch_14_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_14_ce0),
+    .dw_patch_14_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_14_address0),
+    .dw_patch_14_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_14_ce0),
     .dw_patch_14_q0(dw_patch_14_q0),
-    .dw_patch_15_address0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_15_address0),
-    .dw_patch_15_ce0(grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_15_ce0),
+    .dw_patch_15_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_15_address0),
+    .dw_patch_15_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_15_ce0),
     .dw_patch_15_q0(dw_patch_15_q0),
-    .feature_cache_address0(grp_conv_mac_Pipeline_DOT_fu_737_feature_cache_address0),
-    .feature_cache_ce0(grp_conv_mac_Pipeline_DOT_fu_737_feature_cache_ce0),
+    .dw_patch_16_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_16_address0),
+    .dw_patch_16_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_16_ce0),
+    .dw_patch_16_q0(dw_patch_16_q0),
+    .dw_patch_17_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_17_address0),
+    .dw_patch_17_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_17_ce0),
+    .dw_patch_17_q0(dw_patch_17_q0),
+    .dw_patch_18_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_18_address0),
+    .dw_patch_18_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_18_ce0),
+    .dw_patch_18_q0(dw_patch_18_q0),
+    .dw_patch_19_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_19_address0),
+    .dw_patch_19_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_19_ce0),
+    .dw_patch_19_q0(dw_patch_19_q0),
+    .dw_patch_20_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_20_address0),
+    .dw_patch_20_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_20_ce0),
+    .dw_patch_20_q0(dw_patch_20_q0),
+    .dw_patch_21_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_21_address0),
+    .dw_patch_21_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_21_ce0),
+    .dw_patch_21_q0(dw_patch_21_q0),
+    .dw_patch_22_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_22_address0),
+    .dw_patch_22_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_22_ce0),
+    .dw_patch_22_q0(dw_patch_22_q0),
+    .dw_patch_23_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_23_address0),
+    .dw_patch_23_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_23_ce0),
+    .dw_patch_23_q0(dw_patch_23_q0),
+    .dw_patch_24_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_24_address0),
+    .dw_patch_24_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_24_ce0),
+    .dw_patch_24_q0(dw_patch_24_q0),
+    .dw_patch_25_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_25_address0),
+    .dw_patch_25_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_25_ce0),
+    .dw_patch_25_q0(dw_patch_25_q0),
+    .dw_patch_26_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_26_address0),
+    .dw_patch_26_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_26_ce0),
+    .dw_patch_26_q0(dw_patch_26_q0),
+    .dw_patch_27_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_27_address0),
+    .dw_patch_27_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_27_ce0),
+    .dw_patch_27_q0(dw_patch_27_q0),
+    .dw_patch_28_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_28_address0),
+    .dw_patch_28_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_28_ce0),
+    .dw_patch_28_q0(dw_patch_28_q0),
+    .dw_patch_29_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_29_address0),
+    .dw_patch_29_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_29_ce0),
+    .dw_patch_29_q0(dw_patch_29_q0),
+    .dw_patch_30_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_30_address0),
+    .dw_patch_30_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_30_ce0),
+    .dw_patch_30_q0(dw_patch_30_q0),
+    .dw_patch_31_address0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_31_address0),
+    .dw_patch_31_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_31_ce0),
+    .dw_patch_31_q0(dw_patch_31_q0),
+    .feature_cache_address0(grp_conv_mac_Pipeline_DOT_fu_1080_feature_cache_address0),
+    .feature_cache_ce0(grp_conv_mac_Pipeline_DOT_fu_1080_feature_cache_ce0),
     .feature_cache_q0(feature_cache_q0),
-    .dw(dw_reg_1434)
+    .dw(dw_reg_2011)
 );
 
-unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_129_14 grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793(
+unet_ddr_core_conv_mac_Pipeline_VITIS_LOOP_129_14 grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start),
-    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_done),
-    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_idle),
-    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_ready),
-    .result_din(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_result_din),
+    .ap_start(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start),
+    .ap_done(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_done),
+    .ap_idle(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_idle),
+    .ap_ready(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_ready),
+    .result_din(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_result_din),
     .result_num_data_valid(6'd0),
     .result_fifo_cap(6'd0),
     .result_full_n(result_full_n),
-    .result_write(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_result_write),
-    .sext_ln79(xor_ln79_reg_1573),
-    .zext_ln131(trunc_ln131_reg_1715),
-    .acc_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_address0),
-    .acc_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_ce0),
+    .result_write(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_result_write),
+    .sext_ln79(xor_ln79_reg_2151),
+    .zext_ln131(trunc_ln131_reg_2347),
+    .acc_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_address0),
+    .acc_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_ce0),
     .acc_q0(acc_q0),
-    .acc_1_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_1_address0),
-    .acc_1_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_1_ce0),
+    .acc_1_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_1_address0),
+    .acc_1_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_1_ce0),
     .acc_1_q0(acc_1_q0),
-    .acc_2_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_2_address0),
-    .acc_2_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_2_ce0),
+    .acc_2_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_2_address0),
+    .acc_2_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_2_ce0),
     .acc_2_q0(acc_2_q0),
-    .acc_3_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_3_address0),
-    .acc_3_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_3_ce0),
+    .acc_3_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_3_address0),
+    .acc_3_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_3_ce0),
     .acc_3_q0(acc_3_q0),
-    .acc_4_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_4_address0),
-    .acc_4_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_4_ce0),
+    .acc_4_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_4_address0),
+    .acc_4_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_4_ce0),
     .acc_4_q0(acc_4_q0),
-    .acc_5_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_5_address0),
-    .acc_5_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_5_ce0),
+    .acc_5_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_5_address0),
+    .acc_5_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_5_ce0),
     .acc_5_q0(acc_5_q0),
-    .acc_6_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_6_address0),
-    .acc_6_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_6_ce0),
+    .acc_6_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_6_address0),
+    .acc_6_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_6_ce0),
     .acc_6_q0(acc_6_q0),
-    .acc_7_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_7_address0),
-    .acc_7_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_7_ce0),
+    .acc_7_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_7_address0),
+    .acc_7_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_7_ce0),
     .acc_7_q0(acc_7_q0),
-    .acc_8_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_8_address0),
-    .acc_8_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_8_ce0),
+    .acc_8_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_8_address0),
+    .acc_8_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_8_ce0),
     .acc_8_q0(acc_8_q0),
-    .acc_9_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_9_address0),
-    .acc_9_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_9_ce0),
+    .acc_9_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_9_address0),
+    .acc_9_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_9_ce0),
     .acc_9_q0(acc_9_q0),
-    .acc_10_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_10_address0),
-    .acc_10_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_10_ce0),
+    .acc_10_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_10_address0),
+    .acc_10_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_10_ce0),
     .acc_10_q0(acc_10_q0),
-    .acc_11_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_11_address0),
-    .acc_11_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_11_ce0),
+    .acc_11_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_11_address0),
+    .acc_11_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_11_ce0),
     .acc_11_q0(acc_11_q0),
-    .acc_12_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_12_address0),
-    .acc_12_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_12_ce0),
+    .acc_12_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_12_address0),
+    .acc_12_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_12_ce0),
     .acc_12_q0(acc_12_q0),
-    .acc_13_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_13_address0),
-    .acc_13_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_13_ce0),
+    .acc_13_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_13_address0),
+    .acc_13_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_13_ce0),
     .acc_13_q0(acc_13_q0),
-    .acc_14_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_14_address0),
-    .acc_14_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_14_ce0),
+    .acc_14_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_14_address0),
+    .acc_14_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_14_ce0),
     .acc_14_q0(acc_14_q0),
-    .acc_15_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_15_address0),
-    .acc_15_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_15_ce0),
+    .acc_15_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_15_address0),
+    .acc_15_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_15_ce0),
     .acc_15_q0(acc_15_q0),
-    .tobool_i(tobool_i_reg_1519),
-    .cmp1_i(cmp1_i_reg_1524)
+    .acc_16_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_16_address0),
+    .acc_16_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_16_ce0),
+    .acc_16_q0(acc_16_q0),
+    .acc_17_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_17_address0),
+    .acc_17_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_17_ce0),
+    .acc_17_q0(acc_17_q0),
+    .acc_18_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_18_address0),
+    .acc_18_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_18_ce0),
+    .acc_18_q0(acc_18_q0),
+    .acc_19_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_19_address0),
+    .acc_19_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_19_ce0),
+    .acc_19_q0(acc_19_q0),
+    .acc_20_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_20_address0),
+    .acc_20_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_20_ce0),
+    .acc_20_q0(acc_20_q0),
+    .acc_21_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_21_address0),
+    .acc_21_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_21_ce0),
+    .acc_21_q0(acc_21_q0),
+    .acc_22_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_22_address0),
+    .acc_22_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_22_ce0),
+    .acc_22_q0(acc_22_q0),
+    .acc_23_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_23_address0),
+    .acc_23_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_23_ce0),
+    .acc_23_q0(acc_23_q0),
+    .acc_24_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_24_address0),
+    .acc_24_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_24_ce0),
+    .acc_24_q0(acc_24_q0),
+    .acc_25_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_25_address0),
+    .acc_25_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_25_ce0),
+    .acc_25_q0(acc_25_q0),
+    .acc_26_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_26_address0),
+    .acc_26_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_26_ce0),
+    .acc_26_q0(acc_26_q0),
+    .acc_27_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_27_address0),
+    .acc_27_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_27_ce0),
+    .acc_27_q0(acc_27_q0),
+    .acc_28_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_28_address0),
+    .acc_28_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_28_ce0),
+    .acc_28_q0(acc_28_q0),
+    .acc_29_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_29_address0),
+    .acc_29_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_29_ce0),
+    .acc_29_q0(acc_29_q0),
+    .acc_30_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_30_address0),
+    .acc_30_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_30_ce0),
+    .acc_30_q0(acc_30_q0),
+    .acc_31_address0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_31_address0),
+    .acc_31_ce0(grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_31_ce0),
+    .acc_31_q0(acc_31_q0),
+    .tobool_i(tobool_i_reg_2097),
+    .cmp1_i(cmp1_i_reg_2102)
 );
 
 unet_ddr_core_mul_2ns_8ns_10_3_1 #(
@@ -2552,13 +4481,13 @@ unet_ddr_core_mul_2ns_8ns_10_3_1 #(
     .din0_WIDTH( 2 ),
     .din1_WIDTH( 8 ),
     .dout_WIDTH( 10 ))
-mul_2ns_8ns_10_3_1_U284(
+mul_2ns_8ns_10_3_1_U462(
     .clk(ap_clk),
     .reset(ap_rst),
-    .din0(grp_fu_865_p0),
-    .din1(grp_fu_865_p1),
+    .din0(grp_fu_1272_p0),
+    .din1(grp_fu_1272_p1),
     .ce(1'b1),
-    .dout(grp_fu_865_p2)
+    .dout(grp_fu_1272_p2)
 );
 
 unet_ddr_core_mul_9ns_9ns_18_3_1 #(
@@ -2567,13 +4496,13 @@ unet_ddr_core_mul_9ns_9ns_18_3_1 #(
     .din0_WIDTH( 9 ),
     .din1_WIDTH( 9 ),
     .dout_WIDTH( 18 ))
-mul_9ns_9ns_18_3_1_U285(
+mul_9ns_9ns_18_3_1_U463(
     .clk(ap_clk),
     .reset(ap_rst),
-    .din0(grp_fu_877_p0),
-    .din1(grp_fu_877_p1),
+    .din0(grp_fu_1284_p0),
+    .din1(grp_fu_1284_p1),
     .ce(1'b1),
-    .dout(grp_fu_877_p2)
+    .dout(grp_fu_1284_p2)
 );
 
 unet_ddr_core_mul_2ns_10ns_11_3_1 #(
@@ -2582,51 +4511,51 @@ unet_ddr_core_mul_2ns_10ns_11_3_1 #(
     .din0_WIDTH( 2 ),
     .din1_WIDTH( 10 ),
     .dout_WIDTH( 11 ))
-mul_2ns_10ns_11_3_1_U286(
+mul_2ns_10ns_11_3_1_U464(
     .clk(ap_clk),
     .reset(ap_rst),
-    .din0(grp_fu_889_p0),
-    .din1(grp_fu_889_p1),
+    .din0(grp_fu_1296_p0),
+    .din1(grp_fu_1296_p1),
     .ce(1'b1),
-    .dout(grp_fu_889_p2)
+    .dout(grp_fu_1296_p2)
 );
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        add_ln105_reg_1687 <= 3'd0;
+        add_ln105_reg_2319 <= 2'd0;
     end else begin
-        if ((1'b1 == ap_CS_fsm_state19)) begin
-            add_ln105_reg_1687 <= add_ln105_fu_1222_p2;
+        if ((1'b1 == ap_CS_fsm_state20)) begin
+            add_ln105_reg_2319 <= add_ln105_fu_1698_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        add_ln127_reg_1710 <= 32'd0;
+        add_ln127_reg_2342 <= 32'd0;
     end else begin
-        if ((1'b1 == ap_CS_fsm_state24)) begin
-            add_ln127_reg_1710 <= add_ln127_fu_1255_p2;
+        if ((1'b1 == ap_CS_fsm_state25)) begin
+            add_ln127_reg_2342 <= add_ln127_fu_1731_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        add_ln81_reg_1587 <= 3'd0;
+        add_ln81_reg_2165 <= 2'd0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state12)) begin
-            add_ln81_reg_1587 <= add_ln81_fu_1046_p2;
+            add_ln81_reg_2165 <= add_ln81_fu_1460_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        add_ln96_1_reg_1648 <= 11'd0;
+        add_ln96_1_reg_2274 <= 11'd0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state16)) begin
-            add_ln96_1_reg_1648 <= add_ln96_1_fu_1125_p2;
+            add_ln96_1_reg_2274 <= add_ln96_1_fu_1603_p2;
         end
     end
 end
@@ -2645,7 +4574,7 @@ always @ (posedge ap_clk) begin
     end else begin
         if ((ap_continue == 1'b1)) begin
             ap_done_reg <= 1'b0;
-        end else if (((1'b1 == ap_CS_fsm_state9) & (icmp_ln78_1_fu_966_p2 == 1'd0))) begin
+        end else if (((icmp_ln78_1_fu_1380_p2 == 1'd0) & (1'b1 == ap_CS_fsm_state9))) begin
             ap_done_reg <= 1'b1;
         end
     end
@@ -2653,1534 +4582,2512 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        base_fu_200 <= 18'd0;
+        base_fu_206 <= 18'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
-            base_fu_200 <= 18'd0;
-        end else if ((1'b1 == ap_CS_fsm_state27)) begin
-            base_fu_200 <= base_5_fu_1275_p2;
+            base_fu_206 <= 18'd0;
+        end else if ((1'b1 == ap_CS_fsm_state28)) begin
+            base_fu_206 <= base_5_fu_1751_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        bound4_reg_1549 <= 11'd0;
+        bound4_reg_2127 <= 11'd0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state8)) begin
-            bound4_reg_1549 <= grp_fu_889_p2;
+            bound4_reg_2127 <= grp_fu_1296_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-                bound_cast748_reg_1544[0] <= 1'b0;
-        bound_cast748_reg_1544[1] <= 1'b0;
-        bound_cast748_reg_1544[2] <= 1'b0;
-        bound_cast748_reg_1544[3] <= 1'b0;
-        bound_cast748_reg_1544[4] <= 1'b0;
-        bound_cast748_reg_1544[5] <= 1'b0;
-        bound_cast748_reg_1544[6] <= 1'b0;
-        bound_cast748_reg_1544[7] <= 1'b0;
-        bound_cast748_reg_1544[8] <= 1'b0;
-        bound_cast748_reg_1544[9] <= 1'b0;
+                bound_cast1468_reg_2122[0] <= 1'b0;
+        bound_cast1468_reg_2122[1] <= 1'b0;
+        bound_cast1468_reg_2122[2] <= 1'b0;
+        bound_cast1468_reg_2122[3] <= 1'b0;
+        bound_cast1468_reg_2122[4] <= 1'b0;
+        bound_cast1468_reg_2122[5] <= 1'b0;
+        bound_cast1468_reg_2122[6] <= 1'b0;
+        bound_cast1468_reg_2122[7] <= 1'b0;
+        bound_cast1468_reg_2122[8] <= 1'b0;
+        bound_cast1468_reg_2122[9] <= 1'b0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state8)) begin
-                        bound_cast748_reg_1544[9 : 0] <= bound_cast748_fu_955_p1[9 : 0];
+                        bound_cast1468_reg_2122[9 : 0] <= bound_cast1468_fu_1369_p1[9 : 0];
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        bound_reg_1486 <= 10'd0;
+        bound_reg_2059 <= 10'd0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state5)) begin
-            bound_reg_1486 <= grp_fu_865_p2;
+            bound_reg_2059 <= grp_fu_1272_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        cb_reg_598 <= 12'd0;
+        cb_reg_860 <= 12'd0;
     end else begin
-        if (((1'b1 == ap_CS_fsm_state12) & (icmp_ln81_fu_1041_p2 == 1'd1))) begin
-            cb_reg_598 <= 12'd0;
-        end else if (((1'b1 == ap_CS_fsm_state19) & (icmp_ln105_fu_1217_p2 == 1'd1))) begin
-            cb_reg_598 <= cb_2_fu_1232_p2;
+        if (((icmp_ln81_fu_1455_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state12))) begin
+            cb_reg_860 <= 12'd0;
+        end else if (((icmp_ln105_fu_1693_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state20))) begin
+            cb_reg_860 <= cb_2_fu_1708_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        cmp1_i_reg_1524 <= 1'd0;
+        cmp1_i_reg_2102 <= 1'd0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state8)) begin
-            cmp1_i_reg_1524 <= cmp1_i_fu_916_p2;
+            cmp1_i_reg_2102 <= cmp1_i_fu_1330_p2;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        dw_reg_1434 <= 1'd0;
+        count_reg_2300 <= 5'd0;
+    end else begin
+        if (((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state18))) begin
+            count_reg_2300 <= count_fu_1672_p3;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        dw_reg_2011 <= 1'd0;
     end else begin
         if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
-            dw_reg_1434 <= op_kind_val_dout;
+            dw_reg_2011 <= op_kind_val_dout;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        g_2_reg_609 <= 3'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state18)) begin
-            g_2_reg_609 <= 3'd0;
-        end else if (((1'b1 == ap_CS_fsm_state23) & (grp_conv_mac_Pipeline_DOT_fu_737_ap_done == 1'b1))) begin
-            g_2_reg_609 <= add_ln105_reg_1687;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        g_reg_564 <= 3'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state11)) begin
-            g_reg_564 <= 3'd0;
-        end else if (((grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state15))) begin
-            g_reg_564 <= add_ln81_reg_1587;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        grp_conv_mac_Pipeline_DOT_fu_737_ap_start_reg <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state22)) begin
-            grp_conv_mac_Pipeline_DOT_fu_737_ap_start_reg <= 1'b1;
-        end else if ((grp_conv_mac_Pipeline_DOT_fu_737_ap_ready == 1'b1)) begin
-            grp_conv_mac_Pipeline_DOT_fu_737_ap_start_reg <= 1'b0;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start_reg <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state20)) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start_reg <= 1'b1;
-        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_ready == 1'b1)) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start_reg <= 1'b0;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start_reg <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state25)) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start_reg <= 1'b1;
-        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_ready == 1'b1)) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start_reg <= 1'b0;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start_reg <= 1'b0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state12) & (icmp_ln81_fu_1041_p2 == 1'd0))) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start_reg <= 1'b1;
-        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_ready == 1'b1)) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start_reg <= 1'b0;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start_reg <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state14)) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start_reg <= 1'b1;
-        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_ready == 1'b1)) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start_reg <= 1'b0;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start_reg <= 1'b0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state16) & (icmp_ln96_fu_1120_p2 == 1'd0))) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start_reg <= 1'b1;
-        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_ready == 1'b1)) begin
-            grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start_reg <= 1'b0;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        icmp_ln79_reg_1568 <= 1'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state10)) begin
-            icmp_ln79_reg_1568 <= icmp_ln79_fu_1000_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        icmp_ln96_1_reg_1653 <= 1'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state16)) begin
-            icmp_ln96_1_reg_1653 <= icmp_ln96_1_fu_1131_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        icmp_ln97_reg_1461 <= 1'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state2)) begin
-            icmp_ln97_reg_1461 <= icmp_ln97_fu_854_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        icmp_ln98_reg_1669 <= 1'd0;
-    end else begin
-        if (((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state17))) begin
-            icmp_ln98_reg_1669 <= icmp_ln98_fu_1178_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        indvar_flatten10_reg_575 <= 11'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state12) & (icmp_ln81_fu_1041_p2 == 1'd1))) begin
-            indvar_flatten10_reg_575 <= 11'd0;
-        end else if (((1'b1 == ap_CS_fsm_state19) & (icmp_ln105_fu_1217_p2 == 1'd1))) begin
-            indvar_flatten10_reg_575 <= add_ln96_1_reg_1648;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        indvar_flatten_reg_586 <= 14'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state12) & (icmp_ln81_fu_1041_p2 == 1'd1))) begin
-            indvar_flatten_reg_586 <= 14'd0;
-        end else if (((1'b1 == ap_CS_fsm_state19) & (icmp_ln105_fu_1217_p2 == 1'd1))) begin
-            indvar_flatten_reg_586 <= select_ln96_3_fu_1243_p3;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        indvars_iv1_reg_542 <= 32'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state9) & (icmp_ln78_1_fu_966_p2 == 1'd1))) begin
-            indvars_iv1_reg_542 <= sext_ln78_reg_1539;
-        end else if (((1'b1 == ap_CS_fsm_state24) & (icmp_ln127_fu_1250_p2 == 1'd1))) begin
-            indvars_iv1_reg_542 <= add_ln79_fu_1270_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        indvars_iv4_fu_204 <= 20'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state8)) begin
-            indvars_iv4_fu_204 <= sext_ln78_1_fu_951_p1;
-        end else if ((1'b1 == ap_CS_fsm_state27)) begin
-            indvars_iv4_fu_204 <= add_ln78_fu_1280_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-                mul1_reg_1679[6] <= 1'b0;
-        mul1_reg_1679[7] <= 1'b0;
-        mul1_reg_1679[8] <= 1'b0;
-        mul1_reg_1679[9] <= 1'b0;
-        mul1_reg_1679[10] <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state18)) begin
-                        mul1_reg_1679[10 : 6] <= mul1_fu_1209_p3[10 : 6];
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-                mul_reg_1674[4] <= 1'b0;
-        mul_reg_1674[5] <= 1'b0;
-        mul_reg_1674[6] <= 1'b0;
-        mul_reg_1674[7] <= 1'b0;
-        mul_reg_1674[8] <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state18)) begin
-                        mul_reg_1674[8 : 4] <= mul_fu_1201_p3[8 : 4];
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        oc_reg_552 <= 32'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state9) & (icmp_ln78_1_fu_966_p2 == 1'd1))) begin
-            oc_reg_552 <= 32'd0;
-        end else if (((1'b1 == ap_CS_fsm_state24) & (icmp_ln127_fu_1250_p2 == 1'd1))) begin
-            oc_reg_552 <= oc_3_fu_1265_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        op_activation_val_read_reg_1406 <= 2'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
-            op_activation_val_read_reg_1406 <= op_activation_val_dout;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-                op_cout_val_cast4_reg_1508[0] <= 1'b0;
-        op_cout_val_cast4_reg_1508[1] <= 1'b0;
-        op_cout_val_cast4_reg_1508[2] <= 1'b0;
-        op_cout_val_cast4_reg_1508[3] <= 1'b0;
-        op_cout_val_cast4_reg_1508[4] <= 1'b0;
-        op_cout_val_cast4_reg_1508[5] <= 1'b0;
-        op_cout_val_cast4_reg_1508[6] <= 1'b0;
-        op_cout_val_cast4_reg_1508[7] <= 1'b0;
-        op_cout_val_cast4_reg_1508[8] <= 1'b0;
-        op_cout_val_cast4_reg_1508[9] <= 1'b0;
-        op_cout_val_cast4_reg_1508[10] <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state8)) begin
-                        op_cout_val_cast4_reg_1508[10 : 0] <= op_cout_val_cast4_fu_895_p1[10 : 0];
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        op_cout_val_read_reg_1418 <= 11'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
-            op_cout_val_read_reg_1418 <= op_cout_val_dout;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        op_kernel_val_read_reg_1412 <= 2'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
-            op_kernel_val_read_reg_1412 <= op_kernel_val_dout;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        op_oh_val_read_reg_1429 <= 9'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
-            op_oh_val_read_reg_1429 <= op_oh_val_dout;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        op_ow_val_read_reg_1424 <= 9'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
-            op_ow_val_read_reg_1424 <= op_ow_val_dout;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        p_reg_620 <= 32'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state16) & (icmp_ln96_fu_1120_p2 == 1'd1))) begin
-            p_reg_620 <= 32'd0;
-        end else if (((1'b1 == ap_CS_fsm_state26) & (grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_done == 1'b1))) begin
-            p_reg_620 <= add_ln127_reg_1710;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        reduce_reg_1444 <= 11'd0;
-    end else begin
-        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
-            reduce_reg_1444 <= reduce_fu_822_p3;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-                select_ln78_1_reg_1529[4] <= 1'b0;
-        select_ln78_1_reg_1529[6] <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state8)) begin
-                        select_ln78_1_reg_1529[4] <= select_ln78_1_fu_921_p3[4];
-            select_ln78_1_reg_1529[6] <= select_ln78_1_fu_921_p3[6];
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-                select_ln78_2_reg_1534[4] <= 1'b0;
-        select_ln78_2_reg_1534[6] <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state8)) begin
-                        select_ln78_2_reg_1534[4] <= select_ln78_2_fu_928_p3[4];
-            select_ln78_2_reg_1534[6] <= select_ln78_2_fu_928_p3[6];
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        select_ln96_2_reg_1658 <= 12'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state16)) begin
-            select_ln96_2_reg_1658 <= select_ln96_2_fu_1156_p3;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        sext_ln78_2_reg_1560 <= 32'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state9)) begin
-            sext_ln78_2_reg_1560 <= sext_ln78_2_fu_991_p1;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        sext_ln78_reg_1539 <= 32'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state8)) begin
-            sext_ln78_reg_1539 <= sext_ln78_fu_941_p1;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-                span_cast_cast_cast_reg_1513[4] <= 1'b0;
-        span_cast_cast_cast_reg_1513[6] <= 1'b0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state8)) begin
-                        span_cast_cast_cast_reg_1513[4] <= span_cast_cast_cast_fu_904_p3[4];
-            span_cast_cast_cast_reg_1513[6] <= span_cast_cast_cast_fu_904_p3[6];
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        sub_ln98_reg_1664 <= 12'd0;
-    end else begin
-        if (((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state17))) begin
-            sub_ln98_reg_1664 <= sub_ln98_fu_1164_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        tmp_s_reg_1456 <= 8'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state2)) begin
-            tmp_s_reg_1456 <= {{add_ln78_1_fu_838_p2[11:4]}};
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        tobool_i_reg_1519 <= 1'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state8)) begin
-            tobool_i_reg_1519 <= tobool_i_fu_911_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        total_reg_1502 <= 18'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state7)) begin
-            total_reg_1502 <= grp_fu_877_p2;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        trunc_ln120_reg_1692 <= 2'd0;
+        g_2_reg_871 <= 2'd0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state19)) begin
-            trunc_ln120_reg_1692 <= trunc_ln120_fu_1228_p1;
+            g_2_reg_871 <= 2'd0;
+        end else if (((1'b1 == ap_CS_fsm_state24) & (grp_conv_mac_Pipeline_DOT_fu_1080_ap_done == 1'b1))) begin
+            g_2_reg_871 <= add_ln105_reg_2319;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        trunc_ln131_reg_1715 <= 8'd0;
-    end else begin
-        if ((1'b1 == ap_CS_fsm_state24)) begin
-            trunc_ln131_reg_1715 <= trunc_ln131_fu_1261_p1;
-        end
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (ap_rst == 1'b1) begin
-        trunc_ln79_2_reg_1578 <= 3'd0;
+        g_reg_826 <= 2'd0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state11)) begin
-            trunc_ln79_2_reg_1578 <= {{sub_ln79_fu_1025_p2[6:4]}};
+            g_reg_826 <= 2'd0;
+        end else if (((1'b1 == ap_CS_fsm_state15) & (grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_done == 1'b1))) begin
+            g_reg_826 <= add_ln81_reg_2165;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        trunc_ln92_reg_1592 <= 2'd0;
+        grp_conv_mac_Pipeline_DOT_fu_1080_ap_start_reg <= 1'b0;
     end else begin
-        if ((1'b1 == ap_CS_fsm_state12)) begin
-            trunc_ln92_reg_1592 <= trunc_ln92_fu_1052_p1;
+        if ((1'b1 == ap_CS_fsm_state23)) begin
+            grp_conv_mac_Pipeline_DOT_fu_1080_ap_start_reg <= 1'b1;
+        end else if ((grp_conv_mac_Pipeline_DOT_fu_1080_ap_ready == 1'b1)) begin
+            grp_conv_mac_Pipeline_DOT_fu_1080_ap_start_reg <= 1'b0;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        xor_ln79_reg_1573 <= 8'd0;
+        grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start_reg <= 1'b0;
     end else begin
-        if ((1'b1 == ap_CS_fsm_state11)) begin
-            xor_ln79_reg_1573 <= xor_ln79_fu_1019_p2;
+        if ((1'b1 == ap_CS_fsm_state21)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start_reg <= 1'b1;
+        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_ready == 1'b1)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start_reg <= 1'b0;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-                zext_ln77_1_reg_1450[0] <= 1'b0;
-        zext_ln77_1_reg_1450[1] <= 1'b0;
-        zext_ln77_1_reg_1450[2] <= 1'b0;
-        zext_ln77_1_reg_1450[3] <= 1'b0;
-        zext_ln77_1_reg_1450[4] <= 1'b0;
-        zext_ln77_1_reg_1450[5] <= 1'b0;
-        zext_ln77_1_reg_1450[6] <= 1'b0;
-        zext_ln77_1_reg_1450[7] <= 1'b0;
-        zext_ln77_1_reg_1450[8] <= 1'b0;
-        zext_ln77_1_reg_1450[9] <= 1'b0;
-        zext_ln77_1_reg_1450[10] <= 1'b0;
+        grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start_reg <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state26)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start_reg <= 1'b1;
+        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_ready == 1'b1)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start_reg <= 1'b0;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start_reg <= 1'b0;
+    end else begin
+        if (((icmp_ln81_fu_1455_p2 == 1'd0) & (1'b1 == ap_CS_fsm_state12))) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start_reg <= 1'b1;
+        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_ready == 1'b1)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start_reg <= 1'b0;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start_reg <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state14)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start_reg <= 1'b1;
+        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_ready == 1'b1)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start_reg <= 1'b0;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start_reg <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state17)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start_reg <= 1'b1;
+        end else if ((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_ready == 1'b1)) begin
+            grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start_reg <= 1'b0;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        icmp_ln79_reg_2146 <= 1'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state10)) begin
+            icmp_ln79_reg_2146 <= icmp_ln79_fu_1414_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        icmp_ln96_1_reg_2279 <= 1'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state16)) begin
+            icmp_ln96_1_reg_2279 <= icmp_ln96_1_fu_1609_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        icmp_ln97_reg_2034 <= 1'd0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state2)) begin
-                        zext_ln77_1_reg_1450[10 : 0] <= zext_ln77_1_fu_835_p1[10 : 0];
+            icmp_ln97_reg_2034 <= icmp_ln97_fu_1260_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        icmp_ln98_reg_2295 <= 1'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state17)) begin
+            icmp_ln98_reg_2295 <= icmp_ln98_fu_1656_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        indvar_flatten10_reg_837 <= 11'd0;
+    end else begin
+        if (((icmp_ln81_fu_1455_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state12))) begin
+            indvar_flatten10_reg_837 <= 11'd0;
+        end else if (((icmp_ln105_fu_1693_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state20))) begin
+            indvar_flatten10_reg_837 <= add_ln96_1_reg_2274;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        indvar_flatten_reg_848 <= 14'd0;
+    end else begin
+        if (((icmp_ln81_fu_1455_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state12))) begin
+            indvar_flatten_reg_848 <= 14'd0;
+        end else if (((icmp_ln105_fu_1693_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state20))) begin
+            indvar_flatten_reg_848 <= select_ln96_3_fu_1719_p3;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        indvars_iv1_reg_804 <= 32'd0;
+    end else begin
+        if (((icmp_ln78_1_fu_1380_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state9))) begin
+            indvars_iv1_reg_804 <= sext_ln78_reg_2117;
+        end else if (((icmp_ln127_fu_1726_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state25))) begin
+            indvars_iv1_reg_804 <= add_ln79_fu_1746_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        indvars_iv4_fu_210 <= 20'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state8)) begin
+            indvars_iv4_fu_210 <= sext_ln78_1_fu_1365_p1;
+        end else if ((1'b1 == ap_CS_fsm_state28)) begin
+            indvars_iv4_fu_210 <= add_ln78_fu_1756_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+                mul1_reg_2311[6] <= 1'b0;
+        mul1_reg_2311[7] <= 1'b0;
+        mul1_reg_2311[8] <= 1'b0;
+        mul1_reg_2311[9] <= 1'b0;
+        mul1_reg_2311[10] <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state19)) begin
+                        mul1_reg_2311[10 : 6] <= mul1_fu_1686_p3[10 : 6];
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+                mul_reg_2306[5] <= 1'b0;
+        mul_reg_2306[6] <= 1'b0;
+        mul_reg_2306[7] <= 1'b0;
+        mul_reg_2306[8] <= 1'b0;
+        mul_reg_2306[9] <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state19)) begin
+                        mul_reg_2306[9 : 5] <= mul_fu_1679_p3[9 : 5];
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        oc_reg_814 <= 32'd0;
+    end else begin
+        if (((icmp_ln78_1_fu_1380_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state9))) begin
+            oc_reg_814 <= 32'd0;
+        end else if (((icmp_ln127_fu_1726_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state25))) begin
+            oc_reg_814 <= oc_3_fu_1741_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        op_activation_val_read_reg_1978 <= 2'd0;
+    end else begin
+        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
+            op_activation_val_read_reg_1978 <= op_activation_val_dout;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        op_cin_val_read_reg_2006 <= 11'd0;
+    end else begin
+        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
+            op_cin_val_read_reg_2006 <= op_cin_val_dout;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+                op_cout_val_cast4_reg_2081[0] <= 1'b0;
+        op_cout_val_cast4_reg_2081[1] <= 1'b0;
+        op_cout_val_cast4_reg_2081[2] <= 1'b0;
+        op_cout_val_cast4_reg_2081[3] <= 1'b0;
+        op_cout_val_cast4_reg_2081[4] <= 1'b0;
+        op_cout_val_cast4_reg_2081[5] <= 1'b0;
+        op_cout_val_cast4_reg_2081[6] <= 1'b0;
+        op_cout_val_cast4_reg_2081[7] <= 1'b0;
+        op_cout_val_cast4_reg_2081[8] <= 1'b0;
+        op_cout_val_cast4_reg_2081[9] <= 1'b0;
+        op_cout_val_cast4_reg_2081[10] <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state8)) begin
+                        op_cout_val_cast4_reg_2081[10 : 0] <= op_cout_val_cast4_fu_1302_p1[10 : 0];
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        op_cout_val_read_reg_1990 <= 11'd0;
+    end else begin
+        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
+            op_cout_val_read_reg_1990 <= op_cout_val_dout;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        op_kernel_val_read_reg_1984 <= 2'd0;
+    end else begin
+        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
+            op_kernel_val_read_reg_1984 <= op_kernel_val_dout;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        op_oh_val_read_reg_2001 <= 9'd0;
+    end else begin
+        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
+            op_oh_val_read_reg_2001 <= op_oh_val_dout;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        op_ow_val_read_reg_1996 <= 9'd0;
+    end else begin
+        if (((1'b1 == ap_CS_fsm_state1) & (1'b0 == ap_block_state1))) begin
+            op_ow_val_read_reg_1996 <= op_ow_val_dout;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        p_reg_882 <= 32'd0;
+    end else begin
+        if (((icmp_ln96_fu_1598_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state16))) begin
+            p_reg_882 <= 32'd0;
+        end else if (((grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state27))) begin
+            p_reg_882 <= add_ln127_reg_2342;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+                select_ln78_2_reg_2107[5] <= 1'b0;
+        select_ln78_2_reg_2107[6] <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state8)) begin
+                        select_ln78_2_reg_2107[6 : 5] <= select_ln78_2_fu_1335_p3[6 : 5];
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+                select_ln78_3_reg_2112[5] <= 1'b0;
+        select_ln78_3_reg_2112[6] <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state8)) begin
+                        select_ln78_3_reg_2112[6 : 5] <= select_ln78_3_fu_1342_p3[6 : 5];
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+                select_ln78_reg_2086[10] <= 1'b0;
+        select_ln78_reg_2086[11] <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state8)) begin
+                        select_ln78_reg_2086[11 : 10] <= select_ln78_fu_1311_p3[11 : 10];
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        select_ln96_2_reg_2284 <= 12'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state16)) begin
+            select_ln96_2_reg_2284 <= select_ln96_2_fu_1634_p3;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        sext_ln78_2_reg_2138 <= 32'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state9)) begin
+            sext_ln78_2_reg_2138 <= sext_ln78_2_fu_1405_p1;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        sext_ln78_reg_2117 <= 32'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state8)) begin
+            sext_ln78_reg_2117 <= sext_ln78_fu_1355_p1;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+                span_cast_cast_cast_reg_2091[5] <= 1'b0;
+        span_cast_cast_cast_reg_2091[6] <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state8)) begin
+                        span_cast_cast_cast_reg_2091[6 : 5] <= span_cast_cast_cast_fu_1318_p3[6 : 5];
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        sub_ln98_reg_2290 <= 12'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state17)) begin
+            sub_ln98_reg_2290 <= sub_ln98_fu_1642_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        tmp_s_reg_2029 <= 8'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state2)) begin
+            tmp_s_reg_2029 <= {{add_ln78_1_fu_1244_p2[11:4]}};
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        tobool_i_reg_2097 <= 1'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state8)) begin
+            tobool_i_reg_2097 <= tobool_i_fu_1325_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        total_reg_2075 <= 18'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state7)) begin
+            total_reg_2075 <= grp_fu_1284_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        trunc_ln120_reg_2324 <= 1'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state20)) begin
+            trunc_ln120_reg_2324 <= trunc_ln120_fu_1704_p1;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        trunc_ln131_reg_2347 <= 7'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state25)) begin
+            trunc_ln131_reg_2347 <= trunc_ln131_fu_1737_p1;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        trunc_ln79_2_reg_2156 <= 2'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state11)) begin
+            trunc_ln79_2_reg_2156 <= {{sub_ln79_fu_1439_p2[6:5]}};
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        trunc_ln92_reg_2170 <= 1'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state12)) begin
+            trunc_ln92_reg_2170 <= trunc_ln92_fu_1466_p1;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+        xor_ln79_reg_2151 <= 8'd0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state11)) begin
+            xor_ln79_reg_2151 <= xor_ln79_fu_1433_p2;
+        end
+    end
+end
+
+always @ (posedge ap_clk) begin
+    if (ap_rst == 1'b1) begin
+                zext_ln77_1_reg_2023[0] <= 1'b0;
+        zext_ln77_1_reg_2023[1] <= 1'b0;
+        zext_ln77_1_reg_2023[2] <= 1'b0;
+        zext_ln77_1_reg_2023[3] <= 1'b0;
+        zext_ln77_1_reg_2023[4] <= 1'b0;
+        zext_ln77_1_reg_2023[5] <= 1'b0;
+        zext_ln77_1_reg_2023[6] <= 1'b0;
+        zext_ln77_1_reg_2023[7] <= 1'b0;
+        zext_ln77_1_reg_2023[8] <= 1'b0;
+        zext_ln77_1_reg_2023[9] <= 1'b0;
+        zext_ln77_1_reg_2023[10] <= 1'b0;
+    end else begin
+        if ((1'b1 == ap_CS_fsm_state2)) begin
+                        zext_ln77_1_reg_2023[10 : 0] <= zext_ln77_1_fu_1240_p1[10 : 0];
         end
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_10_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_10_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_10_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_10_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_10_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_10_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_10_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_address0;
     end else begin
         acc_10_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_10_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_10_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_10_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_10_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_address1;
+        acc_10_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_address1;
     end else begin
         acc_10_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_10_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_10_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_10_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_10_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_10_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_10_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_10_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_ce0;
     end else begin
         acc_10_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_10_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_10_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_10_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_10_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_ce1;
+        acc_10_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_ce1;
     end else begin
         acc_10_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_10_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_10_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_10_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_10_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_d1;
+        acc_10_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_d1;
     end else begin
         acc_10_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_10_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_10_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_10_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_10_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_10_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_10_we1;
+        acc_10_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_10_we1;
     end else begin
         acc_10_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_11_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_11_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_11_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_11_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_11_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_11_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_11_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_address0;
     end else begin
         acc_11_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_11_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_11_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_11_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_11_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_address1;
+        acc_11_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_address1;
     end else begin
         acc_11_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_11_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_11_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_11_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_11_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_11_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_11_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_11_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_ce0;
     end else begin
         acc_11_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_11_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_11_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_11_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_11_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_ce1;
+        acc_11_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_ce1;
     end else begin
         acc_11_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_11_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_11_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_11_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_11_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_d1;
+        acc_11_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_d1;
     end else begin
         acc_11_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_11_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_11_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_11_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_11_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_11_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_11_we1;
+        acc_11_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_11_we1;
     end else begin
         acc_11_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_12_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_12_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_12_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_12_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_12_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_12_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_12_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_address0;
     end else begin
         acc_12_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_12_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_12_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_12_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_12_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_address1;
+        acc_12_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_address1;
     end else begin
         acc_12_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_12_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_12_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_12_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_12_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_12_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_12_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_12_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_ce0;
     end else begin
         acc_12_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_12_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_12_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_12_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_12_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_ce1;
+        acc_12_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_ce1;
     end else begin
         acc_12_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_12_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_12_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_12_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_12_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_d1;
+        acc_12_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_d1;
     end else begin
         acc_12_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_12_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_12_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_12_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_12_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_12_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_12_we1;
+        acc_12_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_12_we1;
     end else begin
         acc_12_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_13_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_13_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_13_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_13_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_13_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_13_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_13_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_address0;
     end else begin
         acc_13_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_13_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_13_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_13_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_13_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_address1;
+        acc_13_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_address1;
     end else begin
         acc_13_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_13_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_13_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_13_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_13_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_13_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_13_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_13_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_ce0;
     end else begin
         acc_13_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_13_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_13_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_13_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_13_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_ce1;
+        acc_13_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_ce1;
     end else begin
         acc_13_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_13_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_13_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_13_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_13_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_d1;
+        acc_13_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_d1;
     end else begin
         acc_13_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_13_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_13_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_13_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_13_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_13_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_13_we1;
+        acc_13_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_13_we1;
     end else begin
         acc_13_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_14_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_14_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_14_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_14_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_14_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_14_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_14_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_address0;
     end else begin
         acc_14_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_14_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_14_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_14_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_14_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_address1;
+        acc_14_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_address1;
     end else begin
         acc_14_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_14_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_14_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_14_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_14_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_14_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_14_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_14_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_ce0;
     end else begin
         acc_14_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_14_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_14_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_14_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_14_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_ce1;
+        acc_14_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_ce1;
     end else begin
         acc_14_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_14_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_14_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_14_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_14_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_d1;
+        acc_14_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_d1;
     end else begin
         acc_14_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_14_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_14_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_14_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_14_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_14_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_14_we1;
+        acc_14_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_14_we1;
     end else begin
         acc_14_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_15_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_15_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_15_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_15_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_15_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_15_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_15_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_address0;
     end else begin
         acc_15_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_15_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_15_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_15_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_15_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_address1;
+        acc_15_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_address1;
     end else begin
         acc_15_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_15_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_15_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_15_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_15_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_15_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_15_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_15_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_ce0;
     end else begin
         acc_15_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_15_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_15_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_15_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_15_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_ce1;
+        acc_15_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_ce1;
     end else begin
         acc_15_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_15_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_15_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_15_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_15_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_d1;
+        acc_15_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_d1;
     end else begin
         acc_15_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_15_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_15_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_15_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_15_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_15_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_15_we1;
+        acc_15_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_15_we1;
     end else begin
         acc_15_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_1_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_1_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_1_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_1_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_16_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_16_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_16_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_address0;
+    end else begin
+        acc_16_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_16_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_16_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_address1;
+    end else begin
+        acc_16_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_16_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_16_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_16_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_ce0;
+    end else begin
+        acc_16_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_16_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_16_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_ce1;
+    end else begin
+        acc_16_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_16_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_16_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_d1;
+    end else begin
+        acc_16_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_16_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_16_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_16_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_16_we1;
+    end else begin
+        acc_16_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_17_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_17_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_17_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_address0;
+    end else begin
+        acc_17_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_17_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_17_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_address1;
+    end else begin
+        acc_17_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_17_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_17_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_17_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_ce0;
+    end else begin
+        acc_17_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_17_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_17_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_ce1;
+    end else begin
+        acc_17_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_17_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_17_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_d1;
+    end else begin
+        acc_17_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_17_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_17_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_17_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_17_we1;
+    end else begin
+        acc_17_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_18_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_18_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_18_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_address0;
+    end else begin
+        acc_18_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_18_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_18_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_address1;
+    end else begin
+        acc_18_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_18_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_18_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_18_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_ce0;
+    end else begin
+        acc_18_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_18_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_18_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_ce1;
+    end else begin
+        acc_18_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_18_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_18_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_d1;
+    end else begin
+        acc_18_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_18_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_18_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_18_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_18_we1;
+    end else begin
+        acc_18_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_19_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_19_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_19_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_address0;
+    end else begin
+        acc_19_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_19_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_19_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_address1;
+    end else begin
+        acc_19_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_19_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_19_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_19_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_ce0;
+    end else begin
+        acc_19_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_19_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_19_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_ce1;
+    end else begin
+        acc_19_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_19_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_19_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_d1;
+    end else begin
+        acc_19_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_19_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_19_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_19_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_19_we1;
+    end else begin
+        acc_19_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_1_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_1_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_1_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_address0;
     end else begin
         acc_1_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_1_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_1_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_1_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_1_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_address1;
+        acc_1_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_address1;
     end else begin
         acc_1_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_1_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_1_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_1_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_1_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_1_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_1_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_1_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_ce0;
     end else begin
         acc_1_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_1_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_1_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_1_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_1_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_ce1;
+        acc_1_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_ce1;
     end else begin
         acc_1_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_1_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_1_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_1_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_1_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_d1;
+        acc_1_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_d1;
     end else begin
         acc_1_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_1_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_1_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_1_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_1_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_1_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_1_we1;
+        acc_1_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_1_we1;
     end else begin
         acc_1_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_2_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_2_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_2_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_2_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_20_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_20_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_20_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_address0;
+    end else begin
+        acc_20_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_20_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_20_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_address1;
+    end else begin
+        acc_20_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_20_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_20_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_20_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_ce0;
+    end else begin
+        acc_20_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_20_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_20_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_ce1;
+    end else begin
+        acc_20_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_20_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_20_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_d1;
+    end else begin
+        acc_20_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_20_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_20_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_20_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_20_we1;
+    end else begin
+        acc_20_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_21_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_21_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_21_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_address0;
+    end else begin
+        acc_21_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_21_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_21_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_address1;
+    end else begin
+        acc_21_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_21_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_21_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_21_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_ce0;
+    end else begin
+        acc_21_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_21_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_21_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_ce1;
+    end else begin
+        acc_21_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_21_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_21_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_d1;
+    end else begin
+        acc_21_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_21_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_21_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_21_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_21_we1;
+    end else begin
+        acc_21_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_22_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_22_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_22_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_address0;
+    end else begin
+        acc_22_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_22_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_22_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_address1;
+    end else begin
+        acc_22_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_22_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_22_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_22_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_ce0;
+    end else begin
+        acc_22_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_22_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_22_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_ce1;
+    end else begin
+        acc_22_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_22_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_22_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_d1;
+    end else begin
+        acc_22_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_22_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_22_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_22_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_22_we1;
+    end else begin
+        acc_22_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_23_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_23_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_23_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_address0;
+    end else begin
+        acc_23_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_23_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_23_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_address1;
+    end else begin
+        acc_23_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_23_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_23_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_23_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_ce0;
+    end else begin
+        acc_23_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_23_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_23_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_ce1;
+    end else begin
+        acc_23_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_23_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_23_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_d1;
+    end else begin
+        acc_23_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_23_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_23_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_23_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_23_we1;
+    end else begin
+        acc_23_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_24_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_24_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_24_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_address0;
+    end else begin
+        acc_24_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_24_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_24_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_address1;
+    end else begin
+        acc_24_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_24_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_24_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_24_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_ce0;
+    end else begin
+        acc_24_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_24_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_24_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_ce1;
+    end else begin
+        acc_24_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_24_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_24_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_d1;
+    end else begin
+        acc_24_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_24_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_24_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_24_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_24_we1;
+    end else begin
+        acc_24_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_25_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_25_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_25_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_address0;
+    end else begin
+        acc_25_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_25_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_25_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_address1;
+    end else begin
+        acc_25_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_25_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_25_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_25_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_ce0;
+    end else begin
+        acc_25_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_25_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_25_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_ce1;
+    end else begin
+        acc_25_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_25_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_25_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_d1;
+    end else begin
+        acc_25_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_25_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_25_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_25_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_25_we1;
+    end else begin
+        acc_25_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_26_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_26_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_26_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_address0;
+    end else begin
+        acc_26_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_26_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_26_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_address1;
+    end else begin
+        acc_26_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_26_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_26_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_26_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_ce0;
+    end else begin
+        acc_26_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_26_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_26_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_ce1;
+    end else begin
+        acc_26_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_26_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_26_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_d1;
+    end else begin
+        acc_26_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_26_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_26_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_26_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_26_we1;
+    end else begin
+        acc_26_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_27_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_27_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_27_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_address0;
+    end else begin
+        acc_27_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_27_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_27_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_address1;
+    end else begin
+        acc_27_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_27_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_27_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_27_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_ce0;
+    end else begin
+        acc_27_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_27_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_27_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_ce1;
+    end else begin
+        acc_27_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_27_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_27_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_d1;
+    end else begin
+        acc_27_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_27_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_27_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_27_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_27_we1;
+    end else begin
+        acc_27_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_28_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_28_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_28_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_address0;
+    end else begin
+        acc_28_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_28_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_28_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_address1;
+    end else begin
+        acc_28_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_28_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_28_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_28_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_ce0;
+    end else begin
+        acc_28_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_28_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_28_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_ce1;
+    end else begin
+        acc_28_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_28_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_28_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_d1;
+    end else begin
+        acc_28_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_28_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_28_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_28_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_28_we1;
+    end else begin
+        acc_28_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_29_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_29_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_29_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_address0;
+    end else begin
+        acc_29_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_29_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_29_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_address1;
+    end else begin
+        acc_29_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_29_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_29_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_29_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_ce0;
+    end else begin
+        acc_29_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_29_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_29_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_ce1;
+    end else begin
+        acc_29_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_29_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_29_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_d1;
+    end else begin
+        acc_29_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_29_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_29_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_29_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_29_we1;
+    end else begin
+        acc_29_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_2_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_2_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_2_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_address0;
     end else begin
         acc_2_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_2_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_2_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_2_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_2_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_address1;
+        acc_2_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_address1;
     end else begin
         acc_2_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_2_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_2_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_2_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_2_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_2_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_2_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_2_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_ce0;
     end else begin
         acc_2_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_2_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_2_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_2_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_2_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_ce1;
+        acc_2_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_ce1;
     end else begin
         acc_2_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_2_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_2_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_2_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_2_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_d1;
+        acc_2_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_d1;
     end else begin
         acc_2_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_2_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_2_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_2_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_2_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_2_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_2_we1;
+        acc_2_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_2_we1;
     end else begin
         acc_2_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_3_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_3_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_3_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_3_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_30_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_30_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_30_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_address0;
+    end else begin
+        acc_30_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_30_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_30_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_address1;
+    end else begin
+        acc_30_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_30_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_30_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_30_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_ce0;
+    end else begin
+        acc_30_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_30_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_30_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_ce1;
+    end else begin
+        acc_30_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_30_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_30_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_d1;
+    end else begin
+        acc_30_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_30_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_30_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_30_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_30_we1;
+    end else begin
+        acc_30_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_31_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_31_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_31_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_address0;
+    end else begin
+        acc_31_address0 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_31_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_address1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_31_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_address1;
+    end else begin
+        acc_31_address1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_31_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_31_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_31_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_ce0;
+    end else begin
+        acc_31_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_31_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_ce1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_31_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_ce1;
+    end else begin
+        acc_31_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_31_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_d1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_31_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_d1;
+    end else begin
+        acc_31_d1 = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_31_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_31_we1;
+    end else if ((1'b1 == ap_CS_fsm_state15)) begin
+        acc_31_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_31_we1;
+    end else begin
+        acc_31_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_3_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_3_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_3_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_address0;
     end else begin
         acc_3_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_3_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_3_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_3_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_3_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_address1;
+        acc_3_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_address1;
     end else begin
         acc_3_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_3_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_3_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_3_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_3_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_3_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_3_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_3_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_ce0;
     end else begin
         acc_3_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_3_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_3_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_3_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_3_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_ce1;
+        acc_3_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_ce1;
     end else begin
         acc_3_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_3_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_3_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_3_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_3_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_d1;
+        acc_3_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_d1;
     end else begin
         acc_3_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_3_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_3_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_3_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_3_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_3_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_3_we1;
+        acc_3_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_3_we1;
     end else begin
         acc_3_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_4_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_4_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_4_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_4_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_4_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_4_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_4_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_address0;
     end else begin
         acc_4_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_4_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_4_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_4_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_4_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_address1;
+        acc_4_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_address1;
     end else begin
         acc_4_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_4_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_4_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_4_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_4_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_4_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_4_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_4_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_ce0;
     end else begin
         acc_4_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_4_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_4_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_4_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_4_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_ce1;
+        acc_4_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_ce1;
     end else begin
         acc_4_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_4_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_4_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_4_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_4_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_d1;
+        acc_4_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_d1;
     end else begin
         acc_4_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_4_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_4_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_4_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_4_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_4_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_4_we1;
+        acc_4_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_4_we1;
     end else begin
         acc_4_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_5_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_5_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_5_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_5_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_5_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_5_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_5_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_address0;
     end else begin
         acc_5_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_5_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_5_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_5_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_5_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_address1;
+        acc_5_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_address1;
     end else begin
         acc_5_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_5_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_5_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_5_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_5_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_5_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_5_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_5_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_ce0;
     end else begin
         acc_5_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_5_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_5_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_5_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_5_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_ce1;
+        acc_5_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_ce1;
     end else begin
         acc_5_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_5_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_5_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_5_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_5_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_d1;
+        acc_5_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_d1;
     end else begin
         acc_5_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_5_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_5_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_5_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_5_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_5_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_5_we1;
+        acc_5_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_5_we1;
     end else begin
         acc_5_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_6_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_6_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_6_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_6_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_6_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_6_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_6_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_address0;
     end else begin
         acc_6_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_6_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_6_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_6_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_6_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_address1;
+        acc_6_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_address1;
     end else begin
         acc_6_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_6_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_6_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_6_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_6_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_6_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_6_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_6_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_ce0;
     end else begin
         acc_6_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_6_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_6_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_6_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_6_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_ce1;
+        acc_6_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_ce1;
     end else begin
         acc_6_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_6_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_6_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_6_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_6_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_d1;
+        acc_6_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_d1;
     end else begin
         acc_6_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_6_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_6_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_6_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_6_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_6_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_6_we1;
+        acc_6_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_6_we1;
     end else begin
         acc_6_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_7_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_7_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_7_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_7_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_7_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_7_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_7_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_address0;
     end else begin
         acc_7_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_7_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_7_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_7_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_7_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_address1;
+        acc_7_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_address1;
     end else begin
         acc_7_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_7_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_7_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_7_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_7_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_7_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_7_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_7_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_ce0;
     end else begin
         acc_7_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_7_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_7_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_7_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_7_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_ce1;
+        acc_7_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_ce1;
     end else begin
         acc_7_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_7_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_7_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_7_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_7_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_d1;
+        acc_7_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_d1;
     end else begin
         acc_7_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_7_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_7_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_7_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_7_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_7_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_7_we1;
+        acc_7_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_7_we1;
     end else begin
         acc_7_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_8_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_8_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_8_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_8_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_8_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_8_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_8_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_address0;
     end else begin
         acc_8_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_8_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_8_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_8_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_8_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_address1;
+        acc_8_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_address1;
     end else begin
         acc_8_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_8_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_8_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_8_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_8_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_8_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_8_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_8_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_ce0;
     end else begin
         acc_8_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_8_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_8_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_8_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_8_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_ce1;
+        acc_8_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_ce1;
     end else begin
         acc_8_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_8_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_8_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_8_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_8_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_d1;
+        acc_8_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_d1;
     end else begin
         acc_8_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_8_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_8_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_8_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_8_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_8_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_8_we1;
+        acc_8_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_8_we1;
     end else begin
         acc_8_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_9_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_9_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_9_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_9_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_9_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_9_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_9_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_address0;
     end else begin
         acc_9_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_9_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_9_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_9_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_9_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_address1;
+        acc_9_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_address1;
     end else begin
         acc_9_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_9_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_9_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_9_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_9_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_9_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_9_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_9_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_ce0;
     end else begin
         acc_9_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_9_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_9_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_9_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_9_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_ce1;
+        acc_9_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_ce1;
     end else begin
         acc_9_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_9_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_9_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_9_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_9_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_d1;
+        acc_9_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_d1;
     end else begin
         acc_9_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_9_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_9_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_9_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_9_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_9_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_9_we1;
+        acc_9_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_9_we1;
     end else begin
         acc_9_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_address0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_address0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_address0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_address0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_address0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_address0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_address0;
     end else begin
         acc_address0 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_address1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_address1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_address1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_address1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_address1;
+        acc_address1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_address1;
     end else begin
         acc_address1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        acc_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_acc_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_acc_ce0;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        acc_ce0 = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_acc_ce0;
+    end else if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_ce0;
     end else begin
         acc_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_ce1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_ce1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_ce1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_ce1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_ce1;
+        acc_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_ce1;
     end else begin
         acc_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_d1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_d1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_d1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_d1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_d1;
+        acc_d1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_d1;
     end else begin
         acc_d1 = 'bx;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        acc_we1 = grp_conv_mac_Pipeline_DOT_fu_737_acc_we1;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        acc_we1 = grp_conv_mac_Pipeline_DOT_fu_1080_acc_we1;
     end else if ((1'b1 == ap_CS_fsm_state15)) begin
-        acc_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_acc_we1;
+        acc_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_acc_we1;
     end else begin
         acc_we1 = 1'b0;
     end
@@ -4193,7 +7100,7 @@ assign ap_ST_fsm_state11_blk = 1'b0;
 assign ap_ST_fsm_state12_blk = 1'b0;
 
 always @ (*) begin
-    if ((grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_done == 1'b0)) begin
+    if ((grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_done == 1'b0)) begin
         ap_ST_fsm_state13_blk = 1'b1;
     end else begin
         ap_ST_fsm_state13_blk = 1'b0;
@@ -4203,7 +7110,7 @@ end
 assign ap_ST_fsm_state14_blk = 1'b0;
 
 always @ (*) begin
-    if ((grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_done == 1'b0)) begin
+    if ((grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_done == 1'b0)) begin
         ap_ST_fsm_state15_blk = 1'b1;
     end else begin
         ap_ST_fsm_state15_blk = 1'b0;
@@ -4212,15 +7119,15 @@ end
 
 assign ap_ST_fsm_state16_blk = 1'b0;
 
+assign ap_ST_fsm_state17_blk = 1'b0;
+
 always @ (*) begin
-    if ((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_done == 1'b0)) begin
-        ap_ST_fsm_state17_blk = 1'b1;
+    if ((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_done == 1'b0)) begin
+        ap_ST_fsm_state18_blk = 1'b1;
     end else begin
-        ap_ST_fsm_state17_blk = 1'b0;
+        ap_ST_fsm_state18_blk = 1'b0;
     end
 end
-
-assign ap_ST_fsm_state18_blk = 1'b0;
 
 assign ap_ST_fsm_state19_blk = 1'b0;
 
@@ -4234,37 +7141,39 @@ end
 
 assign ap_ST_fsm_state20_blk = 1'b0;
 
+assign ap_ST_fsm_state21_blk = 1'b0;
+
 always @ (*) begin
-    if ((grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_done == 1'b0)) begin
-        ap_ST_fsm_state21_blk = 1'b1;
+    if ((grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_done == 1'b0)) begin
+        ap_ST_fsm_state22_blk = 1'b1;
     end else begin
-        ap_ST_fsm_state21_blk = 1'b0;
+        ap_ST_fsm_state22_blk = 1'b0;
     end
 end
 
-assign ap_ST_fsm_state22_blk = 1'b0;
+assign ap_ST_fsm_state23_blk = 1'b0;
 
 always @ (*) begin
-    if ((grp_conv_mac_Pipeline_DOT_fu_737_ap_done == 1'b0)) begin
-        ap_ST_fsm_state23_blk = 1'b1;
+    if ((grp_conv_mac_Pipeline_DOT_fu_1080_ap_done == 1'b0)) begin
+        ap_ST_fsm_state24_blk = 1'b1;
     end else begin
-        ap_ST_fsm_state23_blk = 1'b0;
+        ap_ST_fsm_state24_blk = 1'b0;
     end
 end
-
-assign ap_ST_fsm_state24_blk = 1'b0;
 
 assign ap_ST_fsm_state25_blk = 1'b0;
 
+assign ap_ST_fsm_state26_blk = 1'b0;
+
 always @ (*) begin
-    if ((grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_done == 1'b0)) begin
-        ap_ST_fsm_state26_blk = 1'b1;
+    if ((grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_done == 1'b0)) begin
+        ap_ST_fsm_state27_blk = 1'b1;
     end else begin
-        ap_ST_fsm_state26_blk = 1'b0;
+        ap_ST_fsm_state27_blk = 1'b0;
     end
 end
 
-assign ap_ST_fsm_state27_blk = 1'b0;
+assign ap_ST_fsm_state28_blk = 1'b0;
 
 assign ap_ST_fsm_state2_blk = 1'b0;
 
@@ -4283,7 +7192,7 @@ assign ap_ST_fsm_state8_blk = 1'b0;
 assign ap_ST_fsm_state9_blk = 1'b0;
 
 always @ (*) begin
-    if (((1'b1 == ap_CS_fsm_state9) & (icmp_ln78_1_fu_966_p2 == 1'd0))) begin
+    if (((icmp_ln78_1_fu_1380_p2 == 1'd0) & (1'b1 == ap_CS_fsm_state9))) begin
         ap_done = 1'b1;
     end else begin
         ap_done = ap_done_reg;
@@ -4299,7 +7208,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((1'b1 == ap_CS_fsm_state9) & (icmp_ln78_1_fu_966_p2 == 1'd0))) begin
+    if (((icmp_ln78_1_fu_1380_p2 == 1'd0) & (1'b1 == ap_CS_fsm_state9))) begin
         ap_ready = 1'b1;
     end else begin
         ap_ready = 1'b0;
@@ -4308,815 +7217,1583 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state13)) begin
-        bias_read = grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_bias_read;
+        bias_read = grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_bias_read;
     end else begin
         bias_read = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_10_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_10_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_10_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_10_ce0;
     end else begin
         dw_patch_10_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_10_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_10_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_ce1;
     end else begin
         dw_patch_10_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_10_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_10_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_10_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_10_we1;
     end else begin
         dw_patch_10_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_11_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_11_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_11_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_11_ce0;
     end else begin
         dw_patch_11_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_11_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_11_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_ce1;
     end else begin
         dw_patch_11_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_11_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_11_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_11_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_11_we1;
     end else begin
         dw_patch_11_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_12_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_12_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_12_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_12_ce0;
     end else begin
         dw_patch_12_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_12_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_12_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_ce1;
     end else begin
         dw_patch_12_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_12_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_12_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_12_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_12_we1;
     end else begin
         dw_patch_12_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_13_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_13_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_13_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_13_ce0;
     end else begin
         dw_patch_13_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_13_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_13_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_ce1;
     end else begin
         dw_patch_13_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_13_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_13_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_13_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_13_we1;
     end else begin
         dw_patch_13_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_14_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_14_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_14_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_14_ce0;
     end else begin
         dw_patch_14_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_14_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_14_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_ce1;
     end else begin
         dw_patch_14_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_14_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_14_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_14_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_14_we1;
     end else begin
         dw_patch_14_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_15_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_15_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_15_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_15_ce0;
     end else begin
         dw_patch_15_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_15_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_15_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_ce1;
     end else begin
         dw_patch_15_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_15_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_15_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_15_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_15_we1;
     end else begin
         dw_patch_15_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_1_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_1_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_16_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_16_ce0;
+    end else begin
+        dw_patch_16_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_16_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_ce1;
+    end else begin
+        dw_patch_16_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_16_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_16_we1;
+    end else begin
+        dw_patch_16_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_17_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_17_ce0;
+    end else begin
+        dw_patch_17_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_17_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_ce1;
+    end else begin
+        dw_patch_17_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_17_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_17_we1;
+    end else begin
+        dw_patch_17_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_18_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_18_ce0;
+    end else begin
+        dw_patch_18_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_18_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_ce1;
+    end else begin
+        dw_patch_18_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_18_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_18_we1;
+    end else begin
+        dw_patch_18_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_19_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_19_ce0;
+    end else begin
+        dw_patch_19_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_19_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_ce1;
+    end else begin
+        dw_patch_19_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_19_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_19_we1;
+    end else begin
+        dw_patch_19_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_1_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_1_ce0;
     end else begin
         dw_patch_1_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_1_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_1_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_ce1;
     end else begin
         dw_patch_1_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_1_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_1_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_1_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_1_we1;
     end else begin
         dw_patch_1_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_2_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_2_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_20_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_20_ce0;
+    end else begin
+        dw_patch_20_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_20_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_ce1;
+    end else begin
+        dw_patch_20_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_20_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_20_we1;
+    end else begin
+        dw_patch_20_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_21_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_21_ce0;
+    end else begin
+        dw_patch_21_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_21_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_ce1;
+    end else begin
+        dw_patch_21_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_21_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_21_we1;
+    end else begin
+        dw_patch_21_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_22_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_22_ce0;
+    end else begin
+        dw_patch_22_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_22_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_ce1;
+    end else begin
+        dw_patch_22_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_22_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_22_we1;
+    end else begin
+        dw_patch_22_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_23_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_23_ce0;
+    end else begin
+        dw_patch_23_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_23_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_ce1;
+    end else begin
+        dw_patch_23_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_23_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_23_we1;
+    end else begin
+        dw_patch_23_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_24_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_24_ce0;
+    end else begin
+        dw_patch_24_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_24_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_ce1;
+    end else begin
+        dw_patch_24_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_24_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_24_we1;
+    end else begin
+        dw_patch_24_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_25_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_25_ce0;
+    end else begin
+        dw_patch_25_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_25_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_ce1;
+    end else begin
+        dw_patch_25_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_25_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_25_we1;
+    end else begin
+        dw_patch_25_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_26_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_26_ce0;
+    end else begin
+        dw_patch_26_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_26_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_ce1;
+    end else begin
+        dw_patch_26_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_26_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_26_we1;
+    end else begin
+        dw_patch_26_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_27_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_27_ce0;
+    end else begin
+        dw_patch_27_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_27_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_ce1;
+    end else begin
+        dw_patch_27_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_27_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_27_we1;
+    end else begin
+        dw_patch_27_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_28_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_28_ce0;
+    end else begin
+        dw_patch_28_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_28_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_ce1;
+    end else begin
+        dw_patch_28_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_28_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_28_we1;
+    end else begin
+        dw_patch_28_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_29_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_29_ce0;
+    end else begin
+        dw_patch_29_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_29_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_ce1;
+    end else begin
+        dw_patch_29_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_29_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_29_we1;
+    end else begin
+        dw_patch_29_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_2_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_2_ce0;
     end else begin
         dw_patch_2_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_2_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_2_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_ce1;
     end else begin
         dw_patch_2_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_2_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_2_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_2_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_2_we1;
     end else begin
         dw_patch_2_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_3_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_3_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_30_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_30_ce0;
+    end else begin
+        dw_patch_30_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_30_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_ce1;
+    end else begin
+        dw_patch_30_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_30_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_30_we1;
+    end else begin
+        dw_patch_30_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_31_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_31_ce0;
+    end else begin
+        dw_patch_31_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_31_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_ce1;
+    end else begin
+        dw_patch_31_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_31_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_31_we1;
+    end else begin
+        dw_patch_31_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_3_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_3_ce0;
     end else begin
         dw_patch_3_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_3_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_3_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_ce1;
     end else begin
         dw_patch_3_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_3_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_3_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_3_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_3_we1;
     end else begin
         dw_patch_3_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_4_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_4_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_4_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_4_ce0;
     end else begin
         dw_patch_4_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_4_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_4_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_ce1;
     end else begin
         dw_patch_4_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_4_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_4_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_4_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_4_we1;
     end else begin
         dw_patch_4_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_5_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_5_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_5_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_5_ce0;
     end else begin
         dw_patch_5_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_5_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_5_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_ce1;
     end else begin
         dw_patch_5_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_5_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_5_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_5_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_5_we1;
     end else begin
         dw_patch_5_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_6_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_6_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_6_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_6_ce0;
     end else begin
         dw_patch_6_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_6_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_6_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_ce1;
     end else begin
         dw_patch_6_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_6_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_6_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_6_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_6_we1;
     end else begin
         dw_patch_6_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_7_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_7_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_7_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_7_ce0;
     end else begin
         dw_patch_7_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_7_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_7_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_ce1;
     end else begin
         dw_patch_7_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_7_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_7_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_7_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_7_we1;
     end else begin
         dw_patch_7_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_8_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_8_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_8_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_8_ce0;
     end else begin
         dw_patch_8_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_8_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_8_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_ce1;
     end else begin
         dw_patch_8_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_8_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_8_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_8_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_8_we1;
     end else begin
         dw_patch_8_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_9_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_9_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_9_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_9_ce0;
     end else begin
         dw_patch_9_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_9_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_9_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_ce1;
     end else begin
         dw_patch_9_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_9_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_9_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_9_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_9_we1;
     end else begin
         dw_patch_9_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        dw_patch_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_dw_patch_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        dw_patch_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_dw_patch_ce0;
     end else begin
         dw_patch_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_ce1;
     end else begin
         dw_patch_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        dw_patch_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_dw_patch_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        dw_patch_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_dw_patch_we1;
     end else begin
         dw_patch_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        feature_cache_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_feature_cache_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        feature_cache_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_feature_cache_ce0;
     end else begin
         feature_cache_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        feature_cache_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_ce1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        feature_cache_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_ce1;
     end else begin
         feature_cache_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        feature_cache_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_cache_we1;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        feature_cache_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_cache_we1;
     end else begin
         feature_cache_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state17)) begin
-        feature_read = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_feature_read;
+    if ((1'b1 == ap_CS_fsm_state18)) begin
+        feature_read = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_feature_read;
     end else begin
         feature_read = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_10_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_10_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_10_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_10_ce0;
     end else begin
         kernel_10_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_10_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_10_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_ce1;
     end else begin
         kernel_10_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_10_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_10_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_10_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_10_we1;
     end else begin
         kernel_10_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_11_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_11_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_11_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_11_ce0;
     end else begin
         kernel_11_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_11_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_11_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_ce1;
     end else begin
         kernel_11_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_11_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_11_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_11_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_11_we1;
     end else begin
         kernel_11_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_12_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_12_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_12_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_12_ce0;
     end else begin
         kernel_12_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_12_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_12_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_ce1;
     end else begin
         kernel_12_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_12_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_12_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_12_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_12_we1;
     end else begin
         kernel_12_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_13_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_13_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_13_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_13_ce0;
     end else begin
         kernel_13_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_13_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_13_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_ce1;
     end else begin
         kernel_13_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_13_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_13_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_13_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_13_we1;
     end else begin
         kernel_13_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_14_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_14_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_14_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_14_ce0;
     end else begin
         kernel_14_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_14_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_14_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_ce1;
     end else begin
         kernel_14_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_14_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_14_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_14_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_14_we1;
     end else begin
         kernel_14_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_15_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_15_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_15_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_15_ce0;
     end else begin
         kernel_15_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_15_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_15_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_ce1;
     end else begin
         kernel_15_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_15_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_15_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_15_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_15_we1;
     end else begin
         kernel_15_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_1_151_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_16_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_16_ce0;
     end else begin
-        kernel_1_151_ce0 = 1'b0;
+        kernel_16_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_1_151_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_16_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_ce1;
     end else begin
-        kernel_1_151_ce1 = 1'b0;
+        kernel_16_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_1_151_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_16_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_16_we1;
     end else begin
-        kernel_1_151_we1 = 1'b0;
+        kernel_16_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_1_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_1_84_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_17_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_17_ce0;
+    end else begin
+        kernel_17_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_17_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_ce1;
+    end else begin
+        kernel_17_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_17_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_17_we1;
+    end else begin
+        kernel_17_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_18_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_18_ce0;
+    end else begin
+        kernel_18_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_18_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_ce1;
+    end else begin
+        kernel_18_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_18_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_18_we1;
+    end else begin
+        kernel_18_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_19_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_19_ce0;
+    end else begin
+        kernel_19_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_19_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_ce1;
+    end else begin
+        kernel_19_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_19_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_19_we1;
+    end else begin
+        kernel_19_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_1_167_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_ce0;
+    end else begin
+        kernel_1_167_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_1_167_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_ce1;
+    end else begin
+        kernel_1_167_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_1_167_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_we1;
+    end else begin
+        kernel_1_167_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_1_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_1_84_ce0;
     end else begin
         kernel_1_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_1_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_1_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_ce1;
     end else begin
         kernel_1_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_1_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_1_83_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_1_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_1_83_we1;
     end else begin
         kernel_1_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_2_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_2_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_20_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_20_ce0;
+    end else begin
+        kernel_20_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_20_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_ce1;
+    end else begin
+        kernel_20_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_20_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_20_we1;
+    end else begin
+        kernel_20_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_21_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_21_ce0;
+    end else begin
+        kernel_21_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_21_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_ce1;
+    end else begin
+        kernel_21_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_21_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_21_we1;
+    end else begin
+        kernel_21_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_22_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_22_ce0;
+    end else begin
+        kernel_22_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_22_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_ce1;
+    end else begin
+        kernel_22_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_22_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_22_we1;
+    end else begin
+        kernel_22_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_23_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_23_ce0;
+    end else begin
+        kernel_23_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_23_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_ce1;
+    end else begin
+        kernel_23_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_23_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_23_we1;
+    end else begin
+        kernel_23_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_24_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_24_ce0;
+    end else begin
+        kernel_24_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_24_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_ce1;
+    end else begin
+        kernel_24_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_24_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_24_we1;
+    end else begin
+        kernel_24_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_25_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_25_ce0;
+    end else begin
+        kernel_25_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_25_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_ce1;
+    end else begin
+        kernel_25_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_25_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_25_we1;
+    end else begin
+        kernel_25_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_26_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_26_ce0;
+    end else begin
+        kernel_26_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_26_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_ce1;
+    end else begin
+        kernel_26_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_26_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_26_we1;
+    end else begin
+        kernel_26_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_27_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_27_ce0;
+    end else begin
+        kernel_27_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_27_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_ce1;
+    end else begin
+        kernel_27_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_27_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_27_we1;
+    end else begin
+        kernel_27_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_28_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_28_ce0;
+    end else begin
+        kernel_28_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_28_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_ce1;
+    end else begin
+        kernel_28_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_28_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_28_we1;
+    end else begin
+        kernel_28_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_29_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_29_ce0;
+    end else begin
+        kernel_29_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_29_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_ce1;
+    end else begin
+        kernel_29_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_29_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_29_we1;
+    end else begin
+        kernel_29_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_2_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_2_ce0;
     end else begin
         kernel_2_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_2_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_2_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_ce1;
     end else begin
         kernel_2_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_2_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_2_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_2_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_2_we1;
     end else begin
         kernel_2_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_3_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_3_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_30_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_30_ce0;
+    end else begin
+        kernel_30_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_30_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_ce1;
+    end else begin
+        kernel_30_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_30_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_30_we1;
+    end else begin
+        kernel_30_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_31_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_31_ce0;
+    end else begin
+        kernel_31_ce0 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_31_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_ce1;
+    end else begin
+        kernel_31_ce1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_31_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_31_we1;
+    end else begin
+        kernel_31_we1 = 1'b0;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_3_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_3_ce0;
     end else begin
         kernel_3_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_3_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_3_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_ce1;
     end else begin
         kernel_3_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_3_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_3_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_3_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_3_we1;
     end else begin
         kernel_3_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_4_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_4_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_4_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_4_ce0;
     end else begin
         kernel_4_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_4_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_4_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_ce1;
     end else begin
         kernel_4_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_4_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_4_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_4_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_4_we1;
     end else begin
         kernel_4_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_5_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_5_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_5_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_5_ce0;
     end else begin
         kernel_5_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_5_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_5_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_ce1;
     end else begin
         kernel_5_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_5_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_5_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_5_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_5_we1;
     end else begin
         kernel_5_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_6_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_6_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_6_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_6_ce0;
     end else begin
         kernel_6_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_6_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_6_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_ce1;
     end else begin
         kernel_6_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_6_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_6_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_6_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_6_we1;
     end else begin
         kernel_6_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_7_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_7_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_7_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_7_ce0;
     end else begin
         kernel_7_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_7_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_7_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_ce1;
     end else begin
         kernel_7_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_7_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_7_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_7_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_7_we1;
     end else begin
         kernel_7_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_8_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_8_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_8_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_8_ce0;
     end else begin
         kernel_8_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_8_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_8_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_ce1;
     end else begin
         kernel_8_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_8_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_8_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_8_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_8_we1;
     end else begin
         kernel_8_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state23)) begin
-        kernel_9_ce0 = grp_conv_mac_Pipeline_DOT_fu_737_kernel_9_ce0;
+    if ((1'b1 == ap_CS_fsm_state24)) begin
+        kernel_9_ce0 = grp_conv_mac_Pipeline_DOT_fu_1080_kernel_9_ce0;
     end else begin
         kernel_9_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_9_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_ce1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_9_ce1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_ce1;
     end else begin
         kernel_9_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_9_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_9_we1;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_9_we1 = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_9_we1;
     end else begin
         kernel_9_we1 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state21)) begin
-        kernel_read = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_kernel_read;
+    if ((1'b1 == ap_CS_fsm_state22)) begin
+        kernel_read = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_kernel_read;
     end else begin
         kernel_read = 1'b0;
     end
@@ -5299,8 +8976,8 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state26)) begin
-        result_write = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_result_write;
+    if ((1'b1 == ap_CS_fsm_state27)) begin
+        result_write = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_result_write;
     end else begin
         result_write = 1'b0;
     end
@@ -5337,15 +9014,15 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state9;
         end
         ap_ST_fsm_state9 : begin
-            if (((1'b1 == ap_CS_fsm_state9) & (icmp_ln78_1_fu_966_p2 == 1'd0))) begin
+            if (((icmp_ln78_1_fu_1380_p2 == 1'd0) & (1'b1 == ap_CS_fsm_state9))) begin
                 ap_NS_fsm = ap_ST_fsm_state1;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state10;
             end
         end
         ap_ST_fsm_state10 : begin
-            if (((1'b1 == ap_CS_fsm_state10) & (icmp_ln79_1_fu_995_p2 == 1'd0))) begin
-                ap_NS_fsm = ap_ST_fsm_state27;
+            if (((icmp_ln79_1_fu_1409_p2 == 1'd0) & (1'b1 == ap_CS_fsm_state10))) begin
+                ap_NS_fsm = ap_ST_fsm_state28;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state11;
             end
@@ -5354,14 +9031,14 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state12;
         end
         ap_ST_fsm_state12 : begin
-            if (((1'b1 == ap_CS_fsm_state12) & (icmp_ln81_fu_1041_p2 == 1'd1))) begin
+            if (((icmp_ln81_fu_1455_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state12))) begin
                 ap_NS_fsm = ap_ST_fsm_state16;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state13;
             end
         end
         ap_ST_fsm_state13 : begin
-            if (((grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state13))) begin
+            if (((1'b1 == ap_CS_fsm_state13) & (grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_done == 1'b1))) begin
                 ap_NS_fsm = ap_ST_fsm_state14;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state13;
@@ -5371,74 +9048,77 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state15;
         end
         ap_ST_fsm_state15 : begin
-            if (((grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state15))) begin
+            if (((1'b1 == ap_CS_fsm_state15) & (grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_done == 1'b1))) begin
                 ap_NS_fsm = ap_ST_fsm_state12;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state15;
             end
         end
         ap_ST_fsm_state16 : begin
-            if (((1'b1 == ap_CS_fsm_state16) & (icmp_ln96_fu_1120_p2 == 1'd1))) begin
-                ap_NS_fsm = ap_ST_fsm_state24;
+            if (((icmp_ln96_fu_1598_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state16))) begin
+                ap_NS_fsm = ap_ST_fsm_state25;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state17;
             end
         end
         ap_ST_fsm_state17 : begin
-            if (((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state17))) begin
-                ap_NS_fsm = ap_ST_fsm_state18;
-            end else begin
-                ap_NS_fsm = ap_ST_fsm_state17;
-            end
+            ap_NS_fsm = ap_ST_fsm_state18;
         end
         ap_ST_fsm_state18 : begin
-            ap_NS_fsm = ap_ST_fsm_state19;
-        end
-        ap_ST_fsm_state19 : begin
-            if (((1'b1 == ap_CS_fsm_state19) & (icmp_ln105_fu_1217_p2 == 1'd1))) begin
-                ap_NS_fsm = ap_ST_fsm_state16;
+            if (((grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state18))) begin
+                ap_NS_fsm = ap_ST_fsm_state19;
             end else begin
-                ap_NS_fsm = ap_ST_fsm_state20;
+                ap_NS_fsm = ap_ST_fsm_state18;
             end
         end
-        ap_ST_fsm_state20 : begin
-            ap_NS_fsm = ap_ST_fsm_state21;
+        ap_ST_fsm_state19 : begin
+            ap_NS_fsm = ap_ST_fsm_state20;
         end
-        ap_ST_fsm_state21 : begin
-            if (((1'b1 == ap_CS_fsm_state21) & (grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_done == 1'b1))) begin
-                ap_NS_fsm = ap_ST_fsm_state22;
+        ap_ST_fsm_state20 : begin
+            if (((icmp_ln105_fu_1693_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state20))) begin
+                ap_NS_fsm = ap_ST_fsm_state16;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state21;
             end
         end
-        ap_ST_fsm_state22 : begin
-            ap_NS_fsm = ap_ST_fsm_state23;
+        ap_ST_fsm_state21 : begin
+            ap_NS_fsm = ap_ST_fsm_state22;
         end
-        ap_ST_fsm_state23 : begin
-            if (((1'b1 == ap_CS_fsm_state23) & (grp_conv_mac_Pipeline_DOT_fu_737_ap_done == 1'b1))) begin
-                ap_NS_fsm = ap_ST_fsm_state19;
-            end else begin
+        ap_ST_fsm_state22 : begin
+            if (((1'b1 == ap_CS_fsm_state22) & (grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_done == 1'b1))) begin
                 ap_NS_fsm = ap_ST_fsm_state23;
+            end else begin
+                ap_NS_fsm = ap_ST_fsm_state22;
             end
         end
+        ap_ST_fsm_state23 : begin
+            ap_NS_fsm = ap_ST_fsm_state24;
+        end
         ap_ST_fsm_state24 : begin
-            if (((1'b1 == ap_CS_fsm_state24) & (icmp_ln127_fu_1250_p2 == 1'd1))) begin
-                ap_NS_fsm = ap_ST_fsm_state10;
+            if (((1'b1 == ap_CS_fsm_state24) & (grp_conv_mac_Pipeline_DOT_fu_1080_ap_done == 1'b1))) begin
+                ap_NS_fsm = ap_ST_fsm_state20;
             end else begin
-                ap_NS_fsm = ap_ST_fsm_state25;
+                ap_NS_fsm = ap_ST_fsm_state24;
             end
         end
         ap_ST_fsm_state25 : begin
-            ap_NS_fsm = ap_ST_fsm_state26;
-        end
-        ap_ST_fsm_state26 : begin
-            if (((1'b1 == ap_CS_fsm_state26) & (grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_done == 1'b1))) begin
-                ap_NS_fsm = ap_ST_fsm_state24;
+            if (((icmp_ln127_fu_1726_p2 == 1'd1) & (1'b1 == ap_CS_fsm_state25))) begin
+                ap_NS_fsm = ap_ST_fsm_state10;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state26;
             end
         end
+        ap_ST_fsm_state26 : begin
+            ap_NS_fsm = ap_ST_fsm_state27;
+        end
         ap_ST_fsm_state27 : begin
+            if (((grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state27))) begin
+                ap_NS_fsm = ap_ST_fsm_state25;
+            end else begin
+                ap_NS_fsm = ap_ST_fsm_state27;
+            end
+        end
+        ap_ST_fsm_state28 : begin
             ap_NS_fsm = ap_ST_fsm_state9;
         end
         default : begin
@@ -5447,21 +9127,21 @@ always @ (*) begin
     endcase
 end
 
-assign add_ln105_fu_1222_p2 = (g_2_reg_609 + 3'd1);
+assign add_ln105_fu_1698_p2 = (g_2_reg_871 + 2'd1);
 
-assign add_ln127_fu_1255_p2 = (p_reg_620 + 32'd1);
+assign add_ln127_fu_1731_p2 = (p_reg_882 + 32'd1);
 
-assign add_ln78_1_fu_838_p2 = (zext_ln77_1_fu_835_p1 + 12'd15);
+assign add_ln78_1_fu_1244_p2 = (zext_ln77_1_fu_1240_p1 + 12'd15);
 
-assign add_ln78_fu_1280_p2 = (indvars_iv4_fu_204 + 20'd64);
+assign add_ln78_fu_1756_p2 = (indvars_iv4_fu_210 + 20'd64);
 
-assign add_ln79_fu_1270_p2 = (span_cast_cast_cast_reg_1513 + indvars_iv1_reg_542);
+assign add_ln79_fu_1746_p2 = (span_cast_cast_cast_reg_2091 + indvars_iv1_reg_804);
 
-assign add_ln81_fu_1046_p2 = (g_reg_564 + 3'd1);
+assign add_ln81_fu_1460_p2 = (g_reg_826 + 2'd1);
 
-assign add_ln96_1_fu_1125_p2 = (indvar_flatten10_reg_575 + 11'd1);
+assign add_ln96_1_fu_1603_p2 = (indvar_flatten10_reg_837 + 11'd1);
 
-assign add_ln96_fu_1237_p2 = (indvar_flatten_reg_586 + 14'd1);
+assign add_ln96_fu_1713_p2 = (indvar_flatten_reg_848 + 14'd1);
 
 assign ap_CS_fsm_state1 = ap_CS_fsm[32'd0];
 
@@ -5503,6 +9183,8 @@ assign ap_CS_fsm_state26 = ap_CS_fsm[32'd25];
 
 assign ap_CS_fsm_state27 = ap_CS_fsm[32'd26];
 
+assign ap_CS_fsm_state28 = ap_CS_fsm[32'd27];
+
 assign ap_CS_fsm_state3 = ap_CS_fsm[32'd2];
 
 assign ap_CS_fsm_state5 = ap_CS_fsm[32'd4];
@@ -5519,87 +9201,87 @@ always @ (*) begin
     ap_block_state1 = ((op_activation_val_empty_n == 1'b0) | (op_kernel_val_empty_n == 1'b0) | (op_cout_val_empty_n == 1'b0) | (op_ow_val_empty_n == 1'b0) | (op_oh_val_empty_n == 1'b0) | (op_cin_val_empty_n == 1'b0) | (op_kind_val_empty_n == 1'b0) | (ap_done_reg == 1'b1) | (ap_start == 1'b0) | (op_cout_val24_c_full_n == 1'b0) | (op_ow_val20_c_full_n == 1'b0) | (op_oh_val16_c_full_n == 1'b0) | (op_kind_val5_c_full_n == 1'b0));
 end
 
-assign base_5_fu_1275_p2 = (base_fu_200 + 18'd64);
+assign base_5_fu_1751_p2 = (base_fu_206 + 18'd64);
 
-assign bound_cast748_fu_955_p1 = bound_reg_1486;
+assign bound_cast1468_fu_1369_p1 = bound_reg_2059;
 
-assign cb_2_fu_1232_p2 = (select_ln96_2_reg_1658 + 12'd16);
+assign cb_2_fu_1708_p2 = (select_ln96_2_reg_2284 + 12'd16);
 
-assign cmp1_i_fu_916_p2 = ((op_activation_val_read_reg_1406 == 2'd2) ? 1'b1 : 1'b0);
+assign cmp1_i_fu_1330_p2 = ((op_activation_val_read_reg_1978 == 2'd2) ? 1'b1 : 1'b0);
 
-assign count_fu_1194_p3 = ((dw_reg_1434[0:0] == 1'b1) ? 5'd1 : select_ln98_fu_1187_p3);
+assign count_fu_1672_p3 = ((dw_reg_2011[0:0] == 1'b1) ? 5'd1 : select_ln98_fu_1665_p3);
 
-assign grp_conv_mac_Pipeline_DOT_fu_737_ap_start = grp_conv_mac_Pipeline_DOT_fu_737_ap_start_reg;
+assign grp_conv_mac_Pipeline_DOT_fu_1080_ap_start = grp_conv_mac_Pipeline_DOT_fu_1080_ap_start_reg;
 
-assign grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_714_ap_start_reg;
+assign grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_106_12_fu_1041_ap_start_reg;
 
-assign grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_ap_start_reg;
+assign grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_ap_start_reg;
 
-assign grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_631_ap_start_reg;
+assign grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_84_4_fu_893_ap_start_reg;
 
-assign grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_653_ap_start_reg;
+assign grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_88_5_fu_931_ap_start_reg;
 
-assign grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_690_ap_start_reg;
+assign grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start = grp_conv_mac_Pipeline_VITIS_LOOP_99_10_fu_1000_ap_start_reg;
 
-assign grp_fu_865_p0 = grp_fu_865_p00;
+assign grp_fu_1272_p0 = grp_fu_1272_p00;
 
-assign grp_fu_865_p00 = op_kernel_val_read_reg_1412;
+assign grp_fu_1272_p00 = op_kernel_val_read_reg_1984;
 
-assign grp_fu_865_p1 = grp_fu_865_p10;
+assign grp_fu_1272_p1 = grp_fu_1272_p10;
 
-assign grp_fu_865_p10 = tmp_s_reg_1456;
+assign grp_fu_1272_p10 = tmp_s_reg_2029;
 
-assign grp_fu_877_p0 = grp_fu_877_p00;
+assign grp_fu_1284_p0 = grp_fu_1284_p00;
 
-assign grp_fu_877_p00 = op_ow_val_read_reg_1424;
+assign grp_fu_1284_p00 = op_ow_val_read_reg_1996;
 
-assign grp_fu_877_p1 = grp_fu_877_p10;
+assign grp_fu_1284_p1 = grp_fu_1284_p10;
 
-assign grp_fu_877_p10 = op_oh_val_read_reg_1429;
+assign grp_fu_1284_p10 = op_oh_val_read_reg_2001;
 
-assign grp_fu_889_p0 = grp_fu_889_p00;
+assign grp_fu_1296_p0 = grp_fu_1296_p00;
 
-assign grp_fu_889_p00 = op_kernel_val_read_reg_1412;
+assign grp_fu_1296_p00 = op_kernel_val_read_reg_1984;
 
-assign grp_fu_889_p1 = grp_fu_889_p10;
+assign grp_fu_1296_p1 = grp_fu_1296_p10;
 
-assign grp_fu_889_p10 = bound_reg_1486;
+assign grp_fu_1296_p10 = bound_reg_2059;
 
-assign icmp_ln105_fu_1217_p2 = ((g_2_reg_609 == trunc_ln79_2_reg_1578) ? 1'b1 : 1'b0);
+assign icmp_ln105_fu_1693_p2 = ((g_2_reg_871 == trunc_ln79_2_reg_2156) ? 1'b1 : 1'b0);
 
-assign icmp_ln127_fu_1250_p2 = ((p_reg_620 == sext_ln78_2_reg_1560) ? 1'b1 : 1'b0);
+assign icmp_ln127_fu_1726_p2 = ((p_reg_882 == sext_ln78_2_reg_2138) ? 1'b1 : 1'b0);
 
-assign icmp_ln78_1_fu_966_p2 = ((base_fu_200 < total_reg_1502) ? 1'b1 : 1'b0);
+assign icmp_ln78_1_fu_1380_p2 = ((base_fu_206 < total_reg_2075) ? 1'b1 : 1'b0);
 
-assign icmp_ln78_fu_971_p2 = ((indvars_iv4_fu_204 > 20'd1048511) ? 1'b1 : 1'b0);
+assign icmp_ln78_fu_1385_p2 = ((indvars_iv4_fu_210 > 20'd1048511) ? 1'b1 : 1'b0);
 
-assign icmp_ln79_1_fu_995_p2 = ((oc_reg_552 < op_cout_val_cast4_reg_1508) ? 1'b1 : 1'b0);
+assign icmp_ln79_1_fu_1409_p2 = ((oc_reg_814 < op_cout_val_cast4_reg_2081) ? 1'b1 : 1'b0);
 
-assign icmp_ln79_fu_1000_p2 = ((indvars_iv1_reg_542 > select_ln78_2_reg_1534) ? 1'b1 : 1'b0);
+assign icmp_ln79_fu_1414_p2 = ((indvars_iv1_reg_804 > select_ln78_3_reg_2112) ? 1'b1 : 1'b0);
 
-assign icmp_ln81_fu_1041_p2 = ((g_reg_564 == trunc_ln79_2_reg_1578) ? 1'b1 : 1'b0);
+assign icmp_ln81_fu_1455_p2 = ((g_reg_826 == trunc_ln79_2_reg_2156) ? 1'b1 : 1'b0);
 
-assign icmp_ln96_1_fu_1131_p2 = ((indvar_flatten_reg_586 == bound_cast748_reg_1544) ? 1'b1 : 1'b0);
+assign icmp_ln96_1_fu_1609_p2 = ((indvar_flatten_reg_848 == bound_cast1468_reg_2122) ? 1'b1 : 1'b0);
 
-assign icmp_ln96_fu_1120_p2 = ((indvar_flatten10_reg_575 == bound4_reg_1549) ? 1'b1 : 1'b0);
+assign icmp_ln96_fu_1598_p2 = ((indvar_flatten10_reg_837 == bound4_reg_2127) ? 1'b1 : 1'b0);
 
-assign icmp_ln97_1_fu_1144_p2 = ((cb_reg_598 < zext_ln77_1_reg_1450) ? 1'b1 : 1'b0);
+assign icmp_ln97_1_fu_1622_p2 = ((cb_reg_860 < zext_ln77_1_reg_2023) ? 1'b1 : 1'b0);
 
-assign icmp_ln97_fu_854_p2 = ((reduce_reg_1444 != 11'd0) ? 1'b1 : 1'b0);
+assign icmp_ln97_fu_1260_p2 = ((reduce_fu_1234_p3 != 11'd0) ? 1'b1 : 1'b0);
 
-assign icmp_ln98_fu_1178_p2 = ((tmp_fu_1168_p4 == 8'd0) ? 1'b1 : 1'b0);
+assign icmp_ln98_fu_1656_p2 = ((tmp_fu_1646_p4 == 8'd0) ? 1'b1 : 1'b0);
 
-assign mul1_fu_1209_p3 = {{count_fu_1194_p3}, {6'd0}};
+assign mul1_fu_1686_p3 = {{count_reg_2300}, {6'd0}};
 
-assign mul_fu_1201_p3 = {{count_fu_1194_p3}, {4'd0}};
+assign mul_fu_1679_p3 = {{count_reg_2300}, {5'd0}};
 
-assign oc_3_fu_1265_p2 = (span_cast_cast_cast_reg_1513 + oc_reg_552);
+assign oc_3_fu_1741_p2 = (span_cast_cast_cast_reg_2091 + oc_reg_814);
 
 assign op_cout_val24_c_din = op_cout_val_dout;
 
-assign op_cout_val_cast4_fu_895_p1 = op_cout_val_read_reg_1418;
+assign op_cout_val_cast4_fu_1302_p1 = op_cout_val_read_reg_1990;
 
-assign op_cout_val_cast_fu_898_p1 = op_cout_val_read_reg_1418;
+assign op_cout_val_cast_fu_1305_p1 = op_cout_val_read_reg_1990;
 
 assign op_kind_val5_c_din = op_kind_val_dout;
 
@@ -5607,83 +9289,83 @@ assign op_oh_val16_c_din = op_oh_val_dout;
 
 assign op_ow_val20_c_din = op_ow_val_dout;
 
-assign reduce_fu_822_p3 = ((op_kind_val_dout[0:0] == 1'b1) ? 11'd1 : op_cin_val_dout);
+assign reduce_fu_1234_p3 = ((dw_reg_2011[0:0] == 1'b1) ? 11'd1 : op_cin_val_read_reg_2006);
 
-assign result_din = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_793_result_din;
+assign result_din = grp_conv_mac_Pipeline_VITIS_LOOP_129_14_fu_1184_result_din;
 
-assign select_ln78_1_fu_921_p3 = ((dw_reg_1434[0:0] == 1'b1) ? 8'd239 : 8'd191);
+assign select_ln78_1_fu_1397_p3 = ((icmp_ln78_fu_1385_p2[0:0] == 1'b1) ? xor_ln78_2_fu_1391_p2 : 20'd64);
 
-assign select_ln78_2_fu_928_p3 = ((dw_reg_1434[0:0] == 1'b1) ? 32'd4294967279 : 32'd4294967231);
+assign select_ln78_2_fu_1335_p3 = ((dw_reg_2011[0:0] == 1'b1) ? 8'd223 : 8'd191);
 
-assign select_ln78_fu_983_p3 = ((icmp_ln78_fu_971_p2[0:0] == 1'b1) ? xor_ln78_2_fu_977_p2 : 20'd64);
+assign select_ln78_3_fu_1342_p3 = ((dw_reg_2011[0:0] == 1'b1) ? 32'd4294967263 : 32'd4294967231);
 
-assign select_ln79_fu_1009_p3 = ((icmp_ln79_reg_1568[0:0] == 1'b1) ? trunc_ln79_fu_1005_p1 : select_ln78_1_reg_1529);
+assign select_ln78_fu_1311_p3 = ((dw_reg_2011[0:0] == 1'b1) ? 12'd2048 : 12'd1024);
 
-assign select_ln96_1_fu_1149_p3 = ((icmp_ln96_1_fu_1131_p2[0:0] == 1'b1) ? icmp_ln97_reg_1461 : icmp_ln97_1_fu_1144_p2);
+assign select_ln79_fu_1423_p3 = ((icmp_ln79_reg_2146[0:0] == 1'b1) ? trunc_ln79_fu_1419_p1 : select_ln78_2_reg_2107);
 
-assign select_ln96_2_fu_1156_p3 = ((select_ln96_1_fu_1149_p3[0:0] == 1'b1) ? select_ln96_fu_1136_p3 : 12'd0);
+assign select_ln96_1_fu_1627_p3 = ((icmp_ln96_1_fu_1609_p2[0:0] == 1'b1) ? icmp_ln97_reg_2034 : icmp_ln97_1_fu_1622_p2);
 
-assign select_ln96_3_fu_1243_p3 = ((icmp_ln96_1_reg_1653[0:0] == 1'b1) ? 14'd1 : add_ln96_fu_1237_p2);
+assign select_ln96_2_fu_1634_p3 = ((select_ln96_1_fu_1627_p3[0:0] == 1'b1) ? select_ln96_fu_1614_p3 : 12'd0);
 
-assign select_ln96_fu_1136_p3 = ((icmp_ln96_1_fu_1131_p2[0:0] == 1'b1) ? 12'd0 : cb_reg_598);
+assign select_ln96_3_fu_1719_p3 = ((icmp_ln96_1_reg_2279[0:0] == 1'b1) ? 14'd1 : add_ln96_fu_1713_p2);
 
-assign select_ln98_fu_1187_p3 = ((icmp_ln98_reg_1669[0:0] == 1'b1) ? trunc_ln98_fu_1184_p1 : 5'd16);
+assign select_ln96_fu_1614_p3 = ((icmp_ln96_1_fu_1609_p2[0:0] == 1'b1) ? 12'd0 : cb_reg_860);
 
-assign sext_ln78_1_fu_951_p1 = $signed(xor_ln78_1_fu_945_p2);
+assign select_ln98_fu_1665_p3 = ((icmp_ln98_reg_2295[0:0] == 1'b1) ? trunc_ln98_fu_1662_p1 : 5'd16);
 
-assign sext_ln78_2_fu_991_p1 = $signed(select_ln78_fu_983_p3);
+assign sext_ln78_1_fu_1365_p1 = $signed(xor_ln78_1_fu_1359_p2);
 
-assign sext_ln78_fu_941_p1 = $signed(xor_ln78_fu_935_p2);
+assign sext_ln78_2_fu_1405_p1 = $signed(select_ln78_1_fu_1397_p3);
 
-assign span_cast_cast_cast_fu_904_p3 = ((dw_reg_1434[0:0] == 1'b1) ? 32'd16 : 32'd64);
+assign sext_ln78_fu_1355_p1 = $signed(xor_ln78_fu_1349_p2);
 
-assign sub_ln79_fu_1025_p2 = (7'd14 - trunc_ln79_1_fu_1015_p1);
+assign span_cast_cast_cast_fu_1318_p3 = ((dw_reg_2011[0:0] == 1'b1) ? 32'd32 : 32'd64);
 
-assign sub_ln98_fu_1164_p2 = (zext_ln77_1_reg_1450 - select_ln96_2_reg_1658);
+assign sub_ln79_fu_1439_p2 = (7'd30 - trunc_ln79_1_fu_1429_p1);
 
-assign tmp_fu_1168_p4 = {{sub_ln98_fu_1164_p2[11:4]}};
+assign sub_ln98_fu_1642_p2 = (zext_ln77_1_reg_2023 - select_ln96_2_reg_2284);
 
-assign tobool_i_fu_911_p2 = ((op_activation_val_read_reg_1406 != 2'd0) ? 1'b1 : 1'b0);
+assign tmp_fu_1646_p4 = {{sub_ln98_fu_1642_p2[11:4]}};
 
-assign trunc_ln120_fu_1228_p1 = g_2_reg_609[1:0];
+assign tobool_i_fu_1325_p2 = ((op_activation_val_read_reg_1978 != 2'd0) ? 1'b1 : 1'b0);
 
-assign trunc_ln131_fu_1261_p1 = p_reg_620[7:0];
+assign trunc_ln120_fu_1704_p1 = g_2_reg_871[0:0];
 
-assign trunc_ln79_1_fu_1015_p1 = select_ln79_fu_1009_p3[6:0];
+assign trunc_ln131_fu_1737_p1 = p_reg_882[6:0];
 
-assign trunc_ln79_fu_1005_p1 = indvars_iv1_reg_542[7:0];
+assign trunc_ln79_1_fu_1429_p1 = select_ln79_fu_1423_p3[6:0];
 
-assign trunc_ln92_fu_1052_p1 = g_reg_564[1:0];
+assign trunc_ln79_fu_1419_p1 = indvars_iv1_reg_804[7:0];
 
-assign trunc_ln98_fu_1184_p1 = sub_ln98_reg_1664[4:0];
+assign trunc_ln92_fu_1466_p1 = g_reg_826[0:0];
 
-assign xor_ln78_1_fu_945_p2 = (zext_ln77_fu_901_p1 ^ 19'd524287);
+assign trunc_ln98_fu_1662_p1 = sub_ln98_reg_2290[4:0];
 
-assign xor_ln78_2_fu_977_p2 = (indvars_iv4_fu_204 ^ 20'd1048575);
+assign xor_ln78_1_fu_1359_p2 = (zext_ln77_fu_1308_p1 ^ 19'd524287);
 
-assign xor_ln78_fu_935_p2 = (op_cout_val_cast_fu_898_p1 ^ 12'd4095);
+assign xor_ln78_2_fu_1391_p2 = (indvars_iv4_fu_210 ^ 20'd1048575);
 
-assign xor_ln79_fu_1019_p2 = (select_ln79_fu_1009_p3 ^ 8'd255);
+assign xor_ln78_fu_1349_p2 = (op_cout_val_cast_fu_1305_p1 ^ 12'd4095);
 
-assign zext_ln77_1_fu_835_p1 = reduce_reg_1444;
+assign xor_ln79_fu_1433_p2 = (select_ln79_fu_1423_p3 ^ 8'd255);
 
-assign zext_ln77_fu_901_p1 = total_reg_1502;
+assign zext_ln77_1_fu_1240_p1 = reduce_fu_1234_p3;
+
+assign zext_ln77_fu_1308_p1 = total_reg_2075;
 
 always @ (posedge ap_clk) begin
-    zext_ln77_1_reg_1450[11] <= 1'b0;
-    op_cout_val_cast4_reg_1508[31:11] <= 21'b000000000000000000000;
-    span_cast_cast_cast_reg_1513[3:0] <= 4'b0000;
-    span_cast_cast_cast_reg_1513[5:5] <= 1'b0;
-    span_cast_cast_cast_reg_1513[31:7] <= 25'b0000000000000000000000000;
-    select_ln78_1_reg_1529[3:0] <= 4'b1111;
-    select_ln78_1_reg_1529[5:5] <= 1'b1;
-    select_ln78_1_reg_1529[7] <= 1'b1;
-    select_ln78_2_reg_1534[3:0] <= 4'b1111;
-    select_ln78_2_reg_1534[5:5] <= 1'b1;
-    select_ln78_2_reg_1534[31:7] <= 25'b1111111111111111111111111;
-    bound_cast748_reg_1544[13:10] <= 4'b0000;
-    mul_reg_1674[3:0] <= 4'b0000;
-    mul1_reg_1679[5:0] <= 6'b000000;
+    zext_ln77_1_reg_2023[11] <= 1'b0;
+    op_cout_val_cast4_reg_2081[31:11] <= 21'b000000000000000000000;
+    select_ln78_reg_2086[9:0] <= 10'b0000000000;
+    span_cast_cast_cast_reg_2091[4:0] <= 5'b00000;
+    span_cast_cast_cast_reg_2091[31:7] <= 25'b0000000000000000000000000;
+    select_ln78_2_reg_2107[4:0] <= 5'b11111;
+    select_ln78_2_reg_2107[7] <= 1'b1;
+    select_ln78_3_reg_2112[4:0] <= 5'b11111;
+    select_ln78_3_reg_2112[31:7] <= 25'b1111111111111111111111111;
+    bound_cast1468_reg_2122[13:10] <= 4'b0000;
+    mul_reg_2306[4:0] <= 5'b00000;
+    mul1_reg_2311[5:0] <= 6'b000000;
 end
 
 endmodule //unet_ddr_core_conv_mac
