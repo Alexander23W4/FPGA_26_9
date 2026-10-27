@@ -57,6 +57,7 @@ class GuiFrameTransferTests(unittest.TestCase):
             client = FrameTransferClient('127.0.0.1', board.server_address[1], folder, 2)
             client.folder = str(results)
             server = gui.NetworkServer(('127.0.0.1', 0), handler)
+            server.flash_ready = True
             worker = threading.Thread(target=server.serve_forever, daemon=True)
             worker.start()
             try:

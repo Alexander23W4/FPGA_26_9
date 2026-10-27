@@ -29,6 +29,7 @@ def fast_server():
         QuietHandler.state = state
         client = transfer.FrameTransferClient('127.0.0.1', board.server_address[1], folder, 2)
         server = gui.NetworkServer(('127.0.0.1', 0), QuietHandler)
+        server.flash_ready = True
         worker = threading.Thread(target=server.serve_forever, daemon=True); worker.start()
         with patch.object(gui, '_FRAME_CLIENT', client), patch.object(gui, '_DISPLAY_PENDING', None):
             try:

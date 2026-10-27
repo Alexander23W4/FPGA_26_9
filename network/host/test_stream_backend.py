@@ -88,6 +88,7 @@ class StreamBackendTests(unittest.TestCase):
             self.assertIsNotNone(gui._DISPLAY_PENDING)
             QuietHandler.state = state
             server = gui.NetworkServer(('127.0.0.1', 0), QuietHandler)
+            server.flash_ready = True
             worker = threading.Thread(target=server.serve_forever, daemon=True)
             worker.start()
             before = state.source_revision

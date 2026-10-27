@@ -2,6 +2,13 @@
 
 弄个启动界面
 
+## 当前任务清单
+
+- [进行中] 医学结果与心动周期在停止/重启流分析后继续保留；按患者恢复最近 50 帧数据，并在没有新有效回读时保留最近一次有效 EDV/ESV/EF/心率。
+- [进行中] 心率长期显示为“—”：核对 PS 的 LV 容积峰值检测、源视频 FPS 传递和真实回传数据；已修正单个缺失 LV 掩膜会清空检测状态的问题，仍需用板端已知周期数据确认 BPM。
+- [进行中] GUI 启动独立设备检查页：检查 JTAG、USB-UART、板卡以太网和当前 PL/PS/权重文件；连接通过后每次重新烧录，全部就绪才进入操作台。
+- [待板端验证] 用含至少两个 LV 舒张峰的真实患者序列验证 period_frames/BPM；若仍无值，记录 VOLUME_STATUS、LV 像素面积、PS SOURCE_FRAME_US、PERIOD_FRAMES 和 BPM_X100。
+
 # 医学分析模式:
 选择流文件夹之后开始发送
 
@@ -86,20 +93,19 @@ hdl_out.v 只有收满 65,536 个输出像素才发布一帧；hdmi_out.v 只在
 这个只要使得ps发帧的时候不要中断, 每一帧都能够完整发完, 就不会出现这个问题
 如果之后确实会出现发帧中断的问题, 那么就让不得不中断之后用axi-lite给pl发reset, 然后强制重置pl的帧缓存和帧计数
 
-## GUI 离线演示（Git Bash）
+## GUI 启动与离线 mock
 
-在 Git Bash 中从仓库根目录运行这一条命令，即可启动 mock PS 服务并打开 GUI：
+实板 GUI 在 Git Bash 输入 `heartcare`，或从仓库根目录运行：
 
 ```bash
 bash ./network/launch_gui.sh
 ```
 
-脚本会检查端口；若控制端口 `127.0.0.1:5000` 和图像端口 `127.0.0.1:5001` 尚未启动，
-就自动启动 mock PS，再以 `--board-ip 127.0.0.1` 打开 GUI。若 mock 已经在这两个端口
-运行，则直接复用，不会重复启动。GUI 网页使用 <http://127.0.0.1:8765/>。这些端口仅在
-本机回环地址监听，不需要开放 Windows 防火墙端口；若 8765 已被占用，先关闭已有 GUI
-再运行启动命令。浏览器打开后，点击 **“选择BIN图像”** 即可换图。
-图像处理模式下选图后自动使用真实板卡网口 5002，结果保存到 `E:/fpga_done_img`。
+启动页先检查 JTAG、USB-UART、板卡以太网和 PL/PS/权重产物；检查通过后点击“烧录并进入操作台”。
+每次启动都重新下载当前已验证的位流和 PS ELF，并加载 U-Net 权重。板端三个 TCP 服务就绪后
+才进入工作台。板卡 IP 默认 `192.168.1.10`，可用 `FPGA_IP` 覆盖；USB-UART 默认 `COM7`，
+可用 `SERIAL_PORT` 覆盖。网页地址为 <http://127.0.0.1:8765/>；端口被占用时需先关闭旧 GUI。
+浏览器打开后，点击 **“选择 BIN 图像”** 即可换图；回传结果保存到 `E:/fpga_done_img`。
 需要指定启动时预览的初始图片时，把路径作为第一个参数：
 
 ```bash
@@ -107,8 +113,8 @@ bash ./network/launch_gui.sh /e/camus/images/testing/patient0047/patient0047_4CH
 ```
 
 如果 Python 不在启动脚本默认位置，可通过 `PYTHON=/path/to/python.exe` 覆盖。退出时在
-Git Bash 终端按 `Ctrl+C`，脚本会同时停止 mock PS 服务。mock 返回演示用的模拟掩膜和
-状态，不代表 FPGA 的实际图像处理结果。
+Git Bash 终端按 `Ctrl+C`。离线演示时需另行运行 `network/mock/mock_ps_server.py`，再直接启动
+`monitor_network.py` 并将板卡地址设为 `127.0.0.1`；mock 掩膜和状态仅用于界面演示。
 
 ## 当前上板：GUI 单帧 HDMI 测试
 

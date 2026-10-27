@@ -149,6 +149,7 @@ class SingleFrameTests(unittest.TestCase):
                                  ("/api/serial/transfer?name=a.bin", 65536, FRAME[:-1])):
             with self.subTest(path=path, size=size), patch.object(gui, "_do_transfer") as send:
                 handler = gui.NetworkHandler.__new__(gui.NetworkHandler)
+                handler.server = types.SimpleNamespace(flash_ready=True)
                 handler.path = path
                 handler.headers = {"Content-Length": str(size)}
                 handler.rfile = io.BytesIO(body)

@@ -336,6 +336,7 @@ async function poll(){
     const includeImages=!fastStreamMode()&&(simulateOn||sourceRevision<0);
     const response=await fetch(includeImages?'/api/state?'+query:'/api/network/state');
     const state=await response.json();
+    if(response.status===423&&state.startup_required){location.replace('/');return;}
     if(systemModePending||revision!==systemModeRevision)return;
     setSimulateState(Boolean(state.simulate),state.system_mode);
     if(!fastStreamMode()&&state.image){

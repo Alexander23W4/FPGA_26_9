@@ -313,6 +313,7 @@ GUI_ASSET_DIR = Path(__file__).resolve().parent / "assets"
 GUI_STATIC_FILES = {
     "/assets/heartcare.css": ("heartcare.css", "text/css; charset=utf-8"),
     "/assets/heartcare.js": ("heartcare.js", "text/javascript; charset=utf-8"),
+    "/assets/startup.js": ("startup.js", "text/javascript; charset=utf-8"),
     "/assets/medical_charts.js": ("medical_charts.js", "text/javascript; charset=utf-8"),
     "/assets/image_viewer.js": ("image_viewer.js", "text/javascript; charset=utf-8"),
     "/assets/stream_worker.js": ("stream_worker.js", "text/javascript; charset=utf-8"),

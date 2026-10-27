@@ -15,5 +15,5 @@ if {[catch {targets -set -filter {name =~ "*xc7z*"}} message]} {
     exit 1
 }
 puts "HEARTCARE_JTAG_OK"
-disconnect
+catch {disconnect}
 exit 0

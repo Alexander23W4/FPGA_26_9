@@ -61,6 +61,7 @@ class DisplayRegistersTests(unittest.TestCase):
             def log_message(self, *args):
                 pass
         server = gui.NetworkServer(('127.0.0.1', 0), QuietHandler)
+        server.flash_ready = True
         worker = threading.Thread(target=server.serve_forever, daemon=True)
         worker.start()
         def render(mode, state=None):

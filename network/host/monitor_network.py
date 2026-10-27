@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 import hashlib
+import ipaddress
 import json
 import re
 import secrets
@@ -708,13 +709,19 @@ _DISPLAY_PENDING = None
 
 def _probe_uart(port):
     try:
+        import serial
         from serial.tools import list_ports
         available=sorted(item.device for item in list_ports.comports())
     except Exception as error:
         return {'ok':False,'detail':'无法枚举串口：%s'%error}
     match=next((item for item in available if item.upper()==str(port).upper()),None)
     if match:
-        return {'ok':True,'detail':'检测到 %s（USB-UART）'%match}
+        try:
+            with serial.Serial(match,115200,timeout=0,write_timeout=.2):
+                pass
+            return {'ok':True,'detail':'%s 已连接且可用（115200 baud）'%match}
+        except serial.SerialException as error:
+            return {'ok':False,'detail':'%s 已连接但无法打开，请关闭占用串口的程序：%s'%(match,error)}
     found='、'.join(available) if available else '没有检测到 COM 串口'
     return {'ok':False,'detail':'需要 %s；当前检测到：%s'%(port,found)}
 
@@ -727,14 +734,32 @@ def _tcp_probe(host,port,timeout=.45):
         return False
 
 
+def _git_bash():
+    configured=_os.environ.get('HEARTCARE_BASH')
+    if configured and Path(configured).is_file():return configured
+    git=shutil.which('git')
+    if git:
+        candidate=Path(git).resolve().parent.parent/'bin'/'bash.exe'
+        if candidate.is_file():return str(candidate)
+    return shutil.which('bash')
+
+
+def _xilinx_env(repo):
+    env=_os.environ.copy()
+    temporary=Path(repo)/'build'/'startup'/'tmp'
+    temporary.mkdir(parents=True,exist_ok=True)
+    for name in ('TMPDIR','TMP','TEMP'):env[name]=str(temporary.resolve())
+    return env
+
+
 def _probe_jtag(repo):
-    bash=shutil.which('bash')
+    bash=_git_bash()
     if not bash:
         return {'ok':False,'detail':'找不到 Git Bash，无法检查 JTAG 下载器'}
     script=Path(repo)/'scripts'/'check_jtag.sh'
     try:
         result=_sp.run([bash,str(script)],cwd=str(repo),capture_output=True,text=True,
-                       encoding='utf-8',errors='replace',timeout=45)
+                       encoding='utf-8',errors='replace',timeout=45,env=_xilinx_env(repo))
         output=(result.stdout+'\n'+result.stderr).strip()
         if result.returncode==0 and 'HEARTCARE_JTAG_OK' in output:
             return {'ok':True,'detail':'已检测到 Cortex-A9 与 FPGA JTAG 目标'}
@@ -749,17 +774,50 @@ def _probe_jtag(repo):
 
 def _probe_build(repo):
     root=Path(repo);out=root/'build'/'out'
+    def local_path(value):
+        value=value.strip()
+        # build.sh publishes MSYS paths (for example /c/Users/...) because it
+        # runs under Git Bash, while this GUI uses native Windows Python.
+        match=re.match(r'^/([a-zA-Z])/(.*)$',value)
+        if match:
+            return Path(match.group(1).upper()+':/')/Path(match.group(2).replace('/',_os.sep))
+        path=Path(value)
+        return path if path.is_absolute() else root/path
+
+    def stale_inputs(manifest):
+        stale=[]
+        try:
+            rows=manifest.read_text(encoding='utf-8').splitlines()
+        except OSError:
+            return ['校验清单缺失']
+        for row in rows:
+            row=row.strip()
+            if not row:continue
+            pieces=row.split(None,1)
+            if len(pieces)!=2:continue
+            expected,relative=pieces
+            relative=relative.lstrip('* ')
+            source=root/relative
+            if not source.is_file():
+                stale.append(relative);continue
+            digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            if digest.lower()!=expected.lower():stale.append(relative)
+        return stale
+
     required=[('PL 构建',out/'latest-fpga_26-zynq.path'),
               ('PS 构建',out/'latest-MID_plt-app.path')]
     missing=[]
     for label,pointer in required:
         try:
-            value=pointer.read_text(encoding='utf-8').strip()
-            directory=Path(value)
-            if not directory.is_absolute():directory=root/directory
+            directory=local_path(pointer.read_text(encoding='utf-8'))
             expected=('system_wrapper.bit','fpga_26.xsa') if label=='PL 构建' else ('MID_plt.elf','ps7_init.tcl')
             if not directory.is_dir() or any(not (directory/name).is_file() for name in expected):
                 missing.append(label)
+                continue
+            manifest=directory/('PL_INPUTS.sha256' if label=='PL 构建' else 'PS_INPUTS.sha256')
+            changed=stale_inputs(manifest)
+            if changed:
+                missing.append(label+' 已过期（源码变更）')
         except OSError:
             missing.append(label)
     weights=root/'build'/'unet'/'model'/'weights.bin'
@@ -769,10 +827,31 @@ def _probe_build(repo):
     return {'ok':True,'detail':'PL 位流、PS ELF、XSA、PS 初始化脚本和 U-Net 权重均已找到'}
 
 
+def _ethernet_link(host):
+    """A cold board cannot answer TCP before PS has been programmed."""
+    command="""$ErrorActionPreference='Stop'; $rows=@(Get-NetIPAddress -AddressFamily IPv4 | ForEach-Object {
+      $address=$_; $adapter=Get-NetAdapter -InterfaceIndex $address.InterfaceIndex -ErrorAction SilentlyContinue;
+      if($adapter){[pscustomobject]@{ip=$address.IPAddress;prefix=$address.PrefixLength;name=$adapter.Name;status=[string]$adapter.Status}}
+    }); ConvertTo-Json -InputObject $rows -Compress"""
+    try:
+        result=_sp.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',command],
+            capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=12)
+        if result.returncode:return None
+        rows=json.loads(result.stdout.lstrip('\ufeff') or '[]')
+        if isinstance(rows,dict):rows=[rows]
+        target=ipaddress.ip_address(host)
+        for row in rows:
+            network=ipaddress.ip_network('%s/%s'%(row['ip'],row['prefix']),strict=False)
+            if target in network and row.get('status','').lower()=='up':
+                return '%s · %s/%s'%(row['name'],row['ip'],row['prefix'])
+    except (OSError,ValueError,KeyError,_sp.TimeoutExpired):
+        pass
+    return None
+
+
 def _probe_startup(config):
     host=config['board_ip']
-    ports={'控制 5000':config['control_port'],'图像 5001':config['image_port'],
-           '帧流 5002':config['transfer_port']}
+    ports={'帧流 %s'%config['transfer_port']:config['transfer_port']}
     services={name:_tcp_probe(host,port) for name,port in ports.items()}
     ping_ok=False
     try:
@@ -782,13 +861,16 @@ def _probe_startup(config):
     except Exception:
         pass
     open_services=[name for name,ok in services.items() if ok]
-    network_ok=ping_ok or bool(open_services)
+    link=_ethernet_link(host) if not (ping_ok or open_services) else None
+    network_ok=ping_ok or bool(open_services) or bool(link)
     if ping_ok:
         network_detail='%s 可达；项目 TCP 服务：%s'%(host,', '.join(name for name,ok in services.items() if ok) or '烧录后启动')
     elif open_services:
         network_detail='%s 已开放 %s'%(host,', '.join(open_services))
+    elif link:
+        network_detail='网线链路与 IP 网段已就绪（%s）；烧录后确认 %s:%s 服务'%(link,host,config['transfer_port'])
     else:
-        network_detail='%s 无响应，且 TCP 5000/5001/5002 均未连接；检查网线、网卡 IP 和板卡 IP'%(host)
+        network_detail='%s:%s 未连接，未找到同网段且已连线的网卡；检查网线、网卡 IP 和板卡供电'%(host,config['transfer_port'])
     components={'jtag':_probe_jtag(config['repo']),'uart':_probe_uart(config['serial_port']),
                 'ethernet':{'ok':network_ok,'detail':network_detail},
                 'build':_probe_build(config['repo'])}
@@ -806,11 +888,11 @@ def _flash_progress(server,**updates):
 
 def _flash_current_worker(server):
     root=Path(server.startup_config['repo'])
-    bash=shutil.which('bash')
+    bash=_git_bash()
     if not bash:
         _flash_progress(server,state='error',error='找不到 Git Bash，无法调用 scripts/flash_current.sh')
         return
-    env=_os.environ.copy()
+    env=_xilinx_env(root)
     weights=root/'build'/'unet'/'model'/'weights.bin'
     if weights.is_file():env['UNET_WEIGHTS']=str(weights.resolve())
     command=[bash,str(root/'scripts'/'flash_current.sh'),'init']
@@ -821,9 +903,10 @@ def _flash_current_worker(server):
              ('programming PL',48,'正在配置 FPGA 位流'),
              ('PL programmed',77,'位流配置完成'),
              ('ps7_post_config done',84,'恢复 PS-PL 接口'),
-             ('UNET_WEIGHTS_READY',92,'正在向 DDR 加载 U-Net 权重'),
+             ('UNET_WEIGHTS_LOADING',86,'正在向 DDR 加载 U-Net 权重'),
+             ('UNET_WEIGHTS_READY',94,'U-Net 权重加载完成'),
              ('FLASH_ALL_OK',96,'位流、程序和权重已写入；等待板端服务')]
-    log=[]
+    log=[];confirmed=False
     try:
         process=_sp.Popen(command,cwd=str(root),env=env,stdout=_sp.PIPE,stderr=_sp.STDOUT,
                           text=True,encoding='utf-8',errors='replace',bufsize=1)
@@ -832,6 +915,7 @@ def _flash_current_worker(server):
         for line in process.stdout:
             line=line.rstrip()
             if not line:continue
+            if line=='FLASH_ALL_OK':confirmed=True
             log.append(line);log=log[-18:]
             update={'message':'\n'.join(log)}
             for marker,progress,phase in markers:
@@ -841,19 +925,19 @@ def _flash_current_worker(server):
                 update.update(phase='烧录诊断',progress=max(4,server.flash_state.get('progress',4)))
             _flash_progress(server,**update)
         return_code=process.wait()
-        if return_code!=0 or 'FLASH_ALL_OK' not in '\n'.join(log):
+        if return_code!=0 or not confirmed:
             _flash_progress(server,state='error',error='烧录脚本未确认成功。请查看输出日志。',
                             message='\n'.join(log),progress=0)
             return
-        _flash_progress(server,progress=97,phase='等待板端服务启动',message='PL/PS 已烧录，正在检查控制、图像和帧流端口…')
+        _flash_progress(server,progress=97,phase='等待板端服务启动',message='PL/PS 已烧录，正在检查网口帧流服务…')
         deadline=time.monotonic()+45
-        needed=[int(server.startup_config[name]) for name in ('control_port','image_port','transfer_port')]
+        needed=[int(server.startup_config['transfer_port'])]
         while time.monotonic()<deadline:
             open_now=[_tcp_probe(server.startup_config['board_ip'],port,.4) for port in needed]
             if all(open_now):
                 server.flash_ready=True
                 _flash_progress(server,state='complete',progress=100,phase='全部就绪',
-                    message='烧录成功；板端 TCP 5000/5001/5002 已就绪。即将进入操作台。',error='')
+                    message='烧录成功；板端 TCP %s 已就绪。即将进入操作台。'%needed[0],error='')
                 return
             time.sleep(.5)
         missing=[str(port) for port,ok in zip(needed,open_now) if not ok]
@@ -1381,45 +1465,53 @@ class NetworkHandler(web_common.Handler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self):
-        parsed=urlparse(self.path)
+    def _startup_get(self,parsed):
         if parsed.path=='/api/startup/check':
             if getattr(self.server,'flash_state',{}).get('state')=='running':
-                self.send_json({'ok':False,'error':'烧录期间不能重复检查设备'},status=409);return
+                self.send_json({'ok':False,'error':'烧录期间不能重复检查设备'},status=409);return True
             result=_probe_startup(self.server.startup_config)
             self.server.startup_last_check=result
-            self.send_json(result);return
+            self.send_json(result);return True
         if parsed.path=='/api/startup/status':
-            with self.server.flash_lock:status=dict(self.server.flash_state)
-            self.send_json(status);return
+            with self.server.flash_lock:
+                status={**self.server.flash_state,'ready':self.server.flash_ready}
+            self.send_json(status);return True
         if parsed.path=='/':
             if self.server.flash_ready:
-                self.send_response(302);self.send_header('Location','/console');self.end_headers();return
-            self._send_html(STARTUP_PAGE);return
+                self.send_response(302);self.send_header('Location','/console');self.end_headers();return True
+            self._send_html(STARTUP_PAGE);return True
         if parsed.path=='/console':
             if not self.server.flash_ready:
-                self.send_response(302);self.send_header('Location','/');self.end_headers();return
-            self._send_html(web_common.HTML_PAGE);return
-        super().do_GET()
+                self.send_response(302);self.send_header('Location','/');self.end_headers();return True
+            self._send_html(web_common.HTML_PAGE);return True
+        return False
+
+    def _startup_blocks(self,parsed):
+        if parsed.path.startswith('/api/') and not self.server.flash_ready:
+            self.send_json({'ok':False,'startup_required':True,
+                'error':'请先在启动页完成设备检查和烧录'},status=423)
+            return True
+        return False
 
     def do_POST(self):
         parsed = urlparse(self.path)
         if parsed.path=='/api/startup/flash':
-            if self.server.flash_ready:
-                self.send_json({'ok':True,'state':'complete'});return
-            if getattr(self.server,'flash_state',{}).get('state')=='running':
-                self.send_json({'ok':True,'state':'running'});return
-            checked=getattr(self.server,'startup_last_check',None)
-            if not checked or not checked.get('ready'):
-                self.send_json({'ok':False,'error':'设备检查尚未全部通过，请先重新检查连接'},status=409);return
-            if time.time()-checked.get('checked_at',0)>180:
-                self.send_json({'ok':False,'error':'连接检查已过期，请重新检查设备'},status=409);return
             with self.server.flash_lock:
+                if self.server.flash_ready:
+                    self.send_json({'ok':True,'state':'complete'});return
+                if self.server.flash_state.get('state')=='running':
+                    self.send_json({'ok':True,'state':'running'});return
+                checked=self.server.startup_last_check
+                if not checked or not checked.get('ready'):
+                    self.send_json({'ok':False,'error':'设备检查尚未全部通过，请先重新检查连接'},status=409);return
+                if time.time()-checked.get('checked_at',0)>180:
+                    self.send_json({'ok':False,'error':'连接检查已过期，请重新检查设备'},status=409);return
                 self.server.flash_state={'state':'running','progress':2,'phase':'准备烧录',
                     'message':'启动 scripts/flash_current.sh init…','error':''}
             threading.Thread(target=_flash_current_worker,args=(self.server,),
                              name='heartcare-flash',daemon=True).start()
             self.send_json({'ok':True,'state':'running'});return
+        if self._startup_blocks(parsed):return
         if parsed.path == '/api/network/medical/clear':
             cache=None;locked=False
             try:
@@ -1650,6 +1742,8 @@ class NetworkHandler(web_common.Handler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if self._startup_get(parsed):return
+        if self._startup_blocks(parsed):return
         if parsed.path == '/api/serial/source_fps':
             self.send_json(_set_source_fps(parse_qs(parsed.query).get('value',[''])[0]))
             return
@@ -1932,6 +2026,8 @@ def main():
     parser.add_argument('--board-ip', default='192.168.1.10')
     parser.add_argument('--control-port', type=int, default=5000)
     parser.add_argument('--image-port', type=int, default=5001)
+    parser.add_argument('--legacy-tcp-control',action='store_true',
+                        help='Use the separate legacy/mock TCP control service on port 5000')
     parser.add_argument('--transfer-ip', default='192.168.1.10')
     parser.add_argument('--transfer-port', type=int, default=5002)
     parser.add_argument('--serial-port', default=_os.environ.get('SERIAL_PORT','COM7'))
@@ -1953,7 +2049,8 @@ def main():
     state = web_common.WebState(args.image, args.simulate)
     simulator = web_common.WebSimulator(state, args.simulate_image)
     image_sender = TcpImageSender(args.board_ip, args.image_port)
-    control_worker = None if args.simulate else TcpControlWorker(state, args.board_ip, args.control_port)
+    control_worker = (TcpControlWorker(state,args.board_ip,args.control_port)
+                      if args.legacy_tcp_control and not args.simulate else None)
     if control_worker is not None:
         control_worker.start()
 
