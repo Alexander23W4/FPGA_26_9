@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import runpy
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -77,6 +78,34 @@ printf 'FLASH_ALL_OK\n'
         self.assertIn('build\\out\\', args)
         self.assertNotIn('fpga_26.runs', args)
         self.assertIn('MID_plt.elf', args)
+
+    def configure_full_model(self):
+        helper=self.root/'network/host/model_deployment.py'
+        helper.parent.mkdir(parents=True)
+        shutil.copyfile(REPO/'network/host/model_deployment.py',helper)
+        config=self.root/'rtl/unet';(config/'hls').mkdir(parents=True)
+        (config/'model_config.json').write_text('{"backend":"full-fp32"}')
+        (config/'hls/model_ops.h').write_text('#define UNET_OPS 78\n#define UNET_WORK_WORDS 4849664\n'
+            '#define UNET_LANES 16\n#define UNET_SIZE 256\n#define UNET_PROGRAM_ID 552009709u\n')
+        for directory,header in (('full_model',(0,1,78,4849664,16,256,552009709)),
+                                 ('model',(0,2,15,6258688,8,256,1562305944))):
+            path=self.root/'build/unet'/directory/'weights.bin';path.parent.mkdir(parents=True)
+            path.write_bytes(struct.pack('<16I',*header,*([0]*9)))
+
+    def test_flash_selects_full_weights_when_small_export_also_exists(self):
+        self.configure_full_model();self.build()
+        self.tool('Vitis','xsct.bat',"printf '%s\\n' \"$UNET_WEIGHTS\" > deployed_weights.txt\nprintf 'FLASH_ALL_OK\\n'\n")
+        result=self.run_bash('bash scripts/flash_current.sh init',HEARTCARE_PYTHON=sys.executable)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('full_model', (self.root/'deployed_weights.txt').read_text())
+
+    def test_explicit_wrong_weight_model_is_rejected_before_programming(self):
+        self.configure_full_model();self.build()
+        result=self.run_bash('bash scripts/flash_current.sh init',HEARTCARE_PYTHON=sys.executable,
+            UNET_WEIGHTS=str(self.root/'build/unet/model/weights.bin'))
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('model header mismatch',result.stdout+result.stderr)
+        self.assertFalse((self.root/'downloaded_args.txt').exists())
 
     def test_xsct_zero_exit_without_success_marker_blocks_next_command(self):
         self.build()

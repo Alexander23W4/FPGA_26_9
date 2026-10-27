@@ -1,7 +1,7 @@
 'use strict';
 const componentIds=['jtag','uart','ethernet','build'];
 const $=id=>document.getElementById(id);
-let checking=false,flashing=false,expiry=null;
+let checking=false,flashing=false,expiry=null,retryMode=false;
 
 function component(name,item){
   const badge=$(name+'Badge');
@@ -27,11 +27,14 @@ function progress(value,title,log='',kind=''){
 async function request(path,options={}){
   const response=await fetch(path,{cache:'no-store',...options});
   const result=await response.json();
-  if(!response.ok||result.ok===false)throw new Error(result.error||'服务请求失败');
+  if(!response.ok||result.ok===false){
+    const error=new Error(result.error||'服务请求失败');
+    error.details=result.message||'';throw error;
+  }
   return result;
 }
 async function check(){
-  if(checking||flashing)return;
+  if(checking||flashing)return false;
   clearTimeout(expiry);checking=true;
   $('flash').disabled=true;$('recheck').disabled=true;
   $('checkSummary').textContent='正在检查…';hint('');
@@ -44,6 +47,7 @@ async function check(){
     $('checkSummary').textContent=result.ready?'全部就绪':'需要处理连接';
     if(result.ready){
       hint('连接检查通过。点击下方按钮，加载当前位流、PS 程序与 U-Net 权重。');
+      $('flash').textContent=retryMode?'重试烧录':'烧录并进入操作台';
       $('flash').disabled=false;
       expiry=setTimeout(()=>{
         if(flashing)return;
@@ -53,18 +57,26 @@ async function check(){
     }else{
       hint('暂不能烧录：'+(result.missing||[]).join('；'));
     }
+    return Boolean(result.ready);
   }catch(error){
     $('checkSummary').textContent='检查失败';hint('无法完成连接检查：'+error.message);
     for(const id of componentIds){$(id+'Badge').className='badge fail';$(id+'Badge').textContent='检查失败';}
+    return false;
   }finally{
     checking=false;$('recheck').disabled=false;
   }
 }
 function failed(error){
-  flashing=false;$('recheck').disabled=false;$('flash').disabled=true;
+  const details=error.details||(flashing?$('flashLog').textContent:'');
+  clearTimeout(expiry);flashing=false;retryMode=true;
+  $('recheck').disabled=false;$('flash').disabled=false;$('flash').textContent='重试烧录';
   $('checkSummary').textContent='烧录未完成';
-  progress(Number($('progressPercent').textContent.replace('%','')),'烧录失败',error.message,'error');
-  hint('请检查下方错误，修复后点击“重新检查连接”重试。');
+  progress(Number($('progressPercent').textContent.replace('%','')),'烧录失败',
+    error.message+(details&&details!==error.message?'\n\n'+details:''),'error');
+  hint('可以直接点击“重试烧录”。重试会重新检查连接，检查通过后再次加载程序与权重。');
+}
+function statusFailure(status){
+  const error=new Error(status.error||'烧录失败');error.details=status.message||'';return error;
 }
 async function watchFlash(){
   let failures=0;
@@ -82,11 +94,12 @@ async function watchFlash(){
       progress(100,'全部就绪，正在进入操作台','位流、PS 程序、模型权重和板端网口服务均已就绪。','success');
       location.replace('/console');return;
     }
-    if(status.state==='error')throw new Error(status.error||status.message||'烧录失败');
+    if(status.state==='error')throw statusFailure(status);
   }
 }
 async function flash(){
-  if(flashing||$('flash').disabled)return;
+  if(flashing||checking||$('flash').disabled)return;
+  if(retryMode&&!await check())return;
   clearTimeout(expiry);flashing=true;
   $('flash').disabled=true;$('recheck').disabled=true;
   $('checkSummary').textContent='正在烧录';hint('请保持开发板通电，等待加载完成。');
@@ -104,7 +117,7 @@ async function initialize(){
       hint('烧录仍在进行，已恢复进度显示。');
       await watchFlash();return;
     }
-    if(status.state==='error'){failed(new Error(status.error||'上次烧录未完成'));return;}
+    if(status.state==='error'){failed(statusFailure(status));return;}
     await check();
   }catch(error){failed(error);}
 }

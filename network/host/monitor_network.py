@@ -30,6 +30,7 @@ from frame_pipeline import FramePipeline
 from medical_metrics import parse_ps_medical, MedicalCurveHistory
 from medical_cache import PatientCache, CACHE_DIR
 from medical_workflow import SegmentationPipeline, AnalysisPipeline, model_key, legacy_model_key
+from model_deployment import resolve_model_image
 
 
 def load_gray(path):
@@ -727,14 +728,6 @@ def _probe_uart(port):
     return {'ok':False,'detail':'需要 %s；当前检测到：%s'%(port,found)}
 
 
-def _tcp_probe(host,port,timeout=.45):
-    try:
-        with socket.create_connection((host,int(port)),timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
 def _git_bash():
     configured=_os.environ.get('HEARTCARE_BASH')
     if configured and Path(configured).is_file():return configured
@@ -825,11 +818,14 @@ def _probe_build(repo):
                 missing.append(label+' 已过期（源码变更）')
         except OSError:
             missing.append(label)
-    weights=root/'build'/'unet'/'model'/'weights.bin'
-    if not weights.is_file() or weights.stat().st_size==0:missing.append('U-Net 权重')
+    try:
+        model=resolve_model_image(root,_os.environ.get('UNET_WEIGHTS'))
+    except (OSError,ValueError) as error:
+        missing.append('U-Net 权重不匹配：'+str(error))
     if missing:
         return {'ok':False,'detail':'缺少或未验证：'+', '.join(missing)+'；请先完成 PL/PS 构建与权重准备'}
-    return {'ok':True,'detail':'PL 位流、PS ELF、XSA、PS 初始化脚本和 U-Net 权重均已找到'}
+    return {'ok':True,'detail':'PL/PS 构建已就绪；%s 权重已校验（%.2f MiB）'%
+            (model['backend'],model['size']/1048576)}
 
 
 def _wired_adapter(rows,host):
@@ -917,8 +913,13 @@ def _flash_current_worker(server):
         _flash_progress(server,state='error',progress=0,phase='烧录准备失败',
                         error='无法创建 Xilinx 临时目录：%s'%error)
         return
-    weights=root/'build'/'unet'/'model'/'weights.bin'
-    if weights.is_file():env['UNET_WEIGHTS']=str(weights.resolve())
+    try:
+        model=resolve_model_image(root,env.get('UNET_WEIGHTS'))
+    except (OSError,ValueError) as error:
+        _flash_progress(server,state='error',progress=0,phase='模型权重校验失败',error=str(error))
+        return
+    env['UNET_WEIGHTS']=str(model['path'])
+    env['HEARTCARE_PYTHON']=sys.executable
     command=[bash,str(root/'scripts'/'flash_current.sh'),'init']
     markers=[('Verified bitstream',8,'验证位流与构建归档'),
              ('APU found',17,'连接 JTAG 并确认 Cortex-A9'),
@@ -950,8 +951,10 @@ def _flash_current_worker(server):
             _flash_progress(server,**update)
         return_code=process.wait()
         if return_code!=0 or not confirmed:
-            _flash_progress(server,state='error',error='烧录脚本未确认成功。请查看输出日志。',
-                            message='\n'.join(log),progress=0)
+            diagnostic=next((line for line in log if line.startswith(('Unexpected ','Invalid ','ERROR:','!!!','[FAIL]'))),None)
+            _flash_progress(server,state='error',phase='烧录失败',
+                            error=diagnostic or '烧录脚本未确认成功（退出码 %s）'%return_code,
+                            message='\n'.join(log))
             return
         _flash_progress(server,progress=97,phase='等待板端服务启动',message='PL/PS 已烧录，正在检查网口帧流服务…')
         deadline=time.monotonic()+45

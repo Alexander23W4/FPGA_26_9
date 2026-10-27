@@ -20,11 +20,16 @@ sha256sum -c "$psout/PS_INPUTS.sha256" >/dev/null || die "PS sources changed; re
 info "Verified bitstream: $hwout/system_wrapper.bit"
 info "Verified ELF: $psout/MID_plt.elf"
 # The PL U-Net keeps its parameters in DDR, so every cold GUI session must
-# reload the model after PS/DDR initialisation.  Honour an explicit override,
-# otherwise use this checkout's deployed model image when present.
-if [[ -z "${UNET_WEIGHTS:-}" && -s "$REPO_ROOT/build/unet/model/weights.bin" ]]; then
-  UNET_WEIGHTS="$(winpath "$REPO_ROOT/build/unet/model/weights.bin")"
+# reload the matching model after PS/DDR initialisation. Full and small exports
+# coexist, so never choose the weight image from a fixed directory alone.
+if [[ -f "$REPO_ROOT/rtl/unet/model_config.json" ]]; then
+  model_python="${HEARTCARE_PYTHON:-${PYTHON:-/e/PythonVersionEnv/Python3.14.0/python.exe}}"
+  [[ -f "$model_python" ]] || model_python="$(command -v python3 || command -v python)"
+  UNET_WEIGHTS="$(env -u PYTHONHOME -u PYTHONPATH "$model_python" \
+    "$(winpath "$REPO_ROOT/network/host/model_deployment.py")" --root "$(winpath "$REPO_ROOT")")" \
+    || die "U-Net weight image does not match the configured PL model"
   export UNET_WEIGHTS
+  info "U-Net weights: $UNET_WEIGHTS"
 fi
 # Some Windows XSCT failures (including Tcl/native shutdown errors) return zero.
 # Require the final Tcl success marker as well as the process/pipeline status.
