@@ -23,7 +23,8 @@ STARTUP_PAGE = (ROOT / 'assets' / 'startup.html').read_text(encoding='utf-8')
 sys.path.insert(0, str(ROOT))
 import protocol as proto
 import web_common
-from frame_transfer import FrameTransferClient, normalize_result_name
+from frame_transfer import (FrameTransferClient, normalize_result_name, HELLO_FAST,
+                            FAST_READY, packet, receive_header)
 from queued_stream import QueuedStream, QueueFull
 from frame_pipeline import FramePipeline
 from medical_metrics import parse_ps_medical, MedicalCurveHistory
@@ -763,6 +764,10 @@ def _probe_jtag(repo):
         output=(result.stdout+'\n'+result.stderr).strip()
         if result.returncode==0 and 'HEARTCARE_JTAG_OK' in output:
             return {'ok':True,'detail':'已检测到 Cortex-A9 与 FPGA JTAG 目标'}
+        failure=next((line.strip().split('HEARTCARE_JTAG_FAIL',1)[1].strip()
+                      for line in output.splitlines() if 'HEARTCARE_JTAG_FAIL' in line),None)
+        if failure:
+            return {'ok':False,'detail':'未找到可用 JTAG 目标，请检查 USB-JTAG 和板卡供电（%s）'%failure}
         detail=next((line.strip() for line in reversed(output.splitlines())
                      if line.strip() and 'HEARTCARE_JTAG' not in line), '')
         return {'ok':False,'detail':detail or 'XSCT 未找到 Cortex-A9/FPGA，请检查 JTAG 与板卡供电'}
@@ -827,58 +832,72 @@ def _probe_build(repo):
     return {'ok':True,'detail':'PL 位流、PS ELF、XSA、PS 初始化脚本和 U-Net 权重均已找到'}
 
 
+def _wired_adapter(rows,host):
+    """Wi-Fi, VPNs and VM adapters cannot prove a physical board cable exists."""
+    wired=[row for row in rows if row.get('physical') is True and not row.get('virtual')
+           and (row.get('medium')==14 or row.get('interface_type')==6)]
+    if not wired:
+        return {'ok':False,'detail':'未检测到物理有线网卡，请连接 USB 网卡和开发板网线'}
+    connected=[row for row in wired if row.get('status','').lower()=='up' and row.get('media')==1]
+    if not connected:
+        return {'ok':False,'detail':'有线网卡未连线（%s），请连接开发板网线并确认板卡通电'%
+                '、'.join(row['name'] for row in wired)}
+    target=ipaddress.ip_address(host)
+    for row in connected:
+        for address in row.get('addresses') or []:
+            local=ipaddress.ip_address(address['ip'])
+            network=ipaddress.ip_network('%s/%s'%(local,address['prefix']),strict=False)
+            if local!=target and target in network:
+                return {'ok':True,'source_ip':str(local),'interface_index':row['index'],
+                    'detail':'有线链路已连接：%s · %s/%s；烧录后核验板端协议'%
+                    (row['name'],local,address['prefix'])}
+    return {'ok':False,'detail':'网线已连接，但有线网卡 IP 与板卡 %s 不在同一网段，或与板卡 IP 冲突'%host}
+
+
 def _ethernet_link(host):
-    """A cold board cannot answer TCP before PS has been programmed."""
-    command="""$ErrorActionPreference='Stop'; $rows=@(Get-NetIPAddress -AddressFamily IPv4 | ForEach-Object {
-      $address=$_; $adapter=Get-NetAdapter -InterfaceIndex $address.InterfaceIndex -ErrorAction SilentlyContinue;
-      if($adapter){[pscustomobject]@{ip=$address.IPAddress;prefix=$address.PrefixLength;name=$adapter.Name;status=[string]$adapter.Status}}
-    }); ConvertTo-Json -InputObject $rows -Compress"""
+    """Inspect physical link state, including disconnected adapters without IPs."""
+    command="""$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false);
+    $rows=@(Get-NetAdapter -IncludeHidden | ForEach-Object {
+      $adapter=$_; $addresses=@(Get-NetIPAddress -InterfaceIndex $adapter.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        ForEach-Object {[pscustomobject]@{ip=$_.IPAddress;prefix=$_.PrefixLength}});
+      [pscustomobject]@{name=$adapter.Name;index=$adapter.InterfaceIndex;status=[string]$adapter.Status;
+        media=[int]$adapter.MediaConnectionState;physical=[bool]$adapter.HardwareInterface;virtual=[bool]$adapter.Virtual;
+        medium=[int]$adapter.NdisPhysicalMedium;interface_type=[int]$adapter.InterfaceType;addresses=$addresses}
+    }); ConvertTo-Json -InputObject $rows -Depth 4 -Compress"""
     try:
         result=_sp.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',command],
-            capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=12)
-        if result.returncode:return None
+            capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=15)
+        if result.returncode:
+            return {'ok':False,'detail':'无法读取物理有线网卡状态，请检查网卡驱动后重新检测'}
         rows=json.loads(result.stdout.lstrip('\ufeff') or '[]')
         if isinstance(rows,dict):rows=[rows]
-        target=ipaddress.ip_address(host)
-        for row in rows:
-            network=ipaddress.ip_network('%s/%s'%(row['ip'],row['prefix']),strict=False)
-            if target in network and row.get('status','').lower()=='up':
-                return '%s · %s/%s'%(row['name'],row['ip'],row['prefix'])
-    except (OSError,ValueError,KeyError,_sp.TimeoutExpired):
-        pass
-    return None
+        return _wired_adapter(rows,host)
+    except (OSError,ValueError,KeyError,TypeError,_sp.TimeoutExpired) as error:
+        return {'ok':False,'detail':'无法确认有线网卡连接：%s'%error}
+
+
+def _frame_service_probe(host,port,source_ip,timeout=1.0):
+    """A TCP proxy accepting a connection is not proof of running PS firmware."""
+    job=secrets.randbits(32) or 1
+    try:
+        with socket.create_connection((host,int(port)),timeout=timeout,
+                                      source_address=(source_ip,0)) as connection:
+            deadline=time.monotonic()+timeout
+            connection.sendall(packet(HELLO_FAST,job))
+            return receive_header(connection,job,deadline)==(FAST_READY,0,0,4)
+    except (OSError,ValueError,RuntimeError):
+        return False
 
 
 def _probe_startup(config):
     host=config['board_ip']
-    ports={'帧流 %s'%config['transfer_port']:config['transfer_port']}
-    services={name:_tcp_probe(host,port) for name,port in ports.items()}
-    ping_ok=False
-    try:
-        result=_sp.run(['ping','-n','1','-w','1000',host],capture_output=True,text=True,
-                       encoding='utf-8',errors='replace',timeout=3)
-        ping_ok=result.returncode==0
-    except Exception:
-        pass
-    open_services=[name for name,ok in services.items() if ok]
-    link=_ethernet_link(host) if not (ping_ok or open_services) else None
-    network_ok=ping_ok or bool(open_services) or bool(link)
-    if ping_ok:
-        network_detail='%s 可达；项目 TCP 服务：%s'%(host,', '.join(name for name,ok in services.items() if ok) or '烧录后启动')
-    elif open_services:
-        network_detail='%s 已开放 %s'%(host,', '.join(open_services))
-    elif link:
-        network_detail='网线链路与 IP 网段已就绪（%s）；烧录后确认 %s:%s 服务'%(link,host,config['transfer_port'])
-    else:
-        network_detail='%s:%s 未连接，未找到同网段且已连线的网卡；检查网线、网卡 IP 和板卡供电'%(host,config['transfer_port'])
     components={'jtag':_probe_jtag(config['repo']),'uart':_probe_uart(config['serial_port']),
-                'ethernet':{'ok':network_ok,'detail':network_detail},
+                'ethernet':_ethernet_link(host),
                 'build':_probe_build(config['repo'])}
     labels={'jtag':'JTAG 下载器','uart':'USB-UART 串口','ethernet':'板卡以太网','build':'当前构建与模型权重'}
     missing=[labels[key]+'：'+value['detail'] for key,value in components.items() if not value['ok']]
     return {'ok':True,'ready':not missing,'components':components,'missing':missing,
-            'board_ip':host,'checked_at':time.time(),
-            'services':{name:{'port':ports[name],'open':is_open} for name,is_open in services.items()}}
+            'board_ip':host,'checked_at':time.time()}
 
 
 def _flash_progress(server,**updates):
@@ -892,7 +911,12 @@ def _flash_current_worker(server):
     if not bash:
         _flash_progress(server,state='error',error='找不到 Git Bash，无法调用 scripts/flash_current.sh')
         return
-    env=_xilinx_env(root)
+    try:
+        env=_xilinx_env(root)
+    except OSError as error:
+        _flash_progress(server,state='error',progress=0,phase='烧录准备失败',
+                        error='无法创建 Xilinx 临时目录：%s'%error)
+        return
     weights=root/'build'/'unet'/'model'/'weights.bin'
     if weights.is_file():env['UNET_WEIGHTS']=str(weights.resolve())
     command=[bash,str(root/'scripts'/'flash_current.sh'),'init']
@@ -931,19 +955,20 @@ def _flash_current_worker(server):
             return
         _flash_progress(server,progress=97,phase='等待板端服务启动',message='PL/PS 已烧录，正在检查网口帧流服务…')
         deadline=time.monotonic()+45
-        needed=[int(server.startup_config['transfer_port'])]
+        port=int(server.startup_config['transfer_port'])
+        last_detail='网口服务尚未响应'
         while time.monotonic()<deadline:
-            open_now=[_tcp_probe(server.startup_config['board_ip'],port,.4) for port in needed]
-            if all(open_now):
+            link=_ethernet_link(server.startup_config['board_ip'])
+            last_detail=link['detail']
+            if link['ok'] and _frame_service_probe(server.startup_config['board_ip'],port,link['source_ip']):
                 server.flash_ready=True
                 _flash_progress(server,state='complete',progress=100,phase='全部就绪',
-                    message='烧录成功；板端 TCP %s 已就绪。即将进入操作台。'%needed[0],error='')
+                    message='烧录成功；有线网口 TCP %s 板端协议已确认。即将进入操作台。'%port,error='')
                 return
+            if link['ok']:last_detail='已连接有线网卡，但未收到板卡 %s:%s 的有效协议回复'%(server.startup_config['board_ip'],port)
             time.sleep(.5)
-        missing=[str(port) for port,ok in zip(needed,open_now) if not ok]
         _flash_progress(server,state='error',progress=0,phase='板端服务未就绪',
-            error='位流与 PS 程序已烧录，但板端 TCP 端口未全部启动：'+', '.join(missing)+
-                  '。检查 PS 启动日志、IP 配置和网线后重试。',message='\n'.join(log))
+            error='位流与 PS 程序已烧录，但网口验证失败：'+last_detail,message='\n'.join(log))
     except Exception as error:
         _flash_progress(server,state='error',progress=0,phase='烧录失败',error='%s: %s'%(type(error).__name__,error),message='\n'.join(log))
 
