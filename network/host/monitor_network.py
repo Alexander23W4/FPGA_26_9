@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import secrets
+import shutil
 import socket
 import struct
 import sys
@@ -17,6 +18,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent
+STARTUP_PAGE = (ROOT / 'assets' / 'startup.html').read_text(encoding='utf-8')
 sys.path.insert(0, str(ROOT))
 import protocol as proto
 import web_common
@@ -428,7 +430,6 @@ function dshDrawBin(canvasId,raw,color) {
   context.putImageData(pixels,0,0);
 }
 function dshRunStreamWorker(entries,streamChanged,workflow=null) {
-  if(typeof resetCardiacCharts==='function')resetCardiacCharts();
   const worker=new Worker('/assets/stream_worker.js');
   const generation=++dshPreviewGeneration;
   let original=null,processed=null,paintPending=false,error=null;
@@ -519,6 +520,7 @@ async function dshSelectMedicalPatient(dataset){
     const entries=catalog.files.map(item=>({...item,sourceUrl:'/api/network/stream/dataset-frame?'+
       new URLSearchParams({dataset,path:item.path}).toString()}));
     dshMedicalPatient={dataset:catalog.dataset,patient:catalog.patient,folder:catalog.folder};
+    if(typeof setCardiacPatient==='function')setCardiacPatient(catalog.dataset+'|'+catalog.patient);
     dshMedicalEntries=entries;dshStreamFolder=catalog.folder;dshStreamFiles=entries;
     dshStreamMode=true;dshStreamSignature=dataset+'\n'+catalog.patient+'\n'+entries.map(x=>x.path).join('\n');
     document.getElementById('imageName').textContent=catalog.folder;
@@ -550,6 +552,7 @@ async function dshClearMedicalCache(){
     if(!response.ok||!status.ok)throw new Error(status.error||'清除分割结果失败');
     dshSetMedicalCacheStatus(status);
     document.getElementById('streamProcessedCanvas').getContext('2d').clearRect(0,0,256,256);
+    if(typeof clearCardiacPatientHistory==='function')clearCardiacPatientHistory();
   }catch(error){alert('清除分割结果失败: '+error.message);}
   finally{dshTransferBusy=false;dshStreamControls();}
 }
@@ -587,6 +590,7 @@ async function dshStartStream(files, preset=null, workflow=null) {
         new URLSearchParams({dataset:preset,path:item.path}).toString()}));
       if(document.getElementById('systemMode').value==='medical'){
         dshMedicalPatient={dataset:catalog.dataset,patient:catalog.patient,folder:catalog.folder};
+        if(typeof setCardiacPatient==='function')setCardiacPatient(catalog.dataset+'|'+catalog.patient);
         dshMedicalEntries=entries;dshStreamFolder=folder;dshStreamFiles=entries;dshStreamMode=true;
         document.getElementById('imageName').textContent=folder;
         document.getElementById('comparisonPreview').hidden=false;document.getElementById('singlePreview').hidden=true;
@@ -700,6 +704,164 @@ _SERIAL_LOCK = threading.RLock()
 _TRANSFER_LOCK = threading.Lock()
 _FRAME_CLIENT = FrameTransferClient()
 _DISPLAY_PENDING = None
+
+
+def _probe_uart(port):
+    try:
+        from serial.tools import list_ports
+        available=sorted(item.device for item in list_ports.comports())
+    except Exception as error:
+        return {'ok':False,'detail':'无法枚举串口：%s'%error}
+    match=next((item for item in available if item.upper()==str(port).upper()),None)
+    if match:
+        return {'ok':True,'detail':'检测到 %s（USB-UART）'%match}
+    found='、'.join(available) if available else '没有检测到 COM 串口'
+    return {'ok':False,'detail':'需要 %s；当前检测到：%s'%(port,found)}
+
+
+def _tcp_probe(host,port,timeout=.45):
+    try:
+        with socket.create_connection((host,int(port)),timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _probe_jtag(repo):
+    bash=shutil.which('bash')
+    if not bash:
+        return {'ok':False,'detail':'找不到 Git Bash，无法检查 JTAG 下载器'}
+    script=Path(repo)/'scripts'/'check_jtag.sh'
+    try:
+        result=_sp.run([bash,str(script)],cwd=str(repo),capture_output=True,text=True,
+                       encoding='utf-8',errors='replace',timeout=45)
+        output=(result.stdout+'\n'+result.stderr).strip()
+        if result.returncode==0 and 'HEARTCARE_JTAG_OK' in output:
+            return {'ok':True,'detail':'已检测到 Cortex-A9 与 FPGA JTAG 目标'}
+        detail=next((line.strip() for line in reversed(output.splitlines())
+                     if line.strip() and 'HEARTCARE_JTAG' not in line), '')
+        return {'ok':False,'detail':detail or 'XSCT 未找到 Cortex-A9/FPGA，请检查 JTAG 与板卡供电'}
+    except _sp.TimeoutExpired:
+        return {'ok':False,'detail':'JTAG 检查超时；请检查 hw_server、JTAG 线和板卡供电'}
+    except Exception as error:
+        return {'ok':False,'detail':'JTAG 检查失败：%s'%error}
+
+
+def _probe_build(repo):
+    root=Path(repo);out=root/'build'/'out'
+    required=[('PL 构建',out/'latest-fpga_26-zynq.path'),
+              ('PS 构建',out/'latest-MID_plt-app.path')]
+    missing=[]
+    for label,pointer in required:
+        try:
+            value=pointer.read_text(encoding='utf-8').strip()
+            directory=Path(value)
+            if not directory.is_absolute():directory=root/directory
+            expected=('system_wrapper.bit','fpga_26.xsa') if label=='PL 构建' else ('MID_plt.elf','ps7_init.tcl')
+            if not directory.is_dir() or any(not (directory/name).is_file() for name in expected):
+                missing.append(label)
+        except OSError:
+            missing.append(label)
+    weights=root/'build'/'unet'/'model'/'weights.bin'
+    if not weights.is_file() or weights.stat().st_size==0:missing.append('U-Net 权重')
+    if missing:
+        return {'ok':False,'detail':'缺少或未验证：'+', '.join(missing)+'；请先完成 PL/PS 构建与权重准备'}
+    return {'ok':True,'detail':'PL 位流、PS ELF、XSA、PS 初始化脚本和 U-Net 权重均已找到'}
+
+
+def _probe_startup(config):
+    host=config['board_ip']
+    ports={'控制 5000':config['control_port'],'图像 5001':config['image_port'],
+           '帧流 5002':config['transfer_port']}
+    services={name:_tcp_probe(host,port) for name,port in ports.items()}
+    ping_ok=False
+    try:
+        result=_sp.run(['ping','-n','1','-w','1000',host],capture_output=True,text=True,
+                       encoding='utf-8',errors='replace',timeout=3)
+        ping_ok=result.returncode==0
+    except Exception:
+        pass
+    open_services=[name for name,ok in services.items() if ok]
+    network_ok=ping_ok or bool(open_services)
+    if ping_ok:
+        network_detail='%s 可达；项目 TCP 服务：%s'%(host,', '.join(name for name,ok in services.items() if ok) or '烧录后启动')
+    elif open_services:
+        network_detail='%s 已开放 %s'%(host,', '.join(open_services))
+    else:
+        network_detail='%s 无响应，且 TCP 5000/5001/5002 均未连接；检查网线、网卡 IP 和板卡 IP'%(host)
+    components={'jtag':_probe_jtag(config['repo']),'uart':_probe_uart(config['serial_port']),
+                'ethernet':{'ok':network_ok,'detail':network_detail},
+                'build':_probe_build(config['repo'])}
+    labels={'jtag':'JTAG 下载器','uart':'USB-UART 串口','ethernet':'板卡以太网','build':'当前构建与模型权重'}
+    missing=[labels[key]+'：'+value['detail'] for key,value in components.items() if not value['ok']]
+    return {'ok':True,'ready':not missing,'components':components,'missing':missing,
+            'board_ip':host,'checked_at':time.time(),
+            'services':{name:{'port':ports[name],'open':is_open} for name,is_open in services.items()}}
+
+
+def _flash_progress(server,**updates):
+    with server.flash_lock:
+        server.flash_state.update(updates)
+
+
+def _flash_current_worker(server):
+    root=Path(server.startup_config['repo'])
+    bash=shutil.which('bash')
+    if not bash:
+        _flash_progress(server,state='error',error='找不到 Git Bash，无法调用 scripts/flash_current.sh')
+        return
+    env=_os.environ.copy()
+    weights=root/'build'/'unet'/'model'/'weights.bin'
+    if weights.is_file():env['UNET_WEIGHTS']=str(weights.resolve())
+    command=[bash,str(root/'scripts'/'flash_current.sh'),'init']
+    markers=[('Verified bitstream',8,'验证位流与构建归档'),
+             ('APU found',17,'连接 JTAG 并确认 Cortex-A9'),
+             ('CPU halted',27,'停止 PS，准备重配置'),
+             ('ps7_init done',38,'初始化 PS 与 DDR'),
+             ('programming PL',48,'正在配置 FPGA 位流'),
+             ('PL programmed',77,'位流配置完成'),
+             ('ps7_post_config done',84,'恢复 PS-PL 接口'),
+             ('UNET_WEIGHTS_READY',92,'正在向 DDR 加载 U-Net 权重'),
+             ('FLASH_ALL_OK',96,'位流、程序和权重已写入；等待板端服务')]
+    log=[]
+    try:
+        process=_sp.Popen(command,cwd=str(root),env=env,stdout=_sp.PIPE,stderr=_sp.STDOUT,
+                          text=True,encoding='utf-8',errors='replace',bufsize=1)
+        _flash_progress(server,state='running',progress=4,phase='检查构建并启动 XSCT',message='开始烧录…')
+        assert process.stdout is not None
+        for line in process.stdout:
+            line=line.rstrip()
+            if not line:continue
+            log.append(line);log=log[-18:]
+            update={'message':'\n'.join(log)}
+            for marker,progress,phase in markers:
+                if marker in line:
+                    update.update(progress=progress,phase=phase)
+            if '[FAIL]' in line or '!!!' in line:
+                update.update(phase='烧录诊断',progress=max(4,server.flash_state.get('progress',4)))
+            _flash_progress(server,**update)
+        return_code=process.wait()
+        if return_code!=0 or 'FLASH_ALL_OK' not in '\n'.join(log):
+            _flash_progress(server,state='error',error='烧录脚本未确认成功。请查看输出日志。',
+                            message='\n'.join(log),progress=0)
+            return
+        _flash_progress(server,progress=97,phase='等待板端服务启动',message='PL/PS 已烧录，正在检查控制、图像和帧流端口…')
+        deadline=time.monotonic()+45
+        needed=[int(server.startup_config[name]) for name in ('control_port','image_port','transfer_port')]
+        while time.monotonic()<deadline:
+            open_now=[_tcp_probe(server.startup_config['board_ip'],port,.4) for port in needed]
+            if all(open_now):
+                server.flash_ready=True
+                _flash_progress(server,state='complete',progress=100,phase='全部就绪',
+                    message='烧录成功；板端 TCP 5000/5001/5002 已就绪。即将进入操作台。',error='')
+                return
+            time.sleep(.5)
+        missing=[str(port) for port,ok in zip(needed,open_now) if not ok]
+        _flash_progress(server,state='error',progress=0,phase='板端服务未就绪',
+            error='位流与 PS 程序已烧录，但板端 TCP 端口未全部启动：'+', '.join(missing)+
+                  '。检查 PS 启动日志、IP 配置和网线后重试。',message='\n'.join(log))
+    except Exception as error:
+        _flash_progress(server,state='error',progress=0,phase='烧录失败',error='%s: %s'%(type(error).__name__,error),message='\n'.join(log))
 
 
 def _serial_lock():
@@ -1209,8 +1371,55 @@ def customize_page(page):
 
 class NetworkHandler(web_common.Handler):
 
+    def _send_html(self,page):
+        body=page.encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type','text/html; charset=utf-8')
+        self.send_header('Cache-Control','no-store, no-cache, must-revalidate, max-age=0')
+        self.send_header('Pragma','no-cache')
+        self.send_header('Content-Length',str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        parsed=urlparse(self.path)
+        if parsed.path=='/api/startup/check':
+            if getattr(self.server,'flash_state',{}).get('state')=='running':
+                self.send_json({'ok':False,'error':'烧录期间不能重复检查设备'},status=409);return
+            result=_probe_startup(self.server.startup_config)
+            self.server.startup_last_check=result
+            self.send_json(result);return
+        if parsed.path=='/api/startup/status':
+            with self.server.flash_lock:status=dict(self.server.flash_state)
+            self.send_json(status);return
+        if parsed.path=='/':
+            if self.server.flash_ready:
+                self.send_response(302);self.send_header('Location','/console');self.end_headers();return
+            self._send_html(STARTUP_PAGE);return
+        if parsed.path=='/console':
+            if not self.server.flash_ready:
+                self.send_response(302);self.send_header('Location','/');self.end_headers();return
+            self._send_html(web_common.HTML_PAGE);return
+        super().do_GET()
+
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path=='/api/startup/flash':
+            if self.server.flash_ready:
+                self.send_json({'ok':True,'state':'complete'});return
+            if getattr(self.server,'flash_state',{}).get('state')=='running':
+                self.send_json({'ok':True,'state':'running'});return
+            checked=getattr(self.server,'startup_last_check',None)
+            if not checked or not checked.get('ready'):
+                self.send_json({'ok':False,'error':'设备检查尚未全部通过，请先重新检查连接'},status=409);return
+            if time.time()-checked.get('checked_at',0)>180:
+                self.send_json({'ok':False,'error':'连接检查已过期，请重新检查设备'},status=409);return
+            with self.server.flash_lock:
+                self.server.flash_state={'state':'running','progress':2,'phase':'准备烧录',
+                    'message':'启动 scripts/flash_current.sh init…','error':''}
+            threading.Thread(target=_flash_current_worker,args=(self.server,),
+                             name='heartcare-flash',daemon=True).start()
+            self.send_json({'ok':True,'state':'running'});return
         if parsed.path == '/api/network/medical/clear':
             cache=None;locked=False
             try:
@@ -1601,6 +1810,10 @@ class NetworkServer(web_common.ThreadingHTTPServer):
         self.stream_lock = threading.Lock()
         self.stream = None
         self.stream_token = None
+        self.flash_lock=threading.Lock()
+        self.flash_ready=False
+        self.flash_state={'state':'idle','progress':0,'phase':'等待烧录','message':'','error':''}
+        self.startup_last_check=None
         super().__init__(*args, **kwargs)
 
     def get_stream(self, token):
@@ -1635,6 +1848,7 @@ class NetworkServer(web_common.ThreadingHTTPServer):
                 raise ValueError('该患者尚未完成全部 U-Net 模型分割')
             _, root, patient, _, _ = _patient_context(dataset, patient_relative)
             patient_prefix=patient.relative_to(root).as_posix()
+            patient_order={name:index for index,name in enumerate(cache.sources)}
         token = secrets.token_hex(16)
         with self.stream_lock:
             if not _TRANSFER_LOCK.acquire(blocking=False):
@@ -1668,7 +1882,12 @@ class NetworkServer(web_common.ThreadingHTTPServer):
 
                 def publish(source, result):
                     started = time.perf_counter()
-                    curves.observe(result.get('readback',{}),source)
+                    curve_source=source
+                    if workflow and patient_prefix and source.get('path','').startswith(patient_prefix+'/'):
+                        relative=source['path'][len(patient_prefix)+1:]
+                        curve_source={**source,'source_index':patient_order.get(relative,source.get('index')),
+                                      'source_path':relative}
+                    curves.observe(result.get('readback',{}),curve_source)
                     state.replace_image(source['data'], source['name'],
                                         preserve_results=True, display_name=folder)
                     state.publish_result({key: value for key, value in result.items() if key != 'raw'},
@@ -1715,6 +1934,7 @@ def main():
     parser.add_argument('--image-port', type=int, default=5001)
     parser.add_argument('--transfer-ip', default='192.168.1.10')
     parser.add_argument('--transfer-port', type=int, default=5002)
+    parser.add_argument('--serial-port', default=_os.environ.get('SERIAL_PORT','COM7'))
     parser.add_argument('--result-dir', default='E:/fpga_done_img')
     parser.add_argument('--image', default=r'C:/Users/13995/Desktop/fpga校赛/camus_processed/images/training/patient0001/patient0001_4CH_ED.png')
     parser.add_argument('--simulate', action='store_true')
@@ -1724,6 +1944,8 @@ def main():
     parser.add_argument('--upload-on-start', action='store_true')
     parser.add_argument('--no-browser', action='store_true')
     args = parser.parse_args()
+    global _SERIAL_PORT
+    _SERIAL_PORT=args.serial_port
     global _FRAME_CLIENT
     _FRAME_CLIENT = FrameTransferClient(args.transfer_ip, args.transfer_port, args.result_dir)
 
@@ -1759,6 +1981,9 @@ def main():
 
     threading.Thread(target=background, daemon=True).start()
     server = NetworkServer((args.host, args.port), NetworkHandler)
+    server.startup_config={'repo':str(_REPO),'board_ip':args.transfer_ip,
+        'control_port':args.control_port,'image_port':args.image_port,
+        'transfer_port':args.transfer_port,'serial_port':args.serial_port}
     server.image_path = args.image
     server.threshold = args.threshold
     server.pl_mode = args.pl_mode

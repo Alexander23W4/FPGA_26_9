@@ -90,7 +90,7 @@
           </div>
           <p id="medicalScaleNote" class="medical-scale-note">按 CAMUS 像素尺度估算 · 面积 0.436281 mm²/像素；心房容积取自左心室 ED/ES 时相。</p>
           <section class="cardiac-curves" aria-labelledby="cardiacCurvesTitle">
-            <div class="cardiac-curves-heading"><div><span class="cardiac-eyebrow">CARDIAC DYNAMICS</span><h4 id="cardiacCurvesTitle">心动周期 · 容积曲线</h4></div><span id="medicalCurveCount" class="soft-badge">最近 0 / 50 帧</span></div>
+            <div class="cardiac-curves-heading"><div><span class="cardiac-eyebrow">CARDIAC DYNAMICS</span><div class="cardiac-curves-title-row"><h4 id="cardiacCurvesTitle">心动周期 · 容积曲线</h4><span class="curve-smoothing-control"><span>平滑</span><button id="medicalCurveSmooth" class="switch" type="button" role="switch" aria-checked="false" aria-label="平滑容积曲线"></button></span></div></div><span id="medicalCurveCount" class="soft-badge">最近 0 / 50 帧</span></div>
             <div class="cardiac-vitals"><div><span>心率 · HR</span><strong id="medicalHeartRate">—</strong><small>BPM</small></div><div><span>心动周期</span><strong id="medicalCycleSeconds">—</strong><small>s</small><small id="medicalCycleFrames">等待两个相邻周期</small></div><p id="medicalSourceTiming">时间尺度按源视频 30 FPS 设定</p></div>
             <div id="medicalCurveStrips"></div>
             <div class="cardiac-curves-foot"><span id="medicalCurveRange">等待逐帧容积回传</span><span><i class="phase-key ed"></i>ED <i class="phase-key es"></i>ES · 心率由左心室周期估算</span></div>

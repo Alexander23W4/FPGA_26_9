@@ -19,6 +19,13 @@ sha256sum -c "$psout/PS_INPUTS.sha256" >/dev/null || die "PS sources changed; re
 [ -s "$hwout/register_audit.txt" ] || die "Missing PL register verification"
 info "Verified bitstream: $hwout/system_wrapper.bit"
 info "Verified ELF: $psout/MID_plt.elf"
+# The PL U-Net keeps its parameters in DDR, so every cold GUI session must
+# reload the model after PS/DDR initialisation.  Honour an explicit override,
+# otherwise use this checkout's deployed model image when present.
+if [[ -z "${UNET_WEIGHTS:-}" && -s "$REPO_ROOT/build/unet/model/weights.bin" ]]; then
+  UNET_WEIGHTS="$(winpath "$REPO_ROOT/build/unet/model/weights.bin")"
+  export UNET_WEIGHTS
+fi
 # Some Windows XSCT failures (including Tcl/native shutdown errors) return zero.
 # Require the final Tcl success marker as well as the process/pipeline status.
 # Keep diagnostics outside build/out so successful build archives stay immutable.

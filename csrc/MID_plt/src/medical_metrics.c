@@ -10,7 +10,7 @@ enum {SEEK, FALLING, RISING};
 struct phase_sample {uint32_t v[4], id, metric;};
 static struct medical_readback result;
 static struct phase_sample history[2], high, low, ed;
-static uint32_t history_count, state, seeded, rise_seen, confirmations;
+static uint32_t history_count, state, seeded, rise_seen, confirmations, invalid_run;
 static uint32_t previous_es, previous_ed, previous_ed_valid, seen_sequence;
 static int initialized;
 static uint32_t median3(uint32_t a,uint32_t b,uint32_t c)
@@ -21,7 +21,7 @@ static void keep_low(struct phase_sample *target,struct phase_sample s)
 { if(s.metric<target->metric || (s.metric==target->metric&&s.v[2]<=target->v[2]))*target=s; }
 static void reset_phase(void)
 {
-    history_count=state=seeded=rise_seen=confirmations=0;
+    history_count=state=seeded=rise_seen=confirmations=invalid_run=0;
     previous_ed_valid=0;
 }
 static void update_rate(void)
@@ -140,7 +140,15 @@ void medical_analysis_accept(const uint32_t raw[4],uint32_t sequence,uint32_t st
         result.current_ml_x100[c]=U;
         (void)medical_volume_to_ml_x100(s.v[c],PL_VOLUME_ML_COEFF,&result.current_ml_x100[c]);
     }
-    if(s.v[2]==U) {reset_phase();return;}
+    /* A single missing LV mask is common in imperfect segmentations.  Do not
+     * discard an already detected ED peak or the current phase on that one
+     * frame; the sample IDs still include the gap, so period timing stays in
+     * source-frame units.  Re-seed only after a sustained invalid interval. */
+    if(s.v[2]==U) {
+        if(++invalid_run>=3u)reset_phase();
+        return;
+    }
+    invalid_run=0;
     s.metric=s.v[2];
     if(history_count>=2) {
         struct phase_sample center=history[1];

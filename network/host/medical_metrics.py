@@ -78,6 +78,8 @@ class MedicalCurveHistory:
         if (readback.get('system_mode')!=1 or not point or not point['index']):
             return
         if point['sequence']!=self.last_sequence:
-            self.samples.append({**point,'source_index':source.get('index')})
+            self.samples.append({**point,
+                'source_index':source.get('source_index',source.get('index')),
+                'source_path':source.get('source_path',source.get('path'))})
             self.last_sequence=point['sequence']
         readback['medical_history']=list(self.samples)
