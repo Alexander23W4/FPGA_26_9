@@ -684,6 +684,7 @@ registration_top u_registration (
         .back_read_lock(back_read_lock), .back_read_idx(back_read_idx),
         .dbg_status(hdl_dbg_status)
     );
+    
     double_buf #(.CHAMBERS(4)) u_double_buf (
         .clk(clk), .pclk(pclk), .write_en(fb_write_en),
         .write_buf_idx(fb_write_idx), .write_addr(fb_write_addr),
