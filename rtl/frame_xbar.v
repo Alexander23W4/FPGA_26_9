@@ -3,9 +3,11 @@
 // pixel (even if stalled) through the successful EOF handshake.
 module frame_xbar # (parameter integer DATA_W=8) (
     input wire clk, rst, reg_mode,
+
     input wire [DATA_W-1:0] in_data,
     input wire in_valid, in_eof,
     output wire in_ready,
+    
     output wire [DATA_W-1:0] image_data, medical_data,
     output wire image_valid, image_eof, medical_valid, medical_eof,
     input wire image_ready, medical_ready,
